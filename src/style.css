@@ -1,0 +1,181 @@
+:root {
+  --bg: #0f172a;
+  --surface: #1a2540;
+  --surface-2: #22304f;
+  --border: #2c3a5c;
+  --text: #e6ebf5;
+  --text-dim: #93a1c0;
+  --accent: #22c55e;
+  --accent-dim: #16a34a;
+  color-scheme: dark;
+}
+
+* { box-sizing: border-box; }
+
+html, body {
+  margin: 0;
+  padding: 0;
+  background: var(--bg);
+  color: var(--text);
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  -webkit-tap-highlight-color: transparent;
+}
+
+#app {
+  max-width: 720px;
+  margin: 0 auto;
+  padding: env(safe-area-inset-top, 0) 12px 24px;
+  min-height: 100vh;
+}
+
+.topbar {
+  padding: 16px 4px 8px;
+  position: sticky;
+  top: 0;
+  background: var(--bg);
+  z-index: 10;
+}
+
+.topbar h1 {
+  font-size: 1.4rem;
+  margin: 0;
+}
+
+.back {
+  color: var(--text-dim);
+  text-decoration: none;
+  font-size: 0.95rem;
+}
+
+.loading, .error, .empty {
+  padding: 32px 8px;
+  color: var(--text-dim);
+  text-align: center;
+}
+
+.error { color: #f87171; }
+
+/* Race list */
+.race-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.race-card {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 12px 14px;
+  text-decoration: none;
+  color: var(--text);
+}
+
+.race-card-time {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  min-width: 52px;
+}
+
+.off-time { font-weight: 600; font-size: 1.05rem; }
+.countdown { font-size: 0.75rem; color: var(--text-dim); }
+
+.race-card-main { flex: 1; min-width: 0; }
+
+.race-card-title {
+  font-weight: 600;
+  font-size: 0.98rem;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.race-card-meta {
+  font-size: 0.78rem;
+  color: var(--text-dim);
+  margin-top: 2px;
+}
+
+.race-card-fav {
+  text-align: right;
+  min-width: 72px;
+}
+
+.fav-label { font-size: 0.68rem; color: var(--text-dim); text-transform: uppercase; }
+.fav-name { font-size: 0.8rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 110px; }
+.fav-price { color: var(--accent); font-weight: 700; }
+
+/* Race header */
+.race-header { padding: 4px 4px 16px; }
+.race-header h1 { font-size: 1.25rem; margin: 0 0 4px; }
+.race-header-meta { color: var(--text-dim); font-size: 0.85rem; }
+
+/* Runner list */
+.runner-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.runner-row {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  overflow: hidden;
+  cursor: pointer;
+}
+
+.runner-summary {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 14px;
+}
+
+.runner-silk {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 700;
+  font-size: 0.85rem;
+  color: #fff;
+  flex-shrink: 0;
+}
+
+.runner-info { flex: 1; min-width: 0; }
+.runner-name { font-weight: 600; font-size: 0.95rem; }
+.runner-connections { font-size: 0.78rem; color: var(--text-dim); margin-top: 2px; }
+
+.runner-best { text-align: right; }
+.best-price { color: var(--accent); font-weight: 700; font-size: 1.05rem; }
+.best-bookmaker { font-size: 0.72rem; color: var(--text-dim); }
+
+.runner-all-odds {
+  display: none;
+  grid-template-columns: repeat(auto-fill, minmax(100px, 1fr));
+  gap: 6px;
+  padding: 0 14px 14px;
+}
+
+.runner-row.expanded .runner-all-odds { display: grid; }
+
+.odds-cell {
+  display: flex;
+  justify-content: space-between;
+  background: var(--surface-2);
+  border-radius: 8px;
+  padding: 6px 10px;
+  font-size: 0.82rem;
+}
+
+.odds-cell.is-best {
+  outline: 1px solid var(--accent-dim);
+  color: var(--accent);
+}

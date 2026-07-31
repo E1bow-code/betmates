@@ -1,0 +1,25 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(npm create *)",
+      "WebSearch",
+      "PowerShell(node --version)",
+      "PowerShell(npm --version)",
+      "WebFetch(domain:sportsgameodds.com)",
+      "WebFetch(domain:the-odds-api.com)",
+      "WebFetch(domain:oddspapi.io)",
+      "PowerShell(winget install OpenJS.NodeJS.LTS --accept-package-agreements --accept-source-agreements)",
+      "PowerShell($env:Path = [System.Environment]::GetEnvironmentVariable\\(\"Path\",\"Machine\"\\) + \";\" + [System.Environment]::GetEnvironmentVariable\\(\"Path\",\"User\"\\); node --version; npm --version)",
+      "WebFetch(domain:oddsmatrix.com)",
+      "WebFetch(domain:developer.betfair.com)",
+      "WebFetch(domain:api.timeform.com)",
+      "WebFetch(domain:podiumsports.com)",
+      "WebFetch(domain:developer.opticodds.com)",
+      "WebFetch(domain:betsapi.com)",
+      "Bash(git init *)",
+      "Bash(tasklist //FI \"IMAGENAME eq node.exe\")",
+      "Bash(tasklist //FI \"IMAGENAME eq vite*\")",
+      "Bash(git add *)"
+    ]
+  }
+}
