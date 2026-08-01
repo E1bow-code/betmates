@@ -8,3 +8,11 @@
   targetPort = 5173
   port = 8888
   publish = "dist"
+
+# Production equivalent of vite.config.js's dev-server proxy: without this,
+# a deployed site has no idea /api/odds should hit the Netlify Function -
+# it just 404s trying to serve it as a static file.
+[[redirects]]
+  from = "/api/*"
+  to = "/.netlify/functions/:splat"
+  status = 200

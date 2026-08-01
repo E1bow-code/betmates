@@ -19,7 +19,24 @@
       "Bash(git init *)",
       "Bash(tasklist //FI \"IMAGENAME eq node.exe\")",
       "Bash(tasklist //FI \"IMAGENAME eq vite*\")",
-      "Bash(git add *)"
+      "Bash(git add *)",
+      "Bash(git commit -m ' *)",
+      "Bash(git config *)",
+      "WebFetch(domain:docs.oddspapi.io)",
+      "Bash(npm install *)",
+      "PowerShell(npm install 2>&1)",
+      "PowerShell(Get-ChildItem -Path \"$env:USERPROFILE\" -Recurse -Filter \"node.exe\" -ErrorAction SilentlyContinue -Depth 6 | Select-Object -First 10 FullName)",
+      "Bash(command -v wsl.exe)",
+      "Bash(wsl.exe -l -v)",
+      "Read(//c/Program Files/**)",
+      "Read(//c/Program Files \\\\\\(x86\\\\\\)/**)",
+      "PowerShell($env:PATH -split ';')",
+      "Bash(npm -v)",
+      "Bash(find /c/Windows/Web -iname \"*.mp4\" -o -iname \"*.webm\" 2>/dev/null | head -5; find /c/Users/sheal -maxdepth 3 -iname \"*.mp4\" 2>/dev/null | head -5)",
+      "Bash(gh --version)",
+      "Bash(gh auth *)",
+      "Bash(git check-ignore *)",
+      "Bash(echo \"exit: $?\")"
     ]
   }
 }

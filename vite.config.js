@@ -1,15 +1,17 @@
 import { defineConfig } from 'vite'
+import react from '@vitejs/plugin-react'
 import { VitePWA } from 'vite-plugin-pwa'
 
 export default defineConfig({
   plugins: [
+    react(),
     VitePWA({
       registerType: 'autoUpdate',
       includeAssets: ['favicon.svg', 'apple-touch-icon.png'],
       manifest: {
-        name: 'Odds App',
-        short_name: 'Odds',
-        description: 'Best-odds comparison and bet sharing for horse racing',
+        name: 'BetMates',
+        short_name: 'BetMates',
+        description: 'Best-odds comparison and social bet-sharing for football',
         theme_color: '#0f172a',
         background_color: '#0f172a',
         display: 'standalone',

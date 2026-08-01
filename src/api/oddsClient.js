@@ -1,23 +1,22 @@
-// Single seam between the UI and the odds data source.
-// Today this reads from local mock data. Once we pick a real odds API,
-// swap the bodies of these two functions to `fetch('/api/races')` /
-// `fetch('/api/races/' + id)`, which hit the Netlify Function proxy in
-// netlify/functions/odds.js — no UI code needs to change.
+// Single seam between the UI and the odds data source. Today this reads
+// from local mock data. Once ODDS_API_KEY is set in Netlify env vars, the
+// function at netlify/functions/odds.js switches to The Odds API - no UI
+// code needs to change, only USE_MOCK below.
 
-import { getMockRaces, getMockRace } from '../data/mockOdds.js'
+import { getMockFixtures, getMockFixture } from '../data/mockFootballOdds.js'
 
-const USE_MOCK = true
+const USE_MOCK = false
 
-export async function fetchRaces() {
-  if (USE_MOCK) return getMockRaces()
-  const res = await fetch('/api/races')
-  if (!res.ok) throw new Error(`Failed to load races: ${res.status}`)
+export async function fetchFixtures() {
+  if (USE_MOCK) return getMockFixtures()
+  const res = await fetch('/api/odds')
+  if (!res.ok) throw new Error(`Failed to load fixtures: ${res.status}`)
   return res.json()
 }
 
-export async function fetchRace(id) {
-  if (USE_MOCK) return getMockRace(id)
-  const res = await fetch(`/api/races?id=${encodeURIComponent(id)}`)
-  if (!res.ok) throw new Error(`Failed to load race: ${res.status}`)
+export async function fetchFixture(id) {
+  if (USE_MOCK) return getMockFixture(id)
+  const res = await fetch(`/api/odds?id=${encodeURIComponent(id)}`)
+  if (!res.ok) throw new Error(`Failed to load fixture: ${res.status}`)
   return res.json()
 }

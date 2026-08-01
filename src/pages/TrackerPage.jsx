@@ -1,0 +1,102 @@
+import { useEffect, useState } from 'react'
+import { useAuth } from '../context/AuthContext.jsx'
+import * as dataStore from '../lib/dataStore.js'
+import { computeStats } from '../utils/trackerStats.js'
+import EmptyState from '../components/EmptyState.jsx'
+
+const STATUS_LABEL = { open: '⏳ Pending', won: '✅ Won', lost: '❌ Lost', void: '↩️ Void' }
+
+export default function TrackerPage() {
+  const { user } = useAuth()
+  const [entries, setEntries] = useState(null)
+
+  useEffect(() => {
+    refresh()
+  }, [])
+
+  function refresh() {
+    Promise.all([dataStore.listBetPostsByUser(user.id), dataStore.listManualEntries(user.id)]).then(([posted, manual]) => {
+      const combined = [
+        ...posted.map((p) => ({ ...p, source: 'group' })),
+        ...manual.map((m) => ({ ...m, source: 'manual' }))
+      ].sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))
+      setEntries(combined)
+    })
+  }
+
+  async function handleStatusChange(entry, status) {
+    await dataStore.updateManualEntryStatus(entry.id, status)
+    refresh()
+  }
+
+  if (entries === null) return <div className="loading">Tallying up your bets…</div>
+
+  const stats = computeStats(entries)
+
+  return (
+    <div>
+      <div className="topbar">
+        <h1>Tracker</h1>
+      </div>
+
+      <div className="stat-tiles">
+        <StatTile label="P&L" value={`${stats.profit >= 0 ? '+' : ''}£${stats.profit.toFixed(2)}`} tone={stats.profit >= 0 ? 'good' : 'bad'} />
+        <StatTile label="ROI" value={stats.roi === null ? '-' : `${stats.roi >= 0 ? '+' : ''}${stats.roi}%`} tone={stats.roi >= 0 ? 'good' : 'bad'} />
+        <StatTile label="Win rate" value={stats.winRate === null ? '-' : `${stats.winRate}%`} />
+        <StatTile label="Staked" value={`£${stats.staked.toFixed(2)}`} />
+      </div>
+
+      {!entries.length && (
+        <EmptyState
+          icon="📊"
+          title="Nothing logged yet"
+          subtitle="Post a bet to a group or save one privately from the Odds tab — it'll show up here."
+        />
+      )}
+
+      {entries.length > 0 && (
+        <div className="tracker-list">
+          {entries.map((entry) => {
+            const selection = entry.selections[0]
+            return (
+              <div key={entry.id} className={`tracker-row status-${entry.status}`}>
+                <div className="tracker-row-main">
+                  <div className="selection-event">{selection.event}</div>
+                  <div className="race-card-meta">
+                    {selection.market}: {selection.selection} @ {selection.odds.toFixed(2)} ({selection.bookmaker})
+                  </div>
+                  {entry.stake ? (
+                    <div className="race-card-meta">
+                      £{entry.stake} staked{entry.potentialReturn ? ` · returns £${Number(entry.potentialReturn).toFixed(2)}` : ''}
+                    </div>
+                  ) : null}
+                </div>
+                <div className="tracker-row-status">
+                  {entry.source === 'manual' && entry.status === 'open' ? (
+                    <select className="status-select" defaultValue="open" onChange={(e) => handleStatusChange(entry, e.target.value)}>
+                      <option value="open">How'd it go?</option>
+                      <option value="won">🎉 It won!</option>
+                      <option value="lost">😬 No luck</option>
+                      <option value="void">↩️ Voided</option>
+                    </select>
+                  ) : (
+                    <span className={`bet-status-pill status-${entry.status}`}>{STATUS_LABEL[entry.status]}</span>
+                  )}
+                </div>
+              </div>
+            )
+          })}
+        </div>
+      )}
+    </div>
+  )
+}
+
+function StatTile({ label, value, tone }) {
+  return (
+    <div className={`stat-tile ${tone ? `tone-${tone}` : ''}`}>
+      <div className="stat-tile-value">{value}</div>
+      <div className="stat-tile-label">{label}</div>
+    </div>
+  )
+}

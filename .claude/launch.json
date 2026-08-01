@@ -3,7 +3,7 @@
   "configurations": [
     {
       "name": "odds-app-dev",
-      "runtimeExecutable": "C:\\Program Files\\nodejs\\node.exe",
+      "runtimeExecutable": "node",
       "runtimeArgs": ["node_modules/vite/bin/vite.js"],
       "port": 5173
     }
