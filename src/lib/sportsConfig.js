@@ -16,10 +16,24 @@
 // src/lib/settlement.js can ask The Odds API's /scores endpoint about
 // exactly the same sport keys the odds side already fetches, without
 // duplicating the list in three places.
-export const FOOTBALL_SPORT_KEYS = ['soccer_epl', 'soccer_efl_champ', 'soccer_scotland_premiership', 'soccer_uefa_champs_league']
+export const FOOTBALL_SPORT_KEYS = [
+  'soccer_epl',
+  'soccer_efl_champ',
+  'soccer_scotland_premiership',
+  'soccer_uefa_champs_league',
+  'soccer_usa_mls'
+]
 export const UFC_SPORT_KEY = 'mma_mixed_martial_arts'
 
 export const GENERIC_SPORTS = {
+  // The Odds API doesn't have a year-round "tennis_atp" tour key like the
+  // soccer leagues below - tennis is keyed per tournament (majors, but also
+  // every ATP/WTA 250/500/Masters event), and which ones are live rotates
+  // week to week, so there's no fixed list to hardcode here. dynamicPrefix
+  // tells netlify/functions/sport.js to look up whatever tennis_* keys are
+  // currently active via The Odds API's free /sports listing endpoint
+  // instead of using apiSportKeys.
+  tennis: { label: 'Tennis', icon: '🎾', dynamicPrefix: 'tennis_', participantType: 'player', hasDraw: false },
   basketball: { label: 'Basketball', icon: '🏀', apiSportKeys: ['basketball_nba'], participantType: 'team', hasDraw: false },
   hockey: { label: 'Ice Hockey', icon: '🏒', apiSportKeys: ['icehockey_nhl'], participantType: 'team', hasDraw: false },
   baseball: { label: 'Baseball', icon: '⚾', apiSportKeys: ['baseball_mlb'], participantType: 'team', hasDraw: false },
@@ -34,4 +48,23 @@ export const GENERIC_SPORTS = {
     hasDraw: true
   },
   boxing: { label: 'Boxing', icon: '🥊', apiSportKeys: ['boxing_boxing'], participantType: 'player', hasDraw: false }
+}
+
+// The three hand-built sports (see file comment above) plus every generic
+// one, keyed the same way bet_posts/manual_entries.sport is stored - one
+// place for anything that needs a sport's display label/icon (OddsListPage's
+// tabs, TrackerPage's per-sport breakdown) instead of three copies drifting.
+export const SPORT_LABEL = {
+  football: 'Football',
+  racing: 'Horse Racing',
+  ufc: 'UFC',
+  multi: 'Multi-sport',
+  ...Object.fromEntries(Object.entries(GENERIC_SPORTS).map(([key, cfg]) => [key, cfg.label]))
+}
+export const SPORT_ICON = {
+  football: '⚽',
+  racing: '🏇',
+  ufc: '🥊',
+  multi: '🎟️',
+  ...Object.fromEntries(Object.entries(GENERIC_SPORTS).map(([key, cfg]) => [key, cfg.icon]))
 }

@@ -4,7 +4,7 @@ import { fetchFixtures } from '../api/oddsClient.js'
 import { fetchRaces } from '../api/racingClient.js'
 import { fetchFights } from '../api/ufcClient.js'
 import { fetchEvents } from '../api/genericSportsClient.js'
-import { GENERIC_SPORTS } from '../lib/sportsConfig.js'
+import { GENERIC_SPORTS, SPORT_LABEL, SPORT_ICON } from '../lib/sportsConfig.js'
 import { formatKickoff, formatCountdown } from '../utils/format.js'
 import { bestWithinFilter } from '../utils/oddsUtils.js'
 import { useAuth } from '../context/AuthContext.jsx'
@@ -12,12 +12,7 @@ import EmptyState from '../components/EmptyState.jsx'
 import TeamBadge from '../components/TeamBadge.jsx'
 import PlayerPhoto from '../components/PlayerPhoto.jsx'
 
-const SPORTS = [
-  { key: 'football', label: 'Football' },
-  { key: 'racing', label: 'Horse Racing' },
-  { key: 'ufc', label: 'UFC' },
-  ...Object.entries(GENERIC_SPORTS).map(([key, cfg]) => ({ key, label: cfg.label }))
-]
+const SPORTS = ['football', 'racing', 'ufc', ...Object.keys(GENERIC_SPORTS)].map((key) => ({ key, label: SPORT_LABEL[key] }))
 
 const FETCHERS = {
   football: fetchFixtures,
@@ -32,12 +27,7 @@ const NOUN = {
   ufc: 'the fights',
   ...Object.fromEntries(Object.entries(GENERIC_SPORTS).map(([key, cfg]) => [key, `the ${cfg.label.toLowerCase()} fixtures`]))
 }
-const ICON = {
-  football: '⚽',
-  racing: '🏇',
-  ufc: '🥊',
-  ...Object.fromEntries(Object.entries(GENERIC_SPORTS).map(([key, cfg]) => [key, cfg.icon]))
-}
+const ICON = SPORT_ICON
 
 export default function OddsListPage() {
   const { user } = useAuth()

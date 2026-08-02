@@ -59,6 +59,18 @@ function makeFixture(id, competition, home, away, hours, h2hPrices, totalsPrices
           makeOutcome(`${home}/${away}`, null, [1.15, 1.14, 1.16, 1.15, 1.14, 1.15]),
           makeOutcome(`${away}/Draw`, null, h2hPrices.away.map((p) => p * 0.6))
         ]
+      },
+      {
+        key: 'alternate_totals',
+        label: 'Alternate Total Goals',
+        outcomes: [
+          makeOutcome('Over 1.5', null, totalsPrices.over.map((p) => Math.max(1.05, p - 0.5))),
+          makeOutcome('Over 2.5', null, totalsPrices.over),
+          makeOutcome('Over 3.5', null, totalsPrices.over.map((p) => p + 0.9)),
+          makeOutcome('Under 1.5', null, totalsPrices.under.map((p) => p + 0.9)),
+          makeOutcome('Under 2.5', null, totalsPrices.under),
+          makeOutcome('Under 3.5', null, totalsPrices.under.map((p) => Math.max(1.05, p - 0.55)))
+        ]
       }
     ]
   }

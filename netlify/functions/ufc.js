@@ -8,28 +8,28 @@ const SPORT = 'mma_mixed_martial_arts'
 const REGION = 'uk'
 const MARKETS = 'h2h'
 
+async function serveMock(id) {
+  const { getMockFights, getMockFight } = await import('../../src/data/mockUfcOdds.js')
+  const body = id ? getMockFight(id) : getMockFights()
+  return new Response(JSON.stringify(body), {
+    status: 200,
+    headers: { 'content-type': 'application/json', 'x-data-source': 'mock' }
+  })
+}
+
 export default async (req) => {
   const apiKey = process.env.ODDS_API_KEY
   const url = new URL(req.url)
   const id = url.searchParams.get('id')
 
-  if (!apiKey) {
-    const { getMockFights, getMockFight } = await import('../../src/data/mockUfcOdds.js')
-    const body = id ? getMockFight(id) : getMockFights()
-    return new Response(JSON.stringify(body), {
-      status: 200,
-      headers: { 'content-type': 'application/json', 'x-data-source': 'mock' }
-    })
-  }
+  if (!apiKey) return serveMock(id)
 
   try {
     const apiUrl = `https://api.the-odds-api.com/v4/sports/${SPORT}/odds/?apiKey=${apiKey}&regions=${REGION}&markets=${MARKETS}&oddsFormat=decimal`
     const res = await fetch(apiUrl)
     if (!res.ok) {
-      return new Response(JSON.stringify({ error: `Odds provider error: ${res.status}` }), {
-        status: 502,
-        headers: { 'content-type': 'application/json' }
-      })
+      console.error(`Odds provider error (${res.status}), falling back to mock`)
+      return serveMock(id)
     }
     const events = await res.json()
     const fights = events.map(reshapeEvent).sort((a, b) => new Date(a.kickoff) - new Date(b.kickoff))
@@ -39,10 +39,8 @@ export default async (req) => {
       headers: { 'content-type': 'application/json', 'x-data-source': 'live' }
     })
   } catch (err) {
-    return new Response(JSON.stringify({ error: err.message }), {
-      status: 500,
-      headers: { 'content-type': 'application/json' }
-    })
+    console.error('Odds provider error, falling back to mock:', err.message)
+    return serveMock(id)
   }
 }
 

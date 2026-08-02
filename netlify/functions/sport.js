@@ -25,16 +25,29 @@ export default async (req) => {
     })
   }
 
-  if (!apiKey) {
-    return new Response(JSON.stringify(id ? null : []), {
+  const emptyResponse = () =>
+    new Response(JSON.stringify(id ? null : []), {
       status: 200,
-      headers: { 'content-type': 'application/json', 'x-data-source': 'mock' }
+      headers: { 'content-type': 'application/json', 'x-data-source': apiKey ? 'live-empty' : 'mock' }
     })
-  }
+
+  if (!apiKey) return emptyResponse()
 
   try {
+    // /v4/sports listing is free (doesn't cost quota) - used to resolve
+    // which tennis_* tournament keys are actually live right now instead
+    // of a hardcoded list (see sportsConfig.js's dynamicPrefix comment).
+    const apiSportKeys = config.dynamicPrefix
+      ? await fetch(`https://api.the-odds-api.com/v4/sports/?apiKey=${apiKey}`)
+          .then((r) => (r.ok ? r.json() : []))
+          .then((sports) => sports.filter((s) => s.active && s.key.startsWith(config.dynamicPrefix)).map((s) => s.key))
+          .catch(() => [])
+      : config.apiSportKeys
+
+    if (!apiSportKeys.length) return emptyResponse()
+
     const results = await Promise.allSettled(
-      config.apiSportKeys.map(async (apiSport) => {
+      apiSportKeys.map(async (apiSport) => {
         const apiUrl = `https://api.the-odds-api.com/v4/sports/${apiSport}/odds/?apiKey=${apiKey}&regions=${REGION}&markets=${MARKETS}&oddsFormat=decimal`
         const res = await fetch(apiUrl)
         if (!res.ok) throw new Error(`${apiSport}: ${res.status}`)
@@ -43,11 +56,13 @@ export default async (req) => {
     )
 
     const events = results.filter((r) => r.status === 'fulfilled').flatMap((r) => r.value)
+    // Provider errors (quota exhausted, outage, etc.) degrade to an empty
+    // board rather than an error page - there's no per-sport mock data to
+    // fall back to here, but "nothing on right now" is a state the UI
+    // already handles fine.
     if (!events.length && results.every((r) => r.status === 'rejected')) {
-      return new Response(JSON.stringify({ error: 'Odds provider error: ' + results[0].reason.message }), {
-        status: 502,
-        headers: { 'content-type': 'application/json' }
-      })
+      console.error('Odds provider error, degrading to empty:', results[0].reason?.message)
+      return emptyResponse()
     }
 
     const items = events.map((e) => reshapeEvent(e, config)).sort((a, b) => new Date(a.kickoff) - new Date(b.kickoff))
@@ -57,10 +72,8 @@ export default async (req) => {
       headers: { 'content-type': 'application/json', 'x-data-source': 'live' }
     })
   } catch (err) {
-    return new Response(JSON.stringify({ error: err.message }), {
-      status: 500,
-      headers: { 'content-type': 'application/json' }
-    })
+    console.error('Odds provider error, degrading to empty:', err.message)
+    return emptyResponse()
   }
 }
 

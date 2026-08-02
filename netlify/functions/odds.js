@@ -5,13 +5,14 @@
 // switching src/api/oddsClient.js off mock mode.
 //
 // Free tier: 500 requests/month. Each league below costs one credit PER
-// PAGE LOAD (not per fixture) - 4 leagues = 4 credits every time someone
-// opens the Odds tab, so ~125 loads/month before the free tier runs dry.
+// PAGE LOAD (not per fixture) - 5 leagues = 5 credits every time someone
+// opens the Odds tab, so ~100 loads/month before the free tier runs dry.
 // Opening a specific fixture costs more on top of that: one credit for
 // goalscorer player props, plus one credit PER additional market below
-// (btts/draw_no_bet/double_chance are "additional markets", billed
-// separately from the featured h2h/totals bundled into the list call).
-// Trim either list (or add server-side caching) if that's not enough.
+// (btts/draw_no_bet/double_chance/alternate_totals are "additional
+// markets", billed separately from the featured h2h/totals bundled into
+// the list call). Trim either list (or add server-side caching) if
+// that's not enough.
 import { FOOTBALL_SPORT_KEYS } from '../../src/lib/sportsConfig.js'
 
 const SPORTS = FOOTBALL_SPORT_KEYS
@@ -20,7 +21,17 @@ const MARKETS = 'h2h,totals'
 const EXTRA_MARKET_LABELS = {
   btts: 'Both Teams to Score',
   draw_no_bet: 'Draw No Bet',
-  double_chance: 'Double Chance'
+  double_chance: 'Double Chance',
+  alternate_totals: 'Alternate Total Goals'
+}
+
+async function serveMock(id) {
+  const { getMockFixtures, getMockFixture } = await import('../../src/data/mockFootballOdds.js')
+  const body = id ? getMockFixture(id) : getMockFixtures()
+  return new Response(JSON.stringify(body), {
+    status: 200,
+    headers: { 'content-type': 'application/json', 'x-data-source': 'mock' }
+  })
 }
 
 export default async (req) => {
@@ -28,14 +39,7 @@ export default async (req) => {
   const url = new URL(req.url)
   const id = url.searchParams.get('id')
 
-  if (!apiKey) {
-    const { getMockFixtures, getMockFixture } = await import('../../src/data/mockFootballOdds.js')
-    const body = id ? getMockFixture(id) : getMockFixtures()
-    return new Response(JSON.stringify(body), {
-      status: 200,
-      headers: { 'content-type': 'application/json', 'x-data-source': 'mock' }
-    })
-  }
+  if (!apiKey) return serveMock(id)
 
   try {
     const results = await Promise.allSettled(
@@ -48,11 +52,12 @@ export default async (req) => {
     )
 
     const events = results.filter((r) => r.status === 'fulfilled').flatMap((r) => r.value)
+    // Provider errors (quota exhausted, outage, etc.) shouldn't turn into a
+    // broken page for users - fall back to sample odds instead, same as
+    // the no-API-key path. Logged server-side so it's still diagnosable.
     if (!events.length && results.every((r) => r.status === 'rejected')) {
-      return new Response(JSON.stringify({ error: 'Odds provider error: ' + results[0].reason.message }), {
-        status: 502,
-        headers: { 'content-type': 'application/json' }
-      })
+      console.error('Odds provider error, falling back to mock:', results[0].reason?.message)
+      return serveMock(id)
     }
 
     if (!id) {
@@ -112,10 +117,8 @@ export default async (req) => {
       headers: { 'content-type': 'application/json', 'x-data-source': 'live' }
     })
   } catch (err) {
-    return new Response(JSON.stringify({ error: err.message }), {
-      status: 500,
-      headers: { 'content-type': 'application/json' }
-    })
+    console.error('Odds provider error, falling back to mock:', err.message)
+    return serveMock(id)
   }
 }
 
@@ -198,6 +201,12 @@ function normaliseOutcomeName(rawName, homeTeam, awayTeam, marketKey) {
   return rawName // "Over"/"Under" totals labels are already provider-clean
 }
 
+// 0.5 and 6.5+ lines are essentially guaranteed/impossible bets nobody
+// actually wants - keep the alternate-lines list to the range people
+// realistically consider instead of a wall of 14 rows.
+const ALT_TOTALS_MIN_LINE = 1.5
+const ALT_TOTALS_MAX_LINE = 4.5
+
 function reshapeExtraMarkets(event) {
   return Object.entries(EXTRA_MARKET_LABELS)
     .map(([key, label]) => {
@@ -206,20 +215,31 @@ function reshapeExtraMarkets(event) {
         const market = bookmaker.markets?.find((m) => m.key === key)
         if (!market) continue
         for (const outcome of market.outcomes) {
+          if (key === 'alternate_totals' && (outcome.point < ALT_TOTALS_MIN_LINE || outcome.point > ALT_TOTALS_MAX_LINE)) continue
           // draw_no_bet is two-way (no draw outcome) so "Home"/"Away" reads
           // naturally with the team-badge UI; btts (Yes/No) and
-          // double_chance (e.g. "Team A/Draw") are already clean labels.
-          const name = key === 'draw_no_bet' ? normaliseOutcomeName(outcome.name, event.home_team, event.away_team, 'h2h') : outcome.name
+          // double_chance (e.g. "Team A/Draw") are already clean labels;
+          // alternate_totals needs the line folded into the name (multiple
+          // Over/Under rows per market) or every line would collide into
+          // one "Over" bucket.
+          const name =
+            key === 'draw_no_bet'
+              ? normaliseOutcomeName(outcome.name, event.home_team, event.away_team, 'h2h')
+              : key === 'alternate_totals'
+                ? `${outcome.name} ${outcome.point}`
+                : outcome.name
           if (!outcomesByName.has(name)) outcomesByName.set(name, [])
           outcomesByName.get(name).push({ bookmaker: bookmaker.title, decimal: outcome.price })
         }
       }
-      const outcomes = [...outcomesByName.entries()].map(([name, allOdds]) => ({
-        name,
-        team: name === 'Home' ? event.home_team : name === 'Away' ? event.away_team : null,
-        allOdds: allOdds.sort((a, b) => b.decimal - a.decimal),
-        bestOdds: allOdds.reduce((a, b) => (b.decimal > a.decimal ? b : a))
-      }))
+      const outcomes = [...outcomesByName.entries()]
+        .map(([name, allOdds]) => ({
+          name,
+          team: name === 'Home' ? event.home_team : name === 'Away' ? event.away_team : null,
+          allOdds: allOdds.sort((a, b) => b.decimal - a.decimal),
+          bestOdds: allOdds.reduce((a, b) => (b.decimal > a.decimal ? b : a))
+        }))
+        .sort((a, b) => (key === 'alternate_totals' ? a.name.localeCompare(b.name, undefined, { numeric: true }) : 0))
       return outcomes.length ? { key, label, outcomes } : null
     })
     .filter(Boolean)
