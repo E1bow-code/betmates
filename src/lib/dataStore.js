@@ -45,6 +45,7 @@ function mapBetPost(row) {
     stake: row.stake,
     stakeHidden: row.stake_hidden,
     potentialReturn: row.potential_return,
+    visibility: row.visibility ?? 'group',
     status: row.status,
     createdAt: row.created_at,
     settledAt: row.settled_at
@@ -181,7 +182,8 @@ export async function createBetPost(post) {
       selections: post.selections,
       stake: post.stake,
       stake_hidden: post.stakeHidden,
-      potential_return: post.potentialReturn
+      potential_return: post.potentialReturn,
+      visibility: post.visibility ?? 'group'
     })
     .select()
     .single()
@@ -207,6 +209,40 @@ export async function listBetPostsByUser(userId) {
   const { data, error } = await supabase.from('bet_posts').select('*').eq('user_id', userId)
   if (error) throw error
   return data.map(mapBetPost)
+}
+
+// --- Public feed & follows ---------------------------------------------
+
+export async function listPublicFeed() {
+  if (!isSupabaseConfigured) return local.listPublicFeed()
+  const { data, error } = await supabase
+    .from('bet_posts')
+    .select('*, profiles(display_name)')
+    .eq('visibility', 'public')
+    .order('created_at', { ascending: false })
+  if (error) throw error
+  return data.map((row) => ({ ...mapBetPost(row), authorName: row.profiles?.display_name ?? 'Someone' }))
+}
+
+export async function followUser(userId, targetId) {
+  if (!isSupabaseConfigured) return local.followUser(userId, targetId)
+  const { error } = await supabase.from('follows').insert({ follower_id: userId, following_id: targetId })
+  if (error && error.code !== '23505') throw error // 23505 = already following, ignore
+  return true
+}
+
+export async function unfollowUser(userId, targetId) {
+  if (!isSupabaseConfigured) return local.unfollowUser(userId, targetId)
+  const { error } = await supabase.from('follows').delete().eq('follower_id', userId).eq('following_id', targetId)
+  if (error) throw error
+  return true
+}
+
+export async function listFollowing(userId) {
+  if (!isSupabaseConfigured) return local.listFollowing(userId)
+  const { data, error } = await supabase.from('follows').select('following_id').eq('follower_id', userId)
+  if (error) throw error
+  return data.map((row) => row.following_id)
 }
 
 // --- Reactions & comments ------------------------------------------------
@@ -343,36 +379,125 @@ export async function listFeedForUser(userId) {
 }
 
 // --- Friends & video tips ---------------------------------------------------
-// Local-only for now, by design (see supabase/schema.sql for the tables a
-// real backend would need). Video bytes live in IndexedDB via
-// src/lib/videoStore.js; these functions only ever handle metadata, so
-// swapping in real storage later means changing videoStore.js's
-// save/get/delete trio, not anything here.
+// Metadata (who's friends with whom, captions, tags, shares) syncs through
+// Supabase like everything else once configured. Video BYTES don't - they
+// live in IndexedDB via src/lib/videoStore.js, so a clip recorded on one
+// device still won't play on another even with Supabase wired up (see the
+// note in supabase/schema.sql). Swapping that in later means changing
+// videoStore.js's save/get/delete trio to hit Supabase Storage instead.
 
-export function addFriendByCode(code, userId) {
-  return local.addFriendByCode(code, userId)
+export async function addFriendByCode(code, userId) {
+  if (!isSupabaseConfigured) return local.addFriendByCode(code, userId)
+  const { data: target, error: lookupError } = await supabase
+    .from('profiles')
+    .select('id, display_name')
+    .eq('friend_code', code.trim().toUpperCase())
+    .maybeSingle()
+  if (lookupError) throw lookupError
+  if (!target) throw new Error('No one found with that code.')
+  if (target.id === userId) throw new Error("That's your own code.")
+
+  const { data: existing } = await supabase
+    .from('friendships')
+    .select('id')
+    .or(`and(user_a.eq.${userId},user_b.eq.${target.id}),and(user_a.eq.${target.id},user_b.eq.${userId})`)
+    .maybeSingle()
+  if (existing) throw new Error(`You and ${target.display_name} are already friends.`)
+
+  const { error } = await supabase.from('friendships').insert({ user_a: userId, user_b: target.id })
+  if (error) throw error
+  return { id: target.id, displayName: target.display_name }
 }
 
-export function listFriends(userId) {
-  return local.listFriends(userId)
+export async function listFriends(userId) {
+  if (!isSupabaseConfigured) return local.listFriends(userId)
+  const { data, error } = await supabase
+    .from('friendships')
+    .select('user_a, user_b, a:profiles!friendships_user_a_fkey(id, display_name), b:profiles!friendships_user_b_fkey(id, display_name)')
+    .or(`user_a.eq.${userId},user_b.eq.${userId}`)
+  if (error) throw error
+  return data.map((row) => {
+    const other = row.user_a === userId ? row.b : row.a
+    return { id: other.id, displayName: other.display_name }
+  })
 }
 
-export function createVideoPost(post) {
-  return local.createVideoPost(post)
+export async function createVideoPost({ authorId, videoKey, durationSec, caption, tag }) {
+  if (!isSupabaseConfigured) return local.createVideoPost({ authorId, videoKey, durationSec, caption, tag })
+  const { data, error } = await supabase
+    .from('video_posts')
+    .insert({ author_id: authorId, storage_key: videoKey, duration_sec: durationSec, caption, tag })
+    .select()
+    .single()
+  if (error) throw error
+  return { id: data.id, authorId: data.author_id, videoKey: data.storage_key, durationSec: data.duration_sec, caption: data.caption, tag: data.tag, createdAt: data.created_at }
 }
 
-export function listFriendsFeed(userId) {
-  return local.listFriendsFeed(userId)
+export async function listFriendsFeed(userId) {
+  if (!isSupabaseConfigured) return local.listFriendsFeed(userId)
+  const friends = await listFriends(userId)
+  const authorIds = [userId, ...friends.map((f) => f.id)]
+  const { data, error } = await supabase
+    .from('video_posts')
+    .select('*, profiles(display_name)')
+    .in('author_id', authorIds)
+    .order('created_at', { ascending: false })
+  if (error) throw error
+  return data.map((row) => ({
+    id: row.id,
+    authorId: row.author_id,
+    videoKey: row.storage_key,
+    durationSec: row.duration_sec,
+    caption: row.caption,
+    tag: row.tag,
+    createdAt: row.created_at,
+    authorName: row.profiles?.display_name ?? 'Someone'
+  }))
 }
 
-export function shareVideo(videoId, sharedByUserId, target) {
-  return local.shareVideo(videoId, sharedByUserId, target)
+export async function shareVideo(videoId, sharedByUserId, target) {
+  if (!isSupabaseConfigured) return local.shareVideo(videoId, sharedByUserId, target)
+  const { error } = await supabase
+    .from('video_shares')
+    .insert({ video_id: videoId, shared_by_user_id: sharedByUserId, target_type: target.type, target_id: target.id })
+  if (error) throw error
 }
 
-export function listSharedWithMe(userId) {
-  return local.listSharedWithMe(userId)
+function mapSharedVideoRow(row) {
+  return {
+    id: row.video_posts.id,
+    authorId: row.video_posts.author_id,
+    videoKey: row.video_posts.storage_key,
+    durationSec: row.video_posts.duration_sec,
+    caption: row.video_posts.caption,
+    tag: row.video_posts.tag,
+    createdAt: row.video_posts.created_at,
+    authorName: row.video_posts.profiles?.display_name ?? 'Someone',
+    sharedByName: row.sharer?.display_name ?? 'Someone',
+    sharedAt: row.created_at
+  }
 }
 
-export function listSharedInGroup(groupId) {
-  return local.listSharedInGroup(groupId)
+export async function listSharedWithMe(userId) {
+  if (!isSupabaseConfigured) return local.listSharedWithMe(userId)
+  const { data, error } = await supabase
+    .from('video_shares')
+    .select('created_at, video_posts(*, profiles(display_name)), sharer:profiles!video_shares_shared_by_user_id_fkey(display_name)')
+    .eq('target_type', 'friend')
+    .eq('target_id', userId)
+    .order('created_at', { ascending: false })
+  if (error) throw error
+  return data.map(mapSharedVideoRow)
+}
+
+export async function listSharedInGroup(groupId) {
+  if (!isSupabaseConfigured) return local.listSharedInGroup(groupId)
+  const { data, error } = await supabase
+    .from('video_shares')
+    .select('created_at, video_posts(*, profiles(display_name)), sharer:profiles!video_shares_shared_by_user_id_fkey(display_name)')
+    .eq('target_type', 'group')
+    .eq('target_id', groupId)
+    .order('created_at', { ascending: false })
+  if (error) throw error
+  return data.map(mapSharedVideoRow)
 }

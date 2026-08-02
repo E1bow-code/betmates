@@ -147,16 +147,16 @@ export default function VideoRecorder({ onClose, onPosted }) {
     <div className="sheet-backdrop" onClick={handleClose}>
       <div className="sheet" onClick={(e) => e.stopPropagation()}>
         <div className="sheet-handle" />
-        <h2 className="sheet-title">Post a tip 🎥</h2>
+        <h2 className="sheet-title">Post a tip</h2>
 
         {mode === 'choose' && (
           <div className="video-choose">
             <p className="hint">Talk to the camera about a pick, or upload a clip you've already got.</p>
             <button className="btn btn-primary" onClick={startRecording}>
-              🎥 Record a take
+              Record a take
             </button>
             <button className="btn btn-secondary" onClick={() => fileInputRef.current?.click()}>
-              📁 Upload a video
+              Upload a video
             </button>
             <input ref={fileInputRef} type="file" accept="video/*" hidden onChange={handleFileChosen} />
           </div>
@@ -166,7 +166,7 @@ export default function VideoRecorder({ onClose, onPosted }) {
           <div className="video-recording">
             <video ref={videoRef} className="video-preview" muted playsInline />
             <div className="video-timer">
-              🔴 {seconds}s / {MAX_SECONDS}s
+              <span className="recording-dot" /> {seconds}s / {MAX_SECONDS}s
             </div>
             <button className="btn btn-primary" onClick={stopRecording}>
               Stop recording

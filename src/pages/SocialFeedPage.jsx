@@ -1,34 +1,34 @@
 import { useEffect, useState } from 'react'
-import { Link } from 'react-router-dom'
+import { Link, useLocation } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext.jsx'
 import * as dataStore from '../lib/dataStore.js'
 import BetCard from '../components/BetCard.jsx'
 import VideoCard from '../components/VideoCard.jsx'
 import VideoRecorder from '../components/VideoRecorder.jsx'
+import ManageSheet from '../components/ManageSheet.jsx'
 import EmptyState from '../components/EmptyState.jsx'
 
-// Landing view for the Social tab. Two segments:
+// Landing view for the Social tab. The feed is the main attraction - group/
+// friend management (create, join, invite codes) lives behind the Manage
+// sheet instead of sitting above the feed. Three segments:
 // - Bets: one merged timeline across every group the user is in.
 // - Tips: a Twitter-style feed of talking-to-camera picks from the user
 //   and their friends (see src/components/VideoRecorder.jsx), with a way
 //   to forward a good one into a group or straight to a friend.
+// - Feed: public timeline, anyone's posts, regardless of group membership -
+//   confidence votes + follow instead of group-mate reactions (BetCard's
+//   variant="public").
 
 export default function SocialFeedPage() {
   const { user } = useAuth()
-  const [segment, setSegment] = useState('bets')
+  const location = useLocation()
+  const [segment, setSegment] = useState(location.state?.segment ?? 'bets')
   const [groups, setGroups] = useState(null)
   const [feed, setFeed] = useState(null)
-  const [showCreate, setShowCreate] = useState(false)
-  const [showJoin, setShowJoin] = useState(false)
-  const [name, setName] = useState('')
-  const [code, setCode] = useState('')
-  const [error, setError] = useState(null)
-  const [submitting, setSubmitting] = useState(false)
-
   const [friends, setFriends] = useState(null)
-  const [friendCode, setFriendCode] = useState('')
   const [videos, setVideos] = useState(null)
-  const [showAddFriend, setShowAddFriend] = useState(false)
+  const [publicFeed, setPublicFeed] = useState(null)
+  const [showManage, setShowManage] = useState(false)
   const [showRecorder, setShowRecorder] = useState(false)
 
   useEffect(() => {
@@ -37,6 +37,7 @@ export default function SocialFeedPage() {
 
   useEffect(() => {
     if (segment === 'tips' && videos === null) refreshTips()
+    if (segment === 'feed' && publicFeed === null) refreshPublicFeed()
   }, [segment])
 
   function refreshBets() {
@@ -53,61 +54,32 @@ export default function SocialFeedPage() {
     })
   }
 
-  async function handleCreate(e) {
-    e.preventDefault()
-    setSubmitting(true)
-    setError(null)
-    try {
-      await dataStore.createGroup(name.trim(), user.id)
-      setName('')
-      setShowCreate(false)
-      refreshBets()
-    } catch (err) {
-      setError(err.message)
-    } finally {
-      setSubmitting(false)
-    }
+  function refreshPublicFeed() {
+    dataStore.listPublicFeed().then(setPublicFeed)
   }
 
-  async function handleJoin(e) {
-    e.preventDefault()
-    setSubmitting(true)
-    setError(null)
-    try {
-      await dataStore.joinGroupByCode(code.trim(), user.id)
-      setCode('')
-      setShowJoin(false)
-      refreshBets()
-    } catch (err) {
-      setError(err.message)
-    } finally {
-      setSubmitting(false)
-    }
-  }
-
-  async function handleAddFriend(e) {
-    e.preventDefault()
-    setSubmitting(true)
-    setError(null)
-    try {
-      await dataStore.addFriendByCode(friendCode.trim(), user.id)
-      setFriendCode('')
-      setShowAddFriend(false)
-      refreshTips()
-    } catch (err) {
-      setError(err.message)
-    } finally {
-      setSubmitting(false)
-    }
+  function handleManageChanged() {
+    refreshBets()
+    refreshTips()
   }
 
   return (
     <div>
       <div className="topbar">
-        <h1>Social</h1>
+        <div className="topbar-row">
+          <h1>Social</h1>
+          {segment !== 'feed' && (
+            <button className="btn btn-ghost btn-small" onClick={() => setShowManage(true)}>
+              {segment === 'bets' ? 'Groups' : 'Friends'}
+            </button>
+          )}
+        </div>
         <div className="sport-switcher">
           <button className={segment === 'bets' ? 'sport-pill active' : 'sport-pill'} onClick={() => setSegment('bets')}>
             Bets
+          </button>
+          <button className={segment === 'feed' ? 'sport-pill active' : 'sport-pill'} onClick={() => setSegment('feed')}>
+            Feed
           </button>
           <button className={segment === 'tips' ? 'sport-pill active' : 'sport-pill'} onClick={() => setSegment('tips')}>
             Tips
@@ -124,6 +96,11 @@ export default function SocialFeedPage() {
               icon="👥"
               title="No groups yet"
               subtitle="Create one for your mates, or join with an invite code, to start sharing bets."
+              action={
+                <button className="btn btn-primary" onClick={() => setShowManage(true)}>
+                  Create or join a group
+                </button>
+              }
             />
           )}
 
@@ -136,35 +113,6 @@ export default function SocialFeedPage() {
               ))}
             </div>
           )}
-
-          <div className="group-actions">
-            <button className="btn btn-secondary btn-small" onClick={() => { setShowCreate((v) => !v); setShowJoin(false) }}>
-              + New group
-            </button>
-            <button className="btn btn-secondary btn-small" onClick={() => { setShowJoin((v) => !v); setShowCreate(false) }}>
-              Join with code
-            </button>
-          </div>
-
-          {showCreate && (
-            <form className="inline-form" onSubmit={handleCreate}>
-              <input placeholder="What should we call it?" value={name} onChange={(e) => setName(e.target.value)} required maxLength={40} />
-              <button className="btn btn-primary" type="submit" disabled={submitting}>
-                Create
-              </button>
-            </form>
-          )}
-
-          {showJoin && (
-            <form className="inline-form" onSubmit={handleJoin}>
-              <input placeholder="Invite code" value={code} onChange={(e) => setCode(e.target.value.toUpperCase())} required maxLength={8} />
-              <button className="btn btn-primary" type="submit" disabled={submitting}>
-                Join
-              </button>
-            </form>
-          )}
-
-          {error && <div className="auth-error">{error}</div>}
 
           {feed === null && groups?.length > 0 && <div className="loading">Catching up on the latest bets…</div>}
           {feed && groups?.length > 0 && !feed.length && (
@@ -181,10 +129,27 @@ export default function SocialFeedPage() {
         </>
       )}
 
+      {segment === 'feed' && (
+        <>
+          <p className="hint">Everyone's picks - tap a price on the Odds tab and choose "Post to everyone" to add yours.</p>
+
+          {publicFeed === null && <div className="loading">Catching up on the feed…</div>}
+          {publicFeed && !publicFeed.length && (
+            <EmptyState icon="📣" title="Nothing here yet" subtitle="Be the first to post a pick for everyone to see." />
+          )}
+
+          {publicFeed && publicFeed.length > 0 && (
+            <div className="bet-feed">
+              {publicFeed.map((post) => (
+                <BetCard key={post.id} post={post} variant="public" />
+              ))}
+            </div>
+          )}
+        </>
+      )}
+
       {segment === 'tips' && (
         <>
-          <div className="hint">Your code: <strong>{user.friendCode}</strong> — share it so mates can add you.</div>
-
           {friends && friends.length > 0 && (
             <div className="group-chip-row">
               {friends.map((f) => (
@@ -197,27 +162,22 @@ export default function SocialFeedPage() {
 
           <div className="group-actions">
             <button className="btn btn-primary btn-small" onClick={() => setShowRecorder(true)}>
-              🎥 New tip
-            </button>
-            <button className="btn btn-secondary btn-small" onClick={() => setShowAddFriend((v) => !v)}>
-              + Add friend
+              New tip
             </button>
           </div>
 
-          {showAddFriend && (
-            <form className="inline-form" onSubmit={handleAddFriend}>
-              <input placeholder="Friend's code" value={friendCode} onChange={(e) => setFriendCode(e.target.value.toUpperCase())} required maxLength={8} />
-              <button className="btn btn-primary" type="submit" disabled={submitting}>
-                Add
-              </button>
-            </form>
-          )}
-
-          {error && <div className="auth-error">{error}</div>}
-
           {videos === null && <div className="loading">Loading tips…</div>}
           {videos && !videos.length && (
-            <EmptyState icon="🎥" title="No tips yet" subtitle="Add a friend with their code, or record the first one yourself." />
+            <EmptyState
+              icon="🎥"
+              title="No tips yet"
+              subtitle="Add a friend with their code, or record the first one yourself."
+              action={
+                <button className="btn btn-secondary" onClick={() => setShowManage(true)}>
+                  Add a friend
+                </button>
+              }
+            />
           )}
 
           {videos && videos.length > 0 && (
@@ -227,15 +187,20 @@ export default function SocialFeedPage() {
               ))}
             </div>
           )}
-
-          {showRecorder && (
-            <VideoRecorder
-              onClose={() => setShowRecorder(false)}
-              onPosted={refreshTips}
-            />
-          )}
         </>
       )}
+
+      {showManage && (
+        <ManageSheet
+          segment={segment}
+          groups={groups}
+          friends={friends}
+          onChanged={handleManageChanged}
+          onClose={() => setShowManage(false)}
+        />
+      )}
+
+      {showRecorder && <VideoRecorder onClose={() => setShowRecorder(false)} onPosted={refreshTips} />}
     </div>
   )
 }

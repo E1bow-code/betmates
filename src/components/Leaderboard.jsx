@@ -27,13 +27,13 @@ export default function Leaderboard({ posts, memberNames }) {
   return (
     <div className="leaderboard">
       <button className="leaderboard-toggle" onClick={() => setExpanded((v) => !v)}>
-        🏆 Leaderboard {expanded ? '▲' : '▼'}
+        Leaderboard {expanded ? '▲' : '▼'}
       </button>
       {expanded && (
         <div className="leaderboard-list">
           {rows.map((row, i) => (
-            <div key={row.userId} className="leaderboard-row">
-              <span className="leaderboard-rank">{i === 0 ? '🏆' : `#${i + 1}`}</span>
+            <div key={row.userId} className={i === 0 ? 'leaderboard-row leaderboard-row-top' : 'leaderboard-row'}>
+              <span className="leaderboard-rank">#{i + 1}</span>
               <Avatar name={row.name} size={24} />
               <span className="leaderboard-name">{row.name}</span>
               <span className={`leaderboard-pnl ${row.profit >= 0 ? 'tone-good' : 'tone-bad'}`}>

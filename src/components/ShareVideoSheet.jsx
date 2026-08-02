@@ -38,7 +38,7 @@ export default function ShareVideoSheet({ video, onClose }) {
         <div className="sheet-handle" />
         <h2 className="sheet-title">Send this to…</h2>
 
-        {sent && <div className="potential-return">Sent to {sent} 👍</div>}
+        {sent && <div className="potential-return">Sent to {sent}.</div>}
         {error && <div className="auth-error">{error}</div>}
 
         {!groups.length && !friends.length && (

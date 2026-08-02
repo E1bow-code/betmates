@@ -2,15 +2,42 @@ import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { fetchFixtures } from '../api/oddsClient.js'
 import { fetchRaces } from '../api/racingClient.js'
+import { fetchFights } from '../api/ufcClient.js'
+import { fetchEvents } from '../api/genericSportsClient.js'
+import { GENERIC_SPORTS } from '../lib/sportsConfig.js'
 import { formatKickoff, formatCountdown } from '../utils/format.js'
 import { bestWithinFilter } from '../utils/oddsUtils.js'
 import { useAuth } from '../context/AuthContext.jsx'
 import EmptyState from '../components/EmptyState.jsx'
+import TeamBadge from '../components/TeamBadge.jsx'
+import PlayerPhoto from '../components/PlayerPhoto.jsx'
 
 const SPORTS = [
   { key: 'football', label: 'Football' },
-  { key: 'racing', label: 'Horse Racing' }
+  { key: 'racing', label: 'Horse Racing' },
+  { key: 'ufc', label: 'UFC' },
+  ...Object.entries(GENERIC_SPORTS).map(([key, cfg]) => ({ key, label: cfg.label }))
 ]
+
+const FETCHERS = {
+  football: fetchFixtures,
+  racing: fetchRaces,
+  ufc: fetchFights,
+  ...Object.fromEntries(Object.keys(GENERIC_SPORTS).map((key) => [key, () => fetchEvents(key)]))
+}
+
+const NOUN = {
+  football: 'the fixtures',
+  racing: 'the races',
+  ufc: 'the fights',
+  ...Object.fromEntries(Object.entries(GENERIC_SPORTS).map(([key, cfg]) => [key, `the ${cfg.label.toLowerCase()} fixtures`]))
+}
+const ICON = {
+  football: '⚽',
+  racing: '🏇',
+  ufc: '🥊',
+  ...Object.fromEntries(Object.entries(GENERIC_SPORTS).map(([key, cfg]) => [key, cfg.icon]))
+}
 
 export default function OddsListPage() {
   const { user } = useAuth()
@@ -22,8 +49,7 @@ export default function OddsListPage() {
 
   useEffect(() => {
     setError(null)
-    const fetcher = sport === 'football' ? fetchFixtures() : fetchRaces()
-    fetcher
+    FETCHERS[sport]()
       .then((data) => {
         setItems(data)
         setItemsSport(sport)
@@ -66,11 +92,11 @@ export default function OddsListPage() {
         </p>
       )}
 
-      {error && <div className="error">Hmm, couldn't load {sport === 'football' ? 'the fixtures' : 'the races'}: {error}</div>}
-      {!error && !loaded && <div className="loading">Fetching the latest {sport === 'football' ? 'fixtures' : 'races'}…</div>}
+      {error && <div className="error">Hmm, couldn't load {NOUN[sport]}: {error}</div>}
+      {!error && !loaded && <div className="loading">Fetching the latest {NOUN[sport]}…</div>}
       {loaded && !loaded.length && (
         <EmptyState
-          icon={sport === 'football' ? '⚽' : '🏇'}
+          icon={ICON[sport]}
           title="Nothing on the board"
           subtitle="Check back closer to kick-off — new fixtures land as they're announced."
         />
@@ -78,9 +104,13 @@ export default function OddsListPage() {
 
       {loaded && loaded.length > 0 && (
         <div className="race-list">
-          {sport === 'football'
-            ? loaded.map((fixture) => <FixtureCard key={fixture.id} fixture={fixture} bookmakerFilter={bookmakerFilter} />)
-            : loaded.map((race) => <RaceCard key={race.id} race={race} bookmakerFilter={bookmakerFilter} />)}
+          {sport === 'football' && loaded.map((fixture) => <FixtureCard key={fixture.id} fixture={fixture} bookmakerFilter={bookmakerFilter} />)}
+          {sport === 'racing' && loaded.map((race) => <RaceCard key={race.id} race={race} bookmakerFilter={bookmakerFilter} />)}
+          {sport === 'ufc' && loaded.map((fight) => <FightCard key={fight.id} fight={fight} bookmakerFilter={bookmakerFilter} />)}
+          {GENERIC_SPORTS[sport] &&
+            loaded.map((event) => (
+              <EventCard key={event.id} event={event} sportKey={sport} config={GENERIC_SPORTS[sport]} bookmakerFilter={bookmakerFilter} />
+            ))}
         </div>
       )}
     </div>
@@ -101,8 +131,16 @@ function FixtureCard({ fixture, bookmakerFilter }) {
         <span className="countdown">{formatCountdown(fixture.kickoff)}</span>
       </div>
       <div className="race-card-main">
-        <div className="race-card-title">
-          {fixture.homeTeam} v {fixture.awayTeam}
+        <div className="race-card-title fixture-teams-row">
+          <span className="fixture-team">
+            <TeamBadge team={fixture.homeTeam} size={20} />
+            <span>{fixture.homeTeam}</span>
+          </span>
+          <span className="fixture-vs">v</span>
+          <span className="fixture-team">
+            <TeamBadge team={fixture.awayTeam} size={20} />
+            <span>{fixture.awayTeam}</span>
+          </span>
         </div>
         <div className="race-card-meta">{fixture.competition}</div>
       </div>
@@ -145,6 +183,80 @@ function RaceCard({ race, bookmakerFilter }) {
         ) : (
           <div className="fav-price">-</div>
         )}
+      </div>
+    </Link>
+  )
+}
+
+function FightCard({ fight, bookmakerFilter }) {
+  const h2h = fight.markets.find((m) => m.key === 'h2h')
+  const a = h2h?.outcomes.find((o) => o.name === fight.fighterA)
+  const b = h2h?.outcomes.find((o) => o.name === fight.fighterB)
+  const aBest = a ? bestWithinFilter(a.allOdds, bookmakerFilter) : null
+  const bBest = b ? bestWithinFilter(b.allOdds, bookmakerFilter) : null
+
+  return (
+    <Link className="race-card" to={`/odds/ufc/${fight.id}`}>
+      <div className="race-card-time">
+        <span className="off-time">{formatKickoff(fight.kickoff)}</span>
+        <span className="countdown">{formatCountdown(fight.kickoff)}</span>
+      </div>
+      <div className="race-card-main">
+        <div className="race-card-title fixture-teams-row">
+          <span className="fixture-team">
+            <PlayerPhoto name={fight.fighterA} size={20} />
+            <span>{fight.fighterA}</span>
+          </span>
+          <span className="fixture-vs">v</span>
+          <span className="fixture-team">
+            <PlayerPhoto name={fight.fighterB} size={20} />
+            <span>{fight.fighterB}</span>
+          </span>
+        </div>
+        <div className="race-card-meta">{fight.competition}</div>
+      </div>
+      <div className="race-card-fav">
+        <div className="fav-label">Moneyline</div>
+        <div className="fav-price">{aBest ? aBest.decimal.toFixed(2) : '-'}</div>
+        <div className="fav-price-away">{bBest ? bBest.decimal.toFixed(2) : '-'}</div>
+      </div>
+    </Link>
+  )
+}
+
+function EventCard({ event, sportKey, config, bookmakerFilter }) {
+  const h2h = event.markets.find((m) => m.key === 'h2h')
+  const home = h2h?.outcomes.find((o) => o.name === 'Home')
+  const away = h2h?.outcomes.find((o) => o.name === 'Away')
+  const homeBest = home ? bestWithinFilter(home.allOdds, bookmakerFilter) : null
+  const awayBest = away ? bestWithinFilter(away.allOdds, bookmakerFilter) : null
+  const Photo = config.participantType === 'player' ? PlayerPhoto : TeamBadge
+  const photoProp = config.participantType === 'player' ? 'name' : 'team'
+
+  return (
+    <Link className="race-card" to={`/odds/${sportKey}/${event.id}`}>
+      <div className="race-card-time">
+        <span className="off-time">{formatKickoff(event.kickoff)}</span>
+        <span className="countdown">{formatCountdown(event.kickoff)}</span>
+      </div>
+      <div className="race-card-main">
+        <div className="race-card-title fixture-teams-row">
+          <span className="fixture-team">
+            <Photo {...{ [photoProp]: event.participantA }} size={20} />
+            <span>{event.participantA}</span>
+          </span>
+          <span className="fixture-vs">v</span>
+          <span className="fixture-team">
+            <Photo {...{ [photoProp]: event.participantB }} size={20} />
+            <span>{event.participantB}</span>
+          </span>
+        </div>
+        <div className="race-card-meta">{event.competition}</div>
+      </div>
+      <div className="race-card-fav">
+        <div className="fav-label">Moneyline</div>
+        <div className="fav-price">{homeBest ? homeBest.decimal.toFixed(2) : '-'}</div>
+        <div className="fav-price-away">{awayBest ? awayBest.decimal.toFixed(2) : '-'}</div>
       </div>
     </Link>
   )

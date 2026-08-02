@@ -1,4 +1,6 @@
-const PALETTE = ['#22c55e', '#3b82f6', '#f59e0b', '#ec4899', '#8b5cf6', '#14b8a6', '#f97316', '#ef4444']
+// Earthy/warm set to match the chalkboard palette in style.css, rather
+// than the default-Tailwind rainbow every AI-generated avatar picker uses.
+const PALETTE = ['#e0a339', '#d9694f', '#c9a635', '#8a9a5b', '#4f8a8b', '#b56576', '#6b8f71', '#c17817']
 
 function colorFor(name) {
   let hash = 0

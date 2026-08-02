@@ -19,7 +19,8 @@ const EMPTY_DB = {
   manualEntries: [],
   friendships: [],
   videoPosts: [],
-  videoShares: []
+  videoShares: [],
+  follows: []
 }
 
 // Merges in any table keys added after a browser's db was first created -
@@ -232,6 +233,21 @@ export function listBetPostsByUser(userId) {
   return delay(db.betPosts.filter((b) => b.userId === userId))
 }
 
+// Public timeline: bet_posts with visibility 'public', postable by anyone
+// regardless of group membership (see BetBuilderSheet's "Post publicly").
+// Author names are resolved against every user, not just group members,
+// since a public post can come from - and be seen by - anyone.
+export function listPublicFeed() {
+  const db = readDb()
+  const names = Object.fromEntries(db.users.map((u) => [u.id, u.displayName]))
+  return delay(
+    db.betPosts
+      .filter((b) => b.visibility === 'public')
+      .map((b) => ({ ...b, authorName: names[b.userId] ?? 'Someone' }))
+      .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))
+  )
+}
+
 // --- Reactions & comments ------------------------------------------------
 
 export function toggleReaction(betId, userId, emoji) {
@@ -436,4 +452,33 @@ export function listSharedInGroup(groupId) {
   const db = readDb()
   const shares = db.videoShares.filter((s) => s.targetType === 'group' && s.targetId === groupId)
   return delay(resolveShares(db, shares))
+}
+
+// --- Follows ---------------------------------------------------------------
+// One-way, unlike friendships: following someone doesn't require them to
+// follow back, matching the public-feed "follow whoever's picks you like"
+// model rather than the mutual-connect model friends/groups use.
+
+export function followUser(userId, targetId) {
+  const db = readDb()
+  if (targetId === userId) return Promise.reject(new Error("You can't follow yourself."))
+  const already = db.follows.some((f) => f.followerId === userId && f.followingId === targetId)
+  if (!already) {
+    db.follows.push({ id: uid('follow'), followerId: userId, followingId: targetId, createdAt: new Date().toISOString() })
+    writeDb(db)
+  }
+  return delay(true)
+}
+
+export function unfollowUser(userId, targetId) {
+  const db = readDb()
+  db.follows = db.follows.filter((f) => !(f.followerId === userId && f.followingId === targetId))
+  writeDb(db)
+  return delay(true)
+}
+
+export function listFollowing(userId) {
+  const db = readDb()
+  const ids = db.follows.filter((f) => f.followerId === userId).map((f) => f.followingId)
+  return delay(ids)
 }
