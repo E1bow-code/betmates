@@ -4,7 +4,7 @@ import * as dataStore from '../lib/dataStore.js'
 import { computeStats } from '../utils/trackerStats.js'
 import EmptyState from '../components/EmptyState.jsx'
 
-const STATUS_LABEL = { open: '⏳ Pending', won: '✅ Won', lost: '❌ Lost', void: '↩️ Void' }
+const STATUS_LABEL = { open: 'Pending', won: 'Won', lost: 'Lost', void: 'Void' }
 
 export default function TrackerPage() {
   const { user } = useAuth()
@@ -57,14 +57,25 @@ export default function TrackerPage() {
       {entries.length > 0 && (
         <div className="tracker-list">
           {entries.map((entry) => {
-            const selection = entry.selections[0]
+            const selections = entry.selections
+            const combinedOdds = selections.length > 1 ? selections.reduce((acc, s) => acc * s.odds, 1) : null
             return (
               <div key={entry.id} className={`tracker-row status-${entry.status}`}>
                 <div className="tracker-row-main">
-                  <div className="selection-event">{selection.event}</div>
-                  <div className="race-card-meta">
-                    {selection.market}: {selection.selection} @ {selection.odds.toFixed(2)} ({selection.bookmaker})
-                  </div>
+                  {selections.length > 1 && <div className="bet-card-leg-count">{selections.length}-leg bet builder</div>}
+                  {selections.map((selection, i) => (
+                    <div key={i}>
+                      <div className="selection-event">{selection.event}</div>
+                      <div className="race-card-meta">
+                        {selection.market}: {selection.selection} @ {selection.odds.toFixed(2)} ({selection.bookmaker})
+                      </div>
+                    </div>
+                  ))}
+                  {combinedOdds && (
+                    <div className="race-card-meta">
+                      Combined odds: <strong>{combinedOdds.toFixed(2)}</strong>
+                    </div>
+                  )}
                   {entry.stake ? (
                     <div className="race-card-meta">
                       £{entry.stake} staked{entry.potentialReturn ? ` · returns £${Number(entry.potentialReturn).toFixed(2)}` : ''}
@@ -74,10 +85,10 @@ export default function TrackerPage() {
                 <div className="tracker-row-status">
                   {entry.source === 'manual' && entry.status === 'open' ? (
                     <select className="status-select" defaultValue="open" onChange={(e) => handleStatusChange(entry, e.target.value)}>
-                      <option value="open">How'd it go?</option>
-                      <option value="won">🎉 It won!</option>
-                      <option value="lost">😬 No luck</option>
-                      <option value="void">↩️ Voided</option>
+                      <option value="open">Mark result</option>
+                      <option value="won">Won</option>
+                      <option value="lost">Lost</option>
+                      <option value="void">Void</option>
                     </select>
                   ) : (
                     <span className={`bet-status-pill status-${entry.status}`}>{STATUS_LABEL[entry.status]}</span>

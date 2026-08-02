@@ -7,15 +7,21 @@
 // Free tier: 500 requests/month. Each league below costs one credit PER
 // PAGE LOAD (not per fixture) - 4 leagues = 4 credits every time someone
 // opens the Odds tab, so ~125 loads/month before the free tier runs dry.
-// Trim this list (or add server-side caching) if that's not enough.
-const SPORTS = [
-  'soccer_epl', // Premier League
-  'soccer_efl_champ', // Championship
-  'soccer_scotland_premiership', // Celtic, Hearts, Rangers, etc.
-  'soccer_uefa_champs_league'
-]
+// Opening a specific fixture costs more on top of that: one credit for
+// goalscorer player props, plus one credit PER additional market below
+// (btts/draw_no_bet/double_chance are "additional markets", billed
+// separately from the featured h2h/totals bundled into the list call).
+// Trim either list (or add server-side caching) if that's not enough.
+import { FOOTBALL_SPORT_KEYS } from '../../src/lib/sportsConfig.js'
+
+const SPORTS = FOOTBALL_SPORT_KEYS
 const REGION = 'uk'
 const MARKETS = 'h2h,totals'
+const EXTRA_MARKET_LABELS = {
+  btts: 'Both Teams to Score',
+  draw_no_bet: 'Draw No Bet',
+  double_chance: 'Double Chance'
+}
 
 export default async (req) => {
   const apiKey = process.env.ODDS_API_KEY
@@ -49,9 +55,59 @@ export default async (req) => {
       })
     }
 
-    const fixtures = events.map(reshapeEvent).sort((a, b) => new Date(a.kickoff) - new Date(b.kickoff))
-    const body = id ? fixtures.find((f) => f.id === id) ?? null : fixtures
-    return new Response(JSON.stringify(body), {
+    if (!id) {
+      const fixtures = events.map(reshapeEvent).sort((a, b) => new Date(a.kickoff) - new Date(b.kickoff))
+      return new Response(JSON.stringify(fixtures), {
+        status: 200,
+        headers: { 'content-type': 'application/json', 'x-data-source': 'live' }
+      })
+    }
+
+    const rawEvent = events.find((e) => e.id === id)
+    if (!rawEvent) {
+      return new Response(JSON.stringify(null), {
+        status: 200,
+        headers: { 'content-type': 'application/json', 'x-data-source': 'live' }
+      })
+    }
+
+    const fixture = reshapeEvent(rawEvent)
+
+    // Player props (goalscorer markets) aren't in the bulk endpoint above -
+    // they need a separate per-event call (one more credit), and critically
+    // The Odds API's soccer player-prop coverage is US-bookmaker-only, so
+    // this must query regions=us regardless of REGION above or it always
+    // comes back empty even when the market exists. Bookmakers also don't
+    // post these until close to kickoff, so empty is normal for fixtures
+    // that are still weeks out - never treated as an error either way.
+    try {
+      const playerMarketKeys = ['player_goal_scorer_anytime', 'player_first_goal_scorer', 'player_last_goal_scorer']
+      const playerUrl = `https://api.the-odds-api.com/v4/sports/${rawEvent.sport_key}/events/${id}/odds/?apiKey=${apiKey}&regions=us&markets=${playerMarketKeys.join(',')}&oddsFormat=decimal`
+      const playerRes = await fetch(playerUrl)
+      if (playerRes.ok) {
+        const playerEvent = await playerRes.json()
+        fixture.markets.push(...reshapePlayerMarkets(playerEvent))
+      }
+    } catch {
+      // Nice-to-have - never fail the whole fixture load over player props.
+    }
+
+    // Additional UK-bookmaker markets (BTTS, draw no bet, double chance),
+    // same one-call-per-fixture treatment as player props above so the
+    // bulk fixture list stays cheap.
+    try {
+      const extraMarketKeys = Object.keys(EXTRA_MARKET_LABELS)
+      const extraUrl = `https://api.the-odds-api.com/v4/sports/${rawEvent.sport_key}/events/${id}/odds/?apiKey=${apiKey}&regions=${REGION}&markets=${extraMarketKeys.join(',')}&oddsFormat=decimal`
+      const extraRes = await fetch(extraUrl)
+      if (extraRes.ok) {
+        const extraEvent = await extraRes.json()
+        fixture.markets.push(...reshapeExtraMarkets(extraEvent))
+      }
+    } catch {
+      // Nice-to-have - never fail the whole fixture load over extra markets.
+    }
+
+    return new Response(JSON.stringify(fixture), {
       status: 200,
       headers: { 'content-type': 'application/json', 'x-data-source': 'live' }
     })
@@ -102,6 +158,37 @@ function reshapeEvent(event) {
   }
 }
 
+const PLAYER_MARKET_LABELS = {
+  player_goal_scorer_anytime: 'Anytime Goalscorer',
+  player_first_goal_scorer: 'First Goalscorer',
+  player_last_goal_scorer: 'Last Goalscorer'
+}
+
+function reshapePlayerMarkets(event) {
+  return Object.entries(PLAYER_MARKET_LABELS)
+    .map(([key, label]) => {
+      const outcomesByName = new Map()
+      for (const bookmaker of event.bookmakers ?? []) {
+        const market = bookmaker.markets?.find((m) => m.key === key)
+        if (!market) continue
+        for (const outcome of market.outcomes) {
+          const name = outcome.description ?? outcome.name
+          if (!name) continue
+          if (!outcomesByName.has(name)) outcomesByName.set(name, [])
+          outcomesByName.get(name).push({ bookmaker: bookmaker.title, decimal: outcome.price })
+        }
+      }
+      const outcomes = [...outcomesByName.entries()].map(([name, allOdds]) => ({
+        name,
+        team: null,
+        allOdds: allOdds.sort((a, b) => b.decimal - a.decimal),
+        bestOdds: allOdds.reduce((a, b) => (b.decimal > a.decimal ? b : a))
+      }))
+      return outcomes.length ? { key, label, outcomes } : null
+    })
+    .filter(Boolean)
+}
+
 function normaliseOutcomeName(rawName, homeTeam, awayTeam, marketKey) {
   if (marketKey === 'h2h') {
     if (rawName === homeTeam) return 'Home'
@@ -109,4 +196,31 @@ function normaliseOutcomeName(rawName, homeTeam, awayTeam, marketKey) {
     return 'Draw'
   }
   return rawName // "Over"/"Under" totals labels are already provider-clean
+}
+
+function reshapeExtraMarkets(event) {
+  return Object.entries(EXTRA_MARKET_LABELS)
+    .map(([key, label]) => {
+      const outcomesByName = new Map()
+      for (const bookmaker of event.bookmakers ?? []) {
+        const market = bookmaker.markets?.find((m) => m.key === key)
+        if (!market) continue
+        for (const outcome of market.outcomes) {
+          // draw_no_bet is two-way (no draw outcome) so "Home"/"Away" reads
+          // naturally with the team-badge UI; btts (Yes/No) and
+          // double_chance (e.g. "Team A/Draw") are already clean labels.
+          const name = key === 'draw_no_bet' ? normaliseOutcomeName(outcome.name, event.home_team, event.away_team, 'h2h') : outcome.name
+          if (!outcomesByName.has(name)) outcomesByName.set(name, [])
+          outcomesByName.get(name).push({ bookmaker: bookmaker.title, decimal: outcome.price })
+        }
+      }
+      const outcomes = [...outcomesByName.entries()].map(([name, allOdds]) => ({
+        name,
+        team: name === 'Home' ? event.home_team : name === 'Away' ? event.away_team : null,
+        allOdds: allOdds.sort((a, b) => b.decimal - a.decimal),
+        bestOdds: allOdds.reduce((a, b) => (b.decimal > a.decimal ? b : a))
+      }))
+      return outcomes.length ? { key, label, outcomes } : null
+    })
+    .filter(Boolean)
 }

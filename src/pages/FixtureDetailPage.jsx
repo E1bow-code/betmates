@@ -4,15 +4,19 @@ import { fetchFixture } from '../api/oddsClient.js'
 import { formatDateTime, formatCountdown } from '../utils/format.js'
 import { bestWithinFilter } from '../utils/oddsUtils.js'
 import { useAuth } from '../context/AuthContext.jsx'
-import BetBuilderSheet from '../components/BetBuilderSheet.jsx'
+import { useBetSlip } from '../context/BetSlipContext.jsx'
+import TeamBadge from '../components/TeamBadge.jsx'
+import PlayerPhoto from '../components/PlayerPhoto.jsx'
+
+const PLAYER_MARKET_KEYS = ['player_goal_scorer_anytime', 'player_first_goal_scorer', 'player_last_goal_scorer']
 
 export default function FixtureDetailPage() {
   const { id } = useParams()
   const { user } = useAuth()
+  const { toggleLeg, isSelected } = useBetSlip()
   const [fixture, setFixture] = useState(null)
   const [error, setError] = useState(null)
   const [myBookiesOnly, setMyBookiesOnly] = useState(false)
-  const [builderSelection, setBuilderSelection] = useState(null)
 
   useEffect(() => {
     fetchFixture(id)
@@ -25,14 +29,15 @@ export default function FixtureDetailPage() {
 
   const bookmakerFilter = myBookiesOnly ? user?.bookmakerPrefs ?? [] : null
 
-  function openBuilder(market, outcome) {
+  function pick(market, outcome) {
     const best = bestWithinFilter(outcome.allOdds, bookmakerFilter) ?? outcome.bestOdds
-    setBuilderSelection({
+    toggleLeg({
       event: `${fixture.homeTeam} v ${fixture.awayTeam}`,
       market: market.label,
       selection: outcome.name === 'Home' ? fixture.homeTeam : outcome.name === 'Away' ? fixture.awayTeam : outcome.name,
       odds: best.decimal,
-      bookmaker: best.bookmaker
+      bookmaker: best.bookmaker,
+      sport: 'football'
     })
   }
 
@@ -44,8 +49,16 @@ export default function FixtureDetailPage() {
         </Link>
       </div>
       <div className="race-header">
-        <h1>
-          {fixture.homeTeam} v {fixture.awayTeam}
+        <h1 className="fixture-teams-row">
+          <span className="fixture-team">
+            <TeamBadge team={fixture.homeTeam} size={26} />
+            <span>{fixture.homeTeam}</span>
+          </span>
+          <span className="fixture-vs">v</span>
+          <span className="fixture-team">
+            <TeamBadge team={fixture.awayTeam} size={26} />
+            <span>{fixture.awayTeam}</span>
+          </span>
         </h1>
         <div className="race-header-meta">
           {formatDateTime(fixture.kickoff)} ({formatCountdown(fixture.kickoff)}) · {fixture.competition}
@@ -67,14 +80,35 @@ export default function FixtureDetailPage() {
           <div className="outcome-list">
             {market.outcomes.map((outcome) => {
               const best = bestWithinFilter(outcome.allOdds, bookmakerFilter)
+              const selected =
+                best &&
+                isSelected({
+                  event: `${fixture.homeTeam} v ${fixture.awayTeam}`,
+                  market: market.label,
+                  selection: outcome.name === 'Home' ? fixture.homeTeam : outcome.name === 'Away' ? fixture.awayTeam : outcome.name
+                })
               return (
                 <button
                   key={outcome.name}
-                  className="outcome-row"
-                  onClick={() => openBuilder(market, outcome)}
+                  className={selected ? 'outcome-row is-selected' : 'outcome-row'}
+                  onClick={() => pick(market, outcome)}
                   disabled={!best}
                 >
-                  <span className="outcome-name">{outcome.name === 'Home' ? fixture.homeTeam : outcome.name === 'Away' ? fixture.awayTeam : outcome.name}</span>
+                  <span className="outcome-name">
+                    {PLAYER_MARKET_KEYS.includes(market.key) ? (
+                      <span className="fixture-team">
+                        <PlayerPhoto name={outcome.name} size={26} />
+                        <span>{outcome.name}</span>
+                      </span>
+                    ) : outcome.name === 'Home' || outcome.name === 'Away' ? (
+                      <span className="fixture-team">
+                        <TeamBadge team={outcome.name === 'Home' ? fixture.homeTeam : fixture.awayTeam} size={20} />
+                        <span>{outcome.name === 'Home' ? fixture.homeTeam : fixture.awayTeam}</span>
+                      </span>
+                    ) : (
+                      outcome.name
+                    )}
+                  </span>
                   {best ? (
                     <span className="outcome-odds">
                       <span className="best-price">{best.decimal.toFixed(2)}</span>
@@ -89,8 +123,6 @@ export default function FixtureDetailPage() {
           </div>
         </div>
       ))}
-
-      {builderSelection && <BetBuilderSheet selection={builderSelection} sport="football" onClose={() => setBuilderSelection(null)} />}
     </div>
   )
 }

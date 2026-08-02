@@ -5,27 +5,43 @@ import CopyBetButton from './CopyBetButton.jsx'
 import Avatar from './Avatar.jsx'
 
 const REACTION_EMOJIS = ['🔥', '😬', '👍']
+const VOTE_OPTIONS = [
+  { key: 'lock_in', label: 'Lock in' },
+  { key: 'not_sure', label: 'Not sure' },
+  { key: 'not_happening', label: 'Not happening' }
+]
 const STATUS_LABEL = { open: 'Pending', won: 'Won', lost: 'Lost', void: 'Void' }
-const STATUS_ICON = { open: '⏳', won: '✅', lost: '❌', void: '↩️' }
 
-export default function BetCard({ post, memberNames }) {
+// variant='public' is for the everyone-can-see feed (see
+// src/pages/SocialFeedPage.jsx's Feed segment): swaps the emoji reaction
+// row for a three-way confidence vote and adds a follow button, since
+// there's no group membership here to imply "these are your mates".
+
+export default function BetCard({ post, memberNames, variant = 'group' }) {
   const { user } = useAuth()
   const [reactions, setReactions] = useState([])
   const [comments, setComments] = useState([])
   const [showComments, setShowComments] = useState(false)
   const [commentBody, setCommentBody] = useState('')
   const [status, setStatus] = useState(post.status)
+  const [following, setFollowing] = useState(false)
 
   useEffect(() => {
     dataStore.listReactions(post.id).then(setReactions)
     dataStore.listComments(post.id).then(setComments)
   }, [post.id])
 
-  const isAuthor = post.userId === user.id
-  const authorName = memberNames?.[post.userId] ?? 'Someone'
+  useEffect(() => {
+    if (variant === 'public' && post.userId !== user.id) {
+      dataStore.listFollowing(user.id).then((ids) => setFollowing(ids.includes(post.userId)))
+    }
+  }, [variant, post.userId, user.id])
 
-  async function toggleReaction(emoji) {
-    const updated = await dataStore.toggleReaction(post.id, user.id, emoji)
+  const isAuthor = post.userId === user.id
+  const authorName = memberNames?.[post.userId] ?? post.authorName ?? 'Someone'
+
+  async function toggleReaction(key) {
+    const updated = await dataStore.toggleReaction(post.id, user.id, key)
     setReactions(updated)
   }
 
@@ -43,7 +59,17 @@ export default function BetCard({ post, memberNames }) {
     setCommentBody('')
   }
 
-  const selection = post.selections[0]
+  async function handleFollowToggle() {
+    if (following) {
+      await dataStore.unfollowUser(user.id, post.userId)
+    } else {
+      await dataStore.followUser(user.id, post.userId)
+    }
+    setFollowing((f) => !f)
+  }
+
+  const selections = post.selections
+  const combinedOdds = selections.length > 1 ? selections.reduce((acc, s) => acc * s.odds, 1) : null
 
   return (
     <div className={`bet-card status-${status}`}>
@@ -55,21 +81,36 @@ export default function BetCard({ post, memberNames }) {
             {post.groupName && <span className="bet-card-group-tag">in {post.groupName}</span>}
           </div>
         </div>
-        <span className={`bet-status-pill status-${status}`}>
-          {STATUS_ICON[status]} {STATUS_LABEL[status]}
-        </span>
+        <div className="bet-card-header-right">
+          {variant === 'public' && !isAuthor && (
+            <button className={following ? 'follow-btn active' : 'follow-btn'} onClick={handleFollowToggle}>
+              {following ? 'Following' : 'Follow'}
+            </button>
+          )}
+          <span className={`bet-status-pill status-${status}`}>{STATUS_LABEL[status]}</span>
+        </div>
       </div>
 
       <div className="bet-card-body">
-        <div className="selection-event">{selection.event}</div>
-        <div className="selection-row">
-          <span>{selection.market}</span>
-          <span className="selection-pick">{selection.selection}</span>
-        </div>
-        <div className="selection-odds-row">
-          <span className="selection-odds">{selection.odds.toFixed(2)}</span>
-          <span className="selection-bookmaker">{selection.bookmaker}</span>
-        </div>
+        {selections.length > 1 && <div className="bet-card-leg-count">{selections.length}-leg bet builder</div>}
+        {selections.map((selection, i) => (
+          <div key={i} className={selections.length > 1 ? 'bet-card-leg' : undefined}>
+            <div className="selection-event">{selection.event}</div>
+            <div className="selection-row">
+              <span>{selection.market}</span>
+              <span className="selection-pick">{selection.selection}</span>
+            </div>
+            <div className="selection-odds-row">
+              <span className="selection-odds">{selection.odds.toFixed(2)}</span>
+              <span className="selection-bookmaker">{selection.bookmaker}</span>
+            </div>
+          </div>
+        ))}
+        {combinedOdds && (
+          <div className="bet-card-combined-odds">
+            Combined odds: <strong>{combinedOdds.toFixed(2)}</strong>
+          </div>
+        )}
         {!post.stakeHidden && post.stake ? (
           <div className="bet-card-stake">
             £{post.stake} staked{post.potentialReturn ? <> · returns <strong>£{post.potentialReturn.toFixed(2)}</strong></> : ''}
@@ -80,29 +121,43 @@ export default function BetCard({ post, memberNames }) {
       </div>
 
       <div className="bet-card-footer">
-        <div className="reaction-row">
-          {REACTION_EMOJIS.map((emoji) => {
-            const count = reactions.filter((r) => r.emoji === emoji).length
-            const mine = reactions.some((r) => r.emoji === emoji && r.userId === user.id)
-            return (
-              <button key={emoji} className={mine ? 'reaction-btn active' : 'reaction-btn'} onClick={() => toggleReaction(emoji)}>
-                {emoji} {count > 0 && count}
-              </button>
-            )
-          })}
+        {variant === 'public' ? (
+          <div className="vote-row">
+            {VOTE_OPTIONS.map((opt) => {
+              const count = reactions.filter((r) => r.emoji === opt.key).length
+              const mine = reactions.some((r) => r.emoji === opt.key && r.userId === user.id)
+              return (
+                <button key={opt.key} className={mine ? 'vote-btn active' : 'vote-btn'} onClick={() => toggleReaction(opt.key)}>
+                  {opt.label} {count > 0 && <span className="vote-count">{count}</span>}
+                </button>
+              )
+            })}
+          </div>
+        ) : (
+          <div className="reaction-row">
+            {REACTION_EMOJIS.map((emoji) => {
+              const count = reactions.filter((r) => r.emoji === emoji).length
+              const mine = reactions.some((r) => r.emoji === emoji && r.userId === user.id)
+              return (
+                <button key={emoji} className={mine ? 'reaction-btn active' : 'reaction-btn'} onClick={() => toggleReaction(emoji)}>
+                  {emoji} {count > 0 && count}
+                </button>
+              )
+            })}
+          </div>
+        )}
+
+        <div className="bet-card-actions">
           <button className="reaction-btn" onClick={() => setShowComments((v) => !v)}>
             💬 {comments.length > 0 && comments.length}
           </button>
-        </div>
-
-        <div className="bet-card-actions">
           <CopyBetButton post={post} userId={user.id} />
           {isAuthor && status === 'open' && (
             <select className="status-select" defaultValue="open" onChange={handleStatusChange}>
-              <option value="open">How'd it go?</option>
-              <option value="won">🎉 It won!</option>
-              <option value="lost">😬 No luck</option>
-              <option value="void">↩️ Voided</option>
+              <option value="open">Mark result</option>
+              <option value="won">Won</option>
+              <option value="lost">Lost</option>
+              <option value="void">Void</option>
             </select>
           )}
         </div>

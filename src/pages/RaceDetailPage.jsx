@@ -4,16 +4,16 @@ import { fetchRace } from '../api/racingClient.js'
 import { formatKickoff, formatCountdown } from '../utils/format.js'
 import { bestWithinFilter } from '../utils/oddsUtils.js'
 import { useAuth } from '../context/AuthContext.jsx'
-import BetBuilderSheet from '../components/BetBuilderSheet.jsx'
+import { useBetSlip } from '../context/BetSlipContext.jsx'
 
 export default function RaceDetailPage() {
   const { id } = useParams()
   const { user } = useAuth()
+  const { toggleLeg, isSelected } = useBetSlip()
   const [race, setRace] = useState(null)
   const [error, setError] = useState(null)
   const [myBookiesOnly, setMyBookiesOnly] = useState(false)
   const [expandedRunner, setExpandedRunner] = useState(null)
-  const [builderSelection, setBuilderSelection] = useState(null)
 
   useEffect(() => {
     fetchRace(id)
@@ -31,13 +31,16 @@ export default function RaceDetailPage() {
     return (aBest?.decimal ?? Infinity) - (bBest?.decimal ?? Infinity)
   })
 
-  function openBuilder(runner, best) {
-    setBuilderSelection({
-      event: `${race.course} ${formatKickoff(race.offTime)} · ${race.raceName}`,
+  const raceEvent = `${race.course} ${formatKickoff(race.offTime)} · ${race.raceName}`
+
+  function pick(runner, best) {
+    toggleLeg({
+      event: raceEvent,
       market: 'Win',
       selection: runner.name,
       odds: best.decimal,
-      bookmaker: best.bookmaker
+      bookmaker: best.bookmaker,
+      sport: 'horse_racing'
     })
   }
 
@@ -70,6 +73,7 @@ export default function RaceDetailPage() {
         {runners.map((runner) => {
           const best = bestWithinFilter(runner.allOdds, bookmakerFilter)
           const isExpanded = expandedRunner === runner.id
+          const selected = best && isSelected({ event: raceEvent, market: 'Win', selection: runner.name })
           return (
             <div key={runner.id} className={isExpanded ? 'runner-row expanded' : 'runner-row'}>
               <div className="runner-summary" onClick={() => setExpandedRunner(isExpanded ? null : runner.id)}>
@@ -84,10 +88,10 @@ export default function RaceDetailPage() {
                 </div>
                 {best ? (
                   <button
-                    className="runner-best runner-best-btn"
+                    className={selected ? 'runner-best runner-best-btn is-selected' : 'runner-best runner-best-btn'}
                     onClick={(e) => {
                       e.stopPropagation()
-                      openBuilder(runner, best)
+                      pick(runner, best)
                     }}
                   >
                     <div className="best-price">{best.price}</div>
@@ -111,8 +115,6 @@ export default function RaceDetailPage() {
           )
         })}
       </div>
-
-      {builderSelection && <BetBuilderSheet selection={builderSelection} sport="horse_racing" onClose={() => setBuilderSelection(null)} />}
     </div>
   )
 }

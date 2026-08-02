@@ -39,7 +39,26 @@ function makeFixture(id, competition, home, away, hours, h2hPrices, totalsPrices
       {
         key: 'totals',
         label: 'Over/Under 2.5 Goals',
-        outcomes: [makeOutcome('Over 2.5', null, totalsPrices.over), makeOutcome('Under 2.5', null, totalsPrices.under)]
+        outcomes: [makeOutcome('Over', null, totalsPrices.over), makeOutcome('Under', null, totalsPrices.under)]
+      },
+      {
+        key: 'btts',
+        label: 'Both Teams to Score',
+        outcomes: [makeOutcome('Yes', null, totalsPrices.over.map((p) => p - 0.05)), makeOutcome('No', null, totalsPrices.under.map((p) => p + 0.1))]
+      },
+      {
+        key: 'draw_no_bet',
+        label: 'Draw No Bet',
+        outcomes: [makeOutcome('Home', home, h2hPrices.home.map((p) => p * 0.8)), makeOutcome('Away', away, h2hPrices.away.map((p) => p * 0.8))]
+      },
+      {
+        key: 'double_chance',
+        label: 'Double Chance',
+        outcomes: [
+          makeOutcome(`${home}/Draw`, null, h2hPrices.home.map((p) => p * 0.55)),
+          makeOutcome(`${home}/${away}`, null, [1.15, 1.14, 1.16, 1.15, 1.14, 1.15]),
+          makeOutcome(`${away}/Draw`, null, h2hPrices.away.map((p) => p * 0.6))
+        ]
       }
     ]
   }
