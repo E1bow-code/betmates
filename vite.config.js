@@ -12,8 +12,8 @@ export default defineConfig({
         name: 'BetMates',
         short_name: 'BetMates',
         description: 'Best-odds comparison and social bet-sharing for football',
-        theme_color: '#0f172a',
-        background_color: '#0f172a',
+        theme_color: '#15120f',
+        background_color: '#15120f',
         display: 'standalone',
         start_url: '/',
         icons: [

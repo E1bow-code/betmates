@@ -3,8 +3,8 @@
 import { deflateSync } from 'node:zlib'
 import { writeFileSync, mkdirSync } from 'node:fs'
 
-const BG = [15, 23, 42] // #0f172a
-const FG = [34, 197, 94] // #22c55e
+const BG = [21, 18, 15] // #15120f
+const FG = [224, 163, 57] // #e0a339
 
 function crc32(buf) {
   let c
