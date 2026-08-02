@@ -5,8 +5,10 @@ import { formatDateTime, formatCountdown } from '../utils/format.js'
 import { bestWithinFilter } from '../utils/oddsUtils.js'
 import { useAuth } from '../context/AuthContext.jsx'
 import { useBetSlip } from '../context/BetSlipContext.jsx'
+import { useOddsMovement, movementKey } from '../lib/oddsMemory.js'
 import TeamBadge from '../components/TeamBadge.jsx'
 import PlayerPhoto from '../components/PlayerPhoto.jsx'
+import OddsMoveIndicator from '../components/OddsMoveIndicator.jsx'
 
 const PLAYER_MARKET_KEYS = ['player_goal_scorer_anytime', 'player_first_goal_scorer', 'player_last_goal_scorer']
 
@@ -23,6 +25,8 @@ export default function FixtureDetailPage() {
       .then(setFixture)
       .catch((err) => setError(err.message))
   }, [id])
+
+  const movements = useOddsMovement(fixture)
 
   if (error) return <ErrorState message={error} />
   if (!fixture) return <LoadingState />
@@ -111,7 +115,10 @@ export default function FixtureDetailPage() {
                   </span>
                   {best ? (
                     <span className="outcome-odds">
-                      <span className="best-price">{best.decimal.toFixed(2)}</span>
+                      <span className="best-price">
+                        {best.decimal.toFixed(2)}
+                        <OddsMoveIndicator direction={movements[movementKey(fixture.id, market.key, outcome.name)]} />
+                      </span>
                       <span className="best-bookmaker">{best.bookmaker}</span>
                     </span>
                   ) : (

@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { useAuth } from '../context/AuthContext.jsx'
 import * as dataStore from '../lib/dataStore.js'
 import { checkAndSettleBets } from '../lib/settlement.js'
-import { computeStats } from '../utils/trackerStats.js'
+import { computeStats, computeStreak, computeBestWeek } from '../utils/trackerStats.js'
 import { SPORT_LABEL, SPORT_ICON } from '../lib/sportsConfig.js'
 import EmptyState from '../components/EmptyState.jsx'
 import PnlChart from '../components/PnlChart.jsx'
@@ -64,6 +64,19 @@ export default function TrackerPage() {
   if (entries === null) return <div className="loading">Tallying up your bets…</div>
 
   const stats = computeStats(entries)
+  const streak = computeStreak(entries)
+  const bestWeek = computeBestWeek(entries)
+  const badges = [
+    streak.count >= 2 && {
+      icon: streak.type === 'won' ? '🔥' : '🥶',
+      label: `${streak.count}-${streak.type === 'won' ? 'win' : 'loss'} streak`
+    },
+    bestWeek &&
+      bestWeek.profit > 0 && {
+        icon: '🏆',
+        label: `Best week +£${bestWeek.profit.toFixed(2)} (${new Date(bestWeek.weekStart).toLocaleDateString([], { month: 'short', day: 'numeric' })})`
+      }
+  ].filter(Boolean)
 
   return (
     <div>
@@ -78,6 +91,16 @@ export default function TrackerPage() {
         <StatTile label="Win rate" value={stats.winRate === null ? '-' : `${stats.winRate}%`} />
         <StatTile label="Staked" value={`£${stats.staked.toFixed(2)}`} />
       </div>
+
+      {badges.length > 0 && (
+        <div className="badge-row">
+          {badges.map((b) => (
+            <span key={b.label} className="badge">
+              {b.icon} {b.label}
+            </span>
+          ))}
+        </div>
+      )}
 
       <PnlChart entries={entries} />
 

@@ -228,11 +228,45 @@ h1, h2, .topbar h1, .sheet-title, .auth-title {
 .btn-ghost { background: transparent; color: var(--text-dim); border: 1px solid var(--border); }
 
 .hint { color: var(--text-dim); font-size: 0.8rem; padding: 4px 4px 12px; }
+.hint-with-action { display: flex; justify-content: space-between; align-items: center; gap: 8px; }
 
 /* Topbar with filter toggle */
 .topbar { display: flex; flex-direction: column; gap: 4px; }
 .tracker-checking { font-size: 0.76rem; color: var(--text-dim); font-style: italic; }
 .filter-toggle { display: flex; align-items: center; gap: 6px; font-size: 0.82rem; color: var(--text-dim); margin-top: 4px; }
+
+.mode-switcher { display: flex; gap: 2px; margin: 4px 0 2px; border: 1px solid var(--border); border-radius: 4px; overflow: hidden; width: fit-content; }
+.mode-tab { background: var(--surface); border: none; color: var(--text-dim); padding: 6px 14px; font-size: 0.8rem; font-weight: 600; cursor: pointer; }
+.mode-tab.active { background: var(--accent); color: var(--accent-ink); }
+
+.group-chat { display: flex; flex-direction: column; gap: 12px; }
+.chat-messages { display: flex; flex-direction: column; gap: 10px; }
+.chat-message { display: flex; gap: 8px; align-items: flex-end; max-width: 80%; }
+.chat-message-mine { align-self: flex-end; flex-direction: row-reverse; }
+.chat-bubble {
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 8px 12px;
+  font-size: 0.88rem;
+}
+.chat-message-mine .chat-bubble { background: var(--accent); color: var(--accent-ink); border-color: var(--accent-dim); }
+.chat-author { font-size: 0.7rem; font-weight: 700; color: var(--accent); margin-bottom: 2px; }
+.chat-input-row { display: flex; gap: 8px; }
+.chat-input-row input {
+  flex: 1;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  padding: 10px 16px;
+  color: var(--text);
+  font-size: 0.9rem;
+}
+
+.result-card { padding: 12px 14px; }
+.result-row { display: flex; justify-content: space-between; padding: 2px 0; }
+.result-row:first-child { border-bottom: 1px dashed var(--border); padding-bottom: 6px; margin-bottom: 4px; }
+.result-score { font-family: var(--font-mono); font-variant-numeric: tabular-nums; font-weight: 700; color: var(--accent); }
 
 /* Sport/segment switcher is the one deliberately pill-shaped control in
    the app - it reads as a physical toggle, which is the point. */
@@ -297,6 +331,10 @@ h1, h2, .topbar h1, .sheet-title, .auth-title {
 .runner-best-btn.is-selected .best-price { color: var(--accent); }
 
 .outcome-name { font-weight: 500; }
+/* Deliberately not colored good/bad (--accent/--bad) - whether shortening
+   or drifting is "good" depends on whether you're looking to back that
+   price now or already have, so this only signals direction, not value. */
+.odds-move { font-size: 0.7em; margin-left: 4px; color: var(--text-dim); }
 .outcome-odds { display: flex; flex-direction: column; align-items: flex-end; }
 .outcome-odds-empty { font-size: 0.78rem; color: var(--text-dim); font-family: -apple-system, sans-serif; }
 
@@ -441,7 +479,24 @@ h1, h2, .topbar h1, .sheet-title, .auth-title {
   white-space: nowrap;
 }
 
-.friend-chip { cursor: default; }
+.friend-chip-btn { font-family: inherit; cursor: pointer; display: flex; align-items: center; gap: 4px; }
+.friend-chip-vs { color: var(--accent); font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.03em; }
+
+.h2h-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin: 14px 0; }
+.h2h-col {
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  padding: 14px;
+  text-align: center;
+}
+.h2h-name { font-weight: 700; margin-bottom: 8px; }
+.h2h-stat { font-size: 1.3rem; font-weight: 700; font-family: var(--font-mono); font-variant-numeric: tabular-nums; }
+.h2h-stat.tone-good { color: var(--accent); }
+.h2h-stat.tone-bad { color: var(--bad); }
+.h2h-stat-label { font-size: 0.68rem; color: var(--text-dim); text-transform: uppercase; letter-spacing: 0.03em; margin-bottom: 8px; }
+.h2h-meta { font-size: 0.78rem; color: var(--text-dim); margin-top: 2px; }
+.h2h-empty { color: var(--text-dim); font-size: 0.85rem; padding: 10px 0; }
 
 .group-actions { display: flex; gap: 8px; margin: 8px 0 4px; }
 .inline-form { display: flex; gap: 8px; margin: 8px 0; }
@@ -725,6 +780,17 @@ h1, h2, .topbar h1, .sheet-title, .auth-title {
 .stat-tile.tone-bad .stat-tile-value { color: var(--bad); }
 .stat-tile-label { font-size: 0.64rem; color: var(--text-dim); text-transform: uppercase; margin-top: 2px; letter-spacing: 0.03em; }
 
+.badge-row { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 12px; }
+.badge {
+  background: var(--surface-2);
+  border: 1px solid var(--accent-dim);
+  border-radius: 999px;
+  padding: 5px 12px;
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: var(--accent);
+}
+
 .pnl-chart {
   border: 1px solid var(--border);
   border-radius: 4px;
@@ -822,6 +888,7 @@ h1, h2, .topbar h1, .sheet-title, .auth-title {
   display: flex;
   justify-content: space-between;
   align-items: center;
+  gap: 8px;
   background: var(--surface-2);
   border-bottom: 1px solid var(--border);
   padding: 8px 12px;

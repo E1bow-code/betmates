@@ -8,6 +8,7 @@ import BetCard from '../components/BetCard.jsx'
 import VideoCard from '../components/VideoCard.jsx'
 import VideoRecorder from '../components/VideoRecorder.jsx'
 import ManageSheet from '../components/ManageSheet.jsx'
+import HeadToHeadSheet from '../components/HeadToHeadSheet.jsx'
 import EmptyState from '../components/EmptyState.jsx'
 import Avatar from '../components/Avatar.jsx'
 
@@ -39,6 +40,7 @@ export default function SocialFeedPage() {
   const [publicFeed, setPublicFeed] = useState(null)
   const [showManage, setShowManage] = useState(false)
   const [showRecorder, setShowRecorder] = useState(false)
+  const [compareFriend, setCompareFriend] = useState(null)
 
   useEffect(() => {
     refreshBets()
@@ -183,9 +185,9 @@ export default function SocialFeedPage() {
           {friends && friends.length > 0 && (
             <div className="group-chip-row">
               {friends.map((f) => (
-                <span key={f.id} className="group-chip friend-chip">
-                  {f.displayName}
-                </span>
+                <button key={f.id} className="group-chip friend-chip friend-chip-btn" onClick={() => setCompareFriend(f)}>
+                  {f.displayName} <span className="friend-chip-vs">vs</span>
+                </button>
               ))}
             </div>
           )}
@@ -260,6 +262,7 @@ export default function SocialFeedPage() {
       )}
 
       {showRecorder && <VideoRecorder onClose={() => setShowRecorder(false)} onPosted={refreshTips} />}
+      {compareFriend && <HeadToHeadSheet friend={compareFriend} onClose={() => setCompareFriend(null)} />}
     </div>
   )
 }

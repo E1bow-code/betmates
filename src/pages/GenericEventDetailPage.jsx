@@ -6,8 +6,10 @@ import { formatDateTime, formatCountdown } from '../utils/format.js'
 import { bestWithinFilter } from '../utils/oddsUtils.js'
 import { useAuth } from '../context/AuthContext.jsx'
 import { useBetSlip } from '../context/BetSlipContext.jsx'
+import { useOddsMovement, movementKey } from '../lib/oddsMemory.js'
 import TeamBadge from '../components/TeamBadge.jsx'
 import PlayerPhoto from '../components/PlayerPhoto.jsx'
+import OddsMoveIndicator from '../components/OddsMoveIndicator.jsx'
 
 export default function GenericEventDetailPage() {
   const { sportKey, id } = useParams()
@@ -23,6 +25,8 @@ export default function GenericEventDetailPage() {
       .then(setEvent)
       .catch((err) => setError(err.message))
   }, [sportKey, id])
+
+  const movements = useOddsMovement(event)
 
   if (error) return <ErrorState message={error} />
   if (!event) return <LoadingState />
@@ -114,7 +118,10 @@ export default function GenericEventDetailPage() {
                   </span>
                   {best ? (
                     <span className="outcome-odds">
-                      <span className="best-price">{best.decimal.toFixed(2)}</span>
+                      <span className="best-price">
+                        {best.decimal.toFixed(2)}
+                        <OddsMoveIndicator direction={movements[movementKey(event.id, market.key, outcome.name)]} />
+                      </span>
                       <span className="best-bookmaker">{best.bookmaker}</span>
                     </span>
                   ) : (

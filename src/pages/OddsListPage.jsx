@@ -4,6 +4,7 @@ import { fetchFixtures } from '../api/oddsClient.js'
 import { fetchRaces } from '../api/racingClient.js'
 import { fetchFights } from '../api/ufcClient.js'
 import { fetchEvents } from '../api/genericSportsClient.js'
+import { fetchResults } from '../api/resultsClient.js'
 import { GENERIC_SPORTS, SPORT_LABEL, SPORT_ICON } from '../lib/sportsConfig.js'
 import { formatKickoff, formatCountdown } from '../utils/format.js'
 import { bestWithinFilter } from '../utils/oddsUtils.js'
@@ -32,10 +33,14 @@ const ICON = SPORT_ICON
 export default function OddsListPage() {
   const { user } = useAuth()
   const [sport, setSport] = useState('football')
+  const [mode, setMode] = useState('upcoming')
   const [items, setItems] = useState(null)
   const [itemsSport, setItemsSport] = useState(null) // which sport `items` was fetched for
   const [error, setError] = useState(null)
   const [myBookiesOnly, setMyBookiesOnly] = useState(false)
+  const [results, setResults] = useState(null)
+  const [resultsSport, setResultsSport] = useState(null)
+  const [resultsError, setResultsError] = useState(null)
 
   useEffect(() => {
     setError(null)
@@ -47,8 +52,20 @@ export default function OddsListPage() {
       .catch((err) => setError(err.message))
   }, [sport])
 
+  useEffect(() => {
+    if (mode !== 'results') return
+    setResultsError(null)
+    fetchResults(sport)
+      .then((data) => {
+        setResults(data)
+        setResultsSport(sport)
+      })
+      .catch((err) => setResultsError(err.message))
+  }, [mode, sport])
+
   const bookmakerFilter = myBookiesOnly ? user?.bookmakerPrefs ?? [] : null
   const loaded = itemsSport === sport ? items : null
+  const loadedResults = resultsSport === sport ? results : null
 
   return (
     <div>
@@ -65,44 +82,98 @@ export default function OddsListPage() {
             </button>
           ))}
         </div>
-        <label className="filter-toggle">
-          <input
-            type="checkbox"
-            checked={myBookiesOnly}
-            onChange={(e) => setMyBookiesOnly(e.target.checked)}
-            disabled={!user?.bookmakerPrefs?.length}
-          />
-          <span>My bookies only</span>
-        </label>
+        <div className="mode-switcher">
+          <button className={mode === 'upcoming' ? 'mode-tab active' : 'mode-tab'} onClick={() => setMode('upcoming')}>
+            Upcoming
+          </button>
+          <button className={mode === 'results' ? 'mode-tab active' : 'mode-tab'} onClick={() => setMode('results')}>
+            Results
+          </button>
+        </div>
+        {mode === 'upcoming' && (
+          <label className="filter-toggle">
+            <input
+              type="checkbox"
+              checked={myBookiesOnly}
+              onChange={(e) => setMyBookiesOnly(e.target.checked)}
+              disabled={!user?.bookmakerPrefs?.length}
+            />
+            <span>My bookies only</span>
+          </label>
+        )}
       </div>
 
-      {!user?.bookmakerPrefs?.length && (
-        <p className="hint">
-          Add your bookmakers in <Link to="/account">Account</Link> to filter odds down to accounts you actually hold.
-        </p>
+      {mode === 'upcoming' && (
+        <>
+          {!user?.bookmakerPrefs?.length && (
+            <p className="hint">
+              Add your bookmakers in <Link to="/account">Account</Link> to filter odds down to accounts you actually hold.
+            </p>
+          )}
+
+          {error && <div className="error">Hmm, couldn't load {NOUN[sport]}: {error}</div>}
+          {!error && !loaded && <div className="loading">Fetching the latest {NOUN[sport]}…</div>}
+          {loaded && !loaded.length && (
+            <EmptyState
+              icon={ICON[sport]}
+              title="Nothing on the board"
+              subtitle="Check back closer to kick-off — new fixtures land as they're announced."
+            />
+          )}
+
+          {loaded && loaded.length > 0 && (
+            <div className="race-list">
+              {sport === 'football' && loaded.map((fixture) => <FixtureCard key={fixture.id} fixture={fixture} bookmakerFilter={bookmakerFilter} />)}
+              {sport === 'racing' && loaded.map((race) => <RaceCard key={race.id} race={race} bookmakerFilter={bookmakerFilter} />)}
+              {sport === 'ufc' && loaded.map((fight) => <FightCard key={fight.id} fight={fight} bookmakerFilter={bookmakerFilter} />)}
+              {GENERIC_SPORTS[sport] &&
+                loaded.map((event) => (
+                  <EventCard key={event.id} event={event} sportKey={sport} config={GENERIC_SPORTS[sport]} bookmakerFilter={bookmakerFilter} />
+                ))}
+            </div>
+          )}
+        </>
       )}
 
-      {error && <div className="error">Hmm, couldn't load {NOUN[sport]}: {error}</div>}
-      {!error && !loaded && <div className="loading">Fetching the latest {NOUN[sport]}…</div>}
-      {loaded && !loaded.length && (
-        <EmptyState
-          icon={ICON[sport]}
-          title="Nothing on the board"
-          subtitle="Check back closer to kick-off — new fixtures land as they're announced."
-        />
+      {mode === 'results' && (
+        <>
+          {resultsError && <div className="error">Hmm, couldn't load results: {resultsError}</div>}
+          {!resultsError && !loadedResults && <div className="loading">Fetching recent results…</div>}
+          {loadedResults && !loadedResults.length && (
+            <EmptyState
+              icon={ICON[sport]}
+              title="No results yet"
+              subtitle="Completed games from the last 3 days show up here once they're final."
+            />
+          )}
+          {loadedResults && loadedResults.length > 0 && (
+            <div className="race-list">
+              {loadedResults.map((game, i) => (
+                <ResultCard key={i} game={game} />
+              ))}
+            </div>
+          )}
+        </>
       )}
+    </div>
+  )
+}
 
-      {loaded && loaded.length > 0 && (
-        <div className="race-list">
-          {sport === 'football' && loaded.map((fixture) => <FixtureCard key={fixture.id} fixture={fixture} bookmakerFilter={bookmakerFilter} />)}
-          {sport === 'racing' && loaded.map((race) => <RaceCard key={race.id} race={race} bookmakerFilter={bookmakerFilter} />)}
-          {sport === 'ufc' && loaded.map((fight) => <FightCard key={fight.id} fight={fight} bookmakerFilter={bookmakerFilter} />)}
-          {GENERIC_SPORTS[sport] &&
-            loaded.map((event) => (
-              <EventCard key={event.id} event={event} sportKey={sport} config={GENERIC_SPORTS[sport]} bookmakerFilter={bookmakerFilter} />
-            ))}
+function ResultCard({ game }) {
+  const home = game.scores.find((s) => s.name === game.homeTeam)?.score
+  const away = game.scores.find((s) => s.name === game.awayTeam)?.score
+  return (
+    <div className="race-card result-card">
+      <div className="race-card-main">
+        <div className="result-row">
+          <span>{game.homeTeam}</span>
+          <span className="result-score">{home ?? '-'}</span>
         </div>
-      )}
+        <div className="result-row">
+          <span>{game.awayTeam}</span>
+          <span className="result-score">{away ?? '-'}</span>
+        </div>
+      </div>
     </div>
   )
 }

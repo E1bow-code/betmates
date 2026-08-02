@@ -5,7 +5,9 @@ import { formatDateTime, formatCountdown } from '../utils/format.js'
 import { bestWithinFilter } from '../utils/oddsUtils.js'
 import { useAuth } from '../context/AuthContext.jsx'
 import { useBetSlip } from '../context/BetSlipContext.jsx'
+import { useOddsMovement, movementKey } from '../lib/oddsMemory.js'
 import PlayerPhoto from '../components/PlayerPhoto.jsx'
+import OddsMoveIndicator from '../components/OddsMoveIndicator.jsx'
 
 export default function FightDetailPage() {
   const { id } = useParams()
@@ -20,6 +22,8 @@ export default function FightDetailPage() {
       .then(setFight)
       .catch((err) => setError(err.message))
   }, [id])
+
+  const movements = useOddsMovement(fight)
 
   if (error) return <ErrorState message={error} />
   if (!fight) return <LoadingState />
@@ -98,7 +102,10 @@ export default function FightDetailPage() {
                   </span>
                   {best ? (
                     <span className="outcome-odds">
-                      <span className="best-price">{best.decimal.toFixed(2)}</span>
+                      <span className="best-price">
+                        {best.decimal.toFixed(2)}
+                        <OddsMoveIndicator direction={movements[movementKey(fight.id, market.key, outcome.name)]} />
+                      </span>
                       <span className="best-bookmaker">{best.bookmaker}</span>
                     </span>
                   ) : (

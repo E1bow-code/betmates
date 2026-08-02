@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { useAuth } from '../context/AuthContext.jsx'
 import * as dataStore from '../lib/dataStore.js'
+import { shareOrCopy, groupInviteUrl } from '../lib/share.js'
 
 // Everything that isn't the feed itself - creating/joining a group, or
 // adding a friend by code - lives behind this sheet instead of sitting
@@ -14,6 +15,26 @@ export default function ManageSheet({ segment, groups, friends, onClose, onChang
   const [friendCode, setFriendCode] = useState('')
   const [error, setError] = useState(null)
   const [submitting, setSubmitting] = useState(false)
+  const [shareStatus, setShareStatus] = useState(null)
+
+  async function handleShareInvite(group) {
+    const result = await shareOrCopy({
+      title: `Join "${group.name}" on BetMates`,
+      text: `Join my group "${group.name}" on BetMates`,
+      url: groupInviteUrl(group.inviteCode)
+    })
+    setShareStatus(result === 'copied' ? 'Link copied' : null)
+    if (result === 'copied') setTimeout(() => setShareStatus(null), 2000)
+  }
+
+  async function handleShareFriendCode() {
+    const result = await shareOrCopy({
+      title: 'Add me on BetMates',
+      text: `Add me on BetMates with my friend code: ${user.friendCode}`
+    })
+    setShareStatus(result === 'copied' ? 'Copied' : null)
+    if (result === 'copied') setTimeout(() => setShareStatus(null), 2000)
+  }
 
   async function handleCreate(e) {
     e.preventDefault()
@@ -75,6 +96,9 @@ export default function ManageSheet({ segment, groups, friends, onClose, onChang
                   <div key={g.id} className="manage-list-row">
                     <span>{g.name}</span>
                     <span className="manage-list-code">{g.inviteCode}</span>
+                    <button className="btn btn-ghost btn-small" onClick={() => handleShareInvite(g)}>
+                      Share
+                    </button>
                   </div>
                 ))}
               </div>
@@ -104,8 +128,13 @@ export default function ManageSheet({ segment, groups, friends, onClose, onChang
           <>
             <h2 className="sheet-title">Your friends</h2>
 
-            <div className="hint">
-              Your code: <strong>{user.friendCode}</strong> — share it so mates can add you.
+            <div className="hint hint-with-action">
+              <span>
+                Your code: <strong>{user.friendCode}</strong>
+              </span>
+              <button className="btn btn-ghost btn-small" onClick={handleShareFriendCode}>
+                Share
+              </button>
             </div>
 
             {friends && friends.length > 0 && (
@@ -131,6 +160,7 @@ export default function ManageSheet({ segment, groups, friends, onClose, onChang
         )}
 
         {error && <div className="auth-error">{error}</div>}
+        {shareStatus && <div className="hint">{shareStatus}</div>}
 
         <button className="btn btn-ghost" onClick={onClose}>
           Done
