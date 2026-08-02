@@ -880,6 +880,46 @@ h1, h2, .topbar h1, .sheet-title, .auth-title {
 .fav-name { font-size: 0.8rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 110px; }
 .fav-price { color: var(--accent); font-weight: 700; }
 
+/* At real phone widths (~375-400px), squeezing two full team names plus
+   badges into one nowrap line next to the time and odds columns leaves
+   maybe 180px to work with - "Wolverhampton Wanderers" ends up as
+   "Wolv...". Stack the two names instead of truncating them. */
+@media (max-width: 420px) {
+  .race-card { gap: 8px; padding: 12px 10px; }
+  .race-card-time { min-width: 40px; }
+  .race-card-fav { min-width: 58px; }
+  .fav-name { max-width: 58px; }
+  .race-card-title.fixture-teams-row {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 2px;
+    white-space: normal;
+    overflow: visible;
+  }
+  .race-card-title.fixture-teams-row .fixture-vs { display: none; }
+  .race-card-title.fixture-teams-row .fixture-team { width: 100%; }
+  .race-card-title.fixture-teams-row .fixture-team span:last-child {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  /* Same problem, same fix, on the fixture/fight/event detail page's
+     heading - it shares .fixture-teams-row but has even less room since
+     it's set in the larger heading typeface. */
+  h1.fixture-teams-row {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 4px;
+  }
+  h1.fixture-teams-row .fixture-vs { display: none; }
+  h1.fixture-teams-row .fixture-team span {
+    white-space: normal;
+    overflow: visible;
+    text-overflow: clip;
+  }
+}
+
 /* Race header */
 .race-header { padding: 4px 4px 16px; }
 .race-header h1 { font-size: 1.25rem; margin: 0 0 4px; }
