@@ -20,7 +20,8 @@ const EMPTY_DB = {
   friendships: [],
   videoPosts: [],
   videoShares: [],
-  follows: []
+  follows: [],
+  groupMessages: []
 }
 
 // Merges in any table keys added after a browser's db was first created -
@@ -193,6 +194,21 @@ export function listGroupMembers(groupId) {
   )
 }
 
+// --- Group chat -------------------------------------------------------
+
+export function listGroupMessages(groupId) {
+  const db = readDb()
+  return delay(db.groupMessages.filter((m) => m.groupId === groupId).sort((a, b) => new Date(a.createdAt) - new Date(b.createdAt)))
+}
+
+export function sendGroupMessage(groupId, userId, body) {
+  const db = readDb()
+  const message = { id: uid('msg'), groupId, userId, body, createdAt: new Date().toISOString() }
+  db.groupMessages.push(message)
+  writeDb(db)
+  return delay(message)
+}
+
 // --- Bet posts ------------------------------------------------------------
 
 export function listBetPosts(groupId) {
@@ -351,6 +367,18 @@ export function updateNotificationPrefs(userId, prefs) {
     }
   }
   return delay(prefs)
+}
+
+// --- Push subscriptions -------------------------------------------------
+// No server to send a push from in local mode - the real subscribe/permission
+// flow in src/lib/push.js still runs, this just has nowhere to persist it.
+
+export function savePushSubscription() {
+  return delay(null)
+}
+
+export function deletePushSubscription() {
+  return delay(null)
 }
 
 // --- Friends ----------------------------------------------------------

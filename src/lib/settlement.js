@@ -5,13 +5,7 @@
 // double chance, boxing/UFC, and horse racing can't be determined from a
 // score line alone and keep the manual "Mark result" fallback in the UI.
 import * as dataStore from './dataStore.js'
-import { FOOTBALL_SPORT_KEYS, UFC_SPORT_KEY, GENERIC_SPORTS } from './sportsConfig.js'
-
-function apiKeysForSport(internalSport) {
-  if (internalSport === 'football') return FOOTBALL_SPORT_KEYS
-  if (internalSport === 'ufc') return [UFC_SPORT_KEY]
-  return GENERIC_SPORTS[internalSport]?.apiSportKeys ?? []
-}
+import { apiKeysForSport } from './sportsConfig.js'
 
 async function fetchScores(apiSportKeys) {
   if (!apiSportKeys.length) return []

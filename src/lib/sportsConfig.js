@@ -68,3 +68,14 @@ export const SPORT_ICON = {
   multi: '🎟️',
   ...Object.fromEntries(Object.entries(GENERIC_SPORTS).map(([key, cfg]) => [key, cfg.icon]))
 }
+
+// Shared by src/lib/settlement.js and src/api/resultsClient.js - anything
+// that needs to ask The Odds API's /scores endpoint about a sport has to
+// go through the same internal-key -> real-API-key mapping. Tennis isn't
+// included: it needs the same dynamic tournament-discovery sport.js does
+// for odds, which /scores doesn't have a parallel for yet.
+export function apiKeysForSport(internalSport) {
+  if (internalSport === 'football') return FOOTBALL_SPORT_KEYS
+  if (internalSport === 'ufc') return [UFC_SPORT_KEY]
+  return GENERIC_SPORTS[internalSport]?.apiSportKeys ?? []
+}

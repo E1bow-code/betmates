@@ -172,6 +172,29 @@ export async function listGroupMembers(groupId) {
   return data.map((row) => ({ id: row.profiles.id, displayName: row.profiles.display_name }))
 }
 
+// --- Group chat ---------------------------------------------------------
+// Plain free-text messages in a group, separate from bet_comments (which
+// are threaded under one specific bet post). Names aren't embedded here -
+// callers already have a memberNames lookup from listGroupMembers.
+
+function mapGroupMessage(row) {
+  return { id: row.id, groupId: row.group_id, userId: row.user_id, body: row.body, createdAt: row.created_at }
+}
+
+export async function listGroupMessages(groupId) {
+  if (!isSupabaseConfigured) return local.listGroupMessages(groupId)
+  const { data, error } = await supabase.from('group_messages').select('*').eq('group_id', groupId).order('created_at', { ascending: true })
+  if (error) throw error
+  return data.map(mapGroupMessage)
+}
+
+export async function sendGroupMessage(groupId, userId, body) {
+  if (!isSupabaseConfigured) return local.sendGroupMessage(groupId, userId, body)
+  const { data, error } = await supabase.from('group_messages').insert({ group_id: groupId, user_id: userId, body }).select().single()
+  if (error) throw error
+  return mapGroupMessage(data)
+}
+
 // --- Bet posts --------------------------------------------------------
 
 export async function listBetPosts(groupId) {
@@ -373,6 +396,27 @@ export async function updateNotificationPrefs(userId, prefs) {
   const { error } = await supabase.from('profiles').update({ notification_prefs: prefs }).eq('id', userId)
   if (error) throw error
   return prefs
+}
+
+// --- Push subscriptions -------------------------------------------------
+// One row per browser/device (see supabase/schema.sql's push_subscriptions
+// table). Local mode has no server to send a push from, so it's a no-op
+// there - src/lib/push.js still runs the real browser subscribe/permission
+// flow either way, this just skips persisting it.
+
+export async function savePushSubscription(userId, subscription) {
+  if (!isSupabaseConfigured) return local.savePushSubscription(userId, subscription)
+  const json = subscription.toJSON()
+  const { error } = await supabase
+    .from('push_subscriptions')
+    .upsert({ user_id: userId, endpoint: json.endpoint, p256dh: json.keys.p256dh, auth_key: json.keys.auth }, { onConflict: 'endpoint' })
+  if (error) throw error
+}
+
+export async function deletePushSubscription(endpoint) {
+  if (!isSupabaseConfigured) return local.deletePushSubscription(endpoint)
+  const { error } = await supabase.from('push_subscriptions').delete().eq('endpoint', endpoint)
+  if (error) throw error
 }
 
 // --- Aggregated social feed ------------------------------------------------

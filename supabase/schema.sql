@@ -295,3 +295,52 @@ create policy "recipient and sharer read a share" on video_shares for select usi
   or (target_type = 'group' and exists (select 1 from group_members m where m.group_id = target_id and m.user_id = auth.uid()))
 );
 create policy "user shares as themselves" on video_shares for insert with check (auth.uid() = shared_by_user_id);
+
+-- --- Group chat & push notifications ----------------------------------
+-- group_messages is plain free-text chat, separate from bet_comments
+-- (which thread under one specific bet post) - see src/pages/GroupFeedPage.jsx.
+
+create table group_messages (
+  id uuid primary key default gen_random_uuid(),
+  group_id uuid not null references groups(id) on delete cascade,
+  user_id uuid not null references profiles(id),
+  body text not null,
+  created_at timestamptz not null default now()
+);
+
+alter table group_messages enable row level security;
+
+create policy "members read group messages" on group_messages for select using (
+  is_group_member(group_id, auth.uid())
+);
+create policy "members send group messages as themselves" on group_messages for insert with check (
+  auth.uid() = user_id and is_group_member(group_id, auth.uid())
+);
+
+-- One row per browser/device's Web Push subscription (a user signed in on
+-- two devices gets two rows).
+create table push_subscriptions (
+  id uuid primary key default gen_random_uuid(),
+  user_id uuid not null references profiles(id) on delete cascade,
+  endpoint text not null unique,
+  p256dh text not null,
+  auth_key text not null,
+  created_at timestamptz not null default now()
+);
+
+alter table push_subscriptions enable row level security;
+
+create policy "user manages own push subscriptions" on push_subscriptions for all using (auth.uid() = user_id) with check (auth.uid() = user_id);
+
+-- netlify/functions/send-push.js authenticates as the poster (their own
+-- access token, not a service-role key - there isn't one configured for
+-- this project) and needs to look up their group-mates' subscriptions to
+-- fan a notification out to them. Broadens read access to "anyone who
+-- shares a group with you" rather than only your own rows.
+create policy "group-mates can read push subscriptions to notify them" on push_subscriptions for select using (
+  exists (
+    select 1 from group_members mine
+    join group_members theirs on theirs.group_id = mine.group_id
+    where mine.user_id = auth.uid() and theirs.user_id = push_subscriptions.user_id
+  )
+);

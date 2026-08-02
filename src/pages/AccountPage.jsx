@@ -1,9 +1,20 @@
+import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext.jsx'
 import { BOOKMAKERS } from '../lib/bookmakers.js'
+import * as dataStore from '../lib/dataStore.js'
+import { isPushSupported, getPushSubscription, subscribeToPush, unsubscribeFromPush } from '../lib/push.js'
 
 export default function AccountPage() {
   const { user, signOut, updateBookmakerPrefs, updateNotificationPrefs } = useAuth()
+  const [pushEnabled, setPushEnabled] = useState(false)
+  const [pushBusy, setPushBusy] = useState(false)
+  const [pushError, setPushError] = useState(null)
+
+  useEffect(() => {
+    if (!isPushSupported()) return
+    getPushSubscription().then((sub) => setPushEnabled(!!sub))
+  }, [])
 
   function toggleBookmaker(name) {
     const current = user.bookmakerPrefs ?? []
@@ -14,6 +25,29 @@ export default function AccountPage() {
   function toggleNotification(key) {
     const current = user.notificationPrefs ?? {}
     updateNotificationPrefs({ ...current, [key]: !current[key] })
+  }
+
+  async function handleTogglePush() {
+    setPushBusy(true)
+    setPushError(null)
+    try {
+      if (pushEnabled) {
+        const sub = await getPushSubscription()
+        if (sub) {
+          await dataStore.deletePushSubscription(sub.endpoint)
+          await unsubscribeFromPush()
+        }
+        setPushEnabled(false)
+      } else {
+        const sub = await subscribeToPush()
+        await dataStore.savePushSubscription(user.id, sub)
+        setPushEnabled(true)
+      }
+    } catch (err) {
+      setPushError(err.message)
+    } finally {
+      setPushBusy(false)
+    }
   }
 
   return (
@@ -42,6 +76,17 @@ export default function AccountPage() {
 
       <div className="account-section">
         <h2 className="market-title">Notifications</h2>
+
+        {isPushSupported() ? (
+          <label className="field-check">
+            <input type="checkbox" checked={pushEnabled} disabled={pushBusy} onChange={handleTogglePush} />
+            <span>Push notifications on this device</span>
+          </label>
+        ) : (
+          <p className="hint">This browser doesn't support push notifications.</p>
+        )}
+        {pushError && <div className="auth-error">{pushError}</div>}
+
         <label className="field-check">
           <input type="checkbox" checked={user.notificationPrefs?.betPosted ?? false} onChange={() => toggleNotification('betPosted')} />
           <span>Bet posted in a group</span>
@@ -54,7 +99,11 @@ export default function AccountPage() {
           <input type="checkbox" checked={user.notificationPrefs?.oddsMoved ?? false} onChange={() => toggleNotification('oddsMoved')} />
           <span>Odds moved on a pending bet</span>
         </label>
-        <p className="hint">Push delivery isn't wired up yet (Section 7 - post-MVP) - these are stored for when it is.</p>
+        <p className="hint">
+          {isPushSupported()
+            ? 'Turn on push above to actually receive these on this device, not just store the preference.'
+            : "These are stored for when you're on a browser that supports push."}
+        </p>
       </div>
 
       <div className="account-section">

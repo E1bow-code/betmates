@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext.jsx'
 import { useBetSlip } from '../context/BetSlipContext.jsx'
 import * as dataStore from '../lib/dataStore.js'
+import { notifyGroup } from '../lib/notify.js'
 
 // The bet slip: reads its legs from BetSlipContext rather than a single
 // `selection` prop, so tapping outcomes across different fixtures builds
@@ -56,6 +57,16 @@ export default function BetBuilderSheet() {
         potentialReturn,
         visibility: 'group'
       })
+      const groupName = groups.find((g) => g.id === groupId)?.name ?? 'your group'
+      notifyGroup(
+        groupId,
+        {
+          title: `${user.displayName} posted a bet in ${groupName}`,
+          body: `${legs[0].event} - ${legs[0].market}: ${legs[0].selection}${legs.length > 1 ? ` +${legs.length - 1} more` : ''}`,
+          url: `/#/groups/${groupId}`
+        },
+        user.id
+      )
       clearSlip()
       navigate(`/groups/${groupId}`)
       return post
