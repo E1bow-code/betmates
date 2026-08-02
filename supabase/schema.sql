@@ -34,9 +34,11 @@ create table group_members (
   primary key (group_id, user_id)
 );
 
+-- group_id is nullable: a null group_id + visibility='public' is a post to
+-- the public Feed (see src/pages/SocialFeedPage.jsx), not tied to any group.
 create table bet_posts (
   id uuid primary key default gen_random_uuid(),
-  group_id uuid not null references groups(id) on delete cascade,
+  group_id uuid references groups(id) on delete cascade,
   user_id uuid not null references profiles(id),
   sport text not null,
   market_type text not null,
@@ -44,9 +46,11 @@ create table bet_posts (
   stake numeric,
   stake_hidden boolean not null default false,
   potential_return numeric,
+  visibility text not null default 'group' check (visibility in ('group', 'public')),
   status text not null default 'open' check (status in ('open', 'won', 'lost', 'void')),
   created_at timestamptz not null default now(),
-  settled_at timestamptz
+  settled_at timestamptz,
+  check ((visibility = 'group' and group_id is not null) or (visibility = 'public' and group_id is null))
 );
 
 create table bet_copies (
@@ -119,52 +123,88 @@ alter table bet_reactions enable row level security;
 alter table bet_comments enable row level security;
 alter table manual_entries enable row level security;
 
-create policy "read own profile" on profiles for select using (auth.uid() = id);
 create policy "update own profile" on profiles for update using (auth.uid() = id);
 create policy "insert own profile" on profiles for insert with check (auth.uid() = id);
 
-create policy "members read their groups" on groups for select using (
-  exists (select 1 from group_members m where m.group_id = groups.id and m.user_id = auth.uid())
-);
+-- Broader than "read own profile only": the friend-code lookup (add a
+-- friend by code), the public Feed (showing author names), and follow
+-- buttons all need to resolve OTHER people's basic profile info, not just
+-- your own. Trade-off: email and date_of_birth become readable by any
+-- signed-in user, not just the profile owner. Tighten later with a
+-- narrower public "handles" view if that's not acceptable.
+create policy "signed-in users can read any profile" on profiles for select using (auth.role() = 'authenticated');
+
+-- Creator must be able to read the group back immediately after creating it,
+-- before their own group_members row exists (Supabase's insert().select()
+-- does the INSERT then a SELECT in one request; without this, that
+-- read-back gets blocked by RLS and reports as a generic insert failure).
+-- Also broad enough for "join with a code": looking a group up by its
+-- invite_code has to work before the joiner has a group_members row.
+-- Trade-off (same shape as the profiles policy above): any signed-in user
+-- can technically list all groups' names/codes, not just ones they're in.
+create policy "signed-in users can read any group" on groups for select using (auth.role() = 'authenticated');
 create policy "any signed-in user can create a group" on groups for insert with check (auth.uid() = created_by);
 
+-- A policy on group_members that subqueries group_members itself causes
+-- "infinite recursion detected in policy" - Postgres re-evaluates the same
+-- RLS policy for the inner query. security definer sidesteps that by
+-- running the check with the function owner's privileges (bypassing RLS)
+-- instead of the caller's.
+create or replace function is_group_member(_group_id uuid, _user_id uuid)
+returns boolean
+language sql
+security definer
+stable
+as $$
+  select exists (select 1 from group_members where group_id = _group_id and user_id = _user_id);
+$$;
+
+-- auth.uid() = user_id (no subquery) covers reading back your own just-
+-- inserted row when joining a group - same read-after-insert RLS gotcha as
+-- groups/bet_posts above. is_group_member() covers seeing your groupmates'
+-- membership rows.
 create policy "members read their membership rows" on group_members for select using (
-  exists (select 1 from group_members m2 where m2.group_id = group_members.group_id and m2.user_id = auth.uid())
+  auth.uid() = user_id
+  or is_group_member(group_id, auth.uid())
 );
 create policy "user joins a group as themselves" on group_members for insert with check (auth.uid() = user_id);
 
 create policy "members read bet posts in their groups" on bet_posts for select using (
   exists (select 1 from group_members m where m.group_id = bet_posts.group_id and m.user_id = auth.uid())
 );
+create policy "anyone signed in can read public bet posts" on bet_posts for select using (visibility = 'public');
 create policy "members post bets as themselves" on bet_posts for insert with check (
-  auth.uid() = user_id and exists (select 1 from group_members m where m.group_id = bet_posts.group_id and m.user_id = auth.uid())
+  auth.uid() = user_id and (
+    (visibility = 'public' and group_id is null)
+    or exists (select 1 from group_members m where m.group_id = bet_posts.group_id and m.user_id = auth.uid())
+  )
 );
 create policy "author updates own bet status" on bet_posts for update using (auth.uid() = user_id);
 
-create policy "members read bet copies in their groups" on bet_copies for select using (
+create policy "members or anyone read copies of visible bet posts" on bet_copies for select using (
   exists (
     select 1 from bet_posts b
-    join group_members m on m.group_id = b.group_id
-    where b.id = bet_copies.original_bet_id and m.user_id = auth.uid()
+    where b.id = bet_copies.original_bet_id
+    and (b.visibility = 'public' or exists (select 1 from group_members m where m.group_id = b.group_id and m.user_id = auth.uid()))
   )
 );
 create policy "user records their own copy" on bet_copies for insert with check (auth.uid() = copying_user_id);
 
-create policy "members read reactions in their groups" on bet_reactions for select using (
+create policy "members or anyone read reactions on visible bet posts" on bet_reactions for select using (
   exists (
     select 1 from bet_posts b
-    join group_members m on m.group_id = b.group_id
-    where b.id = bet_reactions.bet_id and m.user_id = auth.uid()
+    where b.id = bet_reactions.bet_id
+    and (b.visibility = 'public' or exists (select 1 from group_members m where m.group_id = b.group_id and m.user_id = auth.uid()))
   )
 );
 create policy "user reacts as themselves" on bet_reactions for insert with check (auth.uid() = user_id);
 create policy "user removes own reaction" on bet_reactions for delete using (auth.uid() = user_id);
 
-create policy "members read comments in their groups" on bet_comments for select using (
+create policy "members or anyone read comments on visible bet posts" on bet_comments for select using (
   exists (
     select 1 from bet_posts b
-    join group_members m on m.group_id = b.group_id
-    where b.id = bet_comments.bet_id and m.user_id = auth.uid()
+    where b.id = bet_comments.bet_id
+    and (b.visibility = 'public' or exists (select 1 from group_members m where m.group_id = b.group_id and m.user_id = auth.uid()))
   )
 );
 create policy "user comments as themselves" on bet_comments for insert with check (auth.uid() = user_id);
@@ -181,16 +221,15 @@ alter table odds_snapshots enable row level security;
 create policy "anyone can read fixtures" on fixtures for select using (true);
 create policy "anyone can read odds snapshots" on odds_snapshots for select using (true);
 
--- --- Friends & video tips ---------------------------------------------------
--- NOT YET WIRED UP in src/lib/dataStore.js - the friends/video-tips feature
--- currently runs local-only (src/lib/localBackend.js + src/lib/videoStore.js's
--- IndexedDB blobs), per an explicit product decision to ship that fast
--- rather than stand up cloud video storage first. These tables are here so
--- the real schema is ready when that's revisited: `video_posts.storage_key`
--- would move from an IndexedDB key to a Supabase Storage object path/URL,
--- and dataStore's addFriendByCode/listFriends/createVideoPost/etc. would
--- grow the same `if (!isSupabaseConfigured) return local.X(...)` branches
--- as everything else in that file.
+-- --- Friends, follows & video tips -----------------------------------------
+-- Friends, follows, and video-post METADATA sync through Supabase like
+-- everything else once configured. Video BYTES do not: storage_key still
+-- points at an IndexedDB key on whichever device recorded/uploaded the
+-- clip (see src/lib/videoStore.js), not a Supabase Storage object - that
+-- part is still local-only. A clip recorded on one device will show
+-- VideoCard's "recorded on a different device" fallback everywhere else
+-- until storage_key is switched to a real Storage URL and the record/
+-- upload flow is changed to push bytes there instead of IndexedDB.
 
 create table friendships (
   id uuid primary key default gen_random_uuid(),
@@ -199,6 +238,16 @@ create table friendships (
   created_at timestamptz not null default now(),
   check (user_a <> user_b),
   unique (user_a, user_b)
+);
+
+-- One-way, unlike friendships: no accept step needed.
+create table follows (
+  id uuid primary key default gen_random_uuid(),
+  follower_id uuid not null references profiles(id) on delete cascade,
+  following_id uuid not null references profiles(id) on delete cascade,
+  created_at timestamptz not null default now(),
+  check (follower_id <> following_id),
+  unique (follower_id, following_id)
 );
 
 create table video_posts (
@@ -221,11 +270,16 @@ create table video_shares (
 );
 
 alter table friendships enable row level security;
+alter table follows enable row level security;
 alter table video_posts enable row level security;
 alter table video_shares enable row level security;
 
 create policy "user reads own friendships" on friendships for select using (auth.uid() = user_a or auth.uid() = user_b);
 create policy "user adds a friendship as themselves" on friendships for insert with check (auth.uid() = user_a or auth.uid() = user_b);
+
+create policy "anyone can read follow relationships" on follows for select using (true);
+create policy "user follows as themselves" on follows for insert with check (auth.uid() = follower_id);
+create policy "user unfollows as themselves" on follows for delete using (auth.uid() = follower_id);
 
 create policy "author and friends read video posts" on video_posts for select using (
   auth.uid() = author_id or exists (
