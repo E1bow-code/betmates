@@ -106,7 +106,17 @@ h1, h2, .topbar h1, .sheet-title, .auth-title {
 }
 
 .bottom-nav-item.active { color: var(--accent); border-top-color: var(--accent); }
-.bottom-nav-icon { font-size: 1.2rem; }
+.bottom-nav-icon { font-size: 1.2rem; position: relative; display: inline-block; }
+.bottom-nav-dot {
+  position: absolute;
+  top: -2px;
+  right: -4px;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--accent);
+  border: 1.5px solid var(--bg);
+}
 
 /* Floating bet-slip bar: pinned just above the bottom nav whenever the
    slip has picks but its sheet is closed, so it survives navigating to
@@ -551,6 +561,7 @@ h1, h2, .topbar h1, .sheet-title, .auth-title {
 .leaderboard-pnl.tone-good { color: var(--accent); }
 .leaderboard-pnl.tone-bad { color: var(--bad); }
 .leaderboard-meta { color: var(--text-dim); font-size: 0.75rem; }
+.leaderboard-list-standalone { margin-top: 10px; }
 
 /* Bet feed / bet cards - styled like an actual betting slip: sharp
    corners, a stub stripe down the left for status, and a torn/dashed
@@ -713,6 +724,44 @@ h1, h2, .topbar h1, .sheet-title, .auth-title {
 .stat-tile.tone-good .stat-tile-value { color: var(--accent); }
 .stat-tile.tone-bad .stat-tile-value { color: var(--bad); }
 .stat-tile-label { font-size: 0.64rem; color: var(--text-dim); text-transform: uppercase; margin-top: 2px; letter-spacing: 0.03em; }
+
+.pnl-chart {
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  padding: 10px 12px 8px;
+  margin-bottom: 16px;
+  background: var(--surface);
+}
+.pnl-chart-svg { width: 100%; height: 60px; display: block; }
+.pnl-chart-zero { stroke: var(--border); stroke-width: 1; stroke-dasharray: 3 3; }
+.pnl-chart-line { fill: none; stroke-width: 2; }
+.pnl-chart-line.tone-good { stroke: var(--accent); }
+.pnl-chart-line.tone-bad { stroke: var(--bad); }
+.pnl-chart-caption { font-size: 0.72rem; color: var(--text-dim); margin-top: 4px; }
+
+.sport-breakdown {
+  display: flex;
+  flex-direction: column;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  overflow: hidden;
+  margin-bottom: 16px;
+}
+.sport-breakdown-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  background: var(--surface);
+  border-bottom: 1px solid var(--border);
+  padding: 8px 14px;
+  font-size: 0.85rem;
+}
+.sport-breakdown-row:last-child { border-bottom: none; }
+.sport-breakdown-name { flex: 1; font-weight: 600; }
+.sport-breakdown-pnl { font-weight: 700; font-family: var(--font-mono); font-variant-numeric: tabular-nums; }
+.sport-breakdown-pnl.tone-good { color: var(--accent); }
+.sport-breakdown-pnl.tone-bad { color: var(--bad); }
+.sport-breakdown-meta { color: var(--text-dim); font-size: 0.75rem; font-family: var(--font-mono); font-variant-numeric: tabular-nums; }
 
 .tracker-list {
   display: flex;

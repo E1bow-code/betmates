@@ -40,7 +40,7 @@ export default function RaceDetailPage() {
       selection: runner.name,
       odds: best.decimal,
       bookmaker: best.bookmaker,
-      sport: 'horse_racing'
+      sport: 'racing'
     })
   }
 

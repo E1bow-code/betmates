@@ -1,9 +1,11 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { useAuth } from '../context/AuthContext.jsx'
 import * as dataStore from '../lib/dataStore.js'
 import { checkAndSettleBets } from '../lib/settlement.js'
 import { computeStats } from '../utils/trackerStats.js'
+import { SPORT_LABEL, SPORT_ICON } from '../lib/sportsConfig.js'
 import EmptyState from '../components/EmptyState.jsx'
+import PnlChart from '../components/PnlChart.jsx'
 
 const STATUS_LABEL = { open: 'Pending', won: 'Won', lost: 'Lost', void: 'Void' }
 
@@ -45,6 +47,20 @@ export default function TrackerPage() {
     refresh()
   }
 
+  const bySport = useMemo(() => {
+    if (!entries) return []
+    const groups = new Map()
+    for (const entry of entries) {
+      const key = entry.sport ?? 'football'
+      if (!groups.has(key)) groups.set(key, [])
+      groups.get(key).push(entry)
+    }
+    return [...groups.entries()]
+      .map(([sport, sportEntries]) => ({ sport, ...computeStats(sportEntries) }))
+      .filter((row) => row.settledCount > 0)
+      .sort((a, b) => b.profit - a.profit)
+  }, [entries])
+
   if (entries === null) return <div className="loading">Tallying up your bets…</div>
 
   const stats = computeStats(entries)
@@ -62,6 +78,23 @@ export default function TrackerPage() {
         <StatTile label="Win rate" value={stats.winRate === null ? '-' : `${stats.winRate}%`} />
         <StatTile label="Staked" value={`£${stats.staked.toFixed(2)}`} />
       </div>
+
+      <PnlChart entries={entries} />
+
+      {bySport.length > 1 && (
+        <div className="sport-breakdown">
+          {bySport.map((row) => (
+            <div key={row.sport} className="sport-breakdown-row">
+              <span className="sport-breakdown-icon">{SPORT_ICON[row.sport] ?? '🎟️'}</span>
+              <span className="sport-breakdown-name">{SPORT_LABEL[row.sport] ?? row.sport}</span>
+              <span className={`sport-breakdown-pnl ${row.profit >= 0 ? 'tone-good' : 'tone-bad'}`}>
+                {row.profit >= 0 ? '+' : ''}£{row.profit.toFixed(2)}
+              </span>
+              <span className="sport-breakdown-meta">{row.winRate === null ? '-' : `${row.winRate}% WR`}</span>
+            </div>
+          ))}
+        </div>
+      )}
 
       {!entries.length && (
         <EmptyState
