@@ -52,6 +52,21 @@ function mapBetPost(row) {
   }
 }
 
+function mapManualEntry(row) {
+  return {
+    id: row.id,
+    userId: row.user_id,
+    sport: row.sport,
+    marketType: row.market_type,
+    selections: row.selections,
+    stake: row.stake,
+    potentialReturn: row.potential_return,
+    status: row.status,
+    createdAt: row.created_at,
+    settledAt: row.settled_at
+  }
+}
+
 // --- Auth -------------------------------------------------------------
 
 export async function getSession() {
@@ -310,7 +325,7 @@ export async function listManualEntries(userId) {
   if (!isSupabaseConfigured) return local.listManualEntries(userId)
   const { data, error } = await supabase.from('manual_entries').select('*').eq('user_id', userId)
   if (error) throw error
-  return data
+  return data.map(mapManualEntry)
 }
 
 export async function addManualEntry(entry) {
@@ -328,7 +343,7 @@ export async function addManualEntry(entry) {
     .select()
     .single()
   if (error) throw error
-  return data
+  return mapManualEntry(data)
 }
 
 export async function updateManualEntryStatus(entryId, status) {

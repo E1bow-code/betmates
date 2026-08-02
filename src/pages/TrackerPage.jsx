@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { useAuth } from '../context/AuthContext.jsx'
 import * as dataStore from '../lib/dataStore.js'
+import { checkAndSettleBets } from '../lib/settlement.js'
 import { computeStats } from '../utils/trackerStats.js'
 import EmptyState from '../components/EmptyState.jsx'
 
@@ -9,13 +10,28 @@ const STATUS_LABEL = { open: 'Pending', won: 'Won', lost: 'Lost', void: 'Void' }
 export default function TrackerPage() {
   const { user } = useAuth()
   const [entries, setEntries] = useState(null)
+  const [checking, setChecking] = useState(false)
 
   useEffect(() => {
-    refresh()
+    let cancelled = false
+    // Settle whatever we can from final scores before the user has to
+    // touch anything - only runs once per page visit, after the first
+    // load, so it never fights with a manual status change mid-session.
+    refresh().then(() => {
+      if (cancelled) return
+      setChecking(true)
+      checkAndSettleBets(user.id)
+        .then(({ settled }) => settled > 0 && !cancelled && refresh())
+        .catch(() => {})
+        .finally(() => !cancelled && setChecking(false))
+    })
+    return () => {
+      cancelled = true
+    }
   }, [])
 
   function refresh() {
-    Promise.all([dataStore.listBetPostsByUser(user.id), dataStore.listManualEntries(user.id)]).then(([posted, manual]) => {
+    return Promise.all([dataStore.listBetPostsByUser(user.id), dataStore.listManualEntries(user.id)]).then(([posted, manual]) => {
       const combined = [
         ...posted.map((p) => ({ ...p, source: 'group' })),
         ...manual.map((m) => ({ ...m, source: 'manual' }))
@@ -37,6 +53,7 @@ export default function TrackerPage() {
     <div>
       <div className="topbar">
         <h1>Tracker</h1>
+        {checking && <span className="tracker-checking">Checking latest results…</span>}
       </div>
 
       <div className="stat-tiles">

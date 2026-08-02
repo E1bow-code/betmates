@@ -221,6 +221,7 @@ h1, h2, .topbar h1, .sheet-title, .auth-title {
 
 /* Topbar with filter toggle */
 .topbar { display: flex; flex-direction: column; gap: 4px; }
+.tracker-checking { font-size: 0.76rem; color: var(--text-dim); font-style: italic; }
 .filter-toggle { display: flex; align-items: center; gap: 6px; font-size: 0.82rem; color: var(--text-dim); margin-top: 4px; }
 
 /* Sport/segment switcher is the one deliberately pill-shaped control in
