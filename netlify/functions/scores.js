@@ -4,6 +4,15 @@
 // client already knows it needs (derived from open bets' legs) so this
 // never fetches more than necessary. daysFrom=3 is the free-tier max
 // lookback - a bet on a game older than that still needs manual settling.
+//
+// Cached per sport key (see src/lib/apiCache.js) rather than per whole
+// request, since different callers ask for different key combinations -
+// TrackerPage loading twice in a few minutes for the same sports shouldn't
+// cost credits twice.
+import { cacheGet, cacheSet } from '../../src/lib/apiCache.js'
+
+const SCORES_TTL = 3 * 60 * 1000
+
 export default async (req) => {
   const apiKey = process.env.ODDS_API_KEY
   const url = new URL(req.url)
@@ -19,10 +28,14 @@ export default async (req) => {
   try {
     const results = await Promise.allSettled(
       keys.map(async (sportKey) => {
+        const cached = cacheGet(`scores-${sportKey}`)
+        if (cached) return cached
         const apiUrl = `https://api.the-odds-api.com/v4/sports/${sportKey}/scores/?apiKey=${apiKey}&daysFrom=3`
         const res = await fetch(apiUrl)
         if (!res.ok) throw new Error(`${sportKey}: ${res.status}`)
-        return res.json()
+        const events = await res.json()
+        cacheSet(`scores-${sportKey}`, events, SCORES_TTL)
+        return events
       })
     )
 

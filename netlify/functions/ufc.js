@@ -1,12 +1,14 @@
 // Proxy for UFC/MMA odds via The Odds API's `mma_mixed_martial_arts` sport
 // (there's no UFC-specific key - this covers all MMA promotions, but in
 // practice the UK-bookmaker-covered events are predominantly UFC cards).
-// Same shape/caching approach as netlify/functions/odds.js: one credit per
-// page load, mock fallback when ODDS_API_KEY isn't set.
+// Same shape/caching approach as netlify/functions/odds.js (see
+// src/lib/apiCache.js) - mock fallback when ODDS_API_KEY isn't set.
+import { cacheGet, cacheSet } from '../../src/lib/apiCache.js'
 
 const SPORT = 'mma_mixed_martial_arts'
 const REGION = 'uk'
 const MARKETS = 'h2h'
+const LIST_TTL = 5 * 60 * 1000
 
 async function serveMock(id) {
   const { getMockFights, getMockFight } = await import('../../src/data/mockUfcOdds.js')
@@ -25,14 +27,18 @@ export default async (req) => {
   if (!apiKey) return serveMock(id)
 
   try {
-    const apiUrl = `https://api.the-odds-api.com/v4/sports/${SPORT}/odds/?apiKey=${apiKey}&regions=${REGION}&markets=${MARKETS}&oddsFormat=decimal`
-    const res = await fetch(apiUrl)
-    if (!res.ok) {
-      console.error(`Odds provider error (${res.status}), falling back to mock`)
-      return serveMock(id)
+    let fights = cacheGet('ufc-fights')
+    if (!fights) {
+      const apiUrl = `https://api.the-odds-api.com/v4/sports/${SPORT}/odds/?apiKey=${apiKey}&regions=${REGION}&markets=${MARKETS}&oddsFormat=decimal`
+      const res = await fetch(apiUrl)
+      if (!res.ok) {
+        console.error(`Odds provider error (${res.status}), falling back to mock`)
+        return serveMock(id)
+      }
+      const events = await res.json()
+      fights = events.map(reshapeEvent).sort((a, b) => new Date(a.kickoff) - new Date(b.kickoff))
+      cacheSet('ufc-fights', fights, LIST_TTL)
     }
-    const events = await res.json()
-    const fights = events.map(reshapeEvent).sort((a, b) => new Date(a.kickoff) - new Date(b.kickoff))
     const body = id ? fights.find((f) => f.id === id) ?? null : fights
     return new Response(JSON.stringify(body), {
       status: 200,

@@ -1,15 +1,19 @@
 // Generic proxy for every sport in src/lib/sportsConfig.js - one function
 // instead of one-per-sport. `sport` query param selects the config entry;
-// everything else mirrors netlify/functions/odds.js's approach. h2h and
-// totals are both "featured" markets on The Odds API (same credit cost as
-// h2h alone), so adding totals here doesn't change the credit math -
-// spreads/handicap markets are left out since the line varies per team
-// per event and isn't worth the added complexity yet.
+// everything else mirrors netlify/functions/odds.js's approach, including
+// the caching (see src/lib/apiCache.js) - same "keep this on the free
+// tier" goal. h2h and totals are both "featured" markets on The Odds API
+// (same credit cost as h2h alone), so adding totals here doesn't change
+// the credit math - spreads/handicap markets are left out since the line
+// varies per team per event and isn't worth the added complexity yet.
 
 import { GENERIC_SPORTS } from '../../src/lib/sportsConfig.js'
+import { cacheGet, cacheSet } from '../../src/lib/apiCache.js'
 
 const REGION = 'uk'
 const MARKETS = 'h2h,totals'
+const LIST_TTL = 5 * 60 * 1000
+const TENNIS_KEYS_TTL = 10 * 60 * 1000
 
 export default async (req) => {
   const apiKey = process.env.ODDS_API_KEY
@@ -34,38 +38,50 @@ export default async (req) => {
   if (!apiKey) return emptyResponse()
 
   try {
-    // /v4/sports listing is free (doesn't cost quota) - used to resolve
-    // which tennis_* tournament keys are actually live right now instead
-    // of a hardcoded list (see sportsConfig.js's dynamicPrefix comment).
-    const apiSportKeys = config.dynamicPrefix
-      ? await fetch(`https://api.the-odds-api.com/v4/sports/?apiKey=${apiKey}`)
-          .then((r) => (r.ok ? r.json() : []))
-          .then((sports) => sports.filter((s) => s.active && s.key.startsWith(config.dynamicPrefix)).map((s) => s.key))
-          .catch(() => [])
-      : config.apiSportKeys
+    let items = cacheGet(`sport-items-${sportParam}`)
+    if (!items) {
+      // /v4/sports listing is free (doesn't cost quota) - used to resolve
+      // which tennis_* tournament keys are actually live right now instead
+      // of a hardcoded list (see sportsConfig.js's dynamicPrefix comment).
+      // Still cached to avoid a network round-trip every request.
+      const apiSportKeys = config.dynamicPrefix
+        ? await (async () => {
+            const cachedKeys = cacheGet(`tennis-keys-${config.dynamicPrefix}`)
+            if (cachedKeys) return cachedKeys
+            const keys = await fetch(`https://api.the-odds-api.com/v4/sports/?apiKey=${apiKey}`)
+              .then((r) => (r.ok ? r.json() : []))
+              .then((sports) => sports.filter((s) => s.active && s.key.startsWith(config.dynamicPrefix)).map((s) => s.key))
+              .catch(() => [])
+            if (keys.length) cacheSet(`tennis-keys-${config.dynamicPrefix}`, keys, TENNIS_KEYS_TTL)
+            return keys
+          })()
+        : config.apiSportKeys
 
-    if (!apiSportKeys.length) return emptyResponse()
+      if (!apiSportKeys.length) return emptyResponse()
 
-    const results = await Promise.allSettled(
-      apiSportKeys.map(async (apiSport) => {
-        const apiUrl = `https://api.the-odds-api.com/v4/sports/${apiSport}/odds/?apiKey=${apiKey}&regions=${REGION}&markets=${MARKETS}&oddsFormat=decimal`
-        const res = await fetch(apiUrl)
-        if (!res.ok) throw new Error(`${apiSport}: ${res.status}`)
-        return res.json()
-      })
-    )
+      const results = await Promise.allSettled(
+        apiSportKeys.map(async (apiSport) => {
+          const apiUrl = `https://api.the-odds-api.com/v4/sports/${apiSport}/odds/?apiKey=${apiKey}&regions=${REGION}&markets=${MARKETS}&oddsFormat=decimal`
+          const res = await fetch(apiUrl)
+          if (!res.ok) throw new Error(`${apiSport}: ${res.status}`)
+          return res.json()
+        })
+      )
 
-    const events = results.filter((r) => r.status === 'fulfilled').flatMap((r) => r.value)
-    // Provider errors (quota exhausted, outage, etc.) degrade to an empty
-    // board rather than an error page - there's no per-sport mock data to
-    // fall back to here, but "nothing on right now" is a state the UI
-    // already handles fine.
-    if (!events.length && results.every((r) => r.status === 'rejected')) {
-      console.error('Odds provider error, degrading to empty:', results[0].reason?.message)
-      return emptyResponse()
+      const events = results.filter((r) => r.status === 'fulfilled').flatMap((r) => r.value)
+      // Provider errors (quota exhausted, outage, etc.) degrade to an empty
+      // board rather than an error page - there's no per-sport mock data to
+      // fall back to here, but "nothing on right now" is a state the UI
+      // already handles fine.
+      if (!events.length && results.every((r) => r.status === 'rejected')) {
+        console.error('Odds provider error, degrading to empty:', results[0].reason?.message)
+        return emptyResponse()
+      }
+
+      items = events.map((e) => reshapeEvent(e, config)).sort((a, b) => new Date(a.kickoff) - new Date(b.kickoff))
+      cacheSet(`sport-items-${sportParam}`, items, LIST_TTL)
     }
 
-    const items = events.map((e) => reshapeEvent(e, config)).sort((a, b) => new Date(a.kickoff) - new Date(b.kickoff))
     const body = id ? items.find((i) => i.id === id) ?? null : items
     return new Response(JSON.stringify(body), {
       status: 200,

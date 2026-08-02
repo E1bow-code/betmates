@@ -4,16 +4,16 @@
 // used by src/data/mockFootballOdds.js, so UI code doesn't change when
 // switching src/api/oddsClient.js off mock mode.
 //
-// Free tier: 500 requests/month. Each league below costs one credit PER
-// PAGE LOAD (not per fixture) - 5 leagues = 5 credits every time someone
-// opens the Odds tab, so ~100 loads/month before the free tier runs dry.
-// Opening a specific fixture costs more on top of that: one credit for
-// goalscorer player props, plus one credit PER additional market below
-// (btts/draw_no_bet/double_chance/alternate_totals are "additional
-// markets", billed separately from the featured h2h/totals bundled into
-// the list call). Trim either list (or add server-side caching) if
-// that's not enough.
+// Free tier: 500 requests/month, and this app is meant to stay on it - see
+// src/lib/apiCache.js. The bulk list (5 leagues = 5 credits) is cached for
+// LIST_TTL, and a fixture's fully-assembled detail (list lookup + player
+// props + extra markets) is cached per-id for DETAIL_TTL, so repeat views
+// of the same fixture/list within that window cost nothing further -
+// worth keeping short enough that odds don't feel stale, long enough that
+// a few friends checking the same match in the same few minutes only
+// costs credits once.
 import { FOOTBALL_SPORT_KEYS } from '../../src/lib/sportsConfig.js'
+import { cacheGet, cacheSet } from '../../src/lib/apiCache.js'
 
 const SPORTS = FOOTBALL_SPORT_KEYS
 const REGION = 'uk'
@@ -24,6 +24,8 @@ const EXTRA_MARKET_LABELS = {
   double_chance: 'Double Chance',
   alternate_totals: 'Alternate Total Goals'
 }
+const LIST_TTL = 5 * 60 * 1000
+const DETAIL_TTL = 10 * 60 * 1000
 
 async function serveMock(id) {
   const { getMockFixtures, getMockFixture } = await import('../../src/data/mockFootballOdds.js')
@@ -42,26 +44,49 @@ export default async (req) => {
   if (!apiKey) return serveMock(id)
 
   try {
-    const results = await Promise.allSettled(
-      SPORTS.map(async (sport) => {
-        const apiUrl = `https://api.the-odds-api.com/v4/sports/${sport}/odds/?apiKey=${apiKey}&regions=${REGION}&markets=${MARKETS}&oddsFormat=decimal`
-        const res = await fetch(apiUrl)
-        if (!res.ok) throw new Error(`${sport}: ${res.status}`)
-        return res.json()
-      })
-    )
+    if (id) {
+      const cachedFixture = cacheGet(`football-fixture-${id}`)
+      if (cachedFixture) {
+        return new Response(JSON.stringify(cachedFixture), {
+          status: 200,
+          headers: { 'content-type': 'application/json', 'x-data-source': 'live-cached' }
+        })
+      }
+    } else {
+      const cachedList = cacheGet('football-list')
+      if (cachedList) {
+        return new Response(JSON.stringify(cachedList), {
+          status: 200,
+          headers: { 'content-type': 'application/json', 'x-data-source': 'live-cached' }
+        })
+      }
+    }
 
-    const events = results.filter((r) => r.status === 'fulfilled').flatMap((r) => r.value)
-    // Provider errors (quota exhausted, outage, etc.) shouldn't turn into a
-    // broken page for users - fall back to sample odds instead, same as
-    // the no-API-key path. Logged server-side so it's still diagnosable.
-    if (!events.length && results.every((r) => r.status === 'rejected')) {
-      console.error('Odds provider error, falling back to mock:', results[0].reason?.message)
-      return serveMock(id)
+    let events = cacheGet('football-events')
+    if (!events) {
+      const results = await Promise.allSettled(
+        SPORTS.map(async (sport) => {
+          const apiUrl = `https://api.the-odds-api.com/v4/sports/${sport}/odds/?apiKey=${apiKey}&regions=${REGION}&markets=${MARKETS}&oddsFormat=decimal`
+          const res = await fetch(apiUrl)
+          if (!res.ok) throw new Error(`${sport}: ${res.status}`)
+          return res.json()
+        })
+      )
+
+      events = results.filter((r) => r.status === 'fulfilled').flatMap((r) => r.value)
+      // Provider errors (quota exhausted, outage, etc.) shouldn't turn into
+      // a broken page for users - fall back to sample odds instead, same as
+      // the no-API-key path. Logged server-side so it's still diagnosable.
+      if (!events.length && results.every((r) => r.status === 'rejected')) {
+        console.error('Odds provider error, falling back to mock:', results[0].reason?.message)
+        return serveMock(id)
+      }
+      if (events.length) cacheSet('football-events', events, LIST_TTL)
     }
 
     if (!id) {
       const fixtures = events.map(reshapeEvent).sort((a, b) => new Date(a.kickoff) - new Date(b.kickoff))
+      cacheSet('football-list', fixtures, LIST_TTL)
       return new Response(JSON.stringify(fixtures), {
         status: 200,
         headers: { 'content-type': 'application/json', 'x-data-source': 'live' }
@@ -112,6 +137,7 @@ export default async (req) => {
       // Nice-to-have - never fail the whole fixture load over extra markets.
     }
 
+    cacheSet(`football-fixture-${id}`, fixture, DETAIL_TTL)
     return new Response(JSON.stringify(fixture), {
       status: 200,
       headers: { 'content-type': 'application/json', 'x-data-source': 'live' }
