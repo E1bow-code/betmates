@@ -5,6 +5,7 @@ import { formatKickoff, formatCountdown } from '../utils/format.js'
 import { bestWithinFilter } from '../utils/oddsUtils.js'
 import { useAuth } from '../context/AuthContext.jsx'
 import { useBetSlip } from '../context/BetSlipContext.jsx'
+import SportHeroBanner from '../components/SportHeroBanner.jsx'
 
 export default function RaceDetailPage() {
   const { id } = useParams()
@@ -46,6 +47,7 @@ export default function RaceDetailPage() {
 
   return (
     <div>
+      <SportHeroBanner sport="racing" />
       <div className="topbar">
         <Link to="/odds" className="back">
           &larr; Races

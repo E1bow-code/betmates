@@ -8,6 +8,7 @@ import { useBetSlip } from '../context/BetSlipContext.jsx'
 import { useOddsMovement, movementKey } from '../lib/oddsMemory.js'
 import PlayerPhoto from '../components/PlayerPhoto.jsx'
 import OddsMoveIndicator from '../components/OddsMoveIndicator.jsx'
+import SportHeroBanner from '../components/SportHeroBanner.jsx'
 
 export default function FightDetailPage() {
   const { id } = useParams()
@@ -44,6 +45,7 @@ export default function FightDetailPage() {
 
   return (
     <div>
+      <SportHeroBanner sport="ufc" />
       <div className="topbar">
         <Link to="/odds" className="back">
           &larr; Fights

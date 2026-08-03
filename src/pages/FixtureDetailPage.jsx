@@ -9,6 +9,7 @@ import { useOddsMovement, movementKey } from '../lib/oddsMemory.js'
 import TeamBadge from '../components/TeamBadge.jsx'
 import PlayerPhoto from '../components/PlayerPhoto.jsx'
 import OddsMoveIndicator from '../components/OddsMoveIndicator.jsx'
+import SportHeroBanner from '../components/SportHeroBanner.jsx'
 
 const PLAYER_MARKET_KEYS = ['player_goal_scorer_anytime', 'player_first_goal_scorer', 'player_last_goal_scorer']
 
@@ -47,6 +48,7 @@ export default function FixtureDetailPage() {
 
   return (
     <div>
+      <SportHeroBanner sport="football" />
       <div className="topbar">
         <Link to="/odds" className="back">
           &larr; Fixtures

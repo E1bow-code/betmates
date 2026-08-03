@@ -230,6 +230,23 @@ h1, h2, .topbar h1, .sheet-title, .auth-title {
 .hint { color: var(--text-dim); font-size: 0.8rem; padding: 4px 4px 12px; }
 .hint-with-action { display: flex; justify-content: space-between; align-items: center; gap: 8px; }
 
+/* Atmospheric photo strip above a page's own header - full-bleed out of
+   .app-content's side padding, faded into the page background at the
+   bottom so it reads as mood-setting rather than a hard-edged photo box. */
+.sport-hero {
+  position: relative;
+  height: 130px;
+  margin: 0 -12px;
+  background-size: cover;
+  background-position: center;
+  overflow: hidden;
+}
+.sport-hero-scrim {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(180deg, rgba(21, 18, 15, 0.25) 0%, rgba(21, 18, 15, 0.75) 65%, var(--bg) 100%);
+}
+
 /* Topbar with filter toggle */
 .topbar { display: flex; flex-direction: column; gap: 4px; }
 .tracker-checking { font-size: 0.76rem; color: var(--text-dim); font-style: italic; }

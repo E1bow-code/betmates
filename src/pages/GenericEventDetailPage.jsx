@@ -10,6 +10,7 @@ import { useOddsMovement, movementKey } from '../lib/oddsMemory.js'
 import TeamBadge from '../components/TeamBadge.jsx'
 import PlayerPhoto from '../components/PlayerPhoto.jsx'
 import OddsMoveIndicator from '../components/OddsMoveIndicator.jsx'
+import SportHeroBanner from '../components/SportHeroBanner.jsx'
 
 export default function GenericEventDetailPage() {
   const { sportKey, id } = useParams()
@@ -55,6 +56,7 @@ export default function GenericEventDetailPage() {
 
   return (
     <div>
+      <SportHeroBanner sport={sportKey} />
       <div className="topbar">
         <Link to="/odds" className="back">
           &larr; {config.label}

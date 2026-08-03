@@ -12,6 +12,7 @@ import { useAuth } from '../context/AuthContext.jsx'
 import EmptyState from '../components/EmptyState.jsx'
 import TeamBadge from '../components/TeamBadge.jsx'
 import PlayerPhoto from '../components/PlayerPhoto.jsx'
+import SportHeroBanner from '../components/SportHeroBanner.jsx'
 
 const SPORTS = ['football', 'racing', 'ufc', ...Object.keys(GENERIC_SPORTS)].map((key) => ({ key, label: SPORT_LABEL[key] }))
 
@@ -69,6 +70,7 @@ export default function OddsListPage() {
 
   return (
     <div>
+      <SportHeroBanner sport={sport} />
       <div className="topbar">
         <h1>Odds</h1>
         <div className="sport-switcher">
