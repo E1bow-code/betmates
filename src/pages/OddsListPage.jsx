@@ -31,6 +31,30 @@ const NOUN = {
 }
 const ICON = SPORT_ICON
 
+// Every item shape (fixture/race/fight/generic event/result) has team or
+// participant names under different field names - just check whichever
+// ones exist rather than branching per sport.
+function filterBySearch(list, query) {
+  if (!list) return list
+  const q = query.trim().toLowerCase()
+  if (!q) return list
+  return list.filter((item) => {
+    const haystack = [
+      item.homeTeam,
+      item.awayTeam,
+      item.fighterA,
+      item.fighterB,
+      item.participantA,
+      item.participantB,
+      item.course,
+      item.raceName,
+      item.competition,
+      ...(item.runners?.map((r) => r.name) ?? [])
+    ]
+    return haystack.filter(Boolean).some((h) => h.toLowerCase().includes(q))
+  })
+}
+
 export default function OddsListPage() {
   const { user } = useAuth()
   const [sport, setSport] = useState('football')
@@ -42,6 +66,7 @@ export default function OddsListPage() {
   const [results, setResults] = useState(null)
   const [resultsSport, setResultsSport] = useState(null)
   const [resultsError, setResultsError] = useState(null)
+  const [search, setSearch] = useState('')
 
   useEffect(() => {
     setError(null)
@@ -65,8 +90,11 @@ export default function OddsListPage() {
   }, [mode, sport])
 
   const bookmakerFilter = myBookiesOnly ? user?.bookmakerPrefs ?? [] : null
-  const loaded = itemsSport === sport ? items : null
-  const loadedResults = resultsSport === sport ? results : null
+  const rawLoaded = itemsSport === sport ? items : null
+  const rawLoadedResults = resultsSport === sport ? results : null
+  const loaded = filterBySearch(rawLoaded, search)
+  const loadedResults = filterBySearch(rawLoadedResults, search)
+  const searchActive = search.trim().length > 0
 
   return (
     <div>
@@ -92,6 +120,13 @@ export default function OddsListPage() {
             Results
           </button>
         </div>
+        <input
+          className="search-input"
+          type="search"
+          placeholder="Search by team…"
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+        />
         {mode === 'upcoming' && (
           <label className="filter-toggle">
             <input
@@ -115,7 +150,10 @@ export default function OddsListPage() {
 
           {error && <div className="error">Hmm, couldn't load {NOUN[sport]}: {error}</div>}
           {!error && !loaded && <div className="loading">Fetching the latest {NOUN[sport]}…</div>}
-          {loaded && !loaded.length && (
+          {loaded && !loaded.length && searchActive && rawLoaded?.length > 0 && (
+            <EmptyState icon="🔎" title="No matches" subtitle={`Nothing found for "${search.trim()}" in ${NOUN[sport]}.`} />
+          )}
+          {loaded && !loaded.length && !(searchActive && rawLoaded?.length > 0) && (
             <EmptyState
               icon={ICON[sport]}
               title="Nothing on the board"

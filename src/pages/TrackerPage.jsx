@@ -6,6 +6,7 @@ import { computeStats, computeStreak, computeBestWeek } from '../utils/trackerSt
 import { SPORT_LABEL, SPORT_ICON } from '../lib/sportsConfig.js'
 import EmptyState from '../components/EmptyState.jsx'
 import PnlChart from '../components/PnlChart.jsx'
+import { trackerEntriesToCsv, downloadCsv } from '../lib/csvExport.js'
 
 const STATUS_LABEL = { open: 'Pending', won: 'Won', lost: 'Lost', void: 'Void' }
 
@@ -47,6 +48,11 @@ export default function TrackerPage() {
     refresh()
   }
 
+  function handleExport() {
+    const date = new Date().toISOString().slice(0, 10)
+    downloadCsv(`betmates-tracker-${date}.csv`, trackerEntriesToCsv(entries))
+  }
+
   const bySport = useMemo(() => {
     if (!entries) return []
     const groups = new Map()
@@ -81,7 +87,14 @@ export default function TrackerPage() {
   return (
     <div>
       <div className="topbar">
-        <h1>Tracker</h1>
+        <div className="topbar-row">
+          <h1>Tracker</h1>
+          {entries.length > 0 && (
+            <button className="btn btn-ghost btn-small" onClick={handleExport}>
+              Export CSV
+            </button>
+          )}
+        </div>
         {checking && <span className="tracker-checking">Checking latest results…</span>}
       </div>
 

@@ -168,6 +168,7 @@ create policy "members read their membership rows" on group_members for select u
   or is_group_member(group_id, auth.uid())
 );
 create policy "user joins a group as themselves" on group_members for insert with check (auth.uid() = user_id);
+create policy "user leaves a group as themselves" on group_members for delete using (auth.uid() = user_id);
 
 create policy "members read bet posts in their groups" on bet_posts for select using (
   exists (select 1 from group_members m where m.group_id = bet_posts.group_id and m.user_id = auth.uid())

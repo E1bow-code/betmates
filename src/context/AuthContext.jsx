@@ -31,6 +31,15 @@ export function AuthProvider({ children }) {
     setUser(null)
   }, [])
 
+  const updateDisplayName = useCallback(
+    async (displayName) => {
+      if (!user) return
+      await dataStore.updateDisplayName(user.id, displayName)
+      setUser((u) => ({ ...u, displayName }))
+    },
+    [user]
+  )
+
   const updateBookmakerPrefs = useCallback(
     async (prefs) => {
       if (!user) return
@@ -51,7 +60,7 @@ export function AuthProvider({ children }) {
 
   return (
     <AuthContext.Provider
-      value={{ user, loading, signUp, signIn, signOut, updateBookmakerPrefs, updateNotificationPrefs }}
+      value={{ user, loading, signUp, signIn, signOut, updateDisplayName, updateBookmakerPrefs, updateNotificationPrefs }}
     >
       {children}
     </AuthContext.Provider>

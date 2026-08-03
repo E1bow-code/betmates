@@ -223,9 +223,29 @@ function reshapeSgoEvent(event) {
     const line = odd.bookOverUnder ?? odd.fairOverUnder
     return line ? `${odd.sideID === 'over' ? 'Over' : 'Under'} ${line}` : null
   })
+  // Spread outcome names bake in the team + signed line ("Phillies -1.5")
+  // rather than the bare "Home"/"Away" moneyline uses, same reasoning as
+  // totals above - the line is the pick, not just which team.
+  const spreadOutcomes = groupSgoOutcomes(
+    event,
+    'sp',
+    homeName,
+    awayName,
+    (odd) => {
+      if (odd.sideID !== 'home' && odd.sideID !== 'away') return null
+      const teamName = odd.sideID === 'home' ? homeName : awayName
+      // bookSpread already comes back sign-prefixed ("+1.5"/"-1.5") -
+      // adding another "+" here doubled up as "++1.5".
+      const line = odd.bookSpread ?? odd.fairSpread
+      if (!teamName || line == null) return null
+      return `${teamName} ${line}`
+    },
+    (odd) => (odd.sideID === 'home' ? homeName : odd.sideID === 'away' ? awayName : null)
+  )
 
   const markets = []
   if (h2hOutcomes.length) markets.push({ key: 'h2h', label: 'Moneyline', outcomes: h2hOutcomes })
+  if (spreadOutcomes.length) markets.push({ key: 'spreads', label: 'Spread', outcomes: spreadOutcomes })
   if (totalsOutcomes.length) markets.push({ key: 'totals', label: 'Total Points', outcomes: totalsOutcomes })
 
   return {
@@ -241,31 +261,38 @@ function reshapeSgoEvent(event) {
 
 // One event carries every market as a flat oddID -> detail map (game,
 // period, and prop markets all mixed together) - betTypeID + periodID
-// pick out just the game-level moneyline/totals entries this app shows.
-// Each entry's own byBookmaker prices can quote a slightly different line
-// than the consensus (bookOverUnder) - only bookmakers matching the
-// consensus line are included, so "Over 224.5" doesn't silently compare
-// against someone else's "Over 225".
-function groupSgoOutcomes(event, betTypeID, homeName, awayName, nameFor) {
+// pick out just the game-level moneyline/spread/totals entries this app
+// shows. Each entry's own byBookmaker prices can quote a slightly
+// different line than the consensus (bookOverUnder/bookSpread) - only
+// bookmakers matching the consensus line are included, so "Over 224.5"
+// (or "Phillies -1.5") doesn't silently compare against someone else's
+// different line. `teamFor` is only needed for spread (its outcome name
+// bakes in the line, so it can't double as the Home/Away lookup the way
+// moneyline/totals names do) - defaults to the same Home/Away inference
+// those two already relied on.
+function groupSgoOutcomes(event, betTypeID, homeName, awayName, nameFor, teamFor) {
+  const lineField = betTypeID === 'ou' ? 'overUnder' : betTypeID === 'sp' ? 'spread' : null
   const outcomesByName = new Map()
   for (const odd of Object.values(event.odds ?? {})) {
     if (odd.betTypeID !== betTypeID || odd.periodID !== 'game') continue
     const name = nameFor(odd)
     if (!name) continue
+    const team = teamFor ? teamFor(odd) : name === 'Home' ? homeName : name === 'Away' ? awayName : null
     const consensusLine = odd.bookOverUnder ?? odd.bookSpread ?? null
     for (const [bookmakerId, bm] of Object.entries(odd.byBookmaker ?? {})) {
       if (!bm.available || bm.odds == null) continue
-      if (consensusLine != null && bm.overUnder != null && bm.overUnder !== consensusLine) continue
+      const bmLine = lineField ? bm[lineField] : null
+      if (consensusLine != null && bmLine != null && bmLine !== consensusLine) continue
       const decimal = americanToDecimal(bm.odds)
       if (!decimal) continue
-      if (!outcomesByName.has(name)) outcomesByName.set(name, [])
-      outcomesByName.get(name).push({ bookmaker: sgoBookmakerLabel(bookmakerId), decimal })
+      if (!outcomesByName.has(name)) outcomesByName.set(name, { team, odds: [] })
+      outcomesByName.get(name).odds.push({ bookmaker: sgoBookmakerLabel(bookmakerId), decimal })
     }
   }
   return [...outcomesByName.entries()]
-    .map(([name, allOdds]) => ({
+    .map(([name, { team, odds: allOdds }]) => ({
       name,
-      team: name === 'Home' ? homeName : name === 'Away' ? awayName : null,
+      team,
       allOdds: allOdds.sort((a, b) => b.decimal - a.decimal),
       bestOdds: allOdds.reduce((a, b) => (b.decimal > a.decimal ? b : a))
     }))

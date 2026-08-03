@@ -111,7 +111,7 @@ export default function GenericEventDetailPage() {
                   <span className="outcome-name">
                     {outcome.team ? (
                       <span className="fixture-team">
-                        <Photo {...{ [photoProp]: name }} size={20} />
+                        <Photo {...{ [photoProp]: outcome.team }} size={20} />
                         <span>{name}</span>
                       </span>
                     ) : (

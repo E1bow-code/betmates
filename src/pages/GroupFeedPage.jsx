@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { Link, useParams } from 'react-router-dom'
+import { Link, useNavigate, useParams } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext.jsx'
 import * as dataStore from '../lib/dataStore.js'
 import BetCard from '../components/BetCard.jsx'
@@ -7,26 +7,32 @@ import VideoCard from '../components/VideoCard.jsx'
 import Leaderboard from '../components/Leaderboard.jsx'
 import Avatar from '../components/Avatar.jsx'
 import EmptyState from '../components/EmptyState.jsx'
+import { shareOrCopy, groupInviteUrl } from '../lib/share.js'
 
 export default function GroupFeedPage() {
   const { id } = useParams()
   const { user } = useAuth()
+  const navigate = useNavigate()
   const [group, setGroup] = useState(null)
   const [posts, setPosts] = useState(null)
   const [items, setItems] = useState(null) // bets + shared videos, merged and sorted
+  const [members, setMembers] = useState([])
   const [memberNames, setMemberNames] = useState({})
   const [error, setError] = useState(null)
   const [tab, setTab] = useState('feed')
   const [messages, setMessages] = useState(null)
   const [messageBody, setMessageBody] = useState('')
   const [sending, setSending] = useState(false)
+  const [leaving, setLeaving] = useState(false)
+  const [shareStatus, setShareStatus] = useState(null)
 
   useEffect(() => {
     Promise.all([dataStore.getGroup(id), dataStore.listBetPosts(id), dataStore.listGroupMembers(id), dataStore.listSharedInGroup(id)])
-      .then(([g, betPosts, members, videos]) => {
+      .then(([g, betPosts, groupMembers, videos]) => {
         setGroup(g)
         setPosts(betPosts)
-        setMemberNames(Object.fromEntries(members.map((m) => [m.id, m.displayName])))
+        setMembers(groupMembers)
+        setMemberNames(Object.fromEntries(groupMembers.map((m) => [m.id, m.displayName])))
         const merged = [
           ...betPosts.map((p) => ({ kind: 'bet', sortAt: p.createdAt, data: p })),
           ...videos.map((v) => ({ kind: 'video', sortAt: v.sharedAt, data: v }))
@@ -35,6 +41,28 @@ export default function GroupFeedPage() {
       })
       .catch((err) => setError(err.message))
   }, [id])
+
+  async function handleLeave() {
+    if (!window.confirm(`Leave "${group?.name ?? 'this group'}"? You can rejoin later with the invite code.`)) return
+    setLeaving(true)
+    try {
+      await dataStore.leaveGroup(id, user.id)
+      navigate('/groups')
+    } catch (err) {
+      setError(err.message)
+      setLeaving(false)
+    }
+  }
+
+  async function handleShareInvite() {
+    const result = await shareOrCopy({
+      title: `Join "${group.name}" on BetMates`,
+      text: `Join my group "${group.name}" on BetMates`,
+      url: groupInviteUrl(group.inviteCode)
+    })
+    setShareStatus(result === 'copied' ? 'Link copied' : null)
+    if (result === 'copied') setTimeout(() => setShareStatus(null), 2000)
+  }
 
   useEffect(() => {
     if (tab === 'chat' && messages === null) {
@@ -70,6 +98,9 @@ export default function GroupFeedPage() {
           </button>
           <button className={tab === 'chat' ? 'mode-tab active' : 'mode-tab'} onClick={() => setTab('chat')}>
             Chat
+          </button>
+          <button className={tab === 'members' ? 'mode-tab active' : 'mode-tab'} onClick={() => setTab('members')}>
+            Members
           </button>
         </div>
       </div>
@@ -134,6 +165,35 @@ export default function GroupFeedPage() {
               Send
             </button>
           </form>
+        </div>
+      )}
+
+      {tab === 'members' && (
+        <div>
+          <div className="manage-list">
+            {members.map((m) => (
+              <div key={m.id} className="manage-list-row">
+                <span className="fixture-team">
+                  <Avatar name={m.displayName} size={26} />
+                  <span>
+                    {m.displayName}
+                    {m.id === user.id && ' (you)'}
+                  </span>
+                </span>
+              </div>
+            ))}
+          </div>
+
+          <div className="group-actions">
+            <button className="btn btn-secondary btn-small" onClick={handleShareInvite}>
+              Share invite
+            </button>
+          </div>
+          {shareStatus && <div className="hint">{shareStatus}</div>}
+
+          <button className="btn btn-ghost" onClick={handleLeave} disabled={leaving}>
+            {leaving ? 'Leaving…' : 'Leave group'}
+          </button>
         </div>
       )}
     </div>

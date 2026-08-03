@@ -4,12 +4,24 @@ import { useAuth } from '../context/AuthContext.jsx'
 import { BOOKMAKERS } from '../lib/bookmakers.js'
 import * as dataStore from '../lib/dataStore.js'
 import { isPushSupported, getPushSubscription, subscribeToPush, unsubscribeFromPush } from '../lib/push.js'
+import { getStoredTheme, setTheme } from '../lib/theme.js'
+import Avatar from '../components/Avatar.jsx'
 
 export default function AccountPage() {
-  const { user, signOut, updateBookmakerPrefs, updateNotificationPrefs } = useAuth()
+  const { user, signOut, updateDisplayName, updateBookmakerPrefs, updateNotificationPrefs } = useAuth()
   const [pushEnabled, setPushEnabled] = useState(false)
   const [pushBusy, setPushBusy] = useState(false)
   const [pushError, setPushError] = useState(null)
+  const [editingName, setEditingName] = useState(false)
+  const [nameInput, setNameInput] = useState(user.displayName)
+  const [nameSaving, setNameSaving] = useState(false)
+  const [nameError, setNameError] = useState(null)
+  const [theme, setThemeState] = useState(getStoredTheme() === 'light' ? 'light' : 'dark')
+
+  function handleThemeChange(next) {
+    setTheme(next)
+    setThemeState(next)
+  }
 
   useEffect(() => {
     if (!isPushSupported()) return
@@ -25,6 +37,25 @@ export default function AccountPage() {
   function toggleNotification(key) {
     const current = user.notificationPrefs ?? {}
     updateNotificationPrefs({ ...current, [key]: !current[key] })
+  }
+
+  async function handleSaveName(e) {
+    e.preventDefault()
+    const trimmed = nameInput.trim()
+    if (!trimmed || trimmed === user.displayName) {
+      setEditingName(false)
+      return
+    }
+    setNameSaving(true)
+    setNameError(null)
+    try {
+      await updateDisplayName(trimmed)
+      setEditingName(false)
+    } catch (err) {
+      setNameError(err.message)
+    } finally {
+      setNameSaving(false)
+    }
   }
 
   async function handleTogglePush() {
@@ -57,8 +88,59 @@ export default function AccountPage() {
       </div>
 
       <div className="account-section">
-        <div className="account-name">{user.displayName}</div>
-        <div className="race-card-meta">{user.email}</div>
+        <div className="account-identity">
+          <Avatar name={user.displayName} size={48} />
+          <div>
+            {editingName ? (
+              <form className="inline-form" onSubmit={handleSaveName}>
+                <input
+                  value={nameInput}
+                  onChange={(e) => setNameInput(e.target.value)}
+                  maxLength={40}
+                  autoFocus
+                  disabled={nameSaving}
+                />
+                <button className="btn btn-primary btn-small" type="submit" disabled={nameSaving}>
+                  {nameSaving ? 'Saving…' : 'Save'}
+                </button>
+                <button
+                  type="button"
+                  className="btn btn-ghost btn-small"
+                  disabled={nameSaving}
+                  onClick={() => {
+                    setNameInput(user.displayName)
+                    setEditingName(false)
+                    setNameError(null)
+                  }}
+                >
+                  Cancel
+                </button>
+              </form>
+            ) : (
+              <div className="account-name-row">
+                <span className="account-name">{user.displayName}</span>
+                <button className="btn btn-ghost btn-small" onClick={() => setEditingName(true)}>
+                  Edit
+                </button>
+              </div>
+            )}
+            <div className="race-card-meta">{user.email}</div>
+          </div>
+        </div>
+        {nameError && <div className="auth-error">{nameError}</div>}
+        <p className="hint">Your avatar's initials and colour come from your display name, so it updates automatically too.</p>
+      </div>
+
+      <div className="account-section">
+        <h2 className="market-title">Appearance</h2>
+        <div className="mode-switcher">
+          <button className={theme === 'dark' ? 'mode-tab active' : 'mode-tab'} onClick={() => handleThemeChange('dark')}>
+            Dark
+          </button>
+          <button className={theme === 'light' ? 'mode-tab active' : 'mode-tab'} onClick={() => handleThemeChange('light')}>
+            Light
+          </button>
+        </div>
       </div>
 
       <div className="account-section">

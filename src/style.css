@@ -14,6 +14,7 @@
      the pill shape is reserved for the sport/segment tabs only */
 :root {
   --bg: #15120f;
+  --bg-rgb: 21, 18, 15;
   --surface: #201a15;
   --surface-2: #2b231c;
   --border: #423527;
@@ -26,6 +27,27 @@
   --bad-dim: #b8543d;
   --font-mono: ui-monospace, 'SF Mono', Consolas, 'Roboto Mono', monospace;
   color-scheme: dark;
+}
+
+/* Light mode keeps the same identity - a printed racing-paper/betting-slip
+   feel (warm parchment, ink-brown text) rather than switching to a generic
+   white-and-blue SaaS palette. Toggled via a `data-theme` attribute on
+   <html> (see src/lib/theme.js) instead of prefers-color-scheme, since
+   this is a deliberate, saved user choice rather than following the OS. */
+:root[data-theme='light'] {
+  --bg: #f5efe1;
+  --bg-rgb: 245, 239, 225;
+  --surface: #fffdf9;
+  --surface-2: #ece1c9;
+  --border: #d9c8a3;
+  --text: #241a06;
+  --text-dim: #8a7754;
+  --accent: #b9822a;
+  --accent-dim: #96681f;
+  --accent-ink: #fffdf9;
+  --bad: #b8543d;
+  --bad-dim: #96402c;
+  color-scheme: light;
 }
 
 * { box-sizing: border-box; }
@@ -244,13 +266,26 @@ h1, h2, .topbar h1, .sheet-title, .auth-title {
 .sport-hero-scrim {
   position: absolute;
   inset: 0;
-  background: linear-gradient(180deg, rgba(21, 18, 15, 0.25) 0%, rgba(21, 18, 15, 0.75) 65%, var(--bg) 100%);
+  background: linear-gradient(180deg, rgba(var(--bg-rgb), 0.25) 0%, rgba(var(--bg-rgb), 0.75) 65%, var(--bg) 100%);
 }
 
 /* Topbar with filter toggle */
 .topbar { display: flex; flex-direction: column; gap: 4px; }
 .tracker-checking { font-size: 0.76rem; color: var(--text-dim); font-style: italic; }
 .filter-toggle { display: flex; align-items: center; gap: 6px; font-size: 0.82rem; color: var(--text-dim); margin-top: 4px; }
+
+.search-input {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  padding: 8px 12px;
+  color: var(--text);
+  font-size: 0.9rem;
+  font-family: inherit;
+  margin: 6px 0 2px;
+  width: 100%;
+}
+.search-input::placeholder { color: var(--text-dim); }
 
 .mode-switcher { display: flex; gap: 2px; margin: 4px 0 2px; border: 1px solid var(--border); border-radius: 4px; overflow: hidden; width: fit-content; }
 .mode-tab { background: var(--surface); border: none; color: var(--text-dim); padding: 6px 14px; font-size: 0.8rem; font-weight: 600; cursor: pointer; }
@@ -868,6 +903,8 @@ h1, h2, .topbar h1, .sheet-title, .auth-title {
 /* Account */
 .account-section { margin-bottom: 22px; }
 .account-name { font-weight: 700; font-size: 1.1rem; }
+.account-identity { display: flex; align-items: center; gap: 12px; }
+.account-name-row { display: flex; align-items: center; gap: 8px; }
 .bookmaker-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px 16px; margin-top: 8px; }
 .bookmaker-check { align-items: center; }
 

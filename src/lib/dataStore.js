@@ -172,6 +172,13 @@ export async function listGroupMembers(groupId) {
   return data.map((row) => ({ id: row.profiles.id, displayName: row.profiles.display_name }))
 }
 
+export async function leaveGroup(groupId, userId) {
+  if (!isSupabaseConfigured) return local.leaveGroup(groupId, userId)
+  const { error } = await supabase.from('group_members').delete().eq('group_id', groupId).eq('user_id', userId)
+  if (error) throw error
+  return true
+}
+
 // --- Group chat ---------------------------------------------------------
 // Plain free-text messages in a group, separate from bet_comments (which
 // are threaded under one specific bet post). Names aren't embedded here -
@@ -383,6 +390,13 @@ export async function updateManualEntryStatus(entryId, status) {
 }
 
 // --- Account -----------------------------------------------------------
+
+export async function updateDisplayName(userId, displayName) {
+  if (!isSupabaseConfigured) return local.updateDisplayName(userId, displayName)
+  const { error } = await supabase.from('profiles').update({ display_name: displayName }).eq('id', userId)
+  if (error) throw error
+  return displayName
+}
 
 export async function updateBookmakerPrefs(userId, prefs) {
   if (!isSupabaseConfigured) return local.updateBookmakerPrefs(userId, prefs)

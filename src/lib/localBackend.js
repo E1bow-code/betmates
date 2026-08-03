@@ -194,6 +194,13 @@ export function listGroupMembers(groupId) {
   )
 }
 
+export function leaveGroup(groupId, userId) {
+  const db = readDb()
+  db.groupMembers = db.groupMembers.filter((m) => !(m.groupId === groupId && m.userId === userId))
+  writeDb(db)
+  return delay(true)
+}
+
 // --- Group chat -------------------------------------------------------
 
 export function listGroupMessages(groupId) {
@@ -332,6 +339,24 @@ export function updateManualEntryStatus(entryId, status) {
 }
 
 // --- Account -----------------------------------------------------------
+
+export function updateDisplayName(userId, displayName) {
+  const db = readDb()
+  const user = db.users.find((u) => u.id === userId)
+  if (user) {
+    user.displayName = displayName
+    writeDb(db)
+  }
+  const session = localStorage.getItem(SESSION_KEY)
+  if (session) {
+    const sessionUser = JSON.parse(session)
+    if (sessionUser.id === userId) {
+      sessionUser.displayName = displayName
+      localStorage.setItem(SESSION_KEY, JSON.stringify(sessionUser))
+    }
+  }
+  return delay(displayName)
+}
 
 export function updateBookmakerPrefs(userId, prefs) {
   const db = readDb()
