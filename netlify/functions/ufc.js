@@ -8,7 +8,7 @@ import { cacheGet, cacheSet } from '../../src/lib/apiCache.js'
 const SPORT = 'mma_mixed_martial_arts'
 const REGION = 'uk'
 const MARKETS = 'h2h'
-const LIST_TTL = 5 * 60 * 1000
+const LIST_TTL = 20 * 60 * 1000
 
 async function serveMock(id) {
   const { getMockFights, getMockFight } = await import('../../src/data/mockUfcOdds.js')

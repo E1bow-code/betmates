@@ -24,8 +24,13 @@ const EXTRA_MARKET_LABELS = {
   double_chance: 'Double Chance',
   alternate_totals: 'Alternate Total Goals'
 }
-const LIST_TTL = 5 * 60 * 1000
-const DETAIL_TTL = 10 * 60 * 1000
+// The free tier is only 500 requests/month total, shared across football,
+// UFC and tennis - a 5-minute cache burns through that in days under any
+// real usage (each redeploy also cold-starts the in-memory cache, so a
+// dev session doing several deploys costs as much as a day of traffic).
+// Odds don't need to be this fresh for a mates' group to compare prices.
+const LIST_TTL = 20 * 60 * 1000
+const DETAIL_TTL = 30 * 60 * 1000
 
 async function serveMock(id) {
   const { getMockFixtures, getMockFixture } = await import('../../src/data/mockFootballOdds.js')

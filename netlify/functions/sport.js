@@ -14,8 +14,10 @@ import { cacheGet, cacheSet } from '../../src/lib/apiCache.js'
 
 const REGION = 'uk'
 const MARKETS = 'h2h,totals'
-const LIST_TTL = 5 * 60 * 1000
-const TENNIS_KEYS_TTL = 10 * 60 * 1000
+// Tennis is the one GENERIC_SPORTS entry still on The Odds API's 500
+// req/month tier (see odds.js's comment) - cached hard for the same reason.
+const LIST_TTL = 20 * 60 * 1000
+const TENNIS_KEYS_TTL = 30 * 60 * 1000
 // SportsGameOdds' own docs say odds refresh ~every 10 min server-side, so
 // there's no freshness lost by caching longer than that - cached hard
 // against the free tier's 2,500 objects/month budget.
