@@ -1,11 +1,13 @@
 // Generic proxy for every sport in src/lib/sportsConfig.js - one function
 // instead of one-per-sport. `sport` query param selects the config entry;
-// everything else mirrors netlify/functions/odds.js's approach, including
-// the caching (see src/lib/apiCache.js) - same "keep this on the free
-// tier" goal. h2h and totals are both "featured" markets on The Odds API
-// (same credit cost as h2h alone), so adding totals here doesn't change
-// the credit math - spreads/handicap markets are left out since the line
-// varies per team per event and isn't worth the added complexity yet.
+// most sports go through The Odds API (h2h+totals, same credit cost as
+// h2h alone since both are "featured" markets there), but the four
+// SportsGameOdds-backed sports (see sportsConfig.js's `provider: 'sgo'`
+// comment) go through a completely different API with its own shape -
+// real per-bookmaker odds and deep links, separate free quota, better
+// suited to US sports than querying UK bookmakers ever was. Caching (see
+// src/lib/apiCache.js) applies to both paths - same "stay on the free
+// tier" goal either way.
 
 import { GENERIC_SPORTS } from '../../src/lib/sportsConfig.js'
 import { cacheGet, cacheSet } from '../../src/lib/apiCache.js'
@@ -14,9 +16,12 @@ const REGION = 'uk'
 const MARKETS = 'h2h,totals'
 const LIST_TTL = 5 * 60 * 1000
 const TENNIS_KEYS_TTL = 10 * 60 * 1000
+// SportsGameOdds' own docs say odds refresh ~every 10 min server-side, so
+// there's no freshness lost by caching longer than that - cached hard
+// against the free tier's 2,500 objects/month budget.
+const SGO_TTL = 15 * 60 * 1000
 
 export default async (req) => {
-  const apiKey = process.env.ODDS_API_KEY
   const url = new URL(req.url)
   const sportParam = url.searchParams.get('sport')
   const id = url.searchParams.get('id')
@@ -29,13 +34,35 @@ export default async (req) => {
     })
   }
 
-  const emptyResponse = () =>
+  const emptyResponse = (dataSource) =>
     new Response(JSON.stringify(id ? null : []), {
       status: 200,
-      headers: { 'content-type': 'application/json', 'x-data-source': apiKey ? 'live-empty' : 'mock' }
+      headers: { 'content-type': 'application/json', 'x-data-source': dataSource }
     })
 
-  if (!apiKey) return emptyResponse()
+  if (config.provider === 'sgo') {
+    const sgoApiKey = process.env.SGO_API_KEY
+    if (!sgoApiKey) return emptyResponse('mock')
+
+    try {
+      let items = cacheGet(`sport-items-${sportParam}`)
+      if (!items) {
+        items = await fetchSgoItems(sgoApiKey, config)
+        cacheSet(`sport-items-${sportParam}`, items, SGO_TTL)
+      }
+      const body = id ? items.find((i) => i.id === id) ?? null : items
+      return new Response(JSON.stringify(body), {
+        status: 200,
+        headers: { 'content-type': 'application/json', 'x-data-source': 'live' }
+      })
+    } catch (err) {
+      console.error('SportsGameOdds error, degrading to empty:', err.message)
+      return emptyResponse('live-empty')
+    }
+  }
+
+  const apiKey = process.env.ODDS_API_KEY
+  if (!apiKey) return emptyResponse('mock')
 
   try {
     let items = cacheGet(`sport-items-${sportParam}`)
@@ -57,7 +84,7 @@ export default async (req) => {
           })()
         : config.apiSportKeys
 
-      if (!apiSportKeys.length) return emptyResponse()
+      if (!apiSportKeys.length) return emptyResponse('live-empty')
 
       const results = await Promise.allSettled(
         apiSportKeys.map(async (apiSport) => {
@@ -75,7 +102,7 @@ export default async (req) => {
       // already handles fine.
       if (!events.length && results.every((r) => r.status === 'rejected')) {
         console.error('Odds provider error, degrading to empty:', results[0].reason?.message)
-        return emptyResponse()
+        return emptyResponse('live-empty')
       }
 
       items = events.map((e) => reshapeEvent(e, config)).sort((a, b) => new Date(a.kickoff) - new Date(b.kickoff))
@@ -89,7 +116,7 @@ export default async (req) => {
     })
   } catch (err) {
     console.error('Odds provider error, degrading to empty:', err.message)
-    return emptyResponse()
+    return emptyResponse('live-empty')
   }
 }
 
@@ -141,4 +168,106 @@ function normaliseOutcomeName(rawName, homeTeam, awayTeam, hasDraw) {
   if (rawName === homeTeam) return 'Home'
   if (rawName === awayTeam) return 'Away'
   return hasDraw ? 'Draw' : rawName
+}
+
+// --- SportsGameOdds -----------------------------------------------------
+
+const SGO_BASE = 'https://api.sportsgameodds.com/v2'
+
+const SGO_BOOKMAKER_LABELS = {
+  fanduel: 'FanDuel',
+  draftkings: 'DraftKings',
+  betmgm: 'BetMGM',
+  caesars: 'Caesars',
+  espnbet: 'ESPN BET',
+  bovada: 'Bovada',
+  pointsbet: 'PointsBet',
+  unibet: 'Unibet',
+  williamhill: 'William Hill',
+  ballybet: 'Bally Bet',
+  hardrockbet: 'Hard Rock Bet',
+  betrivers: 'BetRivers',
+  fliff: 'Fliff'
+}
+
+function sgoBookmakerLabel(id) {
+  return SGO_BOOKMAKER_LABELS[id] ?? id.charAt(0).toUpperCase() + id.slice(1)
+}
+
+// SportsGameOdds quotes American odds ("+130", "-150"); the rest of the
+// app assumes decimal throughout (outcome.price, bestOdds.decimal etc.).
+function americanToDecimal(american) {
+  const n = Number(american)
+  if (!Number.isFinite(n) || n === 0) return null
+  return Math.round((n > 0 ? 1 + n / 100 : 1 + 100 / Math.abs(n)) * 100) / 100
+}
+
+async function fetchSgoItems(sgoApiKey, config) {
+  const apiUrl = `${SGO_BASE}/events?leagueID=${config.leagueID}&oddsAvailable=true&limit=25&apiKey=${sgoApiKey}`
+  const res = await fetch(apiUrl)
+  if (!res.ok) throw new Error(`SportsGameOdds ${config.leagueID}: ${res.status}`)
+  const body = await res.json()
+  const events = body.data ?? []
+  return events.map(reshapeSgoEvent).sort((a, b) => new Date(a.kickoff) - new Date(b.kickoff))
+}
+
+function reshapeSgoEvent(event) {
+  const homeName = event.teams?.home?.names?.long
+  const awayName = event.teams?.away?.names?.long
+
+  const h2hOutcomes = groupSgoOutcomes(event, 'ml', homeName, awayName, (odd) =>
+    odd.sideID === 'home' ? 'Home' : odd.sideID === 'away' ? 'Away' : null
+  )
+  const totalsOutcomes = groupSgoOutcomes(event, 'ou', homeName, awayName, (odd) => {
+    if (odd.statEntityID !== 'all' || (odd.sideID !== 'over' && odd.sideID !== 'under')) return null
+    const line = odd.bookOverUnder ?? odd.fairOverUnder
+    return line ? `${odd.sideID === 'over' ? 'Over' : 'Under'} ${line}` : null
+  })
+
+  const markets = []
+  if (h2hOutcomes.length) markets.push({ key: 'h2h', label: 'Moneyline', outcomes: h2hOutcomes })
+  if (totalsOutcomes.length) markets.push({ key: 'totals', label: 'Total Points', outcomes: totalsOutcomes })
+
+  return {
+    id: event.eventID,
+    competition: event.leagueID,
+    participantA: homeName,
+    participantB: awayName,
+    kickoff: event.status?.startsAt,
+    status: 'scheduled',
+    markets
+  }
+}
+
+// One event carries every market as a flat oddID -> detail map (game,
+// period, and prop markets all mixed together) - betTypeID + periodID
+// pick out just the game-level moneyline/totals entries this app shows.
+// Each entry's own byBookmaker prices can quote a slightly different line
+// than the consensus (bookOverUnder) - only bookmakers matching the
+// consensus line are included, so "Over 224.5" doesn't silently compare
+// against someone else's "Over 225".
+function groupSgoOutcomes(event, betTypeID, homeName, awayName, nameFor) {
+  const outcomesByName = new Map()
+  for (const odd of Object.values(event.odds ?? {})) {
+    if (odd.betTypeID !== betTypeID || odd.periodID !== 'game') continue
+    const name = nameFor(odd)
+    if (!name) continue
+    const consensusLine = odd.bookOverUnder ?? odd.bookSpread ?? null
+    for (const [bookmakerId, bm] of Object.entries(odd.byBookmaker ?? {})) {
+      if (!bm.available || bm.odds == null) continue
+      if (consensusLine != null && bm.overUnder != null && bm.overUnder !== consensusLine) continue
+      const decimal = americanToDecimal(bm.odds)
+      if (!decimal) continue
+      if (!outcomesByName.has(name)) outcomesByName.set(name, [])
+      outcomesByName.get(name).push({ bookmaker: sgoBookmakerLabel(bookmakerId), decimal })
+    }
+  }
+  return [...outcomesByName.entries()]
+    .map(([name, allOdds]) => ({
+      name,
+      team: name === 'Home' ? homeName : name === 'Away' ? awayName : null,
+      allOdds: allOdds.sort((a, b) => b.decimal - a.decimal),
+      bestOdds: allOdds.reduce((a, b) => (b.decimal > a.decimal ? b : a))
+    }))
+    .filter((o) => o.allOdds.length)
 }

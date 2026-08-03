@@ -34,10 +34,18 @@ export const GENERIC_SPORTS = {
   // currently active via The Odds API's free /sports listing endpoint
   // instead of using apiSportKeys.
   tennis: { label: 'Tennis', icon: '🎾', dynamicPrefix: 'tennis_', participantType: 'player', hasDraw: false },
-  basketball: { label: 'Basketball', icon: '🏀', apiSportKeys: ['basketball_nba'], participantType: 'team', hasDraw: false },
-  hockey: { label: 'Ice Hockey', icon: '🏒', apiSportKeys: ['icehockey_nhl'], participantType: 'team', hasDraw: false },
-  baseball: { label: 'Baseball', icon: '⚾', apiSportKeys: ['baseball_mlb'], participantType: 'team', hasDraw: false },
-  nfl: { label: 'NFL', icon: '🏈', apiSportKeys: ['americanfootball_nfl'], participantType: 'team', hasDraw: false },
+  // These four run through SportsGameOdds (netlify/functions/sport.js
+  // branches on `provider`) instead of The Odds API - separate free
+  // quota, and better-suited coverage for US sports than querying UK
+  // bookmakers for them ever was. provider/leagueID replace apiSportKeys;
+  // apiKeysForSport() below (the Odds-API /scores lookup used for
+  // settlement/results) has no equivalent for these yet, so auto-settle
+  // and the results archive don't cover them - manual settling still
+  // works fine, this only affects the automatic part.
+  basketball: { label: 'Basketball', icon: '🏀', provider: 'sgo', leagueID: 'NBA', participantType: 'team', hasDraw: false },
+  hockey: { label: 'Ice Hockey', icon: '🏒', provider: 'sgo', leagueID: 'NHL', participantType: 'team', hasDraw: false },
+  baseball: { label: 'Baseball', icon: '⚾', provider: 'sgo', leagueID: 'MLB', participantType: 'team', hasDraw: false },
+  nfl: { label: 'NFL', icon: '🏈', provider: 'sgo', leagueID: 'NFL', participantType: 'team', hasDraw: false },
   rugbyLeague: { label: 'Rugby League', icon: '🏉', apiSportKeys: ['rugbyleague_nrl'], participantType: 'team', hasDraw: true },
   rugbyUnion: { label: 'Rugby Union', icon: '🏉', apiSportKeys: ['rugbyunion_six_nations'], participantType: 'team', hasDraw: true },
   cricket: {
