@@ -13,7 +13,7 @@ create table profiles (
   display_name text not null,
   date_of_birth date not null,
   bookmaker_prefs text[] not null default '{}',
-  notification_prefs jsonb not null default '{"betPosted": true, "betSettled": true, "oddsMoved": false}',
+  notification_prefs jsonb not null default '{"betPosted": true, "betSettled": true, "oddsMoved": false, "kickoffReminders": false}',
   friend_code text not null unique default upper(substr(md5(random()::text), 1, 6)),
   accepted_terms_at timestamptz not null default now(),
   created_at timestamptz not null default now()
@@ -345,3 +345,11 @@ create policy "group-mates can read push subscriptions to notify them" on push_s
     where mine.user_id = auth.uid() and theirs.user_id = push_subscriptions.user_id
   )
 );
+
+-- Kickoff reminders (netlify/functions/kickoff-reminders.js, a scheduled
+-- function) need to scan every user's open bets, not just one poster's own
+-- group - that has no signed-in user to authenticate as, so it runs on the
+-- service-role key instead of RLS. The sent-at column just stops it
+-- re-notifying the same bet on its next 15-minute run.
+alter table bet_posts add column if not exists kickoff_reminder_sent_at timestamptz;
+alter table manual_entries add column if not exists kickoff_reminder_sent_at timestamptz;

@@ -41,7 +41,8 @@ export default function RaceDetailPage() {
       selection: runner.name,
       odds: best.decimal,
       bookmaker: best.bookmaker,
-      sport: 'racing'
+      sport: 'racing',
+      kickoff: race.offTime
     })
   }
 

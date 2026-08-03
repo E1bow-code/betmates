@@ -50,7 +50,8 @@ export default function GenericEventDetailPage() {
       selection: nameFor(outcome.name),
       odds: best.decimal,
       bookmaker: best.bookmaker,
-      sport: sportKey
+      sport: sportKey,
+      kickoff: event.kickoff
     })
   }
 

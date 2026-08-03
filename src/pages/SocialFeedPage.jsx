@@ -4,6 +4,7 @@ import { useAuth } from '../context/AuthContext.jsx'
 import { useActivity } from '../context/ActivityContext.jsx'
 import * as dataStore from '../lib/dataStore.js'
 import { computeStats } from '../utils/trackerStats.js'
+import { LEADERBOARD_WINDOWS, isWithinWindow } from '../utils/dateWindows.js'
 import BetCard from '../components/BetCard.jsx'
 import VideoCard from '../components/VideoCard.jsx'
 import VideoRecorder from '../components/VideoRecorder.jsx'
@@ -11,6 +12,7 @@ import ManageSheet from '../components/ManageSheet.jsx'
 import HeadToHeadSheet from '../components/HeadToHeadSheet.jsx'
 import EmptyState from '../components/EmptyState.jsx'
 import Avatar from '../components/Avatar.jsx'
+import PullToRefresh from '../components/PullToRefresh.jsx'
 
 // Landing view for the Social tab. The feed is the main attraction - group/
 // friend management (create, join, invite codes) lives behind the Manage
@@ -41,6 +43,7 @@ export default function SocialFeedPage() {
   const [showManage, setShowManage] = useState(false)
   const [showRecorder, setShowRecorder] = useState(false)
   const [compareFriend, setCompareFriend] = useState(null)
+  const [leaderboardWindow, setLeaderboardWindow] = useState('all')
 
   useEffect(() => {
     refreshBets()
@@ -58,6 +61,7 @@ export default function SocialFeedPage() {
     const byUser = new Map()
     for (const post of [...feed, ...publicFeed]) {
       if (post.stakeHidden) continue
+      if (post.settledAt && !isWithinWindow(post.settledAt, leaderboardWindow)) continue
       const name = post.memberNames?.[post.userId] ?? post.authorName ?? 'Someone'
       if (!names.has(post.userId)) names.set(post.userId, name)
       if (!byUser.has(post.userId)) byUser.set(post.userId, [])
@@ -67,24 +71,25 @@ export default function SocialFeedPage() {
       .map(([userId, posts]) => ({ userId, name: names.get(userId), ...computeStats(posts) }))
       .filter((row) => row.settledCount > 0)
       .sort((a, b) => b.profit - a.profit)
-  }, [feed, publicFeed])
+  }, [feed, publicFeed, leaderboardWindow])
 
   function refreshBets() {
-    dataStore.listMyGroups(user.id).then(setGroups)
-    dataStore.listFeedForUser(user.id).then(setFeed)
+    return Promise.all([dataStore.listMyGroups(user.id).then(setGroups), dataStore.listFeedForUser(user.id).then(setFeed)])
   }
 
   function refreshTips() {
-    dataStore.listFriends(user.id).then(setFriends)
-    Promise.all([dataStore.listFriendsFeed(user.id), dataStore.listSharedWithMe(user.id)]).then(([own, shared]) => {
-      const merged = new Map()
-      for (const v of [...own, ...shared]) merged.set(`${v.id}-${v.sharedAt ?? 'own'}`, v)
-      setVideos([...merged.values()].sort((a, b) => new Date(b.sharedAt ?? b.createdAt) - new Date(a.sharedAt ?? a.createdAt)))
-    })
+    return Promise.all([
+      dataStore.listFriends(user.id).then(setFriends),
+      Promise.all([dataStore.listFriendsFeed(user.id), dataStore.listSharedWithMe(user.id)]).then(([own, shared]) => {
+        const merged = new Map()
+        for (const v of [...own, ...shared]) merged.set(`${v.id}-${v.sharedAt ?? 'own'}`, v)
+        setVideos([...merged.values()].sort((a, b) => new Date(b.sharedAt ?? b.createdAt) - new Date(a.sharedAt ?? a.createdAt)))
+      })
+    ])
   }
 
   function refreshPublicFeed() {
-    dataStore.listPublicFeed().then(setPublicFeed)
+    return dataStore.listPublicFeed().then(setPublicFeed)
   }
 
   function handleManageChanged() {
@@ -92,8 +97,14 @@ export default function SocialFeedPage() {
     refreshTips()
   }
 
+  function refreshCurrentSegment() {
+    if (segment === 'bets') return refreshBets()
+    if (segment === 'tips') return refreshTips()
+    return refreshPublicFeed()
+  }
+
   return (
-    <div>
+    <PullToRefresh onRefresh={refreshCurrentSegment}>
       <div className="topbar">
         <div className="topbar-row">
           <h1>Social</h1>
@@ -226,9 +237,29 @@ export default function SocialFeedPage() {
         <>
           <p className="hint">Ranked by profit across every group you're in, plus the public feed - hidden-stake bets don't count.</p>
 
+          <div className="mode-switcher">
+            {LEADERBOARD_WINDOWS.map((w) => (
+              <button
+                key={w.key}
+                className={leaderboardWindow === w.key ? 'mode-tab active' : 'mode-tab'}
+                onClick={() => setLeaderboardWindow(w.key)}
+              >
+                {w.label}
+              </button>
+            ))}
+          </div>
+
           {leaderboardRows === null && <div className="loading">Adding it all up…</div>}
           {leaderboardRows && !leaderboardRows.length && (
-            <EmptyState icon="🏆" title="Nothing settled yet" subtitle="Once bets start getting marked won or lost, the table fills in here." />
+            <EmptyState
+              icon="🏆"
+              title="Nothing settled yet"
+              subtitle={
+                leaderboardWindow === 'all'
+                  ? 'Once bets start getting marked won or lost, the table fills in here.'
+                  : 'Nothing settled in this window - try All-time.'
+              }
+            />
           )}
 
           {leaderboardRows && leaderboardRows.length > 0 && (
@@ -263,6 +294,6 @@ export default function SocialFeedPage() {
 
       {showRecorder && <VideoRecorder onClose={() => setShowRecorder(false)} onPosted={refreshTips} />}
       {compareFriend && <HeadToHeadSheet friend={compareFriend} onClose={() => setCompareFriend(null)} />}
-    </div>
+    </PullToRefresh>
   )
 }

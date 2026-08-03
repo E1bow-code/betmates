@@ -1162,3 +1162,28 @@ h1, h2, .topbar h1, .sheet-title, .auth-title {
   outline: 1px solid var(--accent-dim);
   color: var(--accent);
 }
+
+.pull-refresh-indicator {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  color: var(--text-dim);
+  font-size: 0.82rem;
+  transition: height 0.15s ease;
+}
+
+.pull-refresh-spinner {
+  width: 18px;
+  height: 18px;
+  border: 2px solid var(--border);
+  border-top-color: var(--accent);
+  border-radius: 50%;
+  animation: pull-refresh-spin 0.7s linear infinite;
+}
+
+@keyframes pull-refresh-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}

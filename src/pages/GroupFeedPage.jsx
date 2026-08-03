@@ -8,6 +8,7 @@ import Leaderboard from '../components/Leaderboard.jsx'
 import Avatar from '../components/Avatar.jsx'
 import EmptyState from '../components/EmptyState.jsx'
 import { shareOrCopy, groupInviteUrl } from '../lib/share.js'
+import PullToRefresh from '../components/PullToRefresh.jsx'
 
 export default function GroupFeedPage() {
   const { id } = useParams()
@@ -26,8 +27,8 @@ export default function GroupFeedPage() {
   const [leaving, setLeaving] = useState(false)
   const [shareStatus, setShareStatus] = useState(null)
 
-  useEffect(() => {
-    Promise.all([dataStore.getGroup(id), dataStore.listBetPosts(id), dataStore.listGroupMembers(id), dataStore.listSharedInGroup(id)])
+  function refresh() {
+    return Promise.all([dataStore.getGroup(id), dataStore.listBetPosts(id), dataStore.listGroupMembers(id), dataStore.listSharedInGroup(id)])
       .then(([g, betPosts, groupMembers, videos]) => {
         setGroup(g)
         setPosts(betPosts)
@@ -40,7 +41,16 @@ export default function GroupFeedPage() {
         setItems(merged)
       })
       .catch((err) => setError(err.message))
+  }
+
+  useEffect(() => {
+    refresh()
   }, [id])
+
+  function refreshCurrentTab() {
+    if (tab === 'chat') return dataStore.listGroupMessages(id).then(setMessages)
+    return refresh()
+  }
 
   async function handleLeave() {
     if (!window.confirm(`Leave "${group?.name ?? 'this group'}"? You can rejoin later with the invite code.`)) return
@@ -85,7 +95,7 @@ export default function GroupFeedPage() {
   }
 
   return (
-    <div>
+    <PullToRefresh onRefresh={refreshCurrentTab}>
       <div className="topbar">
         <Link to="/groups" className="back">
           &larr; Social
@@ -196,6 +206,6 @@ export default function GroupFeedPage() {
           </button>
         </div>
       )}
-    </div>
+    </PullToRefresh>
   )
 }

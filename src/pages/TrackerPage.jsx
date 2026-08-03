@@ -7,6 +7,7 @@ import { SPORT_LABEL, SPORT_ICON } from '../lib/sportsConfig.js'
 import EmptyState from '../components/EmptyState.jsx'
 import PnlChart from '../components/PnlChart.jsx'
 import { trackerEntriesToCsv, downloadCsv } from '../lib/csvExport.js'
+import PullToRefresh from '../components/PullToRefresh.jsx'
 
 const STATUS_LABEL = { open: 'Pending', won: 'Won', lost: 'Lost', void: 'Void' }
 
@@ -85,7 +86,7 @@ export default function TrackerPage() {
   ].filter(Boolean)
 
   return (
-    <div>
+    <PullToRefresh onRefresh={refresh}>
       <div className="topbar">
         <div className="topbar-row">
           <h1>Tracker</h1>
@@ -185,7 +186,7 @@ export default function TrackerPage() {
           })}
         </div>
       )}
-    </div>
+    </PullToRefresh>
   )
 }
 

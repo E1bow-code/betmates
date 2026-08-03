@@ -181,6 +181,14 @@ export default function AccountPage() {
           <input type="checkbox" checked={user.notificationPrefs?.oddsMoved ?? false} onChange={() => toggleNotification('oddsMoved')} />
           <span>Odds moved on a pending bet</span>
         </label>
+        <label className="field-check">
+          <input
+            type="checkbox"
+            checked={user.notificationPrefs?.kickoffReminders ?? false}
+            onChange={() => toggleNotification('kickoffReminders')}
+          />
+          <span>Reminder shortly before kickoff</span>
+        </label>
         <p className="hint">
           {isPushSupported()
             ? 'Turn on push above to actually receive these on this device, not just store the preference.'

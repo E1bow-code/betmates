@@ -13,6 +13,7 @@ import EmptyState from '../components/EmptyState.jsx'
 import TeamBadge from '../components/TeamBadge.jsx'
 import PlayerPhoto from '../components/PlayerPhoto.jsx'
 import SportHeroBanner from '../components/SportHeroBanner.jsx'
+import PullToRefresh from '../components/PullToRefresh.jsx'
 
 const SPORTS = ['football', 'racing', 'ufc', ...Object.keys(GENERIC_SPORTS)].map((key) => ({ key, label: SPORT_LABEL[key] }))
 
@@ -96,8 +97,20 @@ export default function OddsListPage() {
   const loadedResults = filterBySearch(rawLoadedResults, search)
   const searchActive = search.trim().length > 0
 
+  function refresh() {
+    return mode === 'results'
+      ? fetchResults(sport).then((data) => {
+          setResults(data)
+          setResultsSport(sport)
+        })
+      : FETCHERS[sport]().then((data) => {
+          setItems(data)
+          setItemsSport(sport)
+        })
+  }
+
   return (
-    <div>
+    <PullToRefresh onRefresh={refresh}>
       <SportHeroBanner sport={sport} />
       <div className="topbar">
         <h1>Odds</h1>
@@ -195,7 +208,7 @@ export default function OddsListPage() {
           )}
         </>
       )}
-    </div>
+    </PullToRefresh>
   )
 }
 

@@ -42,7 +42,8 @@ export default function FixtureDetailPage() {
       selection: outcome.name === 'Home' ? fixture.homeTeam : outcome.name === 'Away' ? fixture.awayTeam : outcome.name,
       odds: best.decimal,
       bookmaker: best.bookmaker,
-      sport: 'football'
+      sport: 'football',
+      kickoff: fixture.kickoff
     })
   }
 
