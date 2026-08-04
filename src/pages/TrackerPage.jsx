@@ -11,13 +11,14 @@ import {
   computeLongestWinStreak,
   computeBestWin
 } from '../utils/trackerStats.js'
-import { SPORT_LABEL, SPORT_ICON } from '../lib/sportsConfig.js'
+import { SPORT_LABEL } from '../lib/sportsConfig.js'
 import EmptyState from '../components/EmptyState.jsx'
 import PnlChart from '../components/PnlChart.jsx'
 import { trackerEntriesToCsv, downloadCsv } from '../lib/csvExport.js'
 import PullToRefresh from '../components/PullToRefresh.jsx'
 import ShareRecapButton from '../components/ShareRecapButton.jsx'
 import SportHeroBanner from '../components/SportHeroBanner.jsx'
+import SportIcon from '../components/icons/SportIcons.jsx'
 
 const STATUS_LABEL = { open: 'Pending', won: 'Won', lost: 'Lost', void: 'Void' }
 
@@ -178,7 +179,9 @@ export default function TrackerPage() {
         <div className="sport-breakdown">
           {bySport.map((row) => (
             <div key={row.sport} className="sport-breakdown-row">
-              <span className="sport-breakdown-icon">{SPORT_ICON[row.sport] ?? '🎟️'}</span>
+              <span className="sport-breakdown-icon">
+                <SportIcon sport={row.sport} />
+              </span>
               <span className="sport-breakdown-name">{SPORT_LABEL[row.sport] ?? row.sport}</span>
               <span className={`sport-breakdown-pnl ${row.profit >= 0 ? 'tone-good' : 'tone-bad'}`}>
                 {row.profit >= 0 ? '+' : ''}£{row.profit.toFixed(2)}

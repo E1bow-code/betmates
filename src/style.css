@@ -1117,6 +1117,10 @@ h1, h2, .topbar h1, .sheet-title, .auth-title {
 
 .league-group + .league-group { margin-top: 20px; }
 
+.sport-icon-inline { vertical-align: -3px; flex-shrink: 0; }
+
+.league-group-title-icon { display: flex; align-items: center; gap: 6px; }
+
 .league-group-title {
   font-size: 0.85rem;
   text-transform: uppercase;

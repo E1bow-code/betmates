@@ -5,7 +5,7 @@ import { fetchRaces } from '../api/racingClient.js'
 import { fetchFights } from '../api/ufcClient.js'
 import { fetchEvents } from '../api/genericSportsClient.js'
 import { fetchResults } from '../api/resultsClient.js'
-import { GENERIC_SPORTS, SPORT_LABEL, SPORT_ICON } from '../lib/sportsConfig.js'
+import { GENERIC_SPORTS, SPORT_LABEL } from '../lib/sportsConfig.js'
 import { formatKickoff, formatCountdown } from '../utils/format.js'
 import { bestWithinFilter } from '../utils/oddsUtils.js'
 import { useAuth } from '../context/AuthContext.jsx'
@@ -14,6 +14,7 @@ import TeamBadge from '../components/TeamBadge.jsx'
 import PlayerPhoto from '../components/PlayerPhoto.jsx'
 import SportHeroBanner from '../components/SportHeroBanner.jsx'
 import PullToRefresh from '../components/PullToRefresh.jsx'
+import SportIcon from '../components/icons/SportIcons.jsx'
 
 const SPORTS = ['football', 'racing', 'ufc', ...Object.keys(GENERIC_SPORTS)].map((key) => ({ key, label: SPORT_LABEL[key] }))
 
@@ -30,8 +31,6 @@ const NOUN = {
   ufc: 'the fights',
   ...Object.fromEntries(Object.entries(GENERIC_SPORTS).map(([key, cfg]) => [key, `the ${cfg.label.toLowerCase()} fixtures`]))
 }
-const ICON = SPORT_ICON
-
 // Buckets an already kickoff-sorted list into competitions, preserving that
 // order - a Map's insertion order comes from each competition's first (i.e.
 // soonest) item, so groups come out soonest-league-first with no extra sort
@@ -228,8 +227,8 @@ export default function OddsListPage() {
             crossSportResults.length > 0 &&
             groupBySport(crossSportResults).map((group) => (
               <div key={group.sportKey} className="league-group">
-                <h2 className="league-group-title">
-                  {ICON[group.sportKey]} {SPORT_LABEL[group.sportKey]}
+                <h2 className="league-group-title league-group-title-icon">
+                  <SportIcon sport={group.sportKey} /> {SPORT_LABEL[group.sportKey]}
                 </h2>
                 <div className="race-list">
                   {group.items.map((item) => (
@@ -253,7 +252,7 @@ export default function OddsListPage() {
           {!error && !loaded && <div className="loading">Fetching the latest {NOUN[sport]}…</div>}
           {loaded && !loaded.length && (
             <EmptyState
-              icon={ICON[sport]}
+              icon={<SportIcon sport={sport} size={32} />}
               title="Nothing on the board"
               subtitle="Check back closer to kick-off — new fixtures land as they're announced."
             />
@@ -290,7 +289,7 @@ export default function OddsListPage() {
           {!resultsError && !loadedResults && <div className="loading">Fetching recent results…</div>}
           {loadedResults && !loadedResults.length && (
             <EmptyState
-              icon={ICON[sport]}
+              icon={<SportIcon sport={sport} size={32} />}
               title="No results yet"
               subtitle="Completed games from the last 3 days show up here once they're final."
             />

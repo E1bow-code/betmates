@@ -33,7 +33,7 @@ export const GENERIC_SPORTS = {
   // tells netlify/functions/sport.js to look up whatever tennis_* keys are
   // currently active via The Odds API's free /sports listing endpoint
   // instead of using apiSportKeys.
-  tennis: { label: 'Tennis', icon: '🎾', dynamicPrefix: 'tennis_', participantType: 'player', hasDraw: false },
+  tennis: { label: 'Tennis', dynamicPrefix: 'tennis_', participantType: 'player', hasDraw: false },
   // These four run through SportsGameOdds (netlify/functions/sport.js
   // branches on `provider`) instead of The Odds API - separate free
   // quota, and better-suited coverage for US sports than querying UK
@@ -42,39 +42,32 @@ export const GENERIC_SPORTS = {
   // settlement/results) has no equivalent for these yet, so auto-settle
   // and the results archive don't cover them - manual settling still
   // works fine, this only affects the automatic part.
-  basketball: { label: 'Basketball', icon: '🏀', provider: 'sgo', leagueID: 'NBA', participantType: 'team', hasDraw: false },
-  hockey: { label: 'Ice Hockey', icon: '🏒', provider: 'sgo', leagueID: 'NHL', participantType: 'team', hasDraw: false },
-  baseball: { label: 'Baseball', icon: '⚾', provider: 'sgo', leagueID: 'MLB', participantType: 'team', hasDraw: false },
-  nfl: { label: 'NFL', icon: '🏈', provider: 'sgo', leagueID: 'NFL', participantType: 'team', hasDraw: false },
-  rugbyLeague: { label: 'Rugby League', icon: '🏉', apiSportKeys: ['rugbyleague_nrl'], participantType: 'team', hasDraw: true },
-  rugbyUnion: { label: 'Rugby Union', icon: '🏉', apiSportKeys: ['rugbyunion_six_nations'], participantType: 'team', hasDraw: true },
+  basketball: { label: 'Basketball', provider: 'sgo', leagueID: 'NBA', participantType: 'team', hasDraw: false },
+  hockey: { label: 'Ice Hockey', provider: 'sgo', leagueID: 'NHL', participantType: 'team', hasDraw: false },
+  baseball: { label: 'Baseball', provider: 'sgo', leagueID: 'MLB', participantType: 'team', hasDraw: false },
+  nfl: { label: 'NFL', provider: 'sgo', leagueID: 'NFL', participantType: 'team', hasDraw: false },
+  rugbyLeague: { label: 'Rugby League', apiSportKeys: ['rugbyleague_nrl'], participantType: 'team', hasDraw: true },
+  rugbyUnion: { label: 'Rugby Union', apiSportKeys: ['rugbyunion_six_nations'], participantType: 'team', hasDraw: true },
   cricket: {
     label: 'Cricket',
-    icon: '🏏',
     apiSportKeys: ['cricket_international_t20', 'cricket_ipl', 'cricket_big_bash', 'cricket_the_hundred', 'cricket_t20_blast'],
     participantType: 'team',
     hasDraw: true
   },
-  boxing: { label: 'Boxing', icon: '🥊', apiSportKeys: ['boxing_boxing'], participantType: 'player', hasDraw: false }
+  boxing: { label: 'Boxing', apiSportKeys: ['boxing_boxing'], participantType: 'player', hasDraw: false }
 }
 
 // The three hand-built sports (see file comment above) plus every generic
 // one, keyed the same way bet_posts/manual_entries.sport is stored - one
-// place for anything that needs a sport's display label/icon (OddsListPage's
+// place for anything that needs a sport's display label (OddsListPage's
 // tabs, TrackerPage's per-sport breakdown) instead of three copies drifting.
+// Icons live in src/components/icons/SportIcons.jsx, not here.
 export const SPORT_LABEL = {
   football: 'Football',
   racing: 'Horse Racing',
   ufc: 'UFC',
   multi: 'Multi-sport',
   ...Object.fromEntries(Object.entries(GENERIC_SPORTS).map(([key, cfg]) => [key, cfg.label]))
-}
-export const SPORT_ICON = {
-  football: '⚽',
-  racing: '🏇',
-  ufc: '🥊',
-  multi: '🎟️',
-  ...Object.fromEntries(Object.entries(GENERIC_SPORTS).map(([key, cfg]) => [key, cfg.icon]))
 }
 
 // Shared by src/lib/settlement.js and src/api/resultsClient.js - anything

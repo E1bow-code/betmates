@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext.jsx'
 import Avatar from '../components/Avatar.jsx'
-import { SPORT_ICON } from '../lib/sportsConfig.js'
+import SportIcon from '../components/icons/SportIcons.jsx'
 
 // The one route in this app that works fully logged out - reachable from a
 // "Share my profile" link (see AccountPage) without the visitor needing an
@@ -71,7 +71,7 @@ export default function PublicProfilePage() {
                   <div key={i} className={`tracker-row status-${r.status}`}>
                     <div className="tracker-row-main">
                       <div className="selection-event">
-                        {SPORT_ICON[r.sport] ?? '🎟️'} {r.event}
+                        <SportIcon sport={r.sport} /> {r.event}
                       </div>
                     </div>
                     <span className={`bet-status-pill status-${r.status}`}>{r.status === 'won' ? 'Won' : 'Lost'}</span>
