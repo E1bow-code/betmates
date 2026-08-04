@@ -636,6 +636,21 @@ h1, h2, .topbar h1, .sheet-title, .auth-title {
 /* Groups - chips stay pill-shaped (they're navigational tabs to a group,
    same family as the sport switcher); the invite-code/friend lists below
    are plain divided lists. */
+.trending-row { display: flex; gap: 8px; overflow-x: auto; padding: 4px 2px 10px; }
+.trending-chip {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: var(--surface);
+  border: 1px solid var(--accent-dim);
+  border-radius: 6px;
+  padding: 8px 12px;
+  max-width: 220px;
+}
+.trending-chip-pick { font-weight: 700; font-size: 0.85rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.trending-chip-meta { font-size: 0.72rem; color: var(--text-dim); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
 .group-chip-row { display: flex; gap: 8px; overflow-x: auto; padding: 4px 0 10px; }
 .group-chip {
   flex-shrink: 0;

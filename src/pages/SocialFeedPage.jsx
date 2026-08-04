@@ -16,6 +16,8 @@ import PullToRefresh from '../components/PullToRefresh.jsx'
 import ShareLeaderboardButton from '../components/ShareLeaderboardButton.jsx'
 import SportHeroBanner from '../components/SportHeroBanner.jsx'
 import FplPanel from '../components/FplPanel.jsx'
+import SportIcon from '../components/icons/SportIcons.jsx'
+import { computeTrendingPicks } from '../utils/trending.js'
 
 // Landing view for the Social tab. The feed is the main attraction - group/
 // friend management (create, join, invite codes) lives behind the Manage
@@ -75,6 +77,8 @@ export default function SocialFeedPage() {
       .filter((row) => row.settledCount > 0)
       .sort((a, b) => b.profit - a.profit)
   }, [feed, publicFeed, leaderboardWindow])
+
+  const trendingPicks = useMemo(() => (publicFeed ? computeTrendingPicks(publicFeed) : []), [publicFeed])
 
   function refreshBets() {
     return Promise.all([dataStore.listMyGroups(user.id).then(setGroups), dataStore.listFeedForUser(user.id).then(setFeed)])
@@ -183,6 +187,25 @@ export default function SocialFeedPage() {
       {segment === 'feed' && (
         <>
           <p className="hint">Everyone's picks - tap a price on the Odds tab and choose "Post to everyone" to add yours.</p>
+
+          {trendingPicks.length > 0 && (
+            <div className="account-section">
+              <h2 className="market-title">🔥 Trending this week</h2>
+              <div className="trending-row">
+                {trendingPicks.map((pick) => (
+                  <div key={pick.key} className="trending-chip">
+                    <SportIcon sport={pick.sport} size={18} />
+                    <div>
+                      <div className="trending-chip-pick">{pick.selection}</div>
+                      <div className="trending-chip-meta">
+                        {pick.event} · {pick.count} backing this
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
 
           {publicFeed === null && <div className="loading">Catching up on the feed…</div>}
           {publicFeed && !publicFeed.length && (

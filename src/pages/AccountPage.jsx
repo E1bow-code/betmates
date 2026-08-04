@@ -203,6 +203,14 @@ export default function AccountPage() {
           />
           <span>Reminder shortly before kickoff</span>
         </label>
+        <label className="field-check">
+          <input
+            type="checkbox"
+            checked={user.notificationPrefs?.weeklyRecap ?? false}
+            onChange={() => toggleNotification('weeklyRecap')}
+          />
+          <span>Weekly recap (Sunday evening)</span>
+        </label>
         <p className="hint">
           {isPushSupported()
             ? 'Turn on push above to actually receive these on this device, not just store the preference.'
