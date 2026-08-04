@@ -129,6 +129,7 @@ h1, h2, .topbar h1, .sheet-title, .auth-title {
 
 .bottom-nav-item.active { color: var(--accent); border-top-color: var(--accent); }
 .bottom-nav-icon { font-size: 1.2rem; position: relative; display: inline-block; }
+.sidebar-brand { display: none; }
 .bottom-nav-dot {
   position: absolute;
   top: -2px;
@@ -138,6 +139,62 @@ h1, h2, .topbar h1, .sheet-title, .auth-title {
   border-radius: 50%;
   background: var(--accent);
   border: 1.5px solid var(--bg);
+}
+
+/* Desktop: the same nav markup becomes a left sidebar instead of a bottom
+   bar - a mobile tab strip stretched across a wide window is the single
+   biggest tell that gives away "this is a phone page", not a real
+   installed-feeling app. Everything else (page content, cards, lists)
+   stays exactly as-is, just with more room either side. */
+@media (min-width: 880px) {
+  #app { max-width: 1180px; }
+
+  .app-shell { flex-direction: row; align-items: stretch; }
+
+  .app-content { padding: 28px 32px 40px; max-width: 720px; margin: 0 auto; width: 100%; }
+
+  .bottom-nav {
+    position: sticky;
+    top: 0;
+    bottom: auto;
+    left: auto;
+    right: auto;
+    order: -1;
+    flex-direction: column;
+    align-items: stretch;
+    justify-content: flex-start;
+    width: 220px;
+    flex-shrink: 0;
+    height: 100vh;
+    border-top: none;
+    border-right: 1px solid var(--border);
+    padding: 0;
+    gap: 2px;
+  }
+
+  .sidebar-brand {
+    display: block;
+    font-family: Georgia, 'Times New Roman', serif;
+    font-size: 1.3rem;
+    color: var(--accent);
+    padding: 22px 24px 18px;
+  }
+
+  .bottom-nav-item {
+    flex-direction: row;
+    justify-content: flex-start;
+    align-items: center;
+    gap: 12px;
+    font-size: 0.92rem;
+    padding: 11px 24px;
+    border-top: none;
+    border-left: 3px solid transparent;
+  }
+
+  .bottom-nav-item.active { background: var(--surface); border-left-color: var(--accent); }
+  .bottom-nav-icon { font-size: 1.1rem; }
+
+  .bet-slip-bar { bottom: 20px; left: 252px; right: 32px; margin: 0; }
 }
 
 /* Floating bet-slip bar: pinned just above the bottom nav whenever the
@@ -251,6 +308,38 @@ h1, h2, .topbar h1, .sheet-title, .auth-title {
 
 .hint { color: var(--text-dim); font-size: 0.8rem; padding: 4px 4px 12px; }
 .hint-with-action { display: flex; justify-content: space-between; align-items: center; gap: 8px; }
+
+.install-guide-steps {
+  margin: 8px 0;
+  padding-left: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  font-size: 0.88rem;
+}
+.install-guide-steps li { padding-left: 4px; }
+
+.install-banner {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  padding: 14px 16px;
+  margin-bottom: 14px;
+}
+.install-banner-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 4px;
+}
+.install-banner-close {
+  background: none;
+  border: none;
+  color: var(--text-dim);
+  font-size: 0.9rem;
+  cursor: pointer;
+  padding: 4px;
+}
 
 /* Atmospheric photo strip above a page's own header - full-bleed out of
    .app-content's side padding, faded into the page background at the

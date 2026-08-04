@@ -13,6 +13,7 @@ export default function BottomNav() {
 
   return (
     <nav className="bottom-nav">
+      <div className="sidebar-brand">BetMates</div>
       {TABS.map((tab) => (
         <NavLink key={tab.to} to={tab.to} className={({ isActive }) => (isActive ? 'bottom-nav-item active' : 'bottom-nav-item')}>
           <span className="bottom-nav-icon">

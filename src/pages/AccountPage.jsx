@@ -5,7 +5,9 @@ import { BOOKMAKERS } from '../lib/bookmakers.js'
 import * as dataStore from '../lib/dataStore.js'
 import { isPushSupported, getPushSubscription, subscribeToPush, unsubscribeFromPush } from '../lib/push.js'
 import { getStoredTheme, setTheme } from '../lib/theme.js'
+import { isIOS, isStandalone } from '../lib/platform.js'
 import Avatar from '../components/Avatar.jsx'
+import InstallGuide from '../components/InstallGuide.jsx'
 
 export default function AccountPage() {
   const { user, signOut, updateDisplayName, updateBookmakerPrefs, updateNotificationPrefs } = useAuth()
@@ -194,6 +196,20 @@ export default function AccountPage() {
             ? 'Turn on push above to actually receive these on this device, not just store the preference.'
             : "These are stored for when you're on a browser that supports push."}
         </p>
+      </div>
+
+      <div className="account-section">
+        <h2 className="market-title">Install app</h2>
+        {isStandalone() ? (
+          <p className="hint">You're using the installed app already - nothing else to do.</p>
+        ) : isIOS() ? (
+          <InstallGuide />
+        ) : (
+          <p className="hint">
+            Look for an install icon in your browser's address bar (Chrome, Edge, and most Android browsers offer this
+            automatically) to add BetMates as an app.
+          </p>
+        )}
       </div>
 
       <div className="account-section">

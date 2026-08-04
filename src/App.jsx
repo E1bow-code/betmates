@@ -4,6 +4,7 @@ import { AuthProvider, useAuth } from './context/AuthContext.jsx'
 import { BetSlipProvider } from './context/BetSlipContext.jsx'
 import { ActivityProvider } from './context/ActivityContext.jsx'
 import BottomNav from './components/BottomNav.jsx'
+import InstallGuideBanner from './components/InstallGuideBanner.jsx'
 import BetSlipBar from './components/BetSlipBar.jsx'
 import BetBuilderSheet from './components/BetBuilderSheet.jsx'
 import AuthPage from './pages/AuthPage.jsx'
@@ -91,6 +92,7 @@ function Shell() {
       <BetSlipProvider>
         <div className="app-shell">
           <div className="app-content">
+            <InstallGuideBanner />
             <Routes>
               <Route path="/" element={<HomeRedirect />} />
               <Route path="/odds" element={<OddsListPage />} />
