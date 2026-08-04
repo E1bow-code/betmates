@@ -13,6 +13,7 @@ import HeadToHeadSheet from '../components/HeadToHeadSheet.jsx'
 import EmptyState from '../components/EmptyState.jsx'
 import Avatar from '../components/Avatar.jsx'
 import PullToRefresh from '../components/PullToRefresh.jsx'
+import ShareLeaderboardButton from '../components/ShareLeaderboardButton.jsx'
 
 // Landing view for the Social tab. The feed is the main attraction - group/
 // friend management (create, join, invite codes) lives behind the Manage
@@ -275,6 +276,16 @@ export default function SocialFeedPage() {
                   <span className="leaderboard-meta">
                     {row.winRate === null ? '-' : `${row.winRate}% WR`} · {row.roi === null ? '-' : `${row.roi >= 0 ? '+' : ''}${row.roi}% ROI`}
                   </span>
+                  {row.userId === user.id && (
+                    <ShareLeaderboardButton
+                      name={row.name}
+                      rank={i + 1}
+                      profit={row.profit}
+                      winRate={row.winRate}
+                      roi={row.roi}
+                      windowLabel={LEADERBOARD_WINDOWS.find((w) => w.key === leaderboardWindow)?.label ?? 'All-time'}
+                    />
+                  )}
                 </div>
               ))}
             </div>

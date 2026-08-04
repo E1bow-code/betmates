@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { fetchFixtures } from '../api/oddsClient.js'
 import { fetchRaces } from '../api/racingClient.js'
@@ -47,6 +47,17 @@ function groupByCompetition(items) {
   return [...groups.entries()].map(([competition, items]) => ({ competition, items }))
 }
 
+// Same idea as groupByCompetition but for the cross-sport search results
+// below, which mix sports together and need their own grouping key.
+function groupBySport(items) {
+  const groups = new Map()
+  for (const item of items) {
+    if (!groups.has(item.__sport)) groups.set(item.__sport, [])
+    groups.get(item.__sport).push(item)
+  }
+  return [...groups.entries()].map(([sportKey, items]) => ({ sportKey, items }))
+}
+
 // Every item shape (fixture/race/fight/generic event/result) has team or
 // participant names under different field names - just check whichever
 // ones exist rather than branching per sport.
@@ -83,6 +94,9 @@ export default function OddsListPage() {
   const [resultsSport, setResultsSport] = useState(null)
   const [resultsError, setResultsError] = useState(null)
   const [search, setSearch] = useState('')
+  const [crossSportCache, setCrossSportCache] = useState({}) // sport key -> items[], filled lazily once a search starts
+  const [crossSportLoading, setCrossSportLoading] = useState(false)
+  const searchActive = search.trim().length > 0
 
   useEffect(() => {
     setError(null)
@@ -93,6 +107,28 @@ export default function OddsListPage() {
       })
       .catch((err) => setError(err.message))
   }, [sport])
+
+  // Fires once per search "session" (searchActive flipping false -> true),
+  // not per keystroke - every sport already fetched stays cached in
+  // crossSportCache, so re-searching later costs nothing further.
+  useEffect(() => {
+    if (!searchActive || mode !== 'upcoming') return
+    const toFetch = SPORTS.map((s) => s.key).filter((key) => !(key in crossSportCache))
+    if (!toFetch.length) return
+    setCrossSportLoading(true)
+    Promise.allSettled(toFetch.map((key) => FETCHERS[key]().then((data) => [key, data])))
+      .then((settled) => {
+        setCrossSportCache((prev) => {
+          const next = { ...prev }
+          for (const r of settled) {
+            if (r.status === 'fulfilled') next[r.value[0]] = r.value[1]
+          }
+          return next
+        })
+      })
+      .finally(() => setCrossSportLoading(false))
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchActive, mode])
 
   useEffect(() => {
     if (mode !== 'results') return
@@ -110,8 +146,18 @@ export default function OddsListPage() {
   const rawLoadedResults = resultsSport === sport ? results : null
   const loaded = filterBySearch(rawLoaded, search)
   const loadedResults = filterBySearch(rawLoadedResults, search)
-  const searchActive = search.trim().length > 0
   const groupedLoaded = loaded && sport !== 'racing' ? groupByCompetition(loaded) : null
+
+  const crossSportResults = useMemo(() => {
+    if (!searchActive) return null
+    const all = []
+    for (const s of SPORTS) {
+      const list = crossSportCache[s.key]
+      if (!list) continue
+      for (const item of filterBySearch(list, search)) all.push({ ...item, __sport: s.key })
+    }
+    return all.sort((a, b) => new Date(a.kickoff ?? a.offTime) - new Date(b.kickoff ?? b.offTime))
+  }, [searchActive, search, crossSportCache])
 
   function refresh() {
     return mode === 'results'
@@ -152,7 +198,7 @@ export default function OddsListPage() {
         <input
           className="search-input"
           type="search"
-          placeholder="Search by team…"
+          placeholder="Search all sports by team, fighter, player…"
           value={search}
           onChange={(e) => setSearch(e.target.value)}
         />
@@ -169,7 +215,33 @@ export default function OddsListPage() {
         )}
       </div>
 
-      {mode === 'upcoming' && (
+      {mode === 'upcoming' && searchActive && (
+        <>
+          <p className="hint">Searching every sport for "{search.trim()}"…</p>
+
+          {crossSportLoading && !crossSportResults?.length && <div className="loading">Searching…</div>}
+          {!crossSportLoading && crossSportResults && !crossSportResults.length && (
+            <EmptyState icon="🔎" title="No matches" subtitle={`Nothing found for "${search.trim()}" anywhere.`} />
+          )}
+
+          {crossSportResults &&
+            crossSportResults.length > 0 &&
+            groupBySport(crossSportResults).map((group) => (
+              <div key={group.sportKey} className="league-group">
+                <h2 className="league-group-title">
+                  {ICON[group.sportKey]} {SPORT_LABEL[group.sportKey]}
+                </h2>
+                <div className="race-list">
+                  {group.items.map((item) => (
+                    <CrossSportCard key={`${item.__sport}-${item.id}`} item={item} bookmakerFilter={bookmakerFilter} />
+                  ))}
+                </div>
+              </div>
+            ))}
+        </>
+      )}
+
+      {mode === 'upcoming' && !searchActive && (
         <>
           {!user?.bookmakerPrefs?.length && (
             <p className="hint">
@@ -179,10 +251,7 @@ export default function OddsListPage() {
 
           {error && <div className="error">Hmm, couldn't load {NOUN[sport]}: {error}</div>}
           {!error && !loaded && <div className="loading">Fetching the latest {NOUN[sport]}…</div>}
-          {loaded && !loaded.length && searchActive && rawLoaded?.length > 0 && (
-            <EmptyState icon="🔎" title="No matches" subtitle={`Nothing found for "${search.trim()}" in ${NOUN[sport]}.`} />
-          )}
-          {loaded && !loaded.length && !(searchActive && rawLoaded?.length > 0) && (
+          {loaded && !loaded.length && (
             <EmptyState
               icon={ICON[sport]}
               title="Nothing on the board"
@@ -237,6 +306,16 @@ export default function OddsListPage() {
       )}
     </PullToRefresh>
   )
+}
+
+// Dispatches a cross-sport search hit to whichever card its own sport tab
+// would normally use - the item shapes are unrelated across sports, so this
+// is just a switch, not a shared component.
+function CrossSportCard({ item, bookmakerFilter }) {
+  if (item.__sport === 'football') return <FixtureCard fixture={item} bookmakerFilter={bookmakerFilter} />
+  if (item.__sport === 'racing') return <RaceCard race={item} bookmakerFilter={bookmakerFilter} />
+  if (item.__sport === 'ufc') return <FightCard fight={item} bookmakerFilter={bookmakerFilter} />
+  return <EventCard event={item} sportKey={item.__sport} config={GENERIC_SPORTS[item.__sport]} bookmakerFilter={bookmakerFilter} />
 }
 
 function ResultCard({ game }) {

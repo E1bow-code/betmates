@@ -2,13 +2,14 @@ import { useState } from 'react'
 import { computeStats } from '../utils/trackerStats.js'
 import { LEADERBOARD_WINDOWS, isWithinWindow } from '../utils/dateWindows.js'
 import Avatar from './Avatar.jsx'
+import ShareLeaderboardButton from './ShareLeaderboardButton.jsx'
 
 // Section 2C's "aggregate group leaderboard" - ranks members of a single
 // group by P&L using the same computeStats math as the personal Tracker,
 // scoped to bets posted in this group. Only settled (won/lost) bets with a
 // visible stake count - hidden-stake bets can't contribute a real P&L.
 
-export default function Leaderboard({ posts, memberNames }) {
+export default function Leaderboard({ posts, memberNames, currentUserId }) {
   const [expanded, setExpanded] = useState(false)
   const [timeWindow, setTimeWindow] = useState('all')
 
@@ -61,6 +62,16 @@ export default function Leaderboard({ posts, memberNames }) {
                     {row.winRate === null ? '-' : `${row.winRate}% WR`} ·{' '}
                     {row.roi === null ? '-' : `${row.roi >= 0 ? '+' : ''}${row.roi}% ROI`}
                   </span>
+                  {row.userId === currentUserId && (
+                    <ShareLeaderboardButton
+                      name={row.name}
+                      rank={i + 1}
+                      profit={row.profit}
+                      winRate={row.winRate}
+                      roi={row.roi}
+                      windowLabel={LEADERBOARD_WINDOWS.find((w) => w.key === timeWindow)?.label ?? 'All-time'}
+                    />
+                  )}
                 </div>
               ))}
             </div>

@@ -165,3 +165,87 @@ export async function shareBetSlipImage(post) {
   URL.revokeObjectURL(url)
   return 'downloaded'
 }
+
+// Same canvas-and-share approach as the bet slip above, for a leaderboard
+// rank card instead - a fixed-height layout since there's no variable-length
+// content to measure first (unlike the leg list above).
+export async function renderLeaderboardImage({ name, rank, profit, winRate, roi, windowLabel }) {
+  const height = 360
+  const padding = 40
+  const good = profit >= 0
+
+  const canvas = document.createElement('canvas')
+  const dpr = Math.min(window.devicePixelRatio || 1, 2)
+  canvas.width = WIDTH * dpr
+  canvas.height = height * dpr
+  const ctx = canvas.getContext('2d')
+  ctx.scale(dpr, dpr)
+
+  ctx.fillStyle = COLORS.bg
+  ctx.fillRect(0, 0, WIDTH, height)
+
+  let y = padding
+  ctx.fillStyle = COLORS.accent
+  ctx.font = '700 24px Georgia, serif'
+  ctx.fillText('BetMates', padding, y)
+  ctx.fillStyle = COLORS.textDim
+  ctx.font = '600 13px -apple-system, sans-serif'
+  ctx.textAlign = 'right'
+  ctx.fillText(`${windowLabel.toUpperCase()} LEADERBOARD`, WIDTH - padding, y - 2)
+  ctx.textAlign = 'left'
+  y += 30
+  ctx.strokeStyle = COLORS.border
+  ctx.beginPath()
+  ctx.moveTo(padding, y)
+  ctx.lineTo(WIDTH - padding, y)
+  ctx.stroke()
+  y += 70
+
+  ctx.fillStyle = COLORS.accent
+  ctx.font = '800 56px Georgia, serif'
+  ctx.fillText(`#${rank}`, padding, y)
+
+  ctx.fillStyle = COLORS.text
+  ctx.font = '600 26px -apple-system, sans-serif'
+  ctx.textAlign = 'right'
+  ctx.fillText(name, WIDTH - padding, y - 8)
+  y += 20
+
+  y += 60
+  ctx.fillStyle = good ? '#5fbf74' : '#e0665a'
+  ctx.font = '800 48px ui-monospace, Consolas, monospace'
+  ctx.textAlign = 'left'
+  ctx.fillText(`${good ? '+' : ''}£${profit.toFixed(2)}`, padding, y)
+  ctx.textAlign = 'left'
+  y += 50
+
+  ctx.fillStyle = COLORS.textDim
+  ctx.font = '15px -apple-system, sans-serif'
+  const winRateText = winRate === null ? '-' : `${winRate}% win rate`
+  const roiText = roi === null ? '-' : `${roi >= 0 ? '+' : ''}${roi}% ROI`
+  ctx.fillText(`${winRateText} · ${roiText}`, padding, y)
+
+  ctx.fillStyle = COLORS.textDim
+  ctx.font = '12px -apple-system, sans-serif'
+  ctx.fillText('BetMates does not place bets or hold funds. 18+. Gamble responsibly.', padding, height - padding + 20)
+
+  return new Promise((resolve) => canvas.toBlob(resolve, 'image/png'))
+}
+
+export async function shareLeaderboardImage(rankInfo) {
+  const blob = await renderLeaderboardImage(rankInfo)
+  const file = new File([blob], 'betmates-leaderboard.png', { type: 'image/png' })
+
+  if (navigator.canShare?.({ files: [file] })) {
+    await navigator.share({ files: [file], title: 'My BetMates leaderboard rank' })
+    return 'shared'
+  }
+
+  const url = URL.createObjectURL(blob)
+  const a = document.createElement('a')
+  a.href = url
+  a.download = 'betmates-leaderboard.png'
+  a.click()
+  URL.revokeObjectURL(url)
+  return 'downloaded'
+}

@@ -6,6 +6,7 @@ import { bestWithinFilter } from '../utils/oddsUtils.js'
 import { useAuth } from '../context/AuthContext.jsx'
 import { useBetSlip } from '../context/BetSlipContext.jsx'
 import { useOddsMovement, movementKey } from '../lib/oddsMemory.js'
+import { useBacking } from '../lib/backing.js'
 import PlayerPhoto from '../components/PlayerPhoto.jsx'
 import OddsMoveIndicator from '../components/OddsMoveIndicator.jsx'
 import SportHeroBanner from '../components/SportHeroBanner.jsx'
@@ -25,6 +26,7 @@ export default function FightDetailPage() {
   }, [id])
 
   const movements = useOddsMovement(fight)
+  const backing = useBacking(fight ? `${fight.fighterA} v ${fight.fighterB}` : null, user.id)
 
   if (error) return <ErrorState message={error} />
   if (!fight) return <LoadingState />
@@ -90,6 +92,7 @@ export default function FightDetailPage() {
               const best = bestWithinFilter(outcome.allOdds, bookmakerFilter)
               const selected =
                 best && isSelected({ event: `${fight.fighterA} v ${fight.fighterB}`, market: market.label, selection: outcome.name })
+              const backingCount = backing?.counts.get(outcome.name) ?? 0
               return (
                 <button
                   key={outcome.name}
@@ -102,6 +105,11 @@ export default function FightDetailPage() {
                       <PlayerPhoto name={outcome.name} size={22} />
                       <span>{outcome.name}</span>
                     </span>
+                    {backingCount > 0 && (
+                      <span className="backing-badge">
+                        🔥 {backingCount} backing
+                      </span>
+                    )}
                   </span>
                   {best ? (
                     <span className="outcome-odds">

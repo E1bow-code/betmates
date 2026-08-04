@@ -6,6 +6,7 @@ import { bestWithinFilter } from '../utils/oddsUtils.js'
 import { useAuth } from '../context/AuthContext.jsx'
 import { useBetSlip } from '../context/BetSlipContext.jsx'
 import { useOddsMovement, movementKey } from '../lib/oddsMemory.js'
+import { useBacking } from '../lib/backing.js'
 import TeamBadge from '../components/TeamBadge.jsx'
 import PlayerPhoto from '../components/PlayerPhoto.jsx'
 import OddsMoveIndicator from '../components/OddsMoveIndicator.jsx'
@@ -28,6 +29,7 @@ export default function FixtureDetailPage() {
   }, [id])
 
   const movements = useOddsMovement(fixture)
+  const backing = useBacking(fixture ? `${fixture.homeTeam} v ${fixture.awayTeam}` : null, user.id)
 
   if (error) return <ErrorState message={error} />
   if (!fixture) return <LoadingState />
@@ -87,13 +89,15 @@ export default function FixtureDetailPage() {
           <div className="outcome-list">
             {market.outcomes.map((outcome) => {
               const best = bestWithinFilter(outcome.allOdds, bookmakerFilter)
+              const resolvedSelection = outcome.name === 'Home' ? fixture.homeTeam : outcome.name === 'Away' ? fixture.awayTeam : outcome.name
               const selected =
                 best &&
                 isSelected({
                   event: `${fixture.homeTeam} v ${fixture.awayTeam}`,
                   market: market.label,
-                  selection: outcome.name === 'Home' ? fixture.homeTeam : outcome.name === 'Away' ? fixture.awayTeam : outcome.name
+                  selection: resolvedSelection
                 })
+              const backingCount = backing?.counts.get(resolvedSelection) ?? 0
               return (
                 <button
                   key={outcome.name}
@@ -114,6 +118,11 @@ export default function FixtureDetailPage() {
                       </span>
                     ) : (
                       outcome.name
+                    )}
+                    {backingCount > 0 && (
+                      <span className="backing-badge">
+                        🔥 {backingCount} backing
+                      </span>
                     )}
                   </span>
                   {best ? (

@@ -119,7 +119,7 @@ export default function GroupFeedPage() {
         <>
           {error && <div className="error">Hmm, couldn't load this group: {error}</div>}
           {!error && items === null && <div className="loading">Catching up on the feed…</div>}
-          {posts && posts.length > 0 && <Leaderboard posts={posts} memberNames={memberNames} />}
+          {posts && posts.length > 0 && <Leaderboard posts={posts} memberNames={memberNames} currentUserId={user.id} />}
           {items && !items.length && (
             <EmptyState
               icon="💬"

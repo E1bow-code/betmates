@@ -7,6 +7,7 @@ import { bestWithinFilter } from '../utils/oddsUtils.js'
 import { useAuth } from '../context/AuthContext.jsx'
 import { useBetSlip } from '../context/BetSlipContext.jsx'
 import { useOddsMovement, movementKey } from '../lib/oddsMemory.js'
+import { useBacking } from '../lib/backing.js'
 import TeamBadge from '../components/TeamBadge.jsx'
 import PlayerPhoto from '../components/PlayerPhoto.jsx'
 import OddsMoveIndicator from '../components/OddsMoveIndicator.jsx'
@@ -28,6 +29,7 @@ export default function GenericEventDetailPage() {
   }, [sportKey, id])
 
   const movements = useOddsMovement(event)
+  const backing = useBacking(event ? `${event.participantA} v ${event.participantB}` : null, user.id)
 
   if (error) return <ErrorState message={error} />
   if (!event) return <LoadingState />
@@ -102,6 +104,7 @@ export default function GenericEventDetailPage() {
               const name = nameFor(outcome.name)
               const selected =
                 best && isSelected({ event: `${event.participantA} v ${event.participantB}`, market: market.label, selection: name })
+              const backingCount = backing?.counts.get(name) ?? 0
               return (
                 <button
                   key={outcome.name}
@@ -117,6 +120,11 @@ export default function GenericEventDetailPage() {
                       </span>
                     ) : (
                       name
+                    )}
+                    {backingCount > 0 && (
+                      <span className="backing-badge">
+                        🔥 {backingCount} backing
+                      </span>
                     )}
                   </span>
                   {best ? (

@@ -15,6 +15,8 @@ export default function TrackerPage() {
   const { user } = useAuth()
   const [entries, setEntries] = useState(null)
   const [checking, setChecking] = useState(false)
+  const [rebetting, setRebetting] = useState(null)
+  const [rebetDone, setRebetDone] = useState(null)
 
   useEffect(() => {
     let cancelled = false
@@ -47,6 +49,29 @@ export default function TrackerPage() {
   async function handleStatusChange(entry, status) {
     await dataStore.updateManualEntryStatus(entry.id, status)
     refresh()
+  }
+
+  // Repeats a past wager as a fresh open manual entry - the app never
+  // places real bets (see the disclaimer on sign-up), so this just logs the
+  // same selections/stake again rather than trying to re-fetch live odds
+  // for a fixture that's often already kicked off or finished by now.
+  async function handleRebet(entry) {
+    setRebetting(entry.id)
+    try {
+      await dataStore.addManualEntry({
+        userId: user.id,
+        sport: entry.sport,
+        marketType: entry.marketType,
+        selections: entry.selections,
+        stake: entry.stake,
+        potentialReturn: entry.potentialReturn
+      })
+      await refresh()
+      setRebetDone(entry.id)
+      setTimeout(() => setRebetDone((id) => (id === entry.id ? null : id)), 2000)
+    } finally {
+      setRebetting(null)
+    }
   }
 
   function handleExport() {
@@ -180,6 +205,13 @@ export default function TrackerPage() {
                   ) : (
                     <span className={`bet-status-pill status-${entry.status}`}>{STATUS_LABEL[entry.status]}</span>
                   )}
+                  <button
+                    className="btn btn-ghost btn-small"
+                    onClick={() => handleRebet(entry)}
+                    disabled={rebetting === entry.id}
+                  >
+                    {rebetDone === entry.id ? 'Logged ✓' : rebetting === entry.id ? 'Adding…' : 'Bet again'}
+                  </button>
                 </div>
               </div>
             )
