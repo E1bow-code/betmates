@@ -32,6 +32,21 @@ const NOUN = {
 }
 const ICON = SPORT_ICON
 
+// Buckets an already kickoff-sorted list into competitions, preserving that
+// order - a Map's insertion order comes from each competition's first (i.e.
+// soonest) item, so groups come out soonest-league-first with no extra sort
+// needed, and games stay chronological within a group. Racing has no
+// `competition` field (course/raceName instead) and isn't grouped this way.
+function groupByCompetition(items) {
+  const groups = new Map()
+  for (const item of items) {
+    const key = item.competition ?? 'Other'
+    if (!groups.has(key)) groups.set(key, [])
+    groups.get(key).push(item)
+  }
+  return [...groups.entries()].map(([competition, items]) => ({ competition, items }))
+}
+
 // Every item shape (fixture/race/fight/generic event/result) has team or
 // participant names under different field names - just check whichever
 // ones exist rather than branching per sport.
@@ -96,6 +111,7 @@ export default function OddsListPage() {
   const loaded = filterBySearch(rawLoaded, search)
   const loadedResults = filterBySearch(rawLoadedResults, search)
   const searchActive = search.trim().length > 0
+  const groupedLoaded = loaded && sport !== 'racing' ? groupByCompetition(loaded) : null
 
   function refresh() {
     return mode === 'results'
@@ -174,17 +190,28 @@ export default function OddsListPage() {
             />
           )}
 
-          {loaded && loaded.length > 0 && (
+          {loaded && loaded.length > 0 && sport === 'racing' && (
             <div className="race-list">
-              {sport === 'football' && loaded.map((fixture) => <FixtureCard key={fixture.id} fixture={fixture} bookmakerFilter={bookmakerFilter} />)}
-              {sport === 'racing' && loaded.map((race) => <RaceCard key={race.id} race={race} bookmakerFilter={bookmakerFilter} />)}
-              {sport === 'ufc' && loaded.map((fight) => <FightCard key={fight.id} fight={fight} bookmakerFilter={bookmakerFilter} />)}
-              {GENERIC_SPORTS[sport] &&
-                loaded.map((event) => (
-                  <EventCard key={event.id} event={event} sportKey={sport} config={GENERIC_SPORTS[sport]} bookmakerFilter={bookmakerFilter} />
-                ))}
+              {loaded.map((race) => <RaceCard key={race.id} race={race} bookmakerFilter={bookmakerFilter} />)}
             </div>
           )}
+
+          {groupedLoaded &&
+            groupedLoaded.length > 0 &&
+            groupedLoaded.map((group) => (
+              <div key={group.competition} className="league-group">
+                {groupedLoaded.length > 1 && <h2 className="league-group-title">{group.competition}</h2>}
+                <div className="race-list">
+                  {sport === 'football' &&
+                    group.items.map((fixture) => <FixtureCard key={fixture.id} fixture={fixture} bookmakerFilter={bookmakerFilter} />)}
+                  {sport === 'ufc' && group.items.map((fight) => <FightCard key={fight.id} fight={fight} bookmakerFilter={bookmakerFilter} />)}
+                  {GENERIC_SPORTS[sport] &&
+                    group.items.map((event) => (
+                      <EventCard key={event.id} event={event} sportKey={sport} config={GENERIC_SPORTS[sport]} bookmakerFilter={bookmakerFilter} />
+                    ))}
+                </div>
+              </div>
+            ))}
         </>
       )}
 

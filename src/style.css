@@ -992,6 +992,17 @@ h1, h2, .topbar h1, .sheet-title, .auth-title {
 
 .error { color: var(--bad); }
 
+.league-group + .league-group { margin-top: 20px; }
+
+.league-group-title {
+  font-size: 0.85rem;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  color: var(--text-dim);
+  margin: 0 0 8px;
+  padding: 0 2px;
+}
+
 /* Race / fixture / fight list - one bordered panel, rows divided by
    hairlines, like a results sheet rather than a stack of cards. */
 .race-list {
