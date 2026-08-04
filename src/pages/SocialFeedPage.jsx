@@ -15,6 +15,7 @@ import Avatar from '../components/Avatar.jsx'
 import PullToRefresh from '../components/PullToRefresh.jsx'
 import ShareLeaderboardButton from '../components/ShareLeaderboardButton.jsx'
 import SportHeroBanner from '../components/SportHeroBanner.jsx'
+import FplPanel from '../components/FplPanel.jsx'
 
 // Landing view for the Social tab. The feed is the main attraction - group/
 // friend management (create, join, invite codes) lives behind the Manage
@@ -102,6 +103,7 @@ export default function SocialFeedPage() {
   function refreshCurrentSegment() {
     if (segment === 'bets') return refreshBets()
     if (segment === 'tips') return refreshTips()
+    if (segment === 'fpl') return Promise.resolve()
     return refreshPublicFeed()
   }
 
@@ -111,7 +113,7 @@ export default function SocialFeedPage() {
       <div className="topbar">
         <div className="topbar-row">
           <h1>Social</h1>
-          {segment !== 'feed' && (
+          {segment !== 'feed' && segment !== 'fpl' && (
             <button className="btn btn-ghost btn-small" onClick={() => setShowManage(true)}>
               {segment === 'bets' ? 'Groups' : 'Friends'}
             </button>
@@ -129,6 +131,9 @@ export default function SocialFeedPage() {
           </button>
           <button className={segment === 'leaderboard' ? 'sport-pill active' : 'sport-pill'} onClick={() => setSegment('leaderboard')}>
             Leaderboard
+          </button>
+          <button className={segment === 'fpl' ? 'sport-pill active' : 'sport-pill'} onClick={() => setSegment('fpl')}>
+            FPL
           </button>
         </div>
       </div>
@@ -294,6 +299,8 @@ export default function SocialFeedPage() {
           )}
         </>
       )}
+
+      {segment === 'fpl' && <FplPanel />}
 
       {showManage && (
         <ManageSheet
