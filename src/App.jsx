@@ -19,6 +19,8 @@ import GroupFeedPage from './pages/GroupFeedPage.jsx'
 import JoinGroupPage from './pages/JoinGroupPage.jsx'
 import TrackerPage from './pages/TrackerPage.jsx'
 import AccountPage from './pages/AccountPage.jsx'
+import PublicProfilePage from './pages/PublicProfilePage.jsx'
+import NotificationsPage from './pages/NotificationsPage.jsx'
 
 const PENDING_JOIN_KEY = 'betmates:pendingJoinCode'
 
@@ -82,6 +84,7 @@ function Shell() {
       <Routes>
         <Route path="/legal" element={<LegalPage />} />
         <Route path="/join/:code" element={<StashJoinCode />} />
+        <Route path="/u/:code" element={<PublicProfilePage />} />
         <Route path="*" element={<AuthPage />} />
       </Routes>
     )
@@ -104,7 +107,9 @@ function Shell() {
               <Route path="/groups/:id" element={<GroupFeedPage />} />
               <Route path="/join/:code" element={<JoinGroupPage />} />
               <Route path="/tracker" element={<TrackerPage />} />
+              <Route path="/alerts" element={<NotificationsPage />} />
               <Route path="/account" element={<AccountPage />} />
+              <Route path="/u/:code" element={<PublicProfilePage />} />
               <Route path="/legal" element={<LegalPage />} />
               <Route path="*" element={<Navigate to="/odds" replace />} />
             </Routes>

@@ -19,3 +19,7 @@ export async function shareOrCopy({ title, text, url }) {
 export function groupInviteUrl(inviteCode) {
   return `${window.location.origin}/#/join/${inviteCode}`
 }
+
+export function publicProfileUrl(friendCode) {
+  return `${window.location.origin}/#/u/${friendCode}`
+}

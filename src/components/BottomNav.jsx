@@ -5,11 +5,12 @@ const TABS = [
   { to: '/odds', label: 'Odds', icon: '⚽' },
   { to: '/groups', label: 'Social', icon: '👥' },
   { to: '/tracker', label: 'Tracker', icon: '📊' },
+  { to: '/alerts', label: 'Alerts', icon: '🔔' },
   { to: '/account', label: 'Account', icon: '⚙️' }
 ]
 
 export default function BottomNav() {
-  const { hasNewActivity } = useActivity()
+  const { hasNewActivity, hasUnseenNotifications } = useActivity()
 
   return (
     <nav className="bottom-nav">
@@ -19,6 +20,7 @@ export default function BottomNav() {
           <span className="bottom-nav-icon">
             {tab.icon}
             {tab.to === '/groups' && hasNewActivity && <span className="bottom-nav-dot" />}
+            {tab.to === '/alerts' && hasUnseenNotifications && <span className="bottom-nav-dot" />}
           </span>
           <span>{tab.label}</span>
         </NavLink>

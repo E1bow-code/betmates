@@ -2,12 +2,21 @@ import { useEffect, useMemo, useState } from 'react'
 import { useAuth } from '../context/AuthContext.jsx'
 import * as dataStore from '../lib/dataStore.js'
 import { checkAndSettleBets } from '../lib/settlement.js'
-import { computeStats, computeStreak, computeBestWeek } from '../utils/trackerStats.js'
+import {
+  computeStats,
+  computeStreak,
+  computeBestWeek,
+  computePerfectWeek,
+  computeMilestoneBadges,
+  computeLongestWinStreak,
+  computeBestWin
+} from '../utils/trackerStats.js'
 import { SPORT_LABEL, SPORT_ICON } from '../lib/sportsConfig.js'
 import EmptyState from '../components/EmptyState.jsx'
 import PnlChart from '../components/PnlChart.jsx'
 import { trackerEntriesToCsv, downloadCsv } from '../lib/csvExport.js'
 import PullToRefresh from '../components/PullToRefresh.jsx'
+import ShareRecapButton from '../components/ShareRecapButton.jsx'
 
 const STATUS_LABEL = { open: 'Pending', won: 'Won', lost: 'Lost', void: 'Void' }
 
@@ -98,6 +107,7 @@ export default function TrackerPage() {
   const stats = computeStats(entries)
   const streak = computeStreak(entries)
   const bestWeek = computeBestWeek(entries)
+  const perfectWeek = computePerfectWeek(entries)
   const badges = [
     streak.count >= 2 && {
       icon: streak.type === 'won' ? '🔥' : '🥶',
@@ -107,8 +117,24 @@ export default function TrackerPage() {
       bestWeek.profit > 0 && {
         icon: '🏆',
         label: `Best week +£${bestWeek.profit.toFixed(2)} (${new Date(bestWeek.weekStart).toLocaleDateString([], { month: 'short', day: 'numeric' })})`
-      }
+      },
+    perfectWeek && {
+      icon: '💯',
+      label: `Perfect week, ${perfectWeek.count}-0 (${new Date(perfectWeek.weekStart).toLocaleDateString([], { month: 'short', day: 'numeric' })})`
+    },
+    ...computeMilestoneBadges(entries)
   ].filter(Boolean)
+
+  const longestStreak = computeLongestWinStreak(entries)
+  const bestWin = computeBestWin(entries)
+  const recapRows = [
+    { label: 'Bets logged', value: String(entries.length) },
+    { label: 'Staked', value: `£${stats.staked.toFixed(2)}` },
+    { label: 'Profit', value: `${stats.profit >= 0 ? '+' : ''}£${stats.profit.toFixed(2)}`, tone: stats.profit >= 0 ? 'good' : 'bad' },
+    { label: 'Win rate', value: stats.winRate === null ? '-' : `${stats.winRate}%` },
+    { label: 'Longest streak', value: longestStreak ? `${longestStreak} wins` : '-' },
+    { label: 'Best win', value: bestWin ? `+£${bestWin.profit.toFixed(2)}` : '-' }
+  ]
 
   return (
     <PullToRefresh onRefresh={refresh}>
@@ -116,9 +142,12 @@ export default function TrackerPage() {
         <div className="topbar-row">
           <h1>Tracker</h1>
           {entries.length > 0 && (
-            <button className="btn btn-ghost btn-small" onClick={handleExport}>
-              Export CSV
-            </button>
+            <div className="topbar-actions">
+              <ShareRecapButton rows={recapRows} periodLabel="all-time" />
+              <button className="btn btn-ghost btn-small" onClick={handleExport}>
+                Export CSV
+              </button>
+            </div>
           )}
         </div>
         {checking && <span className="tracker-checking">Checking latest results…</span>}

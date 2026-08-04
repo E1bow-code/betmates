@@ -6,6 +6,7 @@ import * as dataStore from '../lib/dataStore.js'
 import { isPushSupported, getPushSubscription, subscribeToPush, unsubscribeFromPush } from '../lib/push.js'
 import { getStoredTheme, setTheme } from '../lib/theme.js'
 import { isIOS, isStandalone } from '../lib/platform.js'
+import { shareOrCopy, publicProfileUrl } from '../lib/share.js'
 import Avatar from '../components/Avatar.jsx'
 import InstallGuide from '../components/InstallGuide.jsx'
 
@@ -19,6 +20,7 @@ export default function AccountPage() {
   const [nameSaving, setNameSaving] = useState(false)
   const [nameError, setNameError] = useState(null)
   const [theme, setThemeState] = useState(getStoredTheme() === 'light' ? 'light' : 'dark')
+  const [profileShareStatus, setProfileShareStatus] = useState(null)
 
   function handleThemeChange(next) {
     setTheme(next)
@@ -58,6 +60,16 @@ export default function AccountPage() {
     } finally {
       setNameSaving(false)
     }
+  }
+
+  async function handleShareProfile() {
+    const result = await shareOrCopy({
+      title: `${user.displayName} on BetMates`,
+      text: `Check out my betting stats on BetMates`,
+      url: publicProfileUrl(user.friendCode)
+    })
+    setProfileShareStatus(result === 'copied' ? 'Link copied' : null)
+    if (result === 'copied') setTimeout(() => setProfileShareStatus(null), 2000)
   }
 
   async function handleTogglePush() {
@@ -196,6 +208,15 @@ export default function AccountPage() {
             ? 'Turn on push above to actually receive these on this device, not just store the preference.'
             : "These are stored for when you're on a browser that supports push."}
         </p>
+      </div>
+
+      <div className="account-section">
+        <h2 className="market-title">Public profile</h2>
+        <p className="hint">Share a link to your stats - anyone can view it, no BetMates account needed.</p>
+        <button className="btn btn-secondary btn-small" onClick={handleShareProfile}>
+          Share my profile
+        </button>
+        {profileShareStatus && <div className="hint">{profileShareStatus}</div>}
       </div>
 
       <div className="account-section">

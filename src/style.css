@@ -994,6 +994,8 @@ h1, h2, .topbar h1, .sheet-title, .auth-title {
 }
 .tracker-list .tracker-row:last-child { border-bottom: none; }
 .tracker-row-main { flex: 1; min-width: 0; }
+.notification-row { text-decoration: none; color: inherit; }
+.notification-row:hover { background: var(--surface-2); }
 .tracker-row-status { display: flex; flex-direction: column; align-items: flex-end; gap: 6px; }
 
 /* Account */
@@ -1025,6 +1027,7 @@ h1, h2, .topbar h1, .sheet-title, .auth-title {
 
 .topbar-row { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
 .topbar-row h1 { margin: 0; }
+.topbar-actions { display: flex; align-items: center; gap: 8px; }
 
 .manage-list {
   display: flex;

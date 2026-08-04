@@ -16,6 +16,7 @@ function mapProfile(row) {
     email: row.email,
     displayName: row.display_name,
     dob: row.date_of_birth,
+    friendCode: row.friend_code,
     bookmakerPrefs: row.bookmaker_prefs || [],
     notificationPrefs: row.notification_prefs || { betPosted: true, betSettled: true, oddsMoved: false },
     acceptedTermsAt: row.accepted_terms_at,

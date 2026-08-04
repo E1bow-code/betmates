@@ -52,3 +52,79 @@ export function computeBestWeek(entries) {
   }
   return best
 }
+
+// Most recent Sunday-start week where every decided bet (won or lost) came
+// back a winner - distinct from "best week" above, which is highest profit
+// regardless of any losses mixed in. Needs at least 2 decided bets so a
+// single lucky punt doesn't count as a "week".
+export function computePerfectWeek(entries) {
+  const decided = entries.filter((e) => e.stake && e.settledAt && ['won', 'lost'].includes(e.status))
+  if (!decided.length) return null
+  const byWeek = new Map()
+  for (const e of decided) {
+    const settledDate = new Date(e.settledAt)
+    const weekStart = new Date(settledDate)
+    weekStart.setDate(settledDate.getDate() - settledDate.getDay())
+    weekStart.setHours(0, 0, 0, 0)
+    const key = weekStart.toISOString()
+    if (!byWeek.has(key)) byWeek.set(key, [])
+    byWeek.get(key).push(e.status)
+  }
+  let best = null
+  for (const [weekStart, statuses] of byWeek) {
+    if (statuses.length < 2 || statuses.some((s) => s !== 'won')) continue
+    if (!best || weekStart > best.weekStart) best = { weekStart, count: statuses.length }
+  }
+  return best
+}
+
+// Longest run of consecutive wins anywhere in the history, not just the
+// current one still running (see computeStreak) - for the season recap.
+export function computeLongestWinStreak(entries) {
+  const decided = entries
+    .filter((e) => ['won', 'lost'].includes(e.status) && e.settledAt)
+    .sort((a, b) => new Date(a.settledAt) - new Date(b.settledAt))
+  let longest = 0
+  let current = 0
+  for (const e of decided) {
+    if (e.status === 'won') {
+      current++
+      longest = Math.max(longest, current)
+    } else {
+      current = 0
+    }
+  }
+  return longest
+}
+
+// Single biggest-profit settled win, for the season recap's "best win" line.
+export function computeBestWin(entries) {
+  const wins = entries.filter((e) => e.stake && e.status === 'won')
+  if (!wins.length) return null
+  return wins.reduce((best, e) => {
+    const profit = Number(e.potentialReturn) - Number(e.stake)
+    return !best || profit > best.profit ? { profit, event: e.selections?.[0]?.event ?? 'Bet' } : best
+  }, null)
+}
+
+// One-off milestones rather than a running total/count - first win (only
+// while it's still their only one), and whichever bets-logged/profit tier
+// they've most recently crossed. Shows the highest tier only, not every
+// tier passed along the way, so this doesn't turn into a wall of badges for
+// someone who's been using the app a while.
+export function computeMilestoneBadges(entries) {
+  const settled = entries.filter((e) => e.stake && ['won', 'lost', 'void'].includes(e.status))
+  const wins = settled.filter((e) => e.status === 'won').length
+  const { profit } = computeStats(entries)
+  const badges = []
+
+  if (wins === 1) badges.push({ icon: '🎯', label: 'First win logged' })
+
+  const loggedTier = [100, 50, 10].find((t) => entries.length >= t)
+  if (loggedTier) badges.push({ icon: '📒', label: `${loggedTier} bets logged` })
+
+  const profitTier = [500, 250, 100, 50].find((t) => profit >= t)
+  if (profitTier) badges.push({ icon: '💰', label: `+£${profitTier} lifetime profit` })
+
+  return badges
+}

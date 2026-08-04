@@ -232,6 +232,104 @@ export async function renderLeaderboardImage({ name, rank, profit, winRate, roi,
   return new Promise((resolve) => canvas.toBlob(resolve, 'image/png'))
 }
 
+// Styled like a till receipt rather than reusing the bet-slip/leaderboard
+// card layout again - itemised label/value rows in monospace, a dashed
+// "tear" line, and a decorative barcode, matching this app's own "printed
+// betting-slip" visual language (see style.css's opening comment) instead
+// of a generic stats-card format.
+export async function renderRecapImage({ rows, periodLabel }) {
+  const padding = 40
+  const rowHeight = 34
+  const height = 150 + rows.length * rowHeight + 90
+  const contentWidth = WIDTH - padding * 2
+
+  const canvas = document.createElement('canvas')
+  const dpr = Math.min(window.devicePixelRatio || 1, 2)
+  canvas.width = WIDTH * dpr
+  canvas.height = height * dpr
+  const ctx = canvas.getContext('2d')
+  ctx.scale(dpr, dpr)
+
+  ctx.fillStyle = COLORS.bg
+  ctx.fillRect(0, 0, WIDTH, height)
+
+  let y = padding
+  ctx.fillStyle = COLORS.accent
+  ctx.font = '700 24px Georgia, serif'
+  ctx.fillText('BetMates', padding, y)
+  ctx.fillStyle = COLORS.textDim
+  ctx.font = '600 13px -apple-system, sans-serif'
+  ctx.textAlign = 'right'
+  ctx.fillText(`${periodLabel.toUpperCase()} RECAP`, WIDTH - padding, y - 2)
+  ctx.textAlign = 'left'
+  y += 30
+  ctx.strokeStyle = COLORS.border
+  ctx.beginPath()
+  ctx.moveTo(padding, y)
+  ctx.lineTo(WIDTH - padding, y)
+  ctx.stroke()
+  y += 46
+
+  for (const row of rows) {
+    ctx.fillStyle = COLORS.textDim
+    ctx.font = '600 13px ui-monospace, Consolas, monospace'
+    ctx.textAlign = 'left'
+    ctx.fillText(row.label.toUpperCase(), padding, y)
+    ctx.fillStyle = row.tone === 'good' ? '#5fbf74' : row.tone === 'bad' ? '#e0665a' : COLORS.text
+    ctx.font = '700 17px ui-monospace, Consolas, monospace'
+    ctx.textAlign = 'right'
+    ctx.fillText(row.value, WIDTH - padding, y)
+    ctx.textAlign = 'left'
+    y += rowHeight
+  }
+
+  y += 6
+  ctx.strokeStyle = COLORS.border
+  ctx.setLineDash([3, 4])
+  ctx.beginPath()
+  ctx.moveTo(padding, y)
+  ctx.lineTo(WIDTH - padding, y)
+  ctx.stroke()
+  ctx.setLineDash([])
+  y += 24
+
+  // Decorative barcode - purely a receipt flourish, encodes nothing.
+  let barX = padding
+  let seed = rows.reduce((s, r) => s + r.value.length, rows.length)
+  while (barX < padding + contentWidth) {
+    seed = (seed * 9301 + 49297) % 233280
+    const w = 1 + (seed % 3)
+    ctx.fillStyle = COLORS.border
+    ctx.fillRect(barX, y, w, 22)
+    barX += w + 2 + (seed % 2)
+  }
+  y += 40
+
+  ctx.fillStyle = COLORS.textDim
+  ctx.font = '12px -apple-system, sans-serif'
+  ctx.fillText('BetMates does not place bets or hold funds. 18+. Gamble responsibly.', padding, y)
+
+  return new Promise((resolve) => canvas.toBlob(resolve, 'image/png'))
+}
+
+export async function shareRecapImage(recap) {
+  const blob = await renderRecapImage(recap)
+  const file = new File([blob], 'betmates-recap.png', { type: 'image/png' })
+
+  if (navigator.canShare?.({ files: [file] })) {
+    await navigator.share({ files: [file], title: 'My BetMates recap' })
+    return 'shared'
+  }
+
+  const url = URL.createObjectURL(blob)
+  const a = document.createElement('a')
+  a.href = url
+  a.download = 'betmates-recap.png'
+  a.click()
+  URL.revokeObjectURL(url)
+  return 'downloaded'
+}
+
 export async function shareLeaderboardImage(rankInfo) {
   const blob = await renderLeaderboardImage(rankInfo)
   const file = new File([blob], 'betmates-leaderboard.png', { type: 'image/png' })
