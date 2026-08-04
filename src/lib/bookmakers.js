@@ -15,10 +15,9 @@ export const BOOKMAKERS = [
   'Unibet'
 ]
 
-// Known URL schemes that support opening straight to the site/app.
-// None of these pre-fill a selection today (few UK bookmakers expose that
-// publicly) - they're the "open [Bookmaker]" fallback from Section 2B.
-export const BOOKMAKER_LINKS = {
+// Plain homepage links - the default for every bookmaker until an
+// affiliate tracking link is configured for it (see AFFILIATE_LINKS below).
+const HOMEPAGE_LINKS = {
   Bet365: 'https://www.bet365.com',
   'William Hill': 'https://sports.williamhill.com',
   'Paddy Power': 'https://www.paddypower.com',
@@ -30,6 +29,28 @@ export const BOOKMAKER_LINKS = {
   Betway: 'https://betway.com',
   Unibet: 'https://www.unibet.co.uk'
 }
+
+// Real affiliate tracking links, once you have them, go here - one Netlify
+// env var, no further deploys or code changes needed. VITE_AFFILIATE_LINKS
+// is a JSON object of exactly the shape HOMEPAGE_LINKS uses above, e.g.
+// {"Bet365":"https://www.bet365affiliates.com/redirect?id=XXXXX"} - only
+// the bookmakers you've actually signed up with need an entry; anything
+// missing just keeps using its plain homepage link. See .env.example for
+// where each program in BOOKMAKERS currently signs up.
+//
+// This app never places a bet or touches a stake - Copy Bet's whole job is
+// getting the user to the bookmaker's own site to place it themselves (see
+// the legal page) - so an affiliate link here is just standard referral
+// tracking on an outbound link, not a change to what the app does.
+let AFFILIATE_LINKS = {}
+try {
+  AFFILIATE_LINKS = JSON.parse(import.meta.env.VITE_AFFILIATE_LINKS || '{}')
+} catch {
+  // Malformed env var shouldn't break the app - falls back to homepage
+  // links for everything, same as if it were unset.
+}
+
+export const BOOKMAKER_LINKS = { ...HOMEPAGE_LINKS, ...AFFILIATE_LINKS }
 
 // Section 2B/8 stretch goal: pre-fill a bet slip via deep link instead of
 // just opening the homepage. Deliberately EMPTY - no major UK bookmaker
