@@ -17,6 +17,7 @@ import PnlChart from '../components/PnlChart.jsx'
 import { trackerEntriesToCsv, downloadCsv } from '../lib/csvExport.js'
 import PullToRefresh from '../components/PullToRefresh.jsx'
 import ShareRecapButton from '../components/ShareRecapButton.jsx'
+import SportHeroBanner from '../components/SportHeroBanner.jsx'
 
 const STATUS_LABEL = { open: 'Pending', won: 'Won', lost: 'Lost', void: 'Void' }
 
@@ -138,6 +139,7 @@ export default function TrackerPage() {
 
   return (
     <PullToRefresh onRefresh={refresh}>
+      <SportHeroBanner sport="tracker" />
       <div className="topbar">
         <div className="topbar-row">
           <h1>Tracker</h1>

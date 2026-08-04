@@ -21,7 +21,12 @@ const SPORT_QUERIES = {
   rugbyLeague: 'rugby league match',
   rugbyUnion: 'rugby union match',
   cricket: 'cricket stadium match',
-  boxing: 'boxing ring gloves'
+  boxing: 'boxing ring gloves',
+  // Page-level banners (not tied to a specific sport) - same treatment,
+  // just a different query per page instead of per sport.
+  auth: 'stadium floodlights night',
+  social: 'friends watching sports pub',
+  tracker: 'sports stadium scoreboard'
 }
 
 export default async (req) => {

@@ -21,6 +21,7 @@ import TrackerPage from './pages/TrackerPage.jsx'
 import AccountPage from './pages/AccountPage.jsx'
 import PublicProfilePage from './pages/PublicProfilePage.jsx'
 import NotificationsPage from './pages/NotificationsPage.jsx'
+import ResetPasswordPage from './pages/ResetPasswordPage.jsx'
 
 const PENDING_JOIN_KEY = 'betmates:pendingJoinCode'
 
@@ -76,6 +77,14 @@ function HomeRedirect() {
 
 function Shell() {
   const { user, loading } = useAuth()
+
+  // Supabase's password-recovery redirect also lands on a URL fragment
+  // (#access_token=...&type=recovery), which HashRouter would otherwise try
+  // to parse as a route - checking for it directly here, ahead of both the
+  // loading and auth-state branches, sidesteps that collision entirely.
+  if (window.location.hash.includes('type=recovery')) {
+    return <ResetPasswordPage />
+  }
 
   if (loading) return <div className="loading">Loading BetMates…</div>
 

@@ -14,6 +14,7 @@ import EmptyState from '../components/EmptyState.jsx'
 import Avatar from '../components/Avatar.jsx'
 import PullToRefresh from '../components/PullToRefresh.jsx'
 import ShareLeaderboardButton from '../components/ShareLeaderboardButton.jsx'
+import SportHeroBanner from '../components/SportHeroBanner.jsx'
 
 // Landing view for the Social tab. The feed is the main attraction - group/
 // friend management (create, join, invite codes) lives behind the Manage
@@ -106,6 +107,7 @@ export default function SocialFeedPage() {
 
   return (
     <PullToRefresh onRefresh={refreshCurrentSegment}>
+      <SportHeroBanner sport="social" />
       <div className="topbar">
         <div className="topbar-row">
           <h1>Social</h1>

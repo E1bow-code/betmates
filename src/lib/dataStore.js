@@ -118,6 +118,21 @@ export async function signOut() {
   await supabase.auth.signOut()
 }
 
+// Local (no-Supabase) mode has no real email delivery to send a reset link
+// through, so this is Supabase-only - callers should check
+// isSupabaseConfigured themselves if they want a different message there.
+export async function requestPasswordReset(email) {
+  if (!isSupabaseConfigured) throw new Error('Password reset needs a connected Supabase project.')
+  const { error } = await supabase.auth.resetPasswordForEmail(email, { redirectTo: window.location.origin + '/' })
+  if (error) throw error
+}
+
+export async function updatePassword(newPassword) {
+  if (!isSupabaseConfigured) throw new Error('Password reset needs a connected Supabase project.')
+  const { error } = await supabase.auth.updateUser({ password: newPassword })
+  if (error) throw error
+}
+
 // --- Groups ---------------------------------------------------------------
 
 export async function listMyGroups(userId) {
