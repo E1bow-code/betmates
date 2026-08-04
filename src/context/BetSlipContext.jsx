@@ -38,11 +38,29 @@ export function BetSlipProvider({ children }) {
     setSheetOpen(false)
   }, [])
 
+  // Replaces the slip outright rather than merging - "back this bet" from
+  // a friend's post (see BackBetButton.jsx) means exactly their picks, not
+  // whatever you already had queued up.
+  const loadLegs = useCallback((newLegs) => {
+    setLegs(newLegs)
+    setSheetOpen(true)
+  }, [])
+
   const isSelected = useCallback((leg) => legs.some((l) => legKey(l) === legKey(leg)), [legs])
 
   const value = useMemo(
-    () => ({ legs, toggleLeg, removeLeg, clearSlip, isSelected, sheetOpen, openSheet: () => setSheetOpen(true), closeSheet: () => setSheetOpen(false) }),
-    [legs, toggleLeg, removeLeg, clearSlip, isSelected, sheetOpen]
+    () => ({
+      legs,
+      toggleLeg,
+      removeLeg,
+      clearSlip,
+      loadLegs,
+      isSelected,
+      sheetOpen,
+      openSheet: () => setSheetOpen(true),
+      closeSheet: () => setSheetOpen(false)
+    }),
+    [legs, toggleLeg, removeLeg, clearSlip, loadLegs, isSelected, sheetOpen]
   )
 
   return <BetSlipContext.Provider value={value}>{children}</BetSlipContext.Provider>

@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
+import { Link } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext.jsx'
 import * as dataStore from '../lib/dataStore.js'
 import { checkAndSettleBets } from '../lib/settlement.js'
@@ -172,6 +173,9 @@ export default function TrackerPage() {
           ))}
         </div>
       )}
+      <Link to="/achievements" className="back achievements-link">
+        View all achievements &rarr;
+      </Link>
 
       <PnlChart entries={entries} />
 

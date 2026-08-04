@@ -22,6 +22,7 @@ import AccountPage from './pages/AccountPage.jsx'
 import PublicProfilePage from './pages/PublicProfilePage.jsx'
 import NotificationsPage from './pages/NotificationsPage.jsx'
 import ResetPasswordPage from './pages/ResetPasswordPage.jsx'
+import AchievementsPage from './pages/AchievementsPage.jsx'
 
 const PENDING_JOIN_KEY = 'betmates:pendingJoinCode'
 
@@ -116,6 +117,7 @@ function Shell() {
               <Route path="/groups/:id" element={<GroupFeedPage />} />
               <Route path="/join/:code" element={<JoinGroupPage />} />
               <Route path="/tracker" element={<TrackerPage />} />
+              <Route path="/achievements" element={<AchievementsPage />} />
               <Route path="/alerts" element={<NotificationsPage />} />
               <Route path="/account" element={<AccountPage />} />
               <Route path="/u/:code" element={<PublicProfilePage />} />

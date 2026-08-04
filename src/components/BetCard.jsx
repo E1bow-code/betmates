@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { useAuth } from '../context/AuthContext.jsx'
 import * as dataStore from '../lib/dataStore.js'
 import CopyBetButton from './CopyBetButton.jsx'
+import BackBetButton from './BackBetButton.jsx'
 import ShareImageButton from './ShareImageButton.jsx'
 import Avatar from './Avatar.jsx'
 
@@ -153,6 +154,7 @@ export default function BetCard({ post, memberNames, variant = 'group' }) {
             💬 {comments.length > 0 && comments.length}
           </button>
           <CopyBetButton post={post} userId={user.id} />
+          {!isAuthor && <BackBetButton post={post} />}
           <ShareImageButton post={post} />
           {isAuthor && status === 'open' && (
             <select className="status-select" defaultValue="open" onChange={handleStatusChange}>
