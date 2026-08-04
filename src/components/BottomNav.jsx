@@ -1,12 +1,13 @@
 import { NavLink } from 'react-router-dom'
 import { useActivity } from '../context/ActivityContext.jsx'
+import { OddsIcon, SocialIcon, TrackerIcon, AlertsIcon, AccountIcon } from './icons/NavIcons.jsx'
 
 const TABS = [
-  { to: '/odds', label: 'Odds', icon: '⚽' },
-  { to: '/groups', label: 'Social', icon: '👥' },
-  { to: '/tracker', label: 'Tracker', icon: '📊' },
-  { to: '/alerts', label: 'Alerts', icon: '🔔' },
-  { to: '/account', label: 'Account', icon: '⚙️' }
+  { to: '/odds', label: 'Odds', Icon: OddsIcon },
+  { to: '/groups', label: 'Social', Icon: SocialIcon },
+  { to: '/tracker', label: 'Tracker', Icon: TrackerIcon },
+  { to: '/alerts', label: 'Alerts', Icon: AlertsIcon },
+  { to: '/account', label: 'Account', Icon: AccountIcon }
 ]
 
 export default function BottomNav() {
@@ -18,7 +19,7 @@ export default function BottomNav() {
       {TABS.map((tab) => (
         <NavLink key={tab.to} to={tab.to} className={({ isActive }) => (isActive ? 'bottom-nav-item active' : 'bottom-nav-item')}>
           <span className="bottom-nav-icon">
-            {tab.icon}
+            <tab.Icon />
             {tab.to === '/groups' && hasNewActivity && <span className="bottom-nav-dot" />}
             {tab.to === '/alerts' && hasUnseenNotifications && <span className="bottom-nav-dot" />}
           </span>
