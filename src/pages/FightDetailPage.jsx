@@ -66,6 +66,8 @@ export default function FightDetailPage() {
       selection: outcome.name,
       odds: best.decimal,
       bookmaker: best.bookmaker,
+      link: best.link,
+      linkIsBetslip: best.isBetslipLink,
       sport: 'ufc',
       kickoff: fight.kickoff
     })

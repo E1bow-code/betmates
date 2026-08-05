@@ -14,6 +14,7 @@
 // costs credits once.
 import { FOOTBALL_SPORT_KEYS } from '../../src/lib/sportsConfig.js'
 import { cacheGet, cacheSet } from '../../src/lib/apiCache.js'
+import { pickLink } from '../../src/lib/oddsLinks.js'
 
 const SPORTS = FOOTBALL_SPORT_KEYS
 const REGION = 'uk'
@@ -71,7 +72,7 @@ export default async (req) => {
     if (!events) {
       const results = await Promise.allSettled(
         SPORTS.map(async (sport) => {
-          const apiUrl = `https://api.the-odds-api.com/v4/sports/${sport}/odds/?apiKey=${apiKey}&regions=${REGION}&markets=${MARKETS}&oddsFormat=decimal`
+          const apiUrl = `https://api.the-odds-api.com/v4/sports/${sport}/odds/?apiKey=${apiKey}&regions=${REGION}&markets=${MARKETS}&oddsFormat=decimal&includeLinks=true`
           const res = await fetch(apiUrl)
           if (!res.ok) throw new Error(`${sport}: ${res.status}`)
           return res.json()
@@ -117,7 +118,7 @@ export default async (req) => {
     // that are still weeks out - never treated as an error either way.
     try {
       const playerMarketKeys = ['player_goal_scorer_anytime', 'player_first_goal_scorer', 'player_last_goal_scorer']
-      const playerUrl = `https://api.the-odds-api.com/v4/sports/${rawEvent.sport_key}/events/${id}/odds/?apiKey=${apiKey}&regions=us&markets=${playerMarketKeys.join(',')}&oddsFormat=decimal`
+      const playerUrl = `https://api.the-odds-api.com/v4/sports/${rawEvent.sport_key}/events/${id}/odds/?apiKey=${apiKey}&regions=us&markets=${playerMarketKeys.join(',')}&oddsFormat=decimal&includeLinks=true`
       const playerRes = await fetch(playerUrl)
       if (playerRes.ok) {
         const playerEvent = await playerRes.json()
@@ -132,7 +133,7 @@ export default async (req) => {
     // bulk fixture list stays cheap.
     try {
       const extraMarketKeys = Object.keys(EXTRA_MARKET_LABELS)
-      const extraUrl = `https://api.the-odds-api.com/v4/sports/${rawEvent.sport_key}/events/${id}/odds/?apiKey=${apiKey}&regions=${REGION}&markets=${extraMarketKeys.join(',')}&oddsFormat=decimal`
+      const extraUrl = `https://api.the-odds-api.com/v4/sports/${rawEvent.sport_key}/events/${id}/odds/?apiKey=${apiKey}&regions=${REGION}&markets=${extraMarketKeys.join(',')}&oddsFormat=decimal&includeLinks=true`
       const extraRes = await fetch(extraUrl)
       if (extraRes.ok) {
         const extraEvent = await extraRes.json()
@@ -168,7 +169,7 @@ function reshapeEvent(event) {
         for (const outcome of market.outcomes) {
           const name = normaliseOutcomeName(outcome.name, event.home_team, event.away_team, key)
           if (!outcomesByName.has(name)) outcomesByName.set(name, [])
-          outcomesByName.get(name).push({ bookmaker: bookmaker.title, decimal: outcome.price })
+          outcomesByName.get(name).push({ bookmaker: bookmaker.title, decimal: outcome.price, ...pickLink(bookmaker, market, outcome) })
         }
       }
       const outcomes = [...outcomesByName.entries()].map(([name, allOdds]) => ({
@@ -209,7 +210,7 @@ function reshapePlayerMarkets(event) {
           const name = outcome.description ?? outcome.name
           if (!name) continue
           if (!outcomesByName.has(name)) outcomesByName.set(name, [])
-          outcomesByName.get(name).push({ bookmaker: bookmaker.title, decimal: outcome.price })
+          outcomesByName.get(name).push({ bookmaker: bookmaker.title, decimal: outcome.price, ...pickLink(bookmaker, market, outcome) })
         }
       }
       const outcomes = [...outcomesByName.entries()].map(([name, allOdds]) => ({
@@ -260,7 +261,7 @@ function reshapeExtraMarkets(event) {
                 ? `${outcome.name} ${outcome.point}`
                 : outcome.name
           if (!outcomesByName.has(name)) outcomesByName.set(name, [])
-          outcomesByName.get(name).push({ bookmaker: bookmaker.title, decimal: outcome.price })
+          outcomesByName.get(name).push({ bookmaker: bookmaker.title, decimal: outcome.price, ...pickLink(bookmaker, market, outcome) })
         }
       }
       const outcomes = [...outcomesByName.entries()]

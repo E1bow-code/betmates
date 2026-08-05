@@ -11,6 +11,7 @@
 
 import { GENERIC_SPORTS } from '../../src/lib/sportsConfig.js'
 import { cacheGet, cacheSet } from '../../src/lib/apiCache.js'
+import { pickLink } from '../../src/lib/oddsLinks.js'
 
 const REGION = 'uk'
 const MARKETS = 'h2h,totals'
@@ -90,7 +91,7 @@ export default async (req) => {
 
       const results = await Promise.allSettled(
         apiSportKeys.map(async (apiSport) => {
-          const apiUrl = `https://api.the-odds-api.com/v4/sports/${apiSport}/odds/?apiKey=${apiKey}&regions=${REGION}&markets=${MARKETS}&oddsFormat=decimal`
+          const apiUrl = `https://api.the-odds-api.com/v4/sports/${apiSport}/odds/?apiKey=${apiKey}&regions=${REGION}&markets=${MARKETS}&oddsFormat=decimal&includeLinks=true`
           const res = await fetch(apiUrl)
           if (!res.ok) throw new Error(`${apiSport}: ${res.status}`)
           return res.json()
@@ -155,7 +156,7 @@ function groupOutcomes(event, marketKey, nameFor) {
     for (const outcome of market.outcomes) {
       const name = nameFor(outcome)
       if (!outcomesByName.has(name)) outcomesByName.set(name, [])
-      outcomesByName.get(name).push({ bookmaker: bookmaker.title, decimal: outcome.price })
+      outcomesByName.get(name).push({ bookmaker: bookmaker.title, decimal: outcome.price, ...pickLink(bookmaker, market, outcome) })
     }
   }
   return [...outcomesByName.entries()].map(([name, allOdds]) => ({

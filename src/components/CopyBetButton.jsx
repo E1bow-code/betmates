@@ -4,9 +4,14 @@ import * as dataStore from '../lib/dataStore.js'
 import { useOddsFormat } from '../context/OddsFormatContext.jsx'
 import { formatOdds } from '../utils/oddsFormat.js'
 
-// Section 2B's Copy Bet button: clipboard + "open bookmaker" always;
-// pre-filled deep link when src/lib/bookmakers.js has a verified scheme
-// for that bookmaker (none do yet - see the comment there). Never
+// Section 2B's Copy Bet button: clipboard + "open bookmaker" always.
+// The "open" link prefers whatever The Odds API's includeLinks feature
+// actually returned for this exact selection (see netlify/functions/odds.js
+// /ufc.js/sport.js and src/lib/oddsLinks.js) - a real pre-filled bet-slip
+// link where the bookmaker supports it (currently just Sky Bet), the
+// specific event's own page otherwise. Falls back to src/lib/bookmakers.js's
+// static homepage/DEEP_LINK_BUILDERS chain only when no live link came
+// through at all (racing, SportsGameOdds sports, or mock data). Never
 // auto-submits anything; the user places the bet themselves, per the
 // legal note in Section 6.
 
@@ -22,7 +27,8 @@ export default function CopyBetButton({ post, userId }) {
   const selection = post.selections[0]
   const bookmaker = selection?.bookmaker
   const deepLink = buildDeepLink(bookmaker, selection)
-  const link = deepLink ?? BOOKMAKER_LINKS[bookmaker]
+  const link = selection?.link ?? deepLink ?? BOOKMAKER_LINKS[bookmaker]
+  const isBetslipLink = Boolean(selection?.linkIsBetslip) || Boolean(deepLink)
 
   async function handleCopy() {
     await navigator.clipboard.writeText(formatBetSlip(post, format))
@@ -38,7 +44,7 @@ export default function CopyBetButton({ post, userId }) {
       </button>
       {link && (
         <a className="btn btn-ghost btn-small" href={link} target="_blank" rel="noreferrer">
-          {deepLink ? `Open in ${bookmaker}` : `Open ${bookmaker}`}
+          {isBetslipLink ? `Open in ${bookmaker}` : `Open ${bookmaker}`}
         </a>
       )}
     </div>

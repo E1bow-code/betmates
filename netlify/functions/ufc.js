@@ -4,6 +4,7 @@
 // Same shape/caching approach as netlify/functions/odds.js (see
 // src/lib/apiCache.js) - mock fallback when ODDS_API_KEY isn't set.
 import { cacheGet, cacheSet } from '../../src/lib/apiCache.js'
+import { pickLink } from '../../src/lib/oddsLinks.js'
 
 const SPORT = 'mma_mixed_martial_arts'
 const REGION = 'uk'
@@ -29,7 +30,7 @@ export default async (req) => {
   try {
     let fights = cacheGet('ufc-fights')
     if (!fights) {
-      const apiUrl = `https://api.the-odds-api.com/v4/sports/${SPORT}/odds/?apiKey=${apiKey}&regions=${REGION}&markets=${MARKETS}&oddsFormat=decimal`
+      const apiUrl = `https://api.the-odds-api.com/v4/sports/${SPORT}/odds/?apiKey=${apiKey}&regions=${REGION}&markets=${MARKETS}&oddsFormat=decimal&includeLinks=true`
       const res = await fetch(apiUrl)
       if (!res.ok) {
         console.error(`Odds provider error (${res.status}), falling back to mock`)
@@ -57,7 +58,7 @@ function reshapeEvent(event) {
     if (!market) continue
     for (const outcome of market.outcomes) {
       if (!outcomesByName.has(outcome.name)) outcomesByName.set(outcome.name, [])
-      outcomesByName.get(outcome.name).push({ bookmaker: bookmaker.title, decimal: outcome.price })
+      outcomesByName.get(outcome.name).push({ bookmaker: bookmaker.title, decimal: outcome.price, ...pickLink(bookmaker, market, outcome) })
     }
   }
   const outcomes = [...outcomesByName.entries()].map(([name, allOdds]) => ({
