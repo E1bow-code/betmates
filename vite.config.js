@@ -17,7 +17,7 @@ export default defineConfig({
       manifest: {
         name: 'BetMates',
         short_name: 'BetMates',
-        description: 'Best-odds comparison and social bet-sharing for football',
+        description: 'Compare odds and settle scores with your mates - leaderboards, streaks, and shared bet slips.',
         theme_color: '#15120f',
         background_color: '#15120f',
         display: 'standalone',

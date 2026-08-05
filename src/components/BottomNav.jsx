@@ -11,7 +11,11 @@ const TABS = [
 ]
 
 export default function BottomNav() {
-  const { hasNewActivity, hasUnseenNotifications } = useActivity()
+  const { hasNewActivity, hasUnseenNotifications, streak } = useActivity()
+  // Only a live win streak gets the badge - a loss streak nagging you from
+  // the nav bar every time you open the app is a bad feeling to build in on
+  // purpose, even though the same run shows up honestly on Tracker either way.
+  const showStreak = streak.type === 'won' && streak.count >= 2
 
   return (
     <nav className="bottom-nav">
@@ -23,7 +27,10 @@ export default function BottomNav() {
             {tab.to === '/groups' && hasNewActivity && <span className="bottom-nav-dot" />}
             {tab.to === '/alerts' && hasUnseenNotifications && <span className="bottom-nav-dot" />}
           </span>
-          <span>{tab.label}</span>
+          <span className="bottom-nav-label">
+            {tab.label}
+            {tab.to === '/groups' && showStreak && <span className="bottom-nav-streak">🔥{streak.count}</span>}
+          </span>
         </NavLink>
       ))}
     </nav>

@@ -127,14 +127,14 @@ export default function SocialFeedPage() {
           <button className={segment === 'bets' ? 'sport-pill active' : 'sport-pill'} onClick={() => setSegment('bets')}>
             Bets
           </button>
+          <button className={segment === 'leaderboard' ? 'sport-pill active' : 'sport-pill'} onClick={() => setSegment('leaderboard')}>
+            🏆 Leaderboard
+          </button>
           <button className={segment === 'feed' ? 'sport-pill active' : 'sport-pill'} onClick={() => setSegment('feed')}>
             Feed
           </button>
           <button className={segment === 'tips' ? 'sport-pill active' : 'sport-pill'} onClick={() => setSegment('tips')}>
             Tips
-          </button>
-          <button className={segment === 'leaderboard' ? 'sport-pill active' : 'sport-pill'} onClick={() => setSegment('leaderboard')}>
-            Leaderboard
           </button>
           <button className={segment === 'fpl' ? 'sport-pill active' : 'sport-pill'} onClick={() => setSegment('fpl')}>
             FPL

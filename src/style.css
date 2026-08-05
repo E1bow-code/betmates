@@ -129,6 +129,8 @@ h1, h2, .topbar h1, .sheet-title, .auth-title {
 
 .bottom-nav-item.active { color: var(--accent); border-top-color: var(--accent); }
 .bottom-nav-icon { font-size: 1.2rem; position: relative; display: inline-block; }
+.bottom-nav-label { display: flex; align-items: center; gap: 3px; }
+.bottom-nav-streak { font-size: 0.68rem; font-weight: 700; }
 .sidebar-brand { display: none; }
 .bottom-nav-dot {
   position: absolute;

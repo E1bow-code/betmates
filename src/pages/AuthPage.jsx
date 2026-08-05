@@ -105,7 +105,7 @@ export default function AuthPage() {
       <div className="auth-page-scrim" />
       <div className="auth-card">
         <h1 className="auth-title">BetMates</h1>
-        <p className="auth-subtitle">Compare odds. Share bets with your mates.</p>
+        <p className="auth-subtitle">Compare odds. Settle scores with your mates.</p>
 
         <div className="auth-tabs">
           <button className={mode === 'signup' ? 'auth-tab active' : 'auth-tab'} onClick={() => setMode('signup')} type="button">
