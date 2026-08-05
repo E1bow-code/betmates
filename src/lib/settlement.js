@@ -7,10 +7,17 @@
 import * as dataStore from './dataStore.js'
 import { apiKeysForSport } from './sportsConfig.js'
 import { evaluateEntry } from './betEvaluation.js'
+import { computeEachWayReturn } from '../utils/eachWay.js'
 
 async function fetchScores(apiSportKeys) {
   if (!apiSportKeys.length) return []
   const res = await fetch(`/api/scores?keys=${encodeURIComponent(apiSportKeys.join(','))}`)
+  if (!res.ok) return []
+  return res.json()
+}
+
+async function fetchRaceResults() {
+  const res = await fetch('/api/racing-results')
   if (!res.ok) return []
   return res.json()
 }
@@ -24,21 +31,34 @@ export async function checkAndSettleBets(userId) {
   if (!open.length) return { settled: 0 }
 
   const neededKeys = new Set()
+  let needsRacing = false
   for (const entry of open) {
     for (const leg of entry.selections) {
+      if (leg.sport === 'racing') needsRacing = true
       for (const key of apiKeysForSport(leg.sport ?? entry.sport)) neededKeys.add(key)
     }
   }
-  if (!neededKeys.size) return { settled: 0 }
+  if (!neededKeys.size && !needsRacing) return { settled: 0 }
 
-  const games = await fetchScores([...neededKeys])
-  if (!games.length) return { settled: 0 }
+  const [games, raceResults] = await Promise.all([fetchScores([...neededKeys]), needsRacing ? fetchRaceResults() : Promise.resolve([])])
+  if (!games.length && !raceResults.length) return { settled: 0 }
 
   let settled = 0
   await Promise.all(
     open.map(async (entry) => {
-      const status = evaluateEntry(entry, games)
+      const status = evaluateEntry(entry, games, raceResults)
       if (!status) return
+      if (status === 'placed') {
+        // Only manual_entries can carry a corrected (reduced) potentialReturn -
+        // see betEvaluation.js's evaluateRacingLeg comment.
+        if (entry.source !== 'manual') return
+        const leg = entry.selections[0]
+        const terms = { fraction: leg.eachWayFraction, places: leg.eachWayPlaces }
+        const placeReturn = Math.round(computeEachWayReturn(entry.stake, leg.odds, terms, 'place') * 100) / 100
+        await dataStore.updateManualEntryStatus(entry.id, 'won', placeReturn)
+        settled++
+        return
+      }
       if (entry.source === 'post') await dataStore.updateBetStatus(entry.id, status)
       else await dataStore.updateManualEntryStatus(entry.id, status)
       settled++

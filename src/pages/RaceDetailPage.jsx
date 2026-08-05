@@ -50,7 +50,9 @@ export default function RaceDetailPage() {
       bookmaker: best.bookmaker,
       sport: 'racing',
       kickoff: race.offTime,
-      runnerCount: race.runners.length
+      runnerCount: race.runners.length,
+      raceId: race.id,
+      horseId: runner.id
     })
   }
 

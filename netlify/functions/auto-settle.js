@@ -13,10 +13,13 @@ import { createClient } from '@supabase/supabase-js'
 import webpush from 'web-push'
 import { evaluateEntry } from '../../src/lib/betEvaluation.js'
 import { apiKeysForSport } from '../../src/lib/sportsConfig.js'
+import { computeEachWayReturn } from '../../src/utils/eachWay.js'
 
 const SUPABASE_URL = process.env.VITE_SUPABASE_URL
 const SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY
 const ODDS_API_KEY = process.env.ODDS_API_KEY
+const RACING_API_USERNAME = process.env.RACING_API_USERNAME
+const RACING_API_PASSWORD = process.env.RACING_API_PASSWORD
 const VAPID_PUBLIC_KEY = process.env.VITE_VAPID_PUBLIC_KEY
 const VAPID_PRIVATE_KEY = process.env.VAPID_PRIVATE_KEY
 
@@ -39,6 +42,45 @@ async function fetchScores(apiSportKeys) {
     }))
 }
 
+// Fetches straight from The Racing API rather than this project's own
+// netlify/functions/racing-results.js - same reasoning as fetchScores()
+// above going straight to The Odds API: a cron run has no site URL to call
+// back into reliably, so every scheduled function fetches its provider
+// directly instead of composing through another one of this project's
+// endpoints.
+// The API caps `limit` at 100 and a 3-day window regularly holds 150+
+// races, so paging through with `skip` is required to cover it fully.
+async function fetchAllResults(auth, startDate, endDate) {
+  const all = []
+  for (let page = 0; page < 5; page++) {
+    const skip = page * 100
+    const url = `https://api.theracingapi.com/v1/results?start_date=${startDate}&end_date=${endDate}&limit=100&skip=${skip}`
+    const res = await fetch(url, { headers: { Authorization: `Basic ${auth}` } })
+    if (!res.ok) break
+    const { results, total } = await res.json()
+    all.push(...(results ?? []))
+    if (all.length >= total || !results?.length) break
+  }
+  return all
+}
+
+async function fetchRaceResults() {
+  if (!RACING_API_USERNAME || !RACING_API_PASSWORD) return []
+  const end = new Date()
+  const start = new Date(end.getTime() - 3 * 24 * 60 * 60 * 1000)
+  const isoDate = (d) => d.toISOString().slice(0, 10)
+  const auth = Buffer.from(`${RACING_API_USERNAME}:${RACING_API_PASSWORD}`).toString('base64')
+  const results = await fetchAllResults(auth, isoDate(start), isoDate(end))
+  return results.map((race) => ({
+    raceId: race.race_id,
+    runners: (race.runners ?? []).map((r) => ({
+      horseId: r.horse_id,
+      name: r.horse,
+      position: Number.isFinite(Number(r.position)) ? Number(r.position) : null
+    }))
+  }))
+}
+
 function eventSummary(selections) {
   return selections?.[0]?.event ?? 'Your bet'
 }
@@ -52,8 +94,8 @@ export default async (req) => {
     const supabase = createClient(SUPABASE_URL, SERVICE_ROLE_KEY)
 
     const [{ data: posts }, { data: manual }] = await Promise.all([
-      supabase.from('bet_posts').select('id,user_id,sport,selections,profiles(notification_prefs)').eq('status', 'open'),
-      supabase.from('manual_entries').select('id,user_id,sport,selections,profiles(notification_prefs)').eq('status', 'open')
+      supabase.from('bet_posts').select('id,user_id,sport,selections,stake,profiles(notification_prefs)').eq('status', 'open'),
+      supabase.from('manual_entries').select('id,user_id,sport,selections,stake,profiles(notification_prefs)').eq('status', 'open')
     ])
 
     const open = [
@@ -63,26 +105,43 @@ export default async (req) => {
     if (!open.length) return new Response(JSON.stringify({ settled: 0 }), { status: 200 })
 
     const neededKeys = new Set()
+    let needsRacing = false
     for (const entry of open) {
       for (const leg of entry.selections ?? []) {
+        if (leg.sport === 'racing') needsRacing = true
         for (const key of apiKeysForSport(leg.sport ?? entry.sport)) neededKeys.add(key)
       }
     }
-    if (!neededKeys.size) return new Response(JSON.stringify({ settled: 0 }), { status: 200 })
+    if (!neededKeys.size && !needsRacing) return new Response(JSON.stringify({ settled: 0 }), { status: 200 })
 
-    const games = await fetchScores([...neededKeys])
-    if (!games.length) return new Response(JSON.stringify({ settled: 0 }), { status: 200 })
+    const [games, raceResults] = await Promise.all([fetchScores([...neededKeys]), needsRacing ? fetchRaceResults() : Promise.resolve([])])
+    if (!games.length && !raceResults.length) return new Response(JSON.stringify({ settled: 0 }), { status: 200 })
 
     const settledEntries = []
     for (const entry of open) {
-      const status = evaluateEntry(entry, games)
-      if (status) settledEntries.push({ ...entry, status })
+      const status = evaluateEntry(entry, games, raceResults)
+      if (!status) continue
+      if (status === 'placed') {
+        // Only manual_entries can carry a corrected (reduced) potentialReturn -
+        // see betEvaluation.js's evaluateRacingLeg comment.
+        if (entry.table !== 'manual_entries') continue
+        const leg = entry.selections[0]
+        const terms = { fraction: leg.eachWayFraction, places: leg.eachWayPlaces }
+        const potentialReturnOverride = Math.round(computeEachWayReturn(entry.stake, leg.odds, terms, 'place') * 100) / 100
+        settledEntries.push({ ...entry, status: 'won', potentialReturnOverride })
+      } else {
+        settledEntries.push({ ...entry, status })
+      }
     }
     if (!settledEntries.length) return new Response(JSON.stringify({ settled: 0 }), { status: 200 })
 
     const settledAt = new Date().toISOString()
     await Promise.all(
-      settledEntries.map((entry) => supabase.from(entry.table).update({ status: entry.status, settled_at: settledAt }).eq('id', entry.id))
+      settledEntries.map((entry) => {
+        const update = { status: entry.status, settled_at: settledAt }
+        if (entry.potentialReturnOverride !== undefined) update.potential_return = entry.potentialReturnOverride
+        return supabase.from(entry.table).update(update).eq('id', entry.id)
+      })
     )
 
     // "Bet settled" push, for whoever's opted in - same pattern as
