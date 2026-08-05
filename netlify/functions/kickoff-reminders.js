@@ -45,6 +45,24 @@ async function collectDue(supabase, table) {
     .filter((row) => row.kickoffAt !== null && row.kickoffAt > now && row.kickoffAt <= now + REMINDER_WINDOW_MS)
 }
 
+// Same idea as collectDue above, but for a followed fixture (see
+// FollowButton.jsx / dataStore.js's followFixture) rather than an open bet
+// - kickoff lives on its own column here instead of nested in a
+// selections array, so this reads it directly rather than reusing
+// earliestKickoff.
+async function collectDueFollows(supabase) {
+  const { data, error } = await supabase
+    .from('followed_fixtures')
+    .select('id,user_id,event_label,kickoff,profiles(notification_prefs)')
+    .is('kickoff_reminder_sent_at', null)
+  if (error || !data) return []
+
+  const now = Date.now()
+  return data
+    .map((row) => ({ ...row, kickoffAt: new Date(row.kickoff).getTime() }))
+    .filter((row) => row.kickoffAt > now && row.kickoffAt <= now + REMINDER_WINDOW_MS)
+}
+
 export default async (req) => {
   if (!SUPABASE_URL || !SERVICE_ROLE_KEY || !VAPID_PUBLIC_KEY || !VAPID_PRIVATE_KEY) {
     return new Response(JSON.stringify({ sent: 0, reason: 'not configured' }), { status: 200 })
@@ -54,8 +72,16 @@ export default async (req) => {
     const supabase = createClient(SUPABASE_URL, SERVICE_ROLE_KEY)
     webpush.setVapidDetails('mailto:betmates@example.com', VAPID_PUBLIC_KEY, VAPID_PRIVATE_KEY)
 
-    const [duePosts, dueManual] = await Promise.all([collectDue(supabase, 'bet_posts'), collectDue(supabase, 'manual_entries')])
-    const due = [...duePosts.map((r) => ({ ...r, table: 'bet_posts' })), ...dueManual.map((r) => ({ ...r, table: 'manual_entries' }))]
+    const [duePosts, dueManual, dueFollows] = await Promise.all([
+      collectDue(supabase, 'bet_posts'),
+      collectDue(supabase, 'manual_entries'),
+      collectDueFollows(supabase)
+    ])
+    const due = [
+      ...duePosts.map((r) => ({ ...r, table: 'bet_posts' })),
+      ...dueManual.map((r) => ({ ...r, table: 'manual_entries' })),
+      ...dueFollows.map((r) => ({ ...r, table: 'followed_fixtures' }))
+    ]
 
     if (!due.length) return new Response(JSON.stringify({ sent: 0 }), { status: 200 })
 
@@ -79,10 +105,11 @@ export default async (req) => {
     const sends = optedIn.flatMap((row) => {
       const userSubs = subsByUser.get(row.user_id) ?? []
       const minutes = Math.max(1, Math.round((row.kickoffAt - Date.now()) / 60000))
+      const isFollow = row.table === 'followed_fixtures'
       const payload = JSON.stringify({
         title: '⏰ Kickoff soon',
-        body: `${eventSummary(row.selections)} kicks off in ${minutes} min`,
-        url: '/#/tracker'
+        body: `${isFollow ? row.event_label : eventSummary(row.selections)} kicks off in ${minutes} min`,
+        url: isFollow ? '/#/odds' : '/#/tracker'
       })
       return userSubs.map((sub) =>
         webpush

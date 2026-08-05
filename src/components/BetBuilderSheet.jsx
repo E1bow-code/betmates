@@ -7,6 +7,7 @@ import * as dataStore from '../lib/dataStore.js'
 import { notifyGroup } from '../lib/notify.js'
 import { formatOdds } from '../utils/oddsFormat.js'
 import { periodStart, sumStakesSince } from '../utils/spendLimit.js'
+import { getEachWayTerms, computeEachWayReturn } from '../utils/eachWay.js'
 
 // The bet slip: reads its legs from BetSlipContext rather than a single
 // `selection` prop, so tapping outcomes across different fixtures builds
@@ -24,6 +25,7 @@ export default function BetBuilderSheet() {
   const [groupId, setGroupId] = useState('')
   const [stake, setStake] = useState('')
   const [stakeHidden, setStakeHidden] = useState(false)
+  const [eachWay, setEachWay] = useState(false)
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState(null)
   const [periodSpend, setPeriodSpend] = useState(null)
@@ -49,9 +51,21 @@ export default function BetBuilderSheet() {
 
   const combinedOdds = legs.reduce((acc, leg) => acc * leg.odds, 1)
   const stakeNum = stake ? Number(stake) : null
-  const potentialReturn = stakeNum ? Math.round(stakeNum * combinedOdds * 100) / 100 : null
-  const marketType = legs.length > 1 ? `${legs.length}-leg Bet Builder` : legs[0].market
+  // Each-way only makes sense for a single racing pick - real books don't
+  // offer it on multi-leg accumulators, and combining it with other sports'
+  // legs has no defined payout rule.
+  const eachWayTerms = legs.length === 1 && legs[0].sport === 'racing' ? getEachWayTerms(legs[0].runnerCount) : null
+  const applyEachWay = eachWay && eachWayTerms
+  const potentialReturn = stakeNum
+    ? applyEachWay
+      ? Math.round(computeEachWayReturn(stakeNum, combinedOdds, eachWayTerms, 'win') * 100) / 100
+      : Math.round(stakeNum * combinedOdds * 100) / 100
+    : null
+  const marketType = legs.length > 1 ? `${legs.length}-leg Bet Builder` : applyEachWay ? 'Each-way' : legs[0].market
   const sport = legs.every((leg) => leg.sport === legs[0].sport) ? legs[0].sport : 'multi'
+  const submittedLegs = applyEachWay
+    ? [{ ...legs[0], market: 'Each-way', eachWay: true, eachWayFraction: eachWayTerms.fraction, eachWayPlaces: eachWayTerms.places }]
+    : legs
 
   function onClose() {
     if (!submitting) closeSheet()
@@ -66,7 +80,7 @@ export default function BetBuilderSheet() {
         userId: user.id,
         sport,
         marketType,
-        selections: legs,
+        selections: submittedLegs,
         stake: stakeNum,
         stakeHidden,
         potentialReturn,
@@ -101,7 +115,7 @@ export default function BetBuilderSheet() {
         userId: user.id,
         sport,
         marketType,
-        selections: legs,
+        selections: submittedLegs,
         stake: stakeNum,
         stakeHidden,
         potentialReturn,
@@ -124,7 +138,7 @@ export default function BetBuilderSheet() {
         userId: user.id,
         sport,
         marketType,
-        selections: legs,
+        selections: submittedLegs,
         stake: stakeNum,
         potentialReturn
       })
@@ -173,6 +187,21 @@ export default function BetBuilderSheet() {
           <input type="number" min="0" step="0.5" placeholder="£" value={stake} onChange={(e) => setStake(e.target.value)} />
         </label>
         {!stakeNum && groups.length > 0 && <p className="hint">No stake - this posts as a free pick and counts toward this week's Pick'em leaderboard.</p>}
+
+        {eachWayTerms && (
+          <>
+            <label className="field-check">
+              <input type="checkbox" checked={eachWay} onChange={(e) => setEachWay(e.target.checked)} />
+              <span>Each-way (win + place)</span>
+            </label>
+            {eachWay && (
+              <p className="hint">
+                Terms: {eachWayTerms.fraction === 0.25 ? '1/4' : '1/5'} odds, {eachWayTerms.places} places. Half your stake rides on
+                each part.
+              </p>
+            )}
+          </>
+        )}
 
         {stakeNum > 0 && (
           <label className="field-check">

@@ -25,7 +25,8 @@ const EMPTY_DB = {
   blocks: [],
   postReports: [],
   directMessages: [],
-  oddsAlerts: []
+  oddsAlerts: [],
+  followedFixtures: []
 }
 
 // Merges in any table keys added after a browser's db was first created -
@@ -448,12 +449,13 @@ export function addManualEntry(entry) {
   return delay(record)
 }
 
-export function updateManualEntryStatus(entryId, status) {
+export function updateManualEntryStatus(entryId, status, potentialReturnOverride) {
   const db = readDb()
   const entry = db.manualEntries.find((e) => e.id === entryId)
   if (!entry) return Promise.reject(new Error('Entry not found.'))
   entry.status = status
   entry.settledAt = ['won', 'lost', 'void'].includes(status) ? new Date().toISOString() : null
+  if (potentialReturnOverride !== undefined) entry.potentialReturn = potentialReturnOverride
   writeDb(db)
   return delay(entry)
 }
@@ -605,6 +607,27 @@ export function deleteOddsAlert(alertId) {
   db.oddsAlerts = db.oddsAlerts.filter((a) => a.id !== alertId)
   writeDb(db)
   return delay(null)
+}
+
+export function followFixture(userId, follow) {
+  const db = readDb()
+  const key = (f) => `${f.userId}|${f.sport}|${f.eventId}`
+  db.followedFixtures = db.followedFixtures.filter((f) => key(f) !== `${userId}|${follow.sport}|${follow.eventId}`)
+  db.followedFixtures.push({ id: uid('follow'), userId, ...follow, createdAt: new Date().toISOString() })
+  writeDb(db)
+  return delay(null)
+}
+
+export function unfollowFixture(userId, sport, eventId) {
+  const db = readDb()
+  db.followedFixtures = db.followedFixtures.filter((f) => !(f.userId === userId && f.sport === sport && f.eventId === eventId))
+  writeDb(db)
+  return delay(null)
+}
+
+export function isFollowingFixture(userId, sport, eventId) {
+  const db = readDb()
+  return delay(db.followedFixtures.some((f) => f.userId === userId && f.sport === sport && f.eventId === eventId))
 }
 
 // --- Friends ----------------------------------------------------------

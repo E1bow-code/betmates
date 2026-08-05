@@ -632,12 +632,18 @@ export async function addManualEntry(entry) {
   return mapManualEntry(data)
 }
 
-export async function updateManualEntryStatus(entryId, status) {
-  if (!isSupabaseConfigured) return local.updateManualEntryStatus(entryId, status)
+// potentialReturnOverride is only passed for an each-way "placed, didn't
+// win" result (see TrackerPage) - the amount actually returned there is
+// the place-part payout, not the optimistic full-win figure stored when
+// the bet was logged, so it needs correcting alongside the status.
+export async function updateManualEntryStatus(entryId, status, potentialReturnOverride) {
+  if (!isSupabaseConfigured) return local.updateManualEntryStatus(entryId, status, potentialReturnOverride)
   const settledAt = ['won', 'lost', 'void'].includes(status) ? new Date().toISOString() : null
+  const update = { status, settled_at: settledAt }
+  if (potentialReturnOverride !== undefined) update.potential_return = potentialReturnOverride
   const { data, error } = await supabase
     .from('manual_entries')
-    .update({ status, settled_at: settledAt })
+    .update(update)
     .eq('id', entryId)
     .select()
     .single()
@@ -783,6 +789,47 @@ export async function deleteOddsAlert(alertId) {
   if (!isSupabaseConfigured) return local.deleteOddsAlert(alertId)
   const { error } = await supabase.from('odds_alerts').delete().eq('id', alertId)
   if (error) throw error
+}
+
+// --- Followed fixtures -----------------------------------------------------
+// Kickoff reminders and result notifications for a fixture the user is just
+// interested in, no bet required - see kickoff-reminders.js and
+// check-followed-results.js. No scheduled functions run against
+// localStorage, so follows still save/list/unfollow there but never
+// actually notify (same limitation as odds alerts in local mode).
+
+export async function followFixture(userId, follow) {
+  if (!isSupabaseConfigured) return local.followFixture(userId, follow)
+  const { error } = await supabase.from('followed_fixtures').upsert(
+    {
+      user_id: userId,
+      sport: follow.sport,
+      event_id: follow.eventId,
+      event_label: follow.eventLabel,
+      kickoff: follow.kickoff
+    },
+    { onConflict: 'user_id,sport,event_id' }
+  )
+  if (error) throw error
+}
+
+export async function unfollowFixture(userId, sport, eventId) {
+  if (!isSupabaseConfigured) return local.unfollowFixture(userId, sport, eventId)
+  const { error } = await supabase.from('followed_fixtures').delete().eq('user_id', userId).eq('sport', sport).eq('event_id', eventId)
+  if (error) throw error
+}
+
+export async function isFollowingFixture(userId, sport, eventId) {
+  if (!isSupabaseConfigured) return local.isFollowingFixture(userId, sport, eventId)
+  const { data, error } = await supabase
+    .from('followed_fixtures')
+    .select('id')
+    .eq('user_id', userId)
+    .eq('sport', sport)
+    .eq('event_id', eventId)
+    .maybeSingle()
+  if (error) throw error
+  return !!data
 }
 
 // --- Aggregated social feed ------------------------------------------------

@@ -515,3 +515,26 @@ create table odds_alerts (
 );
 alter table odds_alerts enable row level security;
 create policy "user manages own odds alerts" on odds_alerts for all using (auth.uid() = user_id) with check (auth.uid() = user_id);
+
+-- --- Followed fixtures ---------------------------------------------------
+-- "Follow" a fixture/fight/event without adding it to the bet slip at all -
+-- kickoff reminders (netlify/functions/kickoff-reminders.js) and result
+-- notifications (netlify/functions/check-followed-results.js) previously
+-- only fired for something tied to an open bet; this is the same two
+-- notifications for someone just watching a fixture out of interest.
+-- unique() makes following idempotent - re-following (or a duplicate
+-- FollowButton click) is just an upsert, not a second row.
+create table followed_fixtures (
+  id uuid primary key default gen_random_uuid(),
+  user_id uuid not null references profiles(id) on delete cascade,
+  sport text not null,
+  event_id text not null,
+  event_label text not null,
+  kickoff timestamptz not null,
+  created_at timestamptz not null default now(),
+  kickoff_reminder_sent_at timestamptz,
+  result_sent_at timestamptz,
+  unique (user_id, sport, event_id)
+);
+alter table followed_fixtures enable row level security;
+create policy "user manages own follows" on followed_fixtures for all using (auth.uid() = user_id) with check (auth.uid() = user_id);

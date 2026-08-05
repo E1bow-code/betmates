@@ -16,6 +16,7 @@ import SportHeroBanner from '../components/SportHeroBanner.jsx'
 import LiveBadge from '../components/LiveBadge.jsx'
 import WatchLiveButton from '../components/WatchLiveButton.jsx'
 import OddsAlertSheet from '../components/OddsAlertSheet.jsx'
+import FollowButton from '../components/FollowButton.jsx'
 
 export default function FightDetailPage() {
   const { id } = useParams()
@@ -26,6 +27,7 @@ export default function FightDetailPage() {
   const [error, setError] = useState(null)
   const [myBookiesOnly, setMyBookiesOnly] = useState(false)
   const [alertTarget, setAlertTarget] = useState(null)
+  const [expandedOutcome, setExpandedOutcome] = useState(null)
 
   useEffect(() => {
     fetchFight(id)
@@ -77,6 +79,7 @@ export default function FightDetailPage() {
         <div className="race-header-meta">
           {formatDateTime(fight.kickoff)} ({formatCountdown(fight.kickoff)}) · {fight.competition}
         </div>
+        <FollowButton sport="ufc" eventId={fight.id} eventLabel={`${fight.fighterA} v ${fight.fighterB}`} kickoff={fight.kickoff} />
         {isLive(fight.kickoff, 'ufc') && (
           <div className="race-header-live">
             <LiveBadge />
@@ -108,53 +111,77 @@ export default function FightDetailPage() {
               const selected =
                 best && isSelected({ event: `${fight.fighterA} v ${fight.fighterB}`, market: market.label, selection: outcome.name })
               const backingCount = backing?.counts.get(outcome.name) ?? 0
+              const outcomeKey = `${market.key}|${outcome.name}`
+              const isExpanded = expandedOutcome === outcomeKey
               return (
                 <div key={outcome.name} className={selected ? 'outcome-row is-selected' : 'outcome-row'}>
-                  <button className="outcome-row-main" onClick={() => pick(market, outcome)} disabled={!best}>
-                    <span className="outcome-name">
-                      <span className="fixture-team">
-                        <PlayerPhoto name={outcome.name} size={22} />
-                        <span>{outcome.name}</span>
-                      </span>
-                      {backingCount > 0 && (
-                        <span className="backing-badge">
-                          🔥 {backingCount} backing
+                  <div className="outcome-row-buttons">
+                    <button className="outcome-row-main" onClick={() => pick(market, outcome)} disabled={!best}>
+                      <span className="outcome-name">
+                        <span className="fixture-team">
+                          <PlayerPhoto name={outcome.name} size={22} />
+                          <span>{outcome.name}</span>
                         </span>
+                        {backingCount > 0 && (
+                          <span className="backing-badge">
+                            🔥 {backingCount} backing
+                          </span>
+                        )}
+                      </span>
+                      {best ? (
+                        <span className="outcome-odds">
+                          <span className="best-price">
+                            {formatOdds(best.decimal, format)}
+                            <OddsMoveIndicator direction={movements[movementKey(fight.id, market.key, outcome.name)]} />
+                          </span>
+                          <span className="best-bookmaker">{best.bookmaker}</span>
+                        </span>
+                      ) : (
+                        <span className="outcome-odds outcome-odds-empty">No price for your bookies</span>
                       )}
-                    </span>
-                    {best ? (
-                      <span className="outcome-odds">
-                        <span className="best-price">
-                          {formatOdds(best.decimal, format)}
-                          <OddsMoveIndicator direction={movements[movementKey(fight.id, market.key, outcome.name)]} />
-                        </span>
-                        <span className="best-bookmaker">{best.bookmaker}</span>
-                      </span>
-                    ) : (
-                      <span className="outcome-odds outcome-odds-empty">No price for your bookies</span>
-                    )}
-                  </button>
-                  {best && (
-                    <button
-                      className="outcome-alert-btn"
-                      type="button"
-                      aria-label="Set a price alert"
-                      onClick={() =>
-                        setAlertTarget({
-                          sport: 'ufc',
-                          eventId: fight.id,
-                          eventLabel: `${fight.fighterA} v ${fight.fighterB}`,
-                          kickoff: fight.kickoff,
-                          marketKey: market.key,
-                          marketLabel: market.label,
-                          outcomeName: outcome.name,
-                          selectionLabel: outcome.name,
-                          currentDecimal: best.decimal
-                        })
-                      }
-                    >
-                      🔔
                     </button>
+                    {outcome.allOdds.length > 1 && (
+                      <button
+                        className="outcome-expand-btn"
+                        type="button"
+                        aria-label="Compare all bookmakers"
+                        onClick={() => setExpandedOutcome(isExpanded ? null : outcomeKey)}
+                      >
+                        {outcome.allOdds.length} {isExpanded ? '▴' : '▾'}
+                      </button>
+                    )}
+                    {best && (
+                      <button
+                        className="outcome-alert-btn"
+                        type="button"
+                        aria-label="Set a price alert"
+                        onClick={() =>
+                          setAlertTarget({
+                            sport: 'ufc',
+                            eventId: fight.id,
+                            eventLabel: `${fight.fighterA} v ${fight.fighterB}`,
+                            kickoff: fight.kickoff,
+                            marketKey: market.key,
+                            marketLabel: market.label,
+                            outcomeName: outcome.name,
+                            selectionLabel: outcome.name,
+                            currentDecimal: best.decimal
+                          })
+                        }
+                      >
+                        🔔
+                      </button>
+                    )}
+                  </div>
+                  {isExpanded && (
+                    <div className="outcome-all-odds">
+                      {outcome.allOdds.map((o) => (
+                        <div key={o.bookmaker} className={o.bookmaker === best?.bookmaker ? 'odds-cell is-best' : 'odds-cell'}>
+                          <span className="odds-bookmaker">{o.bookmaker}</span>
+                          <span className="odds-price">{formatOdds(o.decimal, format)}</span>
+                        </div>
+                      ))}
+                    </div>
                   )}
                 </div>
               )

@@ -5,6 +5,7 @@ import { useOddsFormat } from '../context/OddsFormatContext.jsx'
 import * as dataStore from '../lib/dataStore.js'
 import { checkAndSettleBets } from '../lib/settlement.js'
 import { formatOdds } from '../utils/oddsFormat.js'
+import { getEachWayTerms, computeEachWayReturn } from '../utils/eachWay.js'
 import {
   computeStats,
   computeStreak,
@@ -61,8 +62,21 @@ export default function TrackerPage() {
     })
   }
 
+  // "placed" isn't a real status column value (see supabase/schema.sql's
+  // check constraint) - it's an each-way result where the horse placed but
+  // didn't win, so it settles as 'won' but with potentialReturn corrected
+  // down to just the place-part payout (see eachWay.js). The P&L math
+  // already handles any potentialReturn < stake correctly as a net loss;
+  // only "win streak"-style badges would (rarely) miscount this as a win.
   async function handleStatusChange(entry, status) {
-    await dataStore.updateManualEntryStatus(entry.id, status)
+    if (status === 'placed') {
+      const leg = entry.selections[0]
+      const terms = { fraction: leg.eachWayFraction, places: leg.eachWayPlaces }
+      const placeReturn = Math.round(computeEachWayReturn(entry.stake, leg.odds, terms, 'place') * 100) / 100
+      await dataStore.updateManualEntryStatus(entry.id, 'won', placeReturn)
+    } else {
+      await dataStore.updateManualEntryStatus(entry.id, status)
+    }
     refresh()
   }
 
@@ -245,6 +259,7 @@ export default function TrackerPage() {
                     <select className="status-select" defaultValue="open" onChange={(e) => handleStatusChange(entry, e.target.value)}>
                       <option value="open">Mark result</option>
                       <option value="won">Won</option>
+                      {entry.selections.length === 1 && entry.selections[0].eachWay && <option value="placed">Placed (not won)</option>}
                       <option value="lost">Lost</option>
                       <option value="void">Void</option>
                     </select>

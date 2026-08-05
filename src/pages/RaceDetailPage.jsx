@@ -11,6 +11,7 @@ import { useOddsFormat } from '../context/OddsFormatContext.jsx'
 import SportHeroBanner from '../components/SportHeroBanner.jsx'
 import LiveBadge from '../components/LiveBadge.jsx'
 import WatchLiveButton from '../components/WatchLiveButton.jsx'
+import FollowButton from '../components/FollowButton.jsx'
 
 export default function RaceDetailPage() {
   const { id } = useParams()
@@ -48,7 +49,8 @@ export default function RaceDetailPage() {
       odds: best.decimal,
       bookmaker: best.bookmaker,
       sport: 'racing',
-      kickoff: race.offTime
+      kickoff: race.offTime,
+      runnerCount: race.runners.length
     })
   }
 
@@ -67,6 +69,7 @@ export default function RaceDetailPage() {
         <div className="race-header-meta">
           {formatKickoff(race.offTime)} ({formatCountdown(race.offTime)}) · {race.raceClass} · {race.distance} · {race.going}
         </div>
+        <FollowButton sport="racing" eventId={race.id} eventLabel={`${race.course} · ${race.raceName}`} kickoff={race.offTime} />
         {isLive(race.offTime, 'racing') && (
           <div className="race-header-live">
             <LiveBadge />
