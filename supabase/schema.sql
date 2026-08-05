@@ -487,3 +487,31 @@ create policy "friends can read each other's push subscriptions" on push_subscri
 
 alter table profiles add column if not exists stake_limit_amount numeric;
 alter table profiles add column if not exists stake_limit_period text check (stake_limit_period in ('weekly', 'monthly'));
+
+-- --- Odds target alerts -------------------------------------------------
+-- "Alert me when this hits X" on a single outcome (see FixtureDetailPage's
+-- bell button on each outcome row). event_id/market_key/outcome_name are
+-- exactly what netlify/functions/check-odds-alerts.js needs to re-fetch the
+-- SAME fixture/fight/event from the same internal /api/* routes the client
+-- uses and find the matching price again - kickoff is captured at creation
+-- so the checker can cheaply drop an alert once its event has clearly
+-- passed, without needing to re-fetch it first. Racing is deliberately
+-- excluded from the create flow - see racingClient.js, its odds are mock
+-- data that never actually moves.
+create table odds_alerts (
+  id uuid primary key default gen_random_uuid(),
+  user_id uuid not null references profiles(id) on delete cascade,
+  sport text not null,
+  event_id text not null,
+  event_label text not null,
+  kickoff timestamptz not null,
+  market_key text not null,
+  market_label text not null,
+  outcome_name text not null,
+  selection_label text not null,
+  target_decimal numeric not null,
+  created_at timestamptz not null default now(),
+  triggered_at timestamptz
+);
+alter table odds_alerts enable row level security;
+create policy "user manages own odds alerts" on odds_alerts for all using (auth.uid() = user_id) with check (auth.uid() = user_id);

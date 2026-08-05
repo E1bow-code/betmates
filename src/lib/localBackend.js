@@ -24,7 +24,8 @@ const EMPTY_DB = {
   groupMessages: [],
   blocks: [],
   postReports: [],
-  directMessages: []
+  directMessages: [],
+  oddsAlerts: []
 }
 
 // Merges in any table keys added after a browser's db was first created -
@@ -577,6 +578,32 @@ export function savePushSubscription() {
 }
 
 export function deletePushSubscription() {
+  return delay(null)
+}
+
+// --- Odds target alerts -------------------------------------------------
+// No scheduled function runs against localStorage, so these save/list/
+// delete like anything else but never actually fire - matches the app's
+// usual "fully clickable without a real backend" rule even though the
+// checking half of the feature has nowhere to run here.
+
+export function createOddsAlert(userId, alert) {
+  const db = readDb()
+  const record = { id: uid('alert'), userId, createdAt: new Date().toISOString(), triggeredAt: null, ...alert }
+  db.oddsAlerts.push(record)
+  writeDb(db)
+  return delay(record)
+}
+
+export function listMyOddsAlerts(userId) {
+  const db = readDb()
+  return delay(db.oddsAlerts.filter((a) => a.userId === userId).sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt)))
+}
+
+export function deleteOddsAlert(alertId) {
+  const db = readDb()
+  db.oddsAlerts = db.oddsAlerts.filter((a) => a.id !== alertId)
+  writeDb(db)
   return delay(null)
 }
 

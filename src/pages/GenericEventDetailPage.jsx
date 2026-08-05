@@ -5,6 +5,7 @@ import { GENERIC_SPORTS } from '../lib/sportsConfig.js'
 import { formatDateTime, formatCountdown } from '../utils/format.js'
 import { bestWithinFilter } from '../utils/oddsUtils.js'
 import { formatOdds } from '../utils/oddsFormat.js'
+import { isLive } from '../utils/liveStatus.js'
 import { useAuth } from '../context/AuthContext.jsx'
 import { useBetSlip } from '../context/BetSlipContext.jsx'
 import { useOddsFormat } from '../context/OddsFormatContext.jsx'
@@ -14,6 +15,9 @@ import TeamBadge from '../components/TeamBadge.jsx'
 import PlayerPhoto from '../components/PlayerPhoto.jsx'
 import OddsMoveIndicator from '../components/OddsMoveIndicator.jsx'
 import SportHeroBanner from '../components/SportHeroBanner.jsx'
+import LiveBadge from '../components/LiveBadge.jsx'
+import WatchLiveButton from '../components/WatchLiveButton.jsx'
+import OddsAlertSheet from '../components/OddsAlertSheet.jsx'
 
 export default function GenericEventDetailPage() {
   const { sportKey, id } = useParams()
@@ -24,6 +28,7 @@ export default function GenericEventDetailPage() {
   const [event, setEvent] = useState(null)
   const [error, setError] = useState(null)
   const [myBookiesOnly, setMyBookiesOnly] = useState(false)
+  const [alertTarget, setAlertTarget] = useState(null)
 
   useEffect(() => {
     fetchEvent(sportKey, id)
@@ -83,6 +88,12 @@ export default function GenericEventDetailPage() {
         <div className="race-header-meta">
           {formatDateTime(event.kickoff)} ({formatCountdown(event.kickoff)}) · {event.competition}
         </div>
+        {isLive(event.kickoff, sportKey) && (
+          <div className="race-header-live">
+            <LiveBadge />
+            <WatchLiveButton />
+          </div>
+        )}
         <label className="filter-toggle">
           <input
             type="checkbox"
@@ -110,44 +121,65 @@ export default function GenericEventDetailPage() {
                 best && isSelected({ event: `${event.participantA} v ${event.participantB}`, market: market.label, selection: name })
               const backingCount = backing?.counts.get(name) ?? 0
               return (
-                <button
-                  key={outcome.name}
-                  className={selected ? 'outcome-row is-selected' : 'outcome-row'}
-                  onClick={() => pick(market, outcome)}
-                  disabled={!best}
-                >
-                  <span className="outcome-name">
-                    {outcome.team ? (
-                      <span className="fixture-team">
-                        <Photo {...{ [photoProp]: outcome.team }} size={20} />
-                        <span>{name}</span>
+                <div key={outcome.name} className={selected ? 'outcome-row is-selected' : 'outcome-row'}>
+                  <button className="outcome-row-main" onClick={() => pick(market, outcome)} disabled={!best}>
+                    <span className="outcome-name">
+                      {outcome.team ? (
+                        <span className="fixture-team">
+                          <Photo {...{ [photoProp]: outcome.team }} size={20} />
+                          <span>{name}</span>
+                        </span>
+                      ) : (
+                        name
+                      )}
+                      {backingCount > 0 && (
+                        <span className="backing-badge">
+                          🔥 {backingCount} backing
+                        </span>
+                      )}
+                    </span>
+                    {best ? (
+                      <span className="outcome-odds">
+                        <span className="best-price">
+                          {formatOdds(best.decimal, format)}
+                          <OddsMoveIndicator direction={movements[movementKey(event.id, market.key, outcome.name)]} />
+                        </span>
+                        <span className="best-bookmaker">{best.bookmaker}</span>
                       </span>
                     ) : (
-                      name
+                      <span className="outcome-odds outcome-odds-empty">No price for your bookies</span>
                     )}
-                    {backingCount > 0 && (
-                      <span className="backing-badge">
-                        🔥 {backingCount} backing
-                      </span>
-                    )}
-                  </span>
-                  {best ? (
-                    <span className="outcome-odds">
-                      <span className="best-price">
-                        {formatOdds(best.decimal, format)}
-                        <OddsMoveIndicator direction={movements[movementKey(event.id, market.key, outcome.name)]} />
-                      </span>
-                      <span className="best-bookmaker">{best.bookmaker}</span>
-                    </span>
-                  ) : (
-                    <span className="outcome-odds outcome-odds-empty">No price for your bookies</span>
+                  </button>
+                  {best && (
+                    <button
+                      className="outcome-alert-btn"
+                      type="button"
+                      aria-label="Set a price alert"
+                      onClick={() =>
+                        setAlertTarget({
+                          sport: sportKey,
+                          eventId: event.id,
+                          eventLabel: `${event.participantA} v ${event.participantB}`,
+                          kickoff: event.kickoff,
+                          marketKey: market.key,
+                          marketLabel: market.label,
+                          outcomeName: outcome.name,
+                          selectionLabel: name,
+                          currentDecimal: best.decimal
+                        })
+                      }
+                    >
+                      🔔
+                    </button>
                   )}
-                </button>
+                </div>
               )
             })}
           </div>
         </div>
       ))}
+
+      {alertTarget && <OddsAlertSheet target={alertTarget} onClose={() => setAlertTarget(null)} />}
     </div>
   )
 }

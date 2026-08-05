@@ -172,6 +172,7 @@ export default function BetBuilderSheet() {
           <span>Stake (optional)</span>
           <input type="number" min="0" step="0.5" placeholder="£" value={stake} onChange={(e) => setStake(e.target.value)} />
         </label>
+        {!stakeNum && groups.length > 0 && <p className="hint">No stake - this posts as a free pick and counts toward this week's Pick'em leaderboard.</p>}
 
         {stakeNum > 0 && (
           <label className="field-check">

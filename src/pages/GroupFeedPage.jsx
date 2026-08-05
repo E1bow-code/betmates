@@ -5,6 +5,7 @@ import * as dataStore from '../lib/dataStore.js'
 import BetCard from '../components/BetCard.jsx'
 import VideoCard from '../components/VideoCard.jsx'
 import Leaderboard from '../components/Leaderboard.jsx'
+import PickemLeaderboard from '../components/PickemLeaderboard.jsx'
 import Avatar from '../components/Avatar.jsx'
 import EmptyState from '../components/EmptyState.jsx'
 import { shareOrCopy, groupInviteUrl } from '../lib/share.js'
@@ -164,6 +165,7 @@ export default function GroupFeedPage() {
           {error && <div className="error">Hmm, couldn't load this group: {error}</div>}
           {!error && items === null && <div className="loading">Catching up on the feed…</div>}
           {posts && posts.length > 0 && <Leaderboard posts={posts} memberNames={memberNames} currentUserId={user.id} />}
+          {posts && posts.length > 0 && <PickemLeaderboard posts={posts} memberNames={memberNames} />}
           {items && !items.length && (
             <EmptyState
               icon="💬"

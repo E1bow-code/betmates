@@ -126,7 +126,7 @@ h1, h2, .topbar h1, .sheet-title, .auth-title {
   gap: 2px;
   color: var(--text-dim);
   text-decoration: none;
-  font-size: 0.72rem;
+  font-size: 0.75rem;
   padding: 4px 12px;
   border-top: 2px solid transparent;
 }
@@ -135,7 +135,7 @@ h1, h2, .topbar h1, .sheet-title, .auth-title {
 .bottom-nav-item.active .bottom-nav-icon { filter: drop-shadow(0 0 5px rgba(var(--accent-rgb), 0.55)); }
 .bottom-nav-icon { font-size: 1.2rem; position: relative; display: inline-block; }
 .bottom-nav-label { display: flex; align-items: center; gap: 3px; }
-.bottom-nav-streak { font-size: 0.68rem; font-weight: 700; }
+.bottom-nav-streak { font-size: 0.66rem; font-weight: 700; }
 .sidebar-brand { display: none; }
 .bottom-nav-dot {
   position: absolute;
@@ -378,7 +378,7 @@ h1, h2, .topbar h1, .sheet-title, .auth-title {
 
 .report-list { display: flex; flex-direction: column; gap: 10px; }
 .report-card { border: 1px solid var(--border); border-radius: 4px; padding: 12px; background: var(--surface); }
-.report-card-meta { font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.03em; color: var(--bad); font-weight: 700; margin-bottom: 4px; }
+.report-card-meta { font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.03em; color: var(--bad); font-weight: 700; margin-bottom: 4px; }
 .report-card-title { font-weight: 600; }
 .report-card-actions { display: flex; gap: 8px; }
 
@@ -436,8 +436,9 @@ h1, h2, .topbar h1, .sheet-title, .auth-title {
 
 /* Topbar with filter toggle */
 .topbar { display: flex; flex-direction: column; gap: 4px; }
-.tracker-checking { font-size: 0.76rem; color: var(--text-dim); font-style: italic; }
+.tracker-checking { font-size: 0.75rem; color: var(--text-dim); font-style: italic; }
 .filter-toggle { display: flex; align-items: center; gap: 6px; font-size: 0.82rem; color: var(--text-dim); margin-top: 4px; }
+.filter-toggle-inline { margin-top: 0; white-space: nowrap; flex-shrink: 0; }
 
 .search-input {
   background: var(--surface);
@@ -468,7 +469,7 @@ h1, h2, .topbar h1, .sheet-title, .auth-title {
   font-size: 0.88rem;
 }
 .chat-message-mine .chat-bubble { background: var(--accent); color: var(--accent-ink); border-color: var(--accent-dim); }
-.chat-author { font-size: 0.7rem; font-weight: 700; color: var(--accent); margin-bottom: 2px; }
+.chat-author { font-size: 0.66rem; font-weight: 700; color: var(--accent); margin-bottom: 2px; }
 .chat-input-row { display: flex; gap: 8px; }
 .chat-input-row input {
   flex: 1;
@@ -494,8 +495,8 @@ h1, h2, .topbar h1, .sheet-title, .auth-title {
   background: none;
   border: 1px solid var(--border);
   border-radius: 999px;
-  padding: 6px 14px;
-  font-size: 0.85rem;
+  padding: 5px 12px;
+  font-size: 0.8rem;
   color: var(--text-dim);
   cursor: pointer;
   text-decoration: none;
@@ -547,20 +548,43 @@ h1, h2, .topbar h1, .sheet-title, .auth-title {
 
 .outcome-row {
   display: flex;
-  justify-content: space-between;
-  align-items: center;
+  align-items: stretch;
   background: transparent;
-  border: none;
   border-bottom: 1px solid var(--border);
-  padding: 8px 12px;
   color: var(--text);
   font-size: 0.88rem;
-  cursor: pointer;
   width: 100%;
 }
 
+.outcome-row-main {
+  display: flex;
+  flex: 1;
+  min-width: 0;
+  justify-content: space-between;
+  align-items: center;
+  background: none;
+  border: none;
+  padding: 8px 12px;
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+  text-align: left;
+}
+.outcome-row-main:disabled { opacity: 0.5; cursor: default; }
+
+.outcome-alert-btn {
+  flex-shrink: 0;
+  background: none;
+  border: none;
+  border-left: 1px solid var(--border);
+  padding: 0 12px;
+  font-size: 0.9rem;
+  color: var(--text-dim);
+  cursor: pointer;
+}
+.outcome-alert-btn.has-alert { color: var(--accent); }
+
 .outcome-list .outcome-row:last-child { border-bottom: none; }
-.outcome-row:disabled { opacity: 0.5; cursor: default; }
 .outcome-row.is-selected,
 .runner-best-btn.is-selected {
   background: var(--surface-2);
@@ -572,7 +596,7 @@ h1, h2, .topbar h1, .sheet-title, .auth-title {
 
 .backing-badge {
   font-weight: 400;
-  font-size: 0.72rem;
+  font-size: 0.75rem;
   color: var(--text-dim);
 }
 /* Deliberately not colored good/bad (--accent/--bad) - whether shortening
@@ -580,7 +604,7 @@ h1, h2, .topbar h1, .sheet-title, .auth-title {
    price now or already have, so this only signals direction, not value. */
 .odds-move { font-size: 0.7em; margin-left: 4px; color: var(--text-dim); }
 .outcome-odds { display: flex; flex-direction: column; align-items: flex-end; }
-.outcome-odds-empty { font-size: 0.78rem; color: var(--text-dim); font-family: -apple-system, sans-serif; }
+.outcome-odds-empty { font-size: 0.75rem; color: var(--text-dim); font-family: -apple-system, sans-serif; }
 
 /* First-run onboarding carousel (see src/components/OnboardingTour.jsx) -
    a centered card, not a bottom sheet like everything else that overlays
@@ -689,7 +713,7 @@ h1, h2, .topbar h1, .sheet-title, .auth-title {
   color: var(--accent);
 }
 
-.share-section-label { font-size: 0.72rem; text-transform: uppercase; color: var(--text-dim); margin: 10px 0 6px; letter-spacing: 0.04em; }
+.share-section-label { font-size: 0.75rem; text-transform: uppercase; color: var(--text-dim); margin: 10px 0 6px; letter-spacing: 0.04em; }
 .share-target-list { display: flex; flex-direction: column; border: 1px solid var(--border); border-radius: 4px; overflow: hidden; }
 .share-target-btn {
   text-align: left;
@@ -756,7 +780,7 @@ h1, h2, .topbar h1, .sheet-title, .auth-title {
   max-width: 220px;
 }
 .trending-chip-pick { font-weight: 700; font-size: 0.85rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.trending-chip-meta { font-size: 0.72rem; color: var(--text-dim); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.trending-chip-meta { font-size: 0.75rem; color: var(--text-dim); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 
 .group-chip-row { display: flex; gap: 8px; overflow-x: auto; padding: 4px 0 10px; }
 .group-chip {
@@ -773,7 +797,7 @@ h1, h2, .topbar h1, .sheet-title, .auth-title {
 }
 
 .friend-chip-btn { font-family: inherit; cursor: pointer; display: flex; align-items: center; gap: 4px; }
-.friend-chip-vs { color: var(--accent); font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.03em; }
+.friend-chip-vs { color: var(--accent); font-size: 0.66rem; text-transform: uppercase; letter-spacing: 0.03em; }
 
 .h2h-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin: 14px 0; }
 .h2h-col {
@@ -787,8 +811,8 @@ h1, h2, .topbar h1, .sheet-title, .auth-title {
 .h2h-stat { font-size: 1.3rem; font-weight: 700; font-family: var(--font-mono); font-variant-numeric: tabular-nums; }
 .h2h-stat.tone-good { color: var(--accent); }
 .h2h-stat.tone-bad { color: var(--bad); }
-.h2h-stat-label { font-size: 0.68rem; color: var(--text-dim); text-transform: uppercase; letter-spacing: 0.03em; margin-bottom: 8px; }
-.h2h-meta { font-size: 0.78rem; color: var(--text-dim); margin-top: 2px; }
+.h2h-stat-label { font-size: 0.66rem; color: var(--text-dim); text-transform: uppercase; letter-spacing: 0.03em; margin-bottom: 8px; }
+.h2h-meta { font-size: 0.75rem; color: var(--text-dim); margin-top: 2px; }
 .h2h-empty { color: var(--text-dim); font-size: 0.85rem; padding: 10px 0; }
 
 .group-actions { display: flex; gap: 8px; margin: 8px 0 4px; }
@@ -839,7 +863,7 @@ h1, h2, .topbar h1, .sheet-title, .auth-title {
   white-space: nowrap;
 }
 
-.fixture-vs { color: var(--text-dim); font-size: 0.78rem; flex-shrink: 0; }
+.fixture-vs { color: var(--text-dim); font-size: 0.75rem; flex-shrink: 0; }
 
 .player-photo {
   border-radius: 50%;
@@ -937,10 +961,10 @@ h1, h2, .topbar h1, .sheet-title, .auth-title {
 .bet-card-who { display: flex; align-items: center; gap: 8px; }
 .bet-card-body { display: flex; flex-direction: column; gap: 4px; }
 .bet-card-author { font-weight: 600; font-size: 0.88rem; display: block; }
-.bet-card-group-tag { font-size: 0.72rem; color: var(--text-dim); }
+.bet-card-group-tag { font-size: 0.75rem; color: var(--text-dim); }
 .bet-card .selection-odds { font-size: 1.35rem; }
 .bet-card-leg-count {
-  font-size: 0.7rem;
+  font-size: 0.66rem;
   font-weight: 700;
   letter-spacing: 0.04em;
   text-transform: uppercase;
@@ -954,7 +978,7 @@ h1, h2, .topbar h1, .sheet-title, .auth-title {
 /* Stamped, not a bubble: bordered rectangle with letterspaced caps,
    like a "PAID"/"VOID" stamp on a slip. */
 .bet-status-pill {
-  font-size: 0.68rem;
+  font-size: 0.66rem;
   font-weight: 700;
   padding: 3px 8px;
   border: 1px solid var(--border);
@@ -1007,7 +1031,7 @@ h1, h2, .topbar h1, .sheet-title, .auth-title {
   color: var(--accent);
   border-radius: 3px;
   padding: 3px 10px;
-  font-size: 0.7rem;
+  font-size: 0.66rem;
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.03em;
@@ -1040,7 +1064,7 @@ h1, h2, .topbar h1, .sheet-title, .auth-title {
   border: 1px solid var(--border);
   border-radius: 4px;
   padding: 5px 11px;
-  font-size: 0.76rem;
+  font-size: 0.75rem;
   color: var(--text-dim);
   cursor: pointer;
 }
@@ -1053,7 +1077,7 @@ h1, h2, .topbar h1, .sheet-title, .auth-title {
   border-radius: 3px;
   padding: 6px 8px;
   color: var(--text);
-  font-size: 0.78rem;
+  font-size: 0.75rem;
 }
 
 .comment-thread { border-top: 1px solid var(--border); padding-top: 10px; display: flex; flex-direction: column; gap: 8px; }
@@ -1095,7 +1119,7 @@ h1, h2, .topbar h1, .sheet-title, .auth-title {
 .stat-tile.tone-bad { background: linear-gradient(180deg, rgba(var(--bad-rgb), 0.12) 0%, transparent 75%); }
 .stat-tile.tone-good .stat-tile-value { color: var(--accent); }
 .stat-tile.tone-bad .stat-tile-value { color: var(--bad); }
-.stat-tile-label { font-size: 0.64rem; color: var(--text-dim); text-transform: uppercase; margin-top: 2px; letter-spacing: 0.03em; }
+.stat-tile-label { font-size: 0.66rem; color: var(--text-dim); text-transform: uppercase; margin-top: 2px; letter-spacing: 0.03em; }
 
 .badge-row { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 12px; }
 .badge {
@@ -1103,7 +1127,7 @@ h1, h2, .topbar h1, .sheet-title, .auth-title {
   border: 1px solid var(--accent-dim);
   border-radius: 999px;
   padding: 5px 12px;
-  font-size: 0.78rem;
+  font-size: 0.75rem;
   font-weight: 600;
   color: var(--accent);
   box-shadow: 0 1px 6px rgba(var(--accent-rgb), 0.2);
@@ -1147,7 +1171,7 @@ h1, h2, .topbar h1, .sheet-title, .auth-title {
 
 .achievement-icon { font-size: 1.8rem; }
 .achievement-label { font-weight: 700; font-size: 0.85rem; }
-.achievement-hint { font-size: 0.72rem; color: var(--text-dim); }
+.achievement-hint { font-size: 0.75rem; color: var(--text-dim); }
 .achievement-card.earned .achievement-hint { color: var(--accent); font-weight: 600; }
 
 .pnl-chart {
@@ -1162,7 +1186,7 @@ h1, h2, .topbar h1, .sheet-title, .auth-title {
 .pnl-chart-line { fill: none; stroke-width: 2; }
 .pnl-chart-line.tone-good { stroke: var(--accent); }
 .pnl-chart-line.tone-bad { stroke: var(--bad); }
-.pnl-chart-caption { font-size: 0.72rem; color: var(--text-dim); margin-top: 4px; }
+.pnl-chart-caption { font-size: 0.75rem; color: var(--text-dim); margin-top: 4px; }
 
 .sport-breakdown {
   display: flex;
@@ -1213,7 +1237,7 @@ h1, h2, .topbar h1, .sheet-title, .auth-title {
 .tracker-row-status { display: flex; flex-direction: column; align-items: flex-end; gap: 6px; }
 
 /* Account */
-.account-section { margin-bottom: 22px; }
+.account-section { margin-bottom: 18px; }
 .account-name { font-weight: 700; font-size: 1.1rem; }
 .account-identity { display: flex; align-items: center; gap: 12px; }
 .account-name-row { display: flex; align-items: center; gap: 8px; }
@@ -1228,7 +1252,7 @@ h1, h2, .topbar h1, .sheet-title, .auth-title {
   border-radius: 50%;
   background: var(--accent);
   color: var(--accent-ink);
-  font-size: 0.62rem;
+  font-size: 0.66rem;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -1279,7 +1303,7 @@ h1, h2, .topbar h1, .sheet-title, .auth-title {
   font-size: 0.88rem;
 }
 .manage-list .manage-list-row:last-child { border-bottom: none; }
-.manage-list-code { color: var(--text-dim); font-size: 0.78rem; }
+.manage-list-code { color: var(--text-dim); font-size: 0.75rem; }
 
 .back {
   color: var(--text-dim);
@@ -1329,7 +1353,7 @@ h1, h2, .topbar h1, .sheet-title, .auth-title {
 .league-group-title-icon { display: flex; align-items: center; gap: 6px; }
 
 .league-group-title {
-  font-size: 0.76rem;
+  font-size: 0.75rem;
   text-transform: uppercase;
   letter-spacing: 0.03em;
   color: var(--text-dim);
@@ -1373,7 +1397,34 @@ h1, h2, .topbar h1, .sheet-title, .auth-title {
 }
 
 .off-time { font-weight: 600; font-size: 0.92rem; }
-.countdown { font-size: 0.68rem; color: var(--text-dim); font-family: var(--font-mono); }
+.countdown { font-size: 0.66rem; color: var(--text-dim); font-family: var(--font-mono); }
+
+.live-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 0.66rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  color: var(--bad);
+}
+.live-badge-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--bad);
+  animation: live-pulse 1.6s ease-in-out infinite;
+}
+@media (prefers-reduced-motion: reduce) {
+  .live-badge-dot { animation: none; }
+}
+@keyframes live-pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.35; }
+}
+
+.race-header-live { display: flex; align-items: center; gap: 10px; margin: 4px 0; }
+.watch-live-btn { text-decoration: none; }
 
 .race-card-main { flex: 1; min-width: 0; }
 
@@ -1386,7 +1437,7 @@ h1, h2, .topbar h1, .sheet-title, .auth-title {
 }
 
 .race-card-meta {
-  font-size: 0.72rem;
+  font-size: 0.75rem;
   color: var(--text-dim);
   margin-top: 1px;
 }
@@ -1484,11 +1535,11 @@ h1, h2, .topbar h1, .sheet-title, .auth-title {
 
 .runner-info { flex: 1; min-width: 0; }
 .runner-name { font-weight: 600; font-size: 0.95rem; }
-.runner-connections { font-size: 0.78rem; color: var(--text-dim); margin-top: 2px; }
+.runner-connections { font-size: 0.75rem; color: var(--text-dim); margin-top: 2px; }
 
 .runner-best { text-align: right; }
 .best-price { color: var(--accent); font-weight: 700; font-size: 1.05rem; }
-.best-bookmaker { font-size: 0.72rem; color: var(--text-dim); }
+.best-bookmaker { font-size: 0.75rem; color: var(--text-dim); }
 
 .runner-all-odds {
   display: none;

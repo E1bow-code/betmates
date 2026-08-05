@@ -9,6 +9,7 @@ import { GENERIC_SPORTS, SPORT_LABEL } from '../lib/sportsConfig.js'
 import { formatKickoff, formatCountdown } from '../utils/format.js'
 import { bestWithinFilter } from '../utils/oddsUtils.js'
 import { formatOdds } from '../utils/oddsFormat.js'
+import { isLive } from '../utils/liveStatus.js'
 import { useAuth } from '../context/AuthContext.jsx'
 import { useOddsFormat } from '../context/OddsFormatContext.jsx'
 import EmptyState from '../components/EmptyState.jsx'
@@ -17,6 +18,8 @@ import PlayerPhoto from '../components/PlayerPhoto.jsx'
 import SportHeroBanner from '../components/SportHeroBanner.jsx'
 import PullToRefresh from '../components/PullToRefresh.jsx'
 import SportIcon from '../components/icons/SportIcons.jsx'
+import LiveBadge from '../components/LiveBadge.jsx'
+import PayoutCalculatorButton from '../components/PayoutCalculatorSheet.jsx'
 
 const SPORTS = ['football', 'racing', 'ufc', ...Object.keys(GENERIC_SPORTS)].map((key) => ({ key, label: SPORT_LABEL[key] }))
 
@@ -177,7 +180,10 @@ export default function OddsListPage() {
     <PullToRefresh onRefresh={refresh}>
       <SportHeroBanner sport={sport} />
       <div className="topbar">
-        <h1>Odds</h1>
+        <div className="topbar-row">
+          <h1>Odds</h1>
+          <PayoutCalculatorButton />
+        </div>
         <div className="sport-switcher">
           {SPORTS.map((s) => (
             <button
@@ -189,13 +195,26 @@ export default function OddsListPage() {
             </button>
           ))}
         </div>
-        <div className="mode-switcher">
-          <button className={mode === 'upcoming' ? 'mode-tab active' : 'mode-tab'} onClick={() => setMode('upcoming')}>
-            Upcoming
-          </button>
-          <button className={mode === 'results' ? 'mode-tab active' : 'mode-tab'} onClick={() => setMode('results')}>
-            Results
-          </button>
+        <div className="topbar-row">
+          <div className="mode-switcher">
+            <button className={mode === 'upcoming' ? 'mode-tab active' : 'mode-tab'} onClick={() => setMode('upcoming')}>
+              Upcoming
+            </button>
+            <button className={mode === 'results' ? 'mode-tab active' : 'mode-tab'} onClick={() => setMode('results')}>
+              Results
+            </button>
+          </div>
+          {mode === 'upcoming' && (
+            <label className="filter-toggle filter-toggle-inline">
+              <input
+                type="checkbox"
+                checked={myBookiesOnly}
+                onChange={(e) => setMyBookiesOnly(e.target.checked)}
+                disabled={!user?.bookmakerPrefs?.length}
+              />
+              <span>My bookies only</span>
+            </label>
+          )}
         </div>
         <input
           className="search-input"
@@ -204,17 +223,6 @@ export default function OddsListPage() {
           value={search}
           onChange={(e) => setSearch(e.target.value)}
         />
-        {mode === 'upcoming' && (
-          <label className="filter-toggle">
-            <input
-              type="checkbox"
-              checked={myBookiesOnly}
-              onChange={(e) => setMyBookiesOnly(e.target.checked)}
-              disabled={!user?.bookmakerPrefs?.length}
-            />
-            <span>My bookies only</span>
-          </label>
-        )}
       </div>
 
       {mode === 'upcoming' && searchActive && (
@@ -368,7 +376,7 @@ function FixtureCard({ fixture, bookmakerFilter, format }) {
     <Link className="race-card" to={`/odds/football/${fixture.id}`}>
       <div className="race-card-time">
         <span className="off-time">{formatKickoff(fixture.kickoff)}</span>
-        <span className="countdown">{formatCountdown(fixture.kickoff)}</span>
+        {isLive(fixture.kickoff, 'football') ? <LiveBadge /> : <span className="countdown">{formatCountdown(fixture.kickoff)}</span>}
       </div>
       <div className="race-card-main">
         <div className="race-card-title fixture-teams-row">
@@ -403,7 +411,7 @@ function RaceCard({ race, bookmakerFilter, format }) {
     <Link className="race-card" to={`/odds/racing/${race.id}`}>
       <div className="race-card-time">
         <span className="off-time">{formatKickoff(race.offTime)}</span>
-        <span className="countdown">{formatCountdown(race.offTime)}</span>
+        {isLive(race.offTime, 'racing') ? <LiveBadge /> : <span className="countdown">{formatCountdown(race.offTime)}</span>}
       </div>
       <div className="race-card-main">
         <div className="race-card-title">
@@ -439,7 +447,7 @@ function FightCard({ fight, bookmakerFilter, format }) {
     <Link className="race-card" to={`/odds/ufc/${fight.id}`}>
       <div className="race-card-time">
         <span className="off-time">{formatKickoff(fight.kickoff)}</span>
-        <span className="countdown">{formatCountdown(fight.kickoff)}</span>
+        {isLive(fight.kickoff, 'ufc') ? <LiveBadge /> : <span className="countdown">{formatCountdown(fight.kickoff)}</span>}
       </div>
       <div className="race-card-main">
         <div className="race-card-title fixture-teams-row">
@@ -477,7 +485,7 @@ function EventCard({ event, sportKey, config, bookmakerFilter, format }) {
     <Link className="race-card" to={`/odds/${sportKey}/${event.id}`}>
       <div className="race-card-time">
         <span className="off-time">{formatKickoff(event.kickoff)}</span>
-        <span className="countdown">{formatCountdown(event.kickoff)}</span>
+        {isLive(event.kickoff, sportKey) ? <LiveBadge /> : <span className="countdown">{formatCountdown(event.kickoff)}</span>}
       </div>
       <div className="race-card-main">
         <div className="race-card-title fixture-teams-row">

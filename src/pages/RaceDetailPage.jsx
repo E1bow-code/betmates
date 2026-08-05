@@ -4,10 +4,13 @@ import { fetchRace } from '../api/racingClient.js'
 import { formatKickoff, formatCountdown } from '../utils/format.js'
 import { bestWithinFilter } from '../utils/oddsUtils.js'
 import { formatOdds } from '../utils/oddsFormat.js'
+import { isLive } from '../utils/liveStatus.js'
 import { useAuth } from '../context/AuthContext.jsx'
 import { useBetSlip } from '../context/BetSlipContext.jsx'
 import { useOddsFormat } from '../context/OddsFormatContext.jsx'
 import SportHeroBanner from '../components/SportHeroBanner.jsx'
+import LiveBadge from '../components/LiveBadge.jsx'
+import WatchLiveButton from '../components/WatchLiveButton.jsx'
 
 export default function RaceDetailPage() {
   const { id } = useParams()
@@ -64,6 +67,12 @@ export default function RaceDetailPage() {
         <div className="race-header-meta">
           {formatKickoff(race.offTime)} ({formatCountdown(race.offTime)}) · {race.raceClass} · {race.distance} · {race.going}
         </div>
+        {isLive(race.offTime, 'racing') && (
+          <div className="race-header-live">
+            <LiveBadge />
+            <WatchLiveButton />
+          </div>
+        )}
         <label className="filter-toggle">
           <input
             type="checkbox"

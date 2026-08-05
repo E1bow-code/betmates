@@ -725,6 +725,66 @@ export async function deletePushSubscription(endpoint) {
   if (error) throw error
 }
 
+// --- Odds target alerts ---------------------------------------------------
+// Checked server-side by netlify/functions/check-odds-alerts.js, which has
+// no equivalent in local mode (no scheduled functions run against
+// localStorage) - alerts still save/list/delete locally so the flow stays
+// fully clickable, they just never actually fire there.
+
+function mapOddsAlert(row) {
+  return {
+    id: row.id,
+    sport: row.sport,
+    eventId: row.event_id,
+    eventLabel: row.event_label,
+    kickoff: row.kickoff,
+    marketLabel: row.market_label,
+    selectionLabel: row.selection_label,
+    targetDecimal: Number(row.target_decimal),
+    createdAt: row.created_at,
+    triggeredAt: row.triggered_at
+  }
+}
+
+export async function createOddsAlert(userId, alert) {
+  if (!isSupabaseConfigured) return local.createOddsAlert(userId, alert)
+  const { data, error } = await supabase
+    .from('odds_alerts')
+    .insert({
+      user_id: userId,
+      sport: alert.sport,
+      event_id: alert.eventId,
+      event_label: alert.eventLabel,
+      kickoff: alert.kickoff,
+      market_key: alert.marketKey,
+      market_label: alert.marketLabel,
+      outcome_name: alert.outcomeName,
+      selection_label: alert.selectionLabel,
+      target_decimal: alert.targetDecimal
+    })
+    .select()
+    .single()
+  if (error) throw error
+  return mapOddsAlert(data)
+}
+
+export async function listMyOddsAlerts(userId) {
+  if (!isSupabaseConfigured) return local.listMyOddsAlerts(userId)
+  const { data, error } = await supabase
+    .from('odds_alerts')
+    .select('*')
+    .eq('user_id', userId)
+    .order('created_at', { ascending: false })
+  if (error) throw error
+  return data.map(mapOddsAlert)
+}
+
+export async function deleteOddsAlert(alertId) {
+  if (!isSupabaseConfigured) return local.deleteOddsAlert(alertId)
+  const { error } = await supabase.from('odds_alerts').delete().eq('id', alertId)
+  if (error) throw error
+}
+
 // --- Aggregated social feed ------------------------------------------------
 // Composed from the primitives above (not backend-specific) so it works
 // unchanged on both the local mock and Supabase: pulls every group the

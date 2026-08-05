@@ -1,7 +1,11 @@
-import { useEffect } from 'react'
+import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { useActivity } from '../context/ActivityContext.jsx'
+import { useAuth } from '../context/AuthContext.jsx'
+import { useOddsFormat } from '../context/OddsFormatContext.jsx'
+import * as dataStore from '../lib/dataStore.js'
 import { formatRelativeTime } from '../utils/format.js'
+import { formatOdds } from '../utils/oddsFormat.js'
 import EmptyState from '../components/EmptyState.jsx'
 import SportHeroBanner from '../components/SportHeroBanner.jsx'
 
@@ -12,11 +16,29 @@ import SportHeroBanner from '../components/SportHeroBanner.jsx'
 // where this feed is actually built - composed from data other pages
 // already fetch, not a dedicated notifications table.
 export default function NotificationsPage() {
+  const { user } = useAuth()
+  const { format } = useOddsFormat()
   const { notifications, markNotificationsSeen } = useActivity()
+  const [priceAlerts, setPriceAlerts] = useState(null)
+  const [removingId, setRemovingId] = useState(null)
 
   useEffect(() => {
     markNotificationsSeen()
   }, [markNotificationsSeen])
+
+  useEffect(() => {
+    dataStore.listMyOddsAlerts(user.id).then(setPriceAlerts)
+  }, [user.id])
+
+  async function handleRemoveAlert(alertId) {
+    setRemovingId(alertId)
+    try {
+      await dataStore.deleteOddsAlert(alertId)
+      setPriceAlerts((alerts) => alerts.filter((a) => a.id !== alertId))
+    } finally {
+      setRemovingId(null)
+    }
+  }
 
   return (
     <div>
@@ -40,6 +62,32 @@ export default function NotificationsPage() {
           {notifications.map((n) => (
             <NotificationRow key={n.id} item={n} />
           ))}
+        </div>
+      )}
+
+      {priceAlerts && priceAlerts.length > 0 && (
+        <div className="account-section">
+          <h2 className="market-title">My price alerts</h2>
+          <p className="hint">Set from the 🔔 button on any outcome's price. Checked every 15 minutes while pending.</p>
+          <div className="tracker-list">
+            {priceAlerts.map((a) => (
+              <div key={a.id} className="tracker-row">
+                <div className="tracker-row-main">
+                  <div className="selection-event">
+                    {a.eventLabel} · {a.marketLabel}: {a.selectionLabel}
+                  </div>
+                  <div className="race-card-meta">
+                    {a.triggeredAt
+                      ? `Hit ${formatOdds(a.targetDecimal, format)} · ${formatRelativeTime(a.triggeredAt)}`
+                      : `Waiting for ${formatOdds(a.targetDecimal, format)} or better`}
+                  </div>
+                </div>
+                <button className="btn btn-ghost btn-small" onClick={() => handleRemoveAlert(a.id)} disabled={removingId === a.id}>
+                  {removingId === a.id ? 'Removing…' : 'Remove'}
+                </button>
+              </div>
+            ))}
+          </div>
         </div>
       )}
     </div>
