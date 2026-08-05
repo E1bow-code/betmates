@@ -1,10 +1,11 @@
-import { useEffect, useRef } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { HashRouter, Routes, Route, Navigate, useNavigate, useParams } from 'react-router-dom'
 import { AuthProvider, useAuth } from './context/AuthContext.jsx'
 import { BetSlipProvider } from './context/BetSlipContext.jsx'
 import { ActivityProvider } from './context/ActivityContext.jsx'
 import BottomNav from './components/BottomNav.jsx'
 import InstallGuideBanner from './components/InstallGuideBanner.jsx'
+import OnboardingTour from './components/OnboardingTour.jsx'
 import BetSlipBar from './components/BetSlipBar.jsx'
 import BetBuilderSheet from './components/BetBuilderSheet.jsx'
 import AuthPage from './pages/AuthPage.jsx'
@@ -77,8 +78,20 @@ function HomeRedirect() {
   return null
 }
 
+const ONBOARDED_PREFIX = 'betmates:onboarded:'
+
 function Shell() {
   const { user, loading } = useAuth()
+  const [showTour, setShowTour] = useState(false)
+
+  useEffect(() => {
+    if (user && !localStorage.getItem(ONBOARDED_PREFIX + user.id)) setShowTour(true)
+  }, [user])
+
+  function dismissTour() {
+    if (user) localStorage.setItem(ONBOARDED_PREFIX + user.id, '1')
+    setShowTour(false)
+  }
 
   // Supabase's password-recovery redirect also lands on a URL fragment
   // (#access_token=...&type=recovery), which HashRouter would otherwise try
@@ -131,6 +144,7 @@ function Shell() {
           <BetSlipBar />
           <BetBuilderSheet />
           <BottomNav />
+          {showTour && <OnboardingTour onDone={dismissTour} />}
         </div>
       </BetSlipProvider>
     </ActivityProvider>

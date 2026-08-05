@@ -26,6 +26,10 @@ export default function GroupFeedPage() {
   const [sending, setSending] = useState(false)
   const [leaving, setLeaving] = useState(false)
   const [shareStatus, setShareStatus] = useState(null)
+  const [renaming, setRenaming] = useState(false)
+  const [nameInput, setNameInput] = useState('')
+  const [savingName, setSavingName] = useState(false)
+  const [removingId, setRemovingId] = useState(null)
 
   function refresh() {
     return Promise.all([dataStore.getGroup(id), dataStore.listBetPosts(id), dataStore.listGroupMembers(id), dataStore.listSharedInGroup(id)])
@@ -61,6 +65,44 @@ export default function GroupFeedPage() {
     } catch (err) {
       setError(err.message)
       setLeaving(false)
+    }
+  }
+
+  const isCreator = group?.createdBy === user.id
+
+  function startRename() {
+    setNameInput(group.name)
+    setRenaming(true)
+  }
+
+  async function handleRename(e) {
+    e.preventDefault()
+    const name = nameInput.trim()
+    if (!name || name === group.name) {
+      setRenaming(false)
+      return
+    }
+    setSavingName(true)
+    try {
+      setGroup(await dataStore.renameGroup(id, name))
+      setRenaming(false)
+    } catch (err) {
+      setError(err.message)
+    } finally {
+      setSavingName(false)
+    }
+  }
+
+  async function handleRemoveMember(memberId, displayName) {
+    if (!window.confirm(`Remove ${displayName} from "${group.name}"?`)) return
+    setRemovingId(memberId)
+    try {
+      await dataStore.removeGroupMember(id, memberId, user.id)
+      setMembers((ms) => ms.filter((m) => m.id !== memberId))
+    } catch (err) {
+      setError(err.message)
+    } finally {
+      setRemovingId(null)
     }
   }
 
@@ -180,6 +222,31 @@ export default function GroupFeedPage() {
 
       {tab === 'members' && (
         <div>
+          {isCreator && (
+            <div className="group-actions">
+              {renaming ? (
+                <form className="chat-input-row" onSubmit={handleRename}>
+                  <input
+                    value={nameInput}
+                    onChange={(e) => setNameInput(e.target.value)}
+                    maxLength={60}
+                    autoFocus
+                  />
+                  <button className="btn btn-primary btn-small" type="submit" disabled={savingName || !nameInput.trim()}>
+                    Save
+                  </button>
+                  <button className="btn btn-ghost btn-small" type="button" onClick={() => setRenaming(false)}>
+                    Cancel
+                  </button>
+                </form>
+              ) : (
+                <button className="btn btn-secondary btn-small" onClick={startRename}>
+                  Rename group
+                </button>
+              )}
+            </div>
+          )}
+
           <div className="manage-list">
             {members.map((m) => (
               <div key={m.id} className="manage-list-row">
@@ -190,6 +257,15 @@ export default function GroupFeedPage() {
                     {m.id === user.id && ' (you)'}
                   </span>
                 </span>
+                {isCreator && m.id !== user.id && (
+                  <button
+                    className="btn btn-ghost btn-small"
+                    onClick={() => handleRemoveMember(m.id, m.displayName)}
+                    disabled={removingId === m.id}
+                  >
+                    {removingId === m.id ? 'Removing…' : 'Remove'}
+                  </button>
+                )}
               </div>
             ))}
           </div>

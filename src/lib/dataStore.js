@@ -195,6 +195,24 @@ export async function leaveGroup(groupId, userId) {
   return true
 }
 
+// Both of these are gated to the group's creator by RLS on the Supabase
+// side (see "creator renames their group" / "creator removes a member" in
+// schema.sql) - the local backend has no RLS, so it re-checks createdBy
+// itself to match that behavior.
+export async function renameGroup(groupId, name) {
+  if (!isSupabaseConfigured) return local.renameGroup(groupId, name)
+  const { data, error } = await supabase.from('groups').update({ name }).eq('id', groupId).select().single()
+  if (error) throw error
+  return mapGroup(data)
+}
+
+export async function removeGroupMember(groupId, memberId, requesterId) {
+  if (!isSupabaseConfigured) return local.removeGroupMember(groupId, memberId, requesterId)
+  const { error } = await supabase.from('group_members').delete().eq('group_id', groupId).eq('user_id', memberId)
+  if (error) throw error
+  return true
+}
+
 // --- Group chat ---------------------------------------------------------
 // Plain free-text messages in a group, separate from bet_comments (which
 // are threaded under one specific bet post). Names aren't embedded here -

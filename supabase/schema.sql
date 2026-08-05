@@ -144,6 +144,7 @@ create policy "signed-in users can read any profile" on profiles for select usin
 -- can technically list all groups' names/codes, not just ones they're in.
 create policy "signed-in users can read any group" on groups for select using (auth.role() = 'authenticated');
 create policy "any signed-in user can create a group" on groups for insert with check (auth.uid() = created_by);
+create policy "creator renames their group" on groups for update using (auth.uid() = created_by);
 
 -- A policy on group_members that subqueries group_members itself causes
 -- "infinite recursion detected in policy" - Postgres re-evaluates the same
@@ -169,6 +170,9 @@ create policy "members read their membership rows" on group_members for select u
 );
 create policy "user joins a group as themselves" on group_members for insert with check (auth.uid() = user_id);
 create policy "user leaves a group as themselves" on group_members for delete using (auth.uid() = user_id);
+create policy "creator removes a member" on group_members for delete using (
+  exists (select 1 from groups g where g.id = group_members.group_id and g.created_by = auth.uid())
+);
 
 create policy "members read bet posts in their groups" on bet_posts for select using (
   exists (select 1 from group_members m where m.group_id = bet_posts.group_id and m.user_id = auth.uid())

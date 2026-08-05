@@ -201,6 +201,25 @@ export function leaveGroup(groupId, userId) {
   return delay(true)
 }
 
+export function renameGroup(groupId, name) {
+  const db = readDb()
+  const group = db.groups.find((g) => g.id === groupId)
+  if (group) {
+    group.name = name
+    writeDb(db)
+  }
+  return delay(group || null)
+}
+
+export function removeGroupMember(groupId, memberId, requesterId) {
+  const db = readDb()
+  const group = db.groups.find((g) => g.id === groupId)
+  if (!group || group.createdBy !== requesterId) return Promise.reject(new Error('Only the group creator can remove members.'))
+  db.groupMembers = db.groupMembers.filter((m) => !(m.groupId === groupId && m.userId === memberId))
+  writeDb(db)
+  return delay(true)
+}
+
 // --- Group chat -------------------------------------------------------
 
 export function listGroupMessages(groupId) {
