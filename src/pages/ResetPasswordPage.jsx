@@ -8,10 +8,13 @@ import { updatePassword } from '../lib/dataStore.js'
 // detectSessionInUrl behaviour) - this page doesn't need to parse anything
 // itself, just call updateUser() against whatever session is already there.
 //
-// App.jsx routes here by checking window.location.hash for "type=recovery"
-// directly, rather than a normal react-router path match - Supabase's own
-// redirect also uses a hash fragment, which would otherwise collide with
-// HashRouter trying to parse it as a route.
+// App.jsx's Shell routes here off AuthContext's `passwordRecovery` flag
+// (set via Supabase's PASSWORD_RECOVERY auth event - see
+// dataStore.js's onAuthStateChange), not a normal react-router path match -
+// Supabase's own redirect lands the recovery token in a hash fragment,
+// which would otherwise collide with HashRouter trying to parse it as a
+// route, and by the time any code could read that fragment directly
+// Supabase has often already cleared it as part of its own init.
 export default function ResetPasswordPage() {
   const [password, setPassword] = useState('')
   const [confirm, setConfirm] = useState('')

@@ -6,12 +6,24 @@ const AuthContext = createContext(null)
 export function AuthProvider({ children }) {
   const [user, setUser] = useState(null)
   const [loading, setLoading] = useState(true)
+  const [passwordRecovery, setPasswordRecovery] = useState(false)
 
   useEffect(() => {
     dataStore
       .getSession()
       .then(setUser)
       .finally(() => setLoading(false))
+  }, [])
+
+  // See dataStore.js's onAuthStateChange comment - this is the only
+  // reliable way to catch a password-recovery link (App.jsx's Shell used to
+  // sniff window.location.hash for it directly, which lost a race against
+  // Supabase's own URL cleanup and silently signed people in instead of
+  // showing the reset form).
+  useEffect(() => {
+    return dataStore.onAuthStateChange((event) => {
+      if (event === 'PASSWORD_RECOVERY') setPasswordRecovery(true)
+    })
   }, [])
 
   const signUp = useCallback(async (fields) => {
@@ -87,6 +99,7 @@ export function AuthProvider({ children }) {
       value={{
         user,
         loading,
+        passwordRecovery,
         signUp,
         signIn,
         signOut,

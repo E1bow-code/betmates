@@ -150,6 +150,20 @@ export async function updatePassword(newPassword) {
   if (error) throw error
 }
 
+// The PASSWORD_RECOVERY event (not a URL check - see AuthContext.jsx) is
+// the only race-free way to catch a recovery link: Supabase's client
+// detects and strips the recovery token from the URL as part of its own
+// init, which can happen before the app's first render ever sees it, but
+// listeners registered here still receive the event regardless of that
+// timing. No-op in local mode, matching requestPasswordReset's own guard.
+export function onAuthStateChange(callback) {
+  if (!isSupabaseConfigured) return () => {}
+  const {
+    data: { subscription }
+  } = supabase.auth.onAuthStateChange((event) => callback(event))
+  return () => subscription.unsubscribe()
+}
+
 // Permanently deletes the account (see netlify/functions/delete-account.js
 // for what actually gets removed/reassigned). Signs the session out
 // locally on success since the user row it belonged to no longer exists.

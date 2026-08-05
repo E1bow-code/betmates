@@ -102,7 +102,7 @@ function HomeRedirect() {
 const ONBOARDED_PREFIX = 'betmates:onboarded:'
 
 function Shell() {
-  const { user, loading } = useAuth()
+  const { user, loading, passwordRecovery } = useAuth()
   const [showTour, setShowTour] = useState(false)
 
   useEffect(() => {
@@ -114,11 +114,13 @@ function Shell() {
     setShowTour(false)
   }
 
-  // Supabase's password-recovery redirect also lands on a URL fragment
-  // (#access_token=...&type=recovery), which HashRouter would otherwise try
-  // to parse as a route - checking for it directly here, ahead of both the
-  // loading and auth-state branches, sidesteps that collision entirely.
-  if (window.location.hash.includes('type=recovery')) {
+  // Checked ahead of both the loading and auth-state branches below - a
+  // recovery session still counts as "signed in" as far as Supabase and the
+  // `user`/`loading` state above are concerned, so without this check
+  // they'd fall straight through to the normal signed-in app instead of the
+  // reset-password form. See AuthContext.jsx/dataStore.js's
+  // onAuthStateChange for why this reads a state flag rather than the URL.
+  if (passwordRecovery) {
     return <ResetPasswordPage />
   }
 
