@@ -21,7 +21,9 @@ const EMPTY_DB = {
   videoPosts: [],
   videoShares: [],
   follows: [],
-  groupMessages: []
+  groupMessages: [],
+  blocks: [],
+  postReports: []
 }
 
 // Merges in any table keys added after a browser's db was first created -
@@ -134,6 +136,50 @@ export function signIn({ email }) {
 export function signOut() {
   localStorage.removeItem(SESSION_KEY)
   return delay(null)
+}
+
+// Mirrors netlify/functions/delete-account.js: groups this user created
+// get handed to their longest-standing other member, or deleted outright
+// if they were the only one in it, before the user's own rows are removed.
+export function deleteAccount(userId) {
+  const db = readDb()
+
+  for (const group of db.groups.filter((g) => g.createdBy === userId)) {
+    const others = db.groupMembers
+      .filter((m) => m.groupId === group.id && m.userId !== userId)
+      .sort((a, b) => new Date(a.joinedAt) - new Date(b.joinedAt))
+    if (others.length) {
+      group.createdBy = others[0].userId
+    } else {
+      const betIds = db.betPosts.filter((b) => b.groupId === group.id).map((b) => b.id)
+      db.betPosts = db.betPosts.filter((b) => b.groupId !== group.id)
+      db.reactions = db.reactions.filter((r) => !betIds.includes(r.betId))
+      db.comments = db.comments.filter((c) => !betIds.includes(c.betId))
+      db.groupMessages = db.groupMessages.filter((m) => m.groupId !== group.id)
+      db.groupMembers = db.groupMembers.filter((m) => m.groupId !== group.id)
+      db.groups = db.groups.filter((g) => g.id !== group.id)
+    }
+  }
+
+  const ownBetIds = db.betPosts.filter((b) => b.userId === userId).map((b) => b.id)
+  db.groupMembers = db.groupMembers.filter((m) => m.userId !== userId)
+  db.betPosts = db.betPosts.filter((b) => b.userId !== userId)
+  db.betCopies = db.betCopies.filter((c) => c.copyingUserId !== userId && !ownBetIds.includes(c.originalBetId))
+  db.reactions = db.reactions.filter((r) => r.userId !== userId && !ownBetIds.includes(r.betId))
+  db.comments = db.comments.filter((c) => c.userId !== userId && !ownBetIds.includes(c.betId))
+  db.manualEntries = db.manualEntries.filter((e) => e.userId !== userId)
+  db.friendships = db.friendships.filter((f) => f.userA !== userId && f.userB !== userId)
+  db.follows = db.follows.filter((f) => f.followerId !== userId && f.followingId !== userId)
+  db.videoPosts = db.videoPosts.filter((v) => v.authorId !== userId)
+  db.videoShares = db.videoShares.filter((s) => s.sharedByUserId !== userId)
+  db.groupMessages = db.groupMessages.filter((m) => m.userId !== userId)
+  db.blocks = db.blocks.filter((b) => b.blockerId !== userId && b.blockedId !== userId)
+  db.postReports = db.postReports.filter((r) => r.reporterId !== userId)
+  db.users = db.users.filter((u) => u.id !== userId)
+
+  writeDb(db)
+  localStorage.removeItem(SESSION_KEY)
+  return delay(true)
 }
 
 function ageFromDob(dob) {
@@ -279,12 +325,13 @@ export function listBetPostsByUser(userId) {
 // regardless of group membership (see BetBuilderSheet's "Post publicly").
 // Author names are resolved against every user, not just group members,
 // since a public post can come from - and be seen by - anyone.
-export function listPublicFeed() {
+export function listPublicFeed(viewerId) {
   const db = readDb()
   const names = Object.fromEntries(db.users.map((u) => [u.id, u.displayName]))
+  const blockedIds = viewerId ? db.blocks.filter((b) => b.blockerId === viewerId).map((b) => b.blockedId) : []
   return delay(
     db.betPosts
-      .filter((b) => b.visibility === 'public')
+      .filter((b) => b.visibility === 'public' && !blockedIds.includes(b.userId))
       .map((b) => ({ ...b, authorName: names[b.userId] ?? 'Someone' }))
       .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))
   )
@@ -553,4 +600,44 @@ export function listFollowing(userId) {
   const db = readDb()
   const ids = db.follows.filter((f) => f.followerId === userId).map((f) => f.followingId)
   return delay(ids)
+}
+
+// --- Blocks & reports ----------------------------------------------------
+
+export function blockUser(userId, blockedId) {
+  const db = readDb()
+  if (!db.blocks.some((b) => b.blockerId === userId && b.blockedId === blockedId)) {
+    db.blocks.push({ id: uid('block'), blockerId: userId, blockedId, createdAt: new Date().toISOString() })
+    writeDb(db)
+  }
+  return delay(true)
+}
+
+export function unblockUser(userId, blockedId) {
+  const db = readDb()
+  db.blocks = db.blocks.filter((b) => !(b.blockerId === userId && b.blockedId === blockedId))
+  writeDb(db)
+  return delay(true)
+}
+
+export function listBlockedUserIds(userId) {
+  const db = readDb()
+  return delay(db.blocks.filter((b) => b.blockerId === userId).map((b) => b.blockedId))
+}
+
+export function listBlockedUsers(userId) {
+  const db = readDb()
+  const names = Object.fromEntries(db.users.map((u) => [u.id, u.displayName]))
+  return delay(
+    db.blocks.filter((b) => b.blockerId === userId).map((b) => ({ id: b.blockedId, displayName: names[b.blockedId] ?? 'Someone' }))
+  )
+}
+
+export function reportPost(postId, reporterId, reason) {
+  const db = readDb()
+  if (!db.postReports.some((r) => r.postId === postId && r.reporterId === reporterId)) {
+    db.postReports.push({ id: uid('report'), postId, reporterId, reason, createdAt: new Date().toISOString() })
+    writeDb(db)
+  }
+  return delay(true)
 }

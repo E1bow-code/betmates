@@ -13,13 +13,20 @@ const VOTE_OPTIONS = [
   { key: 'not_happening', label: 'Not happening' }
 ]
 const STATUS_LABEL = { open: 'Pending', won: 'Won', lost: 'Lost', void: 'Void' }
+const REPORT_REASONS = [
+  { key: 'spam', label: 'Spam' },
+  { key: 'offensive', label: 'Offensive' },
+  { key: 'misleading', label: 'Misleading' }
+]
 
 // variant='public' is for the everyone-can-see feed (see
 // src/pages/SocialFeedPage.jsx's Feed segment): swaps the emoji reaction
 // row for a three-way confidence vote and adds a follow button, since
-// there's no group membership here to imply "these are your mates".
+// there's no group membership here to imply "these are your mates". Block/
+// report only make sense here too - group posts are already people you
+// chose to be around, not unsolicited exposure.
 
-export default function BetCard({ post, memberNames, variant = 'group' }) {
+export default function BetCard({ post, memberNames, variant = 'group', onBlocked }) {
   const { user } = useAuth()
   const [reactions, setReactions] = useState([])
   const [comments, setComments] = useState([])
@@ -27,6 +34,8 @@ export default function BetCard({ post, memberNames, variant = 'group' }) {
   const [commentBody, setCommentBody] = useState('')
   const [status, setStatus] = useState(post.status)
   const [following, setFollowing] = useState(false)
+  const [showModeration, setShowModeration] = useState(false)
+  const [reported, setReported] = useState(false)
 
   useEffect(() => {
     dataStore.listReactions(post.id).then(setReactions)
@@ -70,6 +79,18 @@ export default function BetCard({ post, memberNames, variant = 'group' }) {
     setFollowing((f) => !f)
   }
 
+  async function handleBlock() {
+    if (!window.confirm(`Block ${authorName}? You won't see their posts anymore, and they won't see yours.`)) return
+    await dataStore.blockUser(user.id, post.userId)
+    onBlocked?.(post.userId)
+  }
+
+  async function handleReport(reason) {
+    await dataStore.reportPost(post.id, user.id, reason)
+    setReported(true)
+    setShowModeration(false)
+  }
+
   const selections = post.selections
   const combinedOdds = selections.length > 1 ? selections.reduce((acc, s) => acc * s.odds, 1) : null
 
@@ -90,8 +111,33 @@ export default function BetCard({ post, memberNames, variant = 'group' }) {
             </button>
           )}
           <span className={`bet-status-pill status-${status}`}>{STATUS_LABEL[status]}</span>
+          {variant === 'public' && !isAuthor && (
+            <button className="moderation-toggle" onClick={() => setShowModeration((v) => !v)} aria-label="More options">
+              ⋯
+            </button>
+          )}
         </div>
       </div>
+
+      {showModeration && (
+        <div className="moderation-menu">
+          <button className="btn btn-ghost btn-small" onClick={handleBlock}>
+            Block {authorName}
+          </button>
+          {reported ? (
+            <span className="hint">Reported, thanks.</span>
+          ) : (
+            <>
+              <span className="hint">Report:</span>
+              {REPORT_REASONS.map((r) => (
+                <button key={r.key} className="btn btn-ghost btn-small" onClick={() => handleReport(r.key)}>
+                  {r.label}
+                </button>
+              ))}
+            </>
+          )}
+        </div>
+      )}
 
       <div className="bet-card-body">
         {selections.length > 1 && <div className="bet-card-leg-count">{selections.length}-leg bet builder</div>}

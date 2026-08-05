@@ -96,7 +96,11 @@ export default function SocialFeedPage() {
   }
 
   function refreshPublicFeed() {
-    return dataStore.listPublicFeed().then(setPublicFeed)
+    return dataStore.listPublicFeed(user.id).then(setPublicFeed)
+  }
+
+  function handleBlocked(blockedUserId) {
+    setPublicFeed((pf) => (pf ? pf.filter((p) => p.userId !== blockedUserId) : pf))
   }
 
   function handleManageChanged() {
@@ -215,7 +219,7 @@ export default function SocialFeedPage() {
           {publicFeed && publicFeed.length > 0 && (
             <div className="bet-feed">
               {publicFeed.map((post) => (
-                <BetCard key={post.id} post={post} variant="public" />
+                <BetCard key={post.id} post={post} variant="public" onBlocked={handleBlocked} />
               ))}
             </div>
           )}

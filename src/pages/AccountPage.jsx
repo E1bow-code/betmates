@@ -11,7 +11,7 @@ import Avatar from '../components/Avatar.jsx'
 import InstallGuide from '../components/InstallGuide.jsx'
 
 export default function AccountPage() {
-  const { user, signOut, updateDisplayName, updateBookmakerPrefs, updateNotificationPrefs } = useAuth()
+  const { user, signOut, deleteAccount, updateDisplayName, updateBookmakerPrefs, updateNotificationPrefs } = useAuth()
   const [pushEnabled, setPushEnabled] = useState(false)
   const [pushBusy, setPushBusy] = useState(false)
   const [pushError, setPushError] = useState(null)
@@ -21,6 +21,11 @@ export default function AccountPage() {
   const [nameError, setNameError] = useState(null)
   const [theme, setThemeState] = useState(getStoredTheme() === 'light' ? 'light' : 'dark')
   const [profileShareStatus, setProfileShareStatus] = useState(null)
+  const [blockedUsers, setBlockedUsers] = useState(null)
+  const [confirmingDelete, setConfirmingDelete] = useState(false)
+  const [deleteConfirmText, setDeleteConfirmText] = useState('')
+  const [deleting, setDeleting] = useState(false)
+  const [deleteError, setDeleteError] = useState(null)
 
   function handleThemeChange(next) {
     setTheme(next)
@@ -31,6 +36,26 @@ export default function AccountPage() {
     if (!isPushSupported()) return
     getPushSubscription().then((sub) => setPushEnabled(!!sub))
   }, [])
+
+  useEffect(() => {
+    dataStore.listBlockedUsers(user.id).then(setBlockedUsers)
+  }, [])
+
+  async function handleUnblock(blockedId) {
+    await dataStore.unblockUser(user.id, blockedId)
+    setBlockedUsers((list) => list.filter((b) => b.id !== blockedId))
+  }
+
+  async function handleDeleteAccount() {
+    setDeleting(true)
+    setDeleteError(null)
+    try {
+      await deleteAccount()
+    } catch (err) {
+      setDeleteError(err.message)
+      setDeleting(false)
+    }
+  }
 
   function toggleBookmaker(name) {
     const current = user.bookmakerPrefs ?? []
@@ -227,6 +252,23 @@ export default function AccountPage() {
         {profileShareStatus && <div className="hint">{profileShareStatus}</div>}
       </div>
 
+      {blockedUsers && blockedUsers.length > 0 && (
+        <div className="account-section">
+          <h2 className="market-title">Blocked accounts</h2>
+          <p className="hint">You won't see their posts on the public Feed, and they won't see yours.</p>
+          <div className="manage-list">
+            {blockedUsers.map((b) => (
+              <div key={b.id} className="manage-list-row">
+                <span>{b.displayName}</span>
+                <button className="btn btn-ghost btn-small" onClick={() => handleUnblock(b.id)}>
+                  Unblock
+                </button>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
       <div className="account-section">
         <h2 className="market-title">Install app</h2>
         {isStandalone() ? (
@@ -245,6 +287,51 @@ export default function AccountPage() {
         <Link to="/legal" className="back">
           Terms &amp; Responsible Gambling
         </Link>
+      </div>
+
+      <div className="account-section danger-zone">
+        <h2 className="market-title">Danger zone</h2>
+        {confirmingDelete ? (
+          <>
+            <p className="hint">
+              This permanently deletes your account and everything tied to it - bets, comments, groups you created (ownership
+              passes to another member, or the group's deleted if you were the only one in it). Type <strong>DELETE</strong> to
+              confirm.
+            </p>
+            <div className="inline-form">
+              <input
+                value={deleteConfirmText}
+                onChange={(e) => setDeleteConfirmText(e.target.value)}
+                placeholder="DELETE"
+                disabled={deleting}
+                autoFocus
+              />
+              <button
+                className="btn btn-danger"
+                onClick={handleDeleteAccount}
+                disabled={deleting || deleteConfirmText !== 'DELETE'}
+              >
+                {deleting ? 'Deleting…' : 'Delete my account'}
+              </button>
+            </div>
+            {deleteError && <div className="auth-error">{deleteError}</div>}
+            <button
+              className="btn btn-ghost btn-small"
+              disabled={deleting}
+              onClick={() => {
+                setConfirmingDelete(false)
+                setDeleteConfirmText('')
+                setDeleteError(null)
+              }}
+            >
+              Cancel
+            </button>
+          </>
+        ) : (
+          <button className="btn btn-danger-outline" onClick={() => setConfirmingDelete(true)}>
+            Delete account
+          </button>
+        )}
       </div>
 
       <button className="btn btn-secondary" onClick={signOut}>

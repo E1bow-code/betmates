@@ -39,7 +39,7 @@ create table group_members (
 create table bet_posts (
   id uuid primary key default gen_random_uuid(),
   group_id uuid references groups(id) on delete cascade,
-  user_id uuid not null references profiles(id),
+  user_id uuid not null references profiles(id) on delete cascade,
   sport text not null,
   market_type text not null,
   selections jsonb not null, -- [{event, market, selection, odds, bookmaker}, ...]
@@ -56,14 +56,14 @@ create table bet_posts (
 create table bet_copies (
   id uuid primary key default gen_random_uuid(),
   original_bet_id uuid not null references bet_posts(id) on delete cascade,
-  copying_user_id uuid not null references profiles(id),
+  copying_user_id uuid not null references profiles(id) on delete cascade,
   created_at timestamptz not null default now()
 );
 
 create table bet_reactions (
   id uuid primary key default gen_random_uuid(),
   bet_id uuid not null references bet_posts(id) on delete cascade,
-  user_id uuid not null references profiles(id),
+  user_id uuid not null references profiles(id) on delete cascade,
   emoji text not null,
   created_at timestamptz not null default now(),
   unique (bet_id, user_id, emoji)
@@ -72,7 +72,7 @@ create table bet_reactions (
 create table bet_comments (
   id uuid primary key default gen_random_uuid(),
   bet_id uuid not null references bet_posts(id) on delete cascade,
-  user_id uuid not null references profiles(id),
+  user_id uuid not null references profiles(id) on delete cascade,
   body text not null,
   created_at timestamptz not null default now()
 );
@@ -268,7 +268,7 @@ create table video_posts (
 create table video_shares (
   id uuid primary key default gen_random_uuid(),
   video_id uuid not null references video_posts(id) on delete cascade,
-  shared_by_user_id uuid not null references profiles(id),
+  shared_by_user_id uuid not null references profiles(id) on delete cascade,
   target_type text not null check (target_type in ('group', 'friend')),
   target_id uuid not null, -- groups.id or profiles.id depending on target_type
   created_at timestamptz not null default now()
@@ -308,7 +308,7 @@ create policy "user shares as themselves" on video_shares for insert with check 
 create table group_messages (
   id uuid primary key default gen_random_uuid(),
   group_id uuid not null references groups(id) on delete cascade,
-  user_id uuid not null references profiles(id),
+  user_id uuid not null references profiles(id) on delete cascade,
   body text not null,
   created_at timestamptz not null default now()
 );
@@ -356,4 +356,38 @@ create policy "group-mates can read push subscriptions to notify them" on push_s
 -- service-role key instead of RLS. The sent-at column just stops it
 -- re-notifying the same bet on its next 15-minute run.
 alter table bet_posts add column if not exists kickoff_reminder_sent_at timestamptz;
+
+-- --- Blocks & reports (public feed safety) ------------------------------
+-- Block/report only apply to the public Feed (see BetCard.jsx variant=
+-- 'public') - not group posts, since a group is already a set of people
+-- you chose to be around. Reports are captured here for a future
+-- moderation pass; there's no review dashboard reading this table yet.
+
+create table blocks (
+  id uuid primary key default gen_random_uuid(),
+  blocker_id uuid not null references profiles(id) on delete cascade,
+  blocked_id uuid not null references profiles(id) on delete cascade,
+  created_at timestamptz not null default now(),
+  check (blocker_id <> blocked_id),
+  unique (blocker_id, blocked_id)
+);
+
+create table post_reports (
+  id uuid primary key default gen_random_uuid(),
+  post_id uuid not null references bet_posts(id) on delete cascade,
+  reporter_id uuid not null references profiles(id) on delete cascade,
+  reason text not null,
+  created_at timestamptz not null default now(),
+  unique (post_id, reporter_id)
+);
+
+alter table blocks enable row level security;
+alter table post_reports enable row level security;
+
+create policy "user reads own blocks" on blocks for select using (auth.uid() = blocker_id);
+create policy "user blocks as themselves" on blocks for insert with check (auth.uid() = blocker_id);
+create policy "user unblocks as themselves" on blocks for delete using (auth.uid() = blocker_id);
+
+create policy "user reads own reports" on post_reports for select using (auth.uid() = reporter_id);
+create policy "user reports as themselves" on post_reports for insert with check (auth.uid() = reporter_id);
 alter table manual_entries add column if not exists kickoff_reminder_sent_at timestamptz;

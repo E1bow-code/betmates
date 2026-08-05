@@ -31,6 +31,12 @@ export function AuthProvider({ children }) {
     setUser(null)
   }, [])
 
+  const deleteAccount = useCallback(async () => {
+    if (!user) return
+    await dataStore.deleteAccount(user.id)
+    setUser(null)
+  }, [user])
+
   const updateDisplayName = useCallback(
     async (displayName) => {
       if (!user) return
@@ -60,7 +66,7 @@ export function AuthProvider({ children }) {
 
   return (
     <AuthContext.Provider
-      value={{ user, loading, signUp, signIn, signOut, updateDisplayName, updateBookmakerPrefs, updateNotificationPrefs }}
+      value={{ user, loading, signUp, signIn, signOut, deleteAccount, updateDisplayName, updateBookmakerPrefs, updateNotificationPrefs }}
     >
       {children}
     </AuthContext.Provider>

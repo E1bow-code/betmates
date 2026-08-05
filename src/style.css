@@ -331,6 +331,11 @@ h1, h2, .topbar h1, .sheet-title, .auth-title {
 .btn-primary:disabled { opacity: 0.6; }
 .btn-secondary { background: var(--surface-2); color: var(--text); border: 1px solid var(--border); }
 .btn-ghost { background: transparent; color: var(--text-dim); border: 1px solid var(--border); }
+.btn-danger { background: var(--bad); color: #fff; }
+.btn-danger:disabled { opacity: 0.5; }
+.btn-danger-outline { background: transparent; color: var(--bad); border: 1px solid var(--bad); }
+
+.danger-zone { border: 1px solid var(--bad); border-radius: 4px; padding: 12px; }
 
 .hint { color: var(--text-dim); font-size: 0.8rem; padding: 4px 4px 12px; }
 .hint-with-action { display: flex; justify-content: space-between; align-items: center; gap: 8px; }
@@ -941,6 +946,25 @@ h1, h2, .topbar h1, .sheet-title, .auth-title {
   cursor: pointer;
 }
 .follow-btn.active { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); }
+
+.moderation-toggle {
+  background: none;
+  border: none;
+  color: var(--text-dim);
+  font-size: 1.1rem;
+  line-height: 1;
+  padding: 2px 6px;
+  cursor: pointer;
+}
+.moderation-menu {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 6px;
+  padding: 8px 14px;
+  border-bottom: 1px solid var(--border);
+  background: var(--surface-2);
+}
 
 .vote-row { display: flex; gap: 6px; flex-wrap: wrap; }
 .vote-btn {

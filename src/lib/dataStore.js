@@ -133,6 +133,25 @@ export async function updatePassword(newPassword) {
   if (error) throw error
 }
 
+// Permanently deletes the account (see netlify/functions/delete-account.js
+// for what actually gets removed/reassigned). Signs the session out
+// locally on success since the user row it belonged to no longer exists.
+export async function deleteAccount(userId) {
+  if (!isSupabaseConfigured) return local.deleteAccount(userId)
+  const { data } = await supabase.auth.getSession()
+  const accessToken = data.session?.access_token
+  if (!accessToken) throw new Error('No active session.')
+  const res = await fetch('/api/delete-account', {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({ accessToken })
+  })
+  const body = await res.json().catch(() => ({}))
+  if (!res.ok || body.error) throw new Error(body.error || 'Failed to delete account.')
+  await supabase.auth.signOut()
+  return true
+}
+
 // --- Groups ---------------------------------------------------------------
 
 export async function listMyGroups(userId) {
@@ -292,15 +311,22 @@ export async function listBetPostsByUser(userId) {
 
 // --- Public feed & follows ---------------------------------------------
 
-export async function listPublicFeed() {
-  if (!isSupabaseConfigured) return local.listPublicFeed()
+// viewerId is optional (public profile pages can call this logged out),
+// but when it's there, anyone the viewer has blocked is filtered out
+// client-side - simpler than a subquery in the select, and this list is
+// small enough per-user that it's not worth the query complexity.
+export async function listPublicFeed(viewerId) {
+  if (!isSupabaseConfigured) return local.listPublicFeed(viewerId)
   const { data, error } = await supabase
     .from('bet_posts')
     .select('*, profiles(display_name)')
     .eq('visibility', 'public')
     .order('created_at', { ascending: false })
   if (error) throw error
-  return data.map((row) => ({ ...mapBetPost(row), authorName: row.profiles?.display_name ?? 'Someone' }))
+  const posts = data.map((row) => ({ ...mapBetPost(row), authorName: row.profiles?.display_name ?? 'Someone' }))
+  if (!viewerId) return posts
+  const blockedIds = await listBlockedUserIds(viewerId)
+  return blockedIds.length ? posts.filter((p) => !blockedIds.includes(p.userId)) : posts
 }
 
 export async function followUser(userId, targetId) {
@@ -322,6 +348,51 @@ export async function listFollowing(userId) {
   const { data, error } = await supabase.from('follows').select('following_id').eq('follower_id', userId)
   if (error) throw error
   return data.map((row) => row.following_id)
+}
+
+// --- Blocks & reports ----------------------------------------------------
+// Public-feed-only (see BetCard.jsx variant='public') - group posts aren't
+// blockable since a group is already people you chose to be around.
+
+export async function blockUser(userId, blockedId) {
+  if (!isSupabaseConfigured) return local.blockUser(userId, blockedId)
+  const { error } = await supabase.from('blocks').insert({ blocker_id: userId, blocked_id: blockedId })
+  if (error && error.code !== '23505') throw error // already blocked, ignore
+  return true
+}
+
+export async function unblockUser(userId, blockedId) {
+  if (!isSupabaseConfigured) return local.unblockUser(userId, blockedId)
+  const { error } = await supabase.from('blocks').delete().eq('blocker_id', userId).eq('blocked_id', blockedId)
+  if (error) throw error
+  return true
+}
+
+async function listBlockedUserIds(userId) {
+  if (!isSupabaseConfigured) return local.listBlockedUserIds(userId)
+  const { data, error } = await supabase.from('blocks').select('blocked_id').eq('blocker_id', userId)
+  if (error) throw error
+  return data.map((row) => row.blocked_id)
+}
+
+export async function listBlockedUsers(userId) {
+  if (!isSupabaseConfigured) return local.listBlockedUsers(userId)
+  // blocks has two FKs into profiles (blocker_id, blocked_id) - the join
+  // target has to be named explicitly or PostgREST can't tell which one
+  // "profiles(...)" means and errors with "more than one relationship found".
+  const { data, error } = await supabase
+    .from('blocks')
+    .select('blocked_id, profiles!blocks_blocked_id_fkey(display_name)')
+    .eq('blocker_id', userId)
+  if (error) throw error
+  return data.map((row) => ({ id: row.blocked_id, displayName: row.profiles?.display_name ?? 'Someone' }))
+}
+
+export async function reportPost(postId, reporterId, reason) {
+  if (!isSupabaseConfigured) return local.reportPost(postId, reporterId, reason)
+  const { error } = await supabase.from('post_reports').insert({ post_id: postId, reporter_id: reporterId, reason })
+  if (error && error.code !== '23505') throw error // already reported this post, ignore
+  return true
 }
 
 // --- Reactions & comments ------------------------------------------------
