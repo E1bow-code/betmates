@@ -23,9 +23,21 @@ export function findGame(leg, games) {
 // TrackerPage's manual "Placed (not won)" option already does. Only
 // manual_entries can represent that reduced payout today, so a 'placed'
 // result on a bet_post is left open rather than settled incorrectly.
+
+// A race that never shows up in results (abandoned meeting, waterlogged
+// track, etc.) doesn't get flagged as such anywhere the results endpoint
+// exposes - it just silently never appears. Results are published within
+// minutes of a race finishing, so once a leg's kickoff is this far in the
+// past with still no matching result, an abandoned race is by far the most
+// likely explanation - void it rather than leaving it "pending" forever.
+const ABANDONED_GRACE_MS = 6 * 60 * 60 * 1000
+
 function evaluateRacingLeg(leg, raceResults) {
   const race = raceResults?.find((r) => r.raceId === leg.raceId)
-  if (!race) return 'undetermined'
+  if (!race) {
+    if (leg.kickoff && Date.now() - new Date(leg.kickoff).getTime() > ABANDONED_GRACE_MS) return 'void'
+    return 'undetermined'
+  }
   const runner = race.runners.find((r) => r.horseId === leg.horseId) ?? race.runners.find((r) => r.name === leg.selection)
   if (!runner) return 'undetermined'
   if (runner.position === 1) return 'won'
