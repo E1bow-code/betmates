@@ -81,6 +81,7 @@ export default function FixtureDetailPage() {
           />
           <span>My bookies only</span>
         </label>
+        <p className="hint">Tap more than one price to build an accumulator.</p>
       </div>
 
       {fixture.markets.map((market) => (

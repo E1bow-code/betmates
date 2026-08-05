@@ -16,13 +16,20 @@ export function BetSlipProvider({ children }) {
   const [legs, setLegs] = useState([])
   const [sheetOpen, setSheetOpen] = useState(false)
 
+  // Only auto-opens the sheet going from 0 legs -> 1 - that first tap is
+  // the one person needs walking through "post/keep to myself/keep adding".
+  // Once they've hit "Keep adding picks", every further tap while browsing
+  // should land quietly in the slip (BetSlipBar reflects the count) instead
+  // of yanking the sheet back open on top of whatever fixture they're
+  // looking at - that's what made building an accumulator feel like it
+  // fought you on every single pick.
   const toggleLeg = useCallback((leg) => {
     setLegs((prev) => {
       const key = legKey(leg)
-      if (prev.some((l) => legKey(l) === key)) return prev.filter((l) => legKey(l) !== key)
-      return [...prev, leg]
+      const next = prev.some((l) => legKey(l) === key) ? prev.filter((l) => legKey(l) !== key) : [...prev, leg]
+      if (prev.length === 0 && next.length > 0) setSheetOpen(true)
+      return next
     })
-    setSheetOpen(true)
   }, [])
 
   const removeLeg = useCallback((leg) => {
