@@ -31,12 +31,30 @@ export default function FixtureDetailPage() {
   const [myBookiesOnly, setMyBookiesOnly] = useState(false)
   const [alertTarget, setAlertTarget] = useState(null)
   const [expandedOutcome, setExpandedOutcome] = useState(null)
+  const [expandedMarkets, setExpandedMarkets] = useState(new Set())
 
   useEffect(() => {
     fetchFixture(id)
       .then(setFixture)
       .catch((err) => setError(err.message))
   }, [id])
+
+  // Every market used to render fully expanded, which turned a fixture
+  // with goalscorer/alternate-totals markets into one long continuous
+  // scroll - only the headline market (1X2/Moneyline, always first) opens
+  // by default now; the rest are one tap away instead of always-on.
+  useEffect(() => {
+    if (fixture) setExpandedMarkets(new Set([fixture.markets[0]?.key]))
+  }, [fixture?.id])
+
+  function toggleMarket(key) {
+    setExpandedMarkets((prev) => {
+      const next = new Set(prev)
+      if (next.has(key)) next.delete(key)
+      else next.add(key)
+      return next
+    })
+  }
 
   const movements = useOddsMovement(fixture)
   const backing = useBacking(fixture ? `${fixture.homeTeam} v ${fixture.awayTeam}` : null, user.id)
@@ -106,9 +124,17 @@ export default function FixtureDetailPage() {
         <p className="hint">Tap more than one price to build an accumulator.</p>
       </div>
 
-      {fixture.markets.map((market) => (
+      {fixture.markets.map((market) => {
+        const marketOpen = expandedMarkets.has(market.key)
+        return (
         <div key={market.key} className="market-block">
-          <h2 className="market-title">{market.label}</h2>
+          <button className="market-header" onClick={() => toggleMarket(market.key)} type="button">
+            <h2 className="market-title">{market.label}</h2>
+            <span className="market-header-meta">
+              {market.outcomes.length} {marketOpen ? '▴' : '▾'}
+            </span>
+          </button>
+          {marketOpen && (
           <div className="outcome-list">
             {market.outcomes.map((outcome) => {
               const best = bestWithinFilter(outcome.allOdds, bookmakerFilter)
@@ -206,8 +232,10 @@ export default function FixtureDetailPage() {
               )
             })}
           </div>
+          )}
         </div>
-      ))}
+        )
+      })}
 
       {alertTarget && <OddsAlertSheet target={alertTarget} onClose={() => setAlertTarget(null)} />}
     </div>

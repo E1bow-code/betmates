@@ -537,6 +537,27 @@ h1, h2, .topbar h1, .sheet-title, .auth-title {
 .market-block { margin-bottom: 14px; }
 .market-title { font-size: 0.88rem; margin: 0 0 5px; }
 
+/* Collapsible market header (fixture/fight/event detail) - a market with
+   a lot of outcomes (Anytime Goalscorer, Alternate Total Goals) used to
+   render fully expanded, turning the page into one long scroll. Only the
+   headline market opens by default now (see the detail pages' useEffect);
+   everything else is a tap away. */
+.market-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  width: 100%;
+  background: none;
+  border: none;
+  padding: 6px 2px;
+  cursor: pointer;
+  text-align: left;
+  color: inherit;
+  font: inherit;
+}
+.market-header .market-title { margin: 0; }
+.market-header-meta { font-size: 0.75rem; color: var(--text-dim); flex-shrink: 0; }
+
 .outcome-list {
   display: flex;
   flex-direction: column;

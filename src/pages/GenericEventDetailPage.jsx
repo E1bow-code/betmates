@@ -31,12 +31,26 @@ export default function GenericEventDetailPage() {
   const [myBookiesOnly, setMyBookiesOnly] = useState(false)
   const [alertTarget, setAlertTarget] = useState(null)
   const [expandedOutcome, setExpandedOutcome] = useState(null)
+  const [expandedMarkets, setExpandedMarkets] = useState(new Set())
 
   useEffect(() => {
     fetchEvent(sportKey, id)
       .then(setEvent)
       .catch((err) => setError(err.message))
   }, [sportKey, id])
+
+  useEffect(() => {
+    if (event) setExpandedMarkets(new Set([event.markets[0]?.key]))
+  }, [event?.id])
+
+  function toggleMarket(key) {
+    setExpandedMarkets((prev) => {
+      const next = new Set(prev)
+      if (next.has(key)) next.delete(key)
+      else next.add(key)
+      return next
+    })
+  }
 
   const movements = useOddsMovement(event)
   const backing = useBacking(event ? `${event.participantA} v ${event.participantB}` : null, user.id)
@@ -118,9 +132,17 @@ export default function GenericEventDetailPage() {
         <div className="empty">No odds posted for this one yet — check back closer to kick-off.</div>
       )}
 
-      {event.markets.map((market) => (
+      {event.markets.map((market) => {
+        const marketOpen = expandedMarkets.has(market.key)
+        return (
         <div key={market.key} className="market-block">
-          <h2 className="market-title">{market.label}</h2>
+          <button className="market-header" onClick={() => toggleMarket(market.key)} type="button">
+            <h2 className="market-title">{market.label}</h2>
+            <span className="market-header-meta">
+              {market.outcomes.length} {marketOpen ? '▴' : '▾'}
+            </span>
+          </button>
+          {marketOpen && (
           <div className="outcome-list">
             {market.outcomes.map((outcome) => {
               const best = bestWithinFilter(outcome.allOdds, bookmakerFilter)
@@ -208,8 +230,10 @@ export default function GenericEventDetailPage() {
               )
             })}
           </div>
+          )}
         </div>
-      ))}
+        )
+      })}
 
       {alertTarget && <OddsAlertSheet target={alertTarget} onClose={() => setAlertTarget(null)} />}
     </div>
