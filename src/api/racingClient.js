@@ -1,11 +1,11 @@
-// Same swappable-adapter shape as src/api/oddsClient.js. Mock-only today -
-// no racing data source is wired up (the brief's Section 3 notes Racing
-// API access was lost; Betfair Exchange, Racing Post/Timeform, or a
-// RapidAPI provider are the options to evaluate before flipping USE_MOCK).
+// Same swappable-adapter shape as src/api/oddsClient.js. Live data comes
+// from The Racing API via netlify/functions/racing.js; that function itself
+// falls back to mock if RACING_API_USERNAME/PASSWORD aren't set, so this
+// stays off mock even in a dev environment without those env vars.
 
 import { getMockRaces, getMockRace } from '../data/mockRacingOdds.js'
 
-const USE_MOCK = true
+const USE_MOCK = false
 
 export async function fetchRaces() {
   if (USE_MOCK) return getMockRaces()
