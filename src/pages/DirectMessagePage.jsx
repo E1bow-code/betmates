@@ -1,7 +1,9 @@
 import { useEffect, useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext.jsx'
+import { useActivity } from '../context/ActivityContext.jsx'
 import * as dataStore from '../lib/dataStore.js'
+import { notifyFriend } from '../lib/notify.js'
 import Avatar from '../components/Avatar.jsx'
 import EmptyState from '../components/EmptyState.jsx'
 import PullToRefresh from '../components/PullToRefresh.jsx'
@@ -12,6 +14,7 @@ import PullToRefresh from '../components/PullToRefresh.jsx'
 export default function DirectMessagePage() {
   const { friendId } = useParams()
   const { user } = useAuth()
+  const { markMessagesSeen } = useActivity()
   const [friend, setFriend] = useState(null)
   const [messages, setMessages] = useState(null)
   const [messageBody, setMessageBody] = useState('')
@@ -27,6 +30,7 @@ export default function DirectMessagePage() {
 
   useEffect(() => {
     refresh()
+    markMessagesSeen()
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [friendId])
 
@@ -39,6 +43,11 @@ export default function DirectMessagePage() {
       const message = await dataStore.sendDirectMessage(user.id, friendId, body)
       setMessages((m) => [...(m ?? []), message])
       setMessageBody('')
+      notifyFriend(friendId, {
+        title: `${user.displayName} sent you a message`,
+        body,
+        url: `/#/messages/${user.id}`
+      })
     } finally {
       setSending(false)
     }

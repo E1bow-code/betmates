@@ -262,7 +262,8 @@ h1, h2, .topbar h1, .sheet-title, .auth-title {
   margin-top: -6px;
 }
 
-.auth-title { font-size: 2rem; margin: 0 0 4px; text-align: center; }
+.auth-title { font-size: 2rem; margin: 0 0 4px; text-align: center; display: flex; align-items: center; justify-content: center; gap: 10px; }
+.auth-logo-mark { width: 40px; height: 40px; border-radius: 9px; flex-shrink: 0; }
 .auth-subtitle { color: var(--text-dim); text-align: center; margin: 0 0 24px; }
 
 .auth-tabs {
@@ -336,6 +337,33 @@ h1, h2, .topbar h1, .sheet-title, .auth-title {
 .btn-danger-outline { background: transparent; color: var(--bad); border: 1px solid var(--bad); }
 
 .danger-zone { border: 1px solid var(--bad); border-radius: 4px; padding: 12px; }
+
+.conversation-list {
+  display: flex;
+  flex-direction: column;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  overflow: hidden;
+}
+.conversation-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 12px;
+  border-bottom: 1px solid var(--border);
+  text-decoration: none;
+  color: var(--text);
+}
+.conversation-list .conversation-row:last-child { border-bottom: none; }
+.conversation-row-main { flex: 1; min-width: 0; }
+.conversation-row-name { font-weight: 600; font-size: 0.92rem; }
+.conversation-row-preview {
+  font-size: 0.8rem;
+  color: var(--text-dim);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
 
 .report-list { display: flex; flex-direction: column; gap: 10px; }
 .report-card { border: 1px solid var(--border); border-radius: 4px; padding: 12px; background: var(--surface); }
@@ -451,6 +479,7 @@ h1, h2, .topbar h1, .sheet-title, .auth-title {
 .sport-switcher { display: flex; gap: 8px; margin: 6px 0 2px; overflow-x: auto; padding-bottom: 2px; }
 .sport-switcher .sport-pill { flex-shrink: 0; }
 .sport-pill {
+  position: relative;
   background: none;
   border: 1px solid var(--border);
   border-radius: 999px;
@@ -458,8 +487,21 @@ h1, h2, .topbar h1, .sheet-title, .auth-title {
   font-size: 0.85rem;
   color: var(--text-dim);
   cursor: pointer;
+  text-decoration: none;
+  display: inline-block;
 }
 .sport-pill.active { background: var(--accent); border-color: var(--accent); color: var(--accent-ink); font-weight: 700; }
+
+.pill-dot {
+  position: absolute;
+  top: -1px;
+  right: -1px;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--accent);
+  border: 1.5px solid var(--bg);
+}
 
 .runner-best-btn {
   background: none;

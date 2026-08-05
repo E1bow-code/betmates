@@ -37,7 +37,7 @@ import { computeTrendingPicks } from '../utils/trending.js'
 
 export default function SocialFeedPage() {
   const { user } = useAuth()
-  const { markSeen } = useActivity()
+  const { markSeen, hasUnseenMessages } = useActivity()
   const location = useLocation()
   const [segment, setSegment] = useState(location.state?.segment ?? 'bets')
   const [groups, setGroups] = useState(null)
@@ -143,6 +143,10 @@ export default function SocialFeedPage() {
           <button className={segment === 'fpl' ? 'sport-pill active' : 'sport-pill'} onClick={() => setSegment('fpl')}>
             FPL
           </button>
+          <Link className="sport-pill" to="/messages">
+            💬 Messages
+            {hasUnseenMessages && <span className="pill-dot" />}
+          </Link>
         </div>
       </div>
 

@@ -68,7 +68,10 @@ export default function AuthPage() {
       <div className="auth-page" style={bannerUrl ? { backgroundImage: `url(${bannerUrl})` } : undefined}>
         <div className="auth-page-scrim" />
         <div className="auth-card">
-          <h1 className="auth-title">BetMates</h1>
+          <h1 className="auth-title">
+            <img src="/favicon.svg" alt="" className="auth-logo-mark" />
+            BetMates
+          </h1>
           <p className="auth-subtitle">Reset your password</p>
 
           {resetSent ? (
@@ -107,7 +110,10 @@ export default function AuthPage() {
     <div className="auth-page" style={bannerUrl ? { backgroundImage: `url(${bannerUrl})` } : undefined}>
       <div className="auth-page-scrim" />
       <div className="auth-card">
-        <h1 className="auth-title">BetMates</h1>
+        <h1 className="auth-title">
+          <img src="/favicon.svg" alt="" className="auth-logo-mark" />
+          BetMates
+        </h1>
         <p className="auth-subtitle">Compare odds. Settle scores with your mates.</p>
 
         <div className="auth-tabs">

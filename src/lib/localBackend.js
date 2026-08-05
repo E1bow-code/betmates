@@ -311,6 +311,27 @@ export function sendDirectMessage(userId, friendId, body) {
   return delay(message)
 }
 
+export function listConversations(userId) {
+  const db = readDb()
+  const names = Object.fromEntries(db.users.map((u) => [u.id, { displayName: u.displayName, avatarUrl: u.avatarUrl ?? null }]))
+  const sorted = [...db.directMessages]
+    .filter((m) => m.senderId === userId || m.recipientId === userId)
+    .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))
+
+  const byFriend = new Map()
+  for (const m of sorted) {
+    const friendId = m.senderId === userId ? m.recipientId : m.senderId
+    if (!byFriend.has(friendId)) {
+      byFriend.set(friendId, { friendId, lastBody: m.body, lastAt: m.createdAt, lastFromFriend: m.senderId === friendId })
+    }
+  }
+  return delay(
+    [...byFriend.values()]
+      .map((c) => ({ ...c, friendName: names[c.friendId]?.displayName ?? 'Someone', friendAvatarUrl: names[c.friendId]?.avatarUrl ?? null }))
+      .sort((a, b) => new Date(b.lastAt) - new Date(a.lastAt))
+  )
+}
+
 // --- Bet posts ------------------------------------------------------------
 
 export function listBetPosts(groupId) {

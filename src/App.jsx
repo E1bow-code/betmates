@@ -27,6 +27,7 @@ import AchievementsPage from './pages/AchievementsPage.jsx'
 import HallOfFamePage from './pages/HallOfFamePage.jsx'
 import AdminReportsPage from './pages/AdminReportsPage.jsx'
 import DirectMessagePage from './pages/DirectMessagePage.jsx'
+import MessagesInboxPage from './pages/MessagesInboxPage.jsx'
 import { PENDING_REFERRAL_KEY } from './lib/referral.js'
 
 const PENDING_JOIN_KEY = 'betmates:pendingJoinCode'
@@ -148,6 +149,7 @@ function Shell() {
               <Route path="/groups" element={<SocialFeedPage />} />
               <Route path="/groups/:id" element={<GroupFeedPage />} />
               <Route path="/join/:code" element={<JoinGroupPage />} />
+              <Route path="/messages" element={<MessagesInboxPage />} />
               <Route path="/messages/:friendId" element={<DirectMessagePage />} />
               <Route path="/tracker" element={<TrackerPage />} />
               <Route path="/achievements" element={<AchievementsPage />} />

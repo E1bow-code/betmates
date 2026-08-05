@@ -466,3 +466,15 @@ create policy "user replaces own avatar" on storage.objects for update using (
 -- the Hall of Fame credit rather than taking their invitee down with them.
 
 alter table profiles add column if not exists referred_by uuid references profiles(id) on delete set null;
+
+-- --- Direct message push notifications ------------------------------------
+-- Same idea as the group-mates policy above, but for friends instead of
+-- group members - lets the sender's own token (see send-push.js's friendId
+-- branch) look up the recipient's subscription to notify them of a new DM.
+create policy "friends can read each other's push subscriptions" on push_subscriptions for select using (
+  exists (
+    select 1 from friendships f
+    where (f.user_a = auth.uid() and f.user_b = push_subscriptions.user_id)
+       or (f.user_b = auth.uid() and f.user_a = push_subscriptions.user_id)
+  )
+);

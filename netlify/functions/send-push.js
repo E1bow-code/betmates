@@ -27,9 +27,9 @@ export default async (req) => {
   }
 
   try {
-    const { accessToken, groupId, excludeUserId, title, body, url } = await req.json()
-    if (!accessToken || !groupId) {
-      return new Response(JSON.stringify({ sent: 0, reason: 'missing accessToken or groupId' }), { status: 200 })
+    const { accessToken, groupId, friendId, excludeUserId, title, body, url } = await req.json()
+    if (!accessToken || (!groupId && !friendId)) {
+      return new Response(JSON.stringify({ sent: 0, reason: 'missing accessToken and groupId/friendId' }), { status: 200 })
     }
 
     webpush.setVapidDetails('mailto:betmates@example.com', VAPID_PUBLIC_KEY, VAPID_PRIVATE_KEY)
@@ -37,10 +37,16 @@ export default async (req) => {
       global: { headers: { Authorization: `Bearer ${accessToken}` } }
     })
 
-    const { data: members, error: membersError } = await supabase.from('group_members').select('user_id').eq('group_id', groupId)
-    if (membersError) throw membersError
-
-    const targetUserIds = members.map((m) => m.user_id).filter((id) => id !== excludeUserId)
+    let targetUserIds
+    if (friendId) {
+      // "friends can read each other's push subscriptions" (schema.sql)
+      // covers the read below - no group lookup needed for a 1:1 DM.
+      targetUserIds = [friendId]
+    } else {
+      const { data: members, error: membersError } = await supabase.from('group_members').select('user_id').eq('group_id', groupId)
+      if (membersError) throw membersError
+      targetUserIds = members.map((m) => m.user_id).filter((id) => id !== excludeUserId)
+    }
     if (!targetUserIds.length) return new Response(JSON.stringify({ sent: 0 }), { status: 200 })
 
     const { data: subs, error: subsError } = await supabase.from('push_subscriptions').select('*').in('user_id', targetUserIds)

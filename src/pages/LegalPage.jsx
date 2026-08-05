@@ -7,7 +7,7 @@ export default function LegalPage() {
         <Link to="/" className="back">
           &larr; Back
         </Link>
-        <h1>Terms &amp; Responsible Gambling</h1>
+        <h1>Terms, Privacy &amp; Responsible Gambling</h1>
       </div>
 
       <div className="legal-content">
@@ -59,6 +59,42 @@ export default function LegalPage() {
           <p>
             Some links to bookmakers may be affiliate links. This does not affect the odds shown or which bookmaker
             appears as "best odds" - ranking is always by price.
+          </p>
+        </section>
+
+        <section>
+          <h2>Privacy Policy</h2>
+          <p>
+            <strong>What we collect.</strong> Creating an account collects your email address, display name, and
+            date of birth (used only to confirm you're 18+, never shown to anyone else). Using the app can also
+            store: bet picks you choose to post, messages you send in a group or direct message, a photo if you
+            upload one as your avatar, and a push subscription if you turn notifications on.
+          </p>
+          <p>
+            <strong>Why.</strong> Your email and password are used for sign-in. Bet picks and messages exist so the
+            social features work at all - comparing picks with your mates is the point of the app. Push
+            subscriptions exist so we can send the notifications you specifically turned on.
+          </p>
+          <p>
+            <strong>Where it lives.</strong> Data is stored with Supabase, our database and authentication
+            provider. We don't sell data, and there's no third-party analytics or ad tracking built into the app.
+          </p>
+          <p>
+            <strong>On your device.</strong> A few preferences - theme, whether you've seen the onboarding tour,
+            when you last checked a feed - are stored in your browser's local storage rather than our database.
+            That's per-device and never synced or tracked centrally.
+          </p>
+          <p>
+            <strong>Who can see what.</strong> Bets posted to a group are visible to that group's members only.
+            Bets posted "to everyone" are public, visible to anyone including people without an account, via the
+            public Feed and Hall of Fame. Direct messages are visible only to you and the other person in that
+            conversation.
+          </p>
+          <p>
+            <strong>Your controls.</strong> Edit your display name, bookmakers, and notification preferences any
+            time in Account. Block or report another user's public posts from the Feed. Delete your account
+            entirely - including your bets, comments, and messages - from Account &rarr; Danger zone. That's
+            permanent and immediate.
           </p>
         </section>
       </div>

@@ -15,6 +15,7 @@ import { computeStreak } from '../utils/trackerStats.js'
 const ActivityContext = createContext(null)
 const SOCIAL_SEEN_PREFIX = 'betmates:lastSeenSocial:'
 const NOTIFS_SEEN_PREFIX = 'betmates:lastSeenNotifs:'
+const MESSAGES_SEEN_PREFIX = 'betmates:lastSeenMessages:'
 const WINDOW_DAYS = 14
 
 function withinWindow(dateStr) {
@@ -28,6 +29,7 @@ export function ActivityProvider({ userId, children }) {
   const [hasNewActivity, setHasNewActivity] = useState(false)
   const [notifications, setNotifications] = useState(null)
   const [hasUnseenNotifications, setHasUnseenNotifications] = useState(false)
+  const [hasUnseenMessages, setHasUnseenMessages] = useState(false)
   const [streak, setStreak] = useState({ type: null, count: 0 })
 
   useEffect(() => {
@@ -82,6 +84,23 @@ export function ActivityProvider({ userId, children }) {
     }
   }, [userId])
 
+  useEffect(() => {
+    if (!userId) return
+    let cancelled = false
+    dataStore
+      .listConversations(userId)
+      .then((conversations) => {
+        if (cancelled) return
+        const messagesLastSeen = localStorage.getItem(MESSAGES_SEEN_PREFIX + userId) ?? ''
+        const unread = conversations.some((c) => c.lastFromFriend && c.lastAt > messagesLastSeen)
+        setHasUnseenMessages(unread)
+      })
+      .catch(() => {})
+    return () => {
+      cancelled = true
+    }
+  }, [userId])
+
   const markSeen = useCallback(() => {
     if (!userId) return
     localStorage.setItem(SOCIAL_SEEN_PREFIX + userId, new Date().toISOString())
@@ -94,9 +113,24 @@ export function ActivityProvider({ userId, children }) {
     setHasUnseenNotifications(false)
   }, [userId])
 
+  const markMessagesSeen = useCallback(() => {
+    if (!userId) return
+    localStorage.setItem(MESSAGES_SEEN_PREFIX + userId, new Date().toISOString())
+    setHasUnseenMessages(false)
+  }, [userId])
+
   return (
     <ActivityContext.Provider
-      value={{ hasNewActivity, markSeen, notifications, hasUnseenNotifications, markNotificationsSeen, streak }}
+      value={{
+        hasNewActivity,
+        markSeen,
+        notifications,
+        hasUnseenNotifications,
+        markNotificationsSeen,
+        hasUnseenMessages,
+        markMessagesSeen,
+        streak
+      }}
     >
       {children}
     </ActivityContext.Provider>

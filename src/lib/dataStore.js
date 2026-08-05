@@ -307,6 +307,43 @@ export async function sendDirectMessage(userId, friendId, body) {
   return mapDirectMessage(data)
 }
 
+// One row per conversation (the latest message with each person you've
+// exchanged messages with), not every message - the inbox is a list of
+// threads, not a merged timeline. Rows come back newest-message-first, and
+// since a Map keeps only the first entry per friendId, that's automatically
+// each conversation's most recent message.
+export async function listConversations(userId) {
+  if (!isSupabaseConfigured) return local.listConversations(userId)
+  const { data, error } = await supabase
+    .from('direct_messages')
+    .select('sender_id, recipient_id, body, created_at')
+    .or(`sender_id.eq.${userId},recipient_id.eq.${userId}`)
+    .order('created_at', { ascending: false })
+  if (error) throw error
+
+  const byFriend = new Map()
+  for (const m of data) {
+    const friendId = m.sender_id === userId ? m.recipient_id : m.sender_id
+    if (!byFriend.has(friendId)) {
+      byFriend.set(friendId, { friendId, lastBody: m.body, lastAt: m.created_at, lastFromFriend: m.sender_id === friendId })
+    }
+  }
+  const friendIds = [...byFriend.keys()]
+  if (!friendIds.length) return []
+
+  const { data: profiles, error: profilesError } = await supabase.from('profiles').select('id, display_name, avatar_url').in('id', friendIds)
+  if (profilesError) throw profilesError
+  const byId = Object.fromEntries((profiles ?? []).map((p) => [p.id, p]))
+
+  return friendIds
+    .map((id) => ({
+      ...byFriend.get(id),
+      friendName: byId[id]?.display_name ?? 'Someone',
+      friendAvatarUrl: byId[id]?.avatar_url ?? null
+    }))
+    .sort((a, b) => new Date(b.lastAt) - new Date(a.lastAt))
+}
+
 // --- Bet posts --------------------------------------------------------
 
 export async function listBetPosts(groupId) {
