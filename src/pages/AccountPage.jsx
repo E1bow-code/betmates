@@ -6,12 +6,12 @@ import * as dataStore from '../lib/dataStore.js'
 import { isPushSupported, getPushSubscription, subscribeToPush, unsubscribeFromPush } from '../lib/push.js'
 import { getStoredTheme, setTheme } from '../lib/theme.js'
 import { isIOS, isStandalone } from '../lib/platform.js'
-import { shareOrCopy, publicProfileUrl } from '../lib/share.js'
+import { shareOrCopy, publicProfileUrl, referralUrl } from '../lib/share.js'
 import Avatar from '../components/Avatar.jsx'
 import InstallGuide from '../components/InstallGuide.jsx'
 
 export default function AccountPage() {
-  const { user, signOut, deleteAccount, updateDisplayName, updateBookmakerPrefs, updateNotificationPrefs } = useAuth()
+  const { user, signOut, deleteAccount, updateDisplayName, updateBookmakerPrefs, updateNotificationPrefs, updateAvatar } = useAuth()
   const [pushEnabled, setPushEnabled] = useState(false)
   const [pushBusy, setPushBusy] = useState(false)
   const [pushError, setPushError] = useState(null)
@@ -26,6 +26,10 @@ export default function AccountPage() {
   const [deleteConfirmText, setDeleteConfirmText] = useState('')
   const [deleting, setDeleting] = useState(false)
   const [deleteError, setDeleteError] = useState(null)
+  const [avatarUploading, setAvatarUploading] = useState(false)
+  const [avatarError, setAvatarError] = useState(null)
+  const [referralCount, setReferralCount] = useState(null)
+  const [referralShareStatus, setReferralShareStatus] = useState(null)
 
   function handleThemeChange(next) {
     setTheme(next)
@@ -41,9 +45,38 @@ export default function AccountPage() {
     dataStore.listBlockedUsers(user.id).then(setBlockedUsers)
   }, [])
 
+  useEffect(() => {
+    dataStore.countReferrals(user.id).then(setReferralCount)
+  }, [])
+
   async function handleUnblock(blockedId) {
     await dataStore.unblockUser(user.id, blockedId)
     setBlockedUsers((list) => list.filter((b) => b.id !== blockedId))
+  }
+
+  async function handleAvatarChange(e) {
+    const file = e.target.files?.[0]
+    e.target.value = '' // lets picking the same file again re-fire onChange
+    if (!file) return
+    setAvatarUploading(true)
+    setAvatarError(null)
+    try {
+      await updateAvatar(file)
+    } catch (err) {
+      setAvatarError(err.message)
+    } finally {
+      setAvatarUploading(false)
+    }
+  }
+
+  async function handleShareReferral() {
+    const result = await shareOrCopy({
+      title: 'Join me on BetMates',
+      text: `Come compare odds and settle scores with me on BetMates`,
+      url: referralUrl(user.friendCode)
+    })
+    setReferralShareStatus(result === 'copied' ? 'Link copied' : null)
+    if (result === 'copied') setTimeout(() => setReferralShareStatus(null), 2000)
   }
 
   async function handleDeleteAccount() {
@@ -128,7 +161,11 @@ export default function AccountPage() {
 
       <div className="account-section">
         <div className="account-identity">
-          <Avatar name={user.displayName} size={48} />
+          <label className="avatar-upload">
+            <Avatar name={user.displayName} photoUrl={user.avatarUrl} size={48} />
+            <span className="avatar-upload-badge">{avatarUploading ? '…' : '✎'}</span>
+            <input type="file" accept="image/*" onChange={handleAvatarChange} disabled={avatarUploading} hidden />
+          </label>
           <div>
             {editingName ? (
               <form className="inline-form" onSubmit={handleSaveName}>
@@ -167,7 +204,8 @@ export default function AccountPage() {
           </div>
         </div>
         {nameError && <div className="auth-error">{nameError}</div>}
-        <p className="hint">Your avatar's initials and colour come from your display name, so it updates automatically too.</p>
+        {avatarError && <div className="auth-error">{avatarError}</div>}
+        <p className="hint">Tap your avatar to upload a photo, or leave it - initials and colour come from your name automatically.</p>
       </div>
 
       <div className="account-section">
@@ -252,6 +290,21 @@ export default function AccountPage() {
         {profileShareStatus && <div className="hint">{profileShareStatus}</div>}
       </div>
 
+      <div className="account-section">
+        <h2 className="market-title">Invite your mates</h2>
+        <p className="hint">
+          {referralCount === null
+            ? 'Loading…'
+            : referralCount === 0
+              ? "You haven't brought anyone in yet - share your link below."
+              : `You've brought ${referralCount} ${referralCount === 1 ? 'person' : 'people'} to BetMates.`}
+        </p>
+        <button className="btn btn-secondary btn-small" onClick={handleShareReferral}>
+          Share invite link
+        </button>
+        {referralShareStatus && <div className="hint">{referralShareStatus}</div>}
+      </div>
+
       {blockedUsers && blockedUsers.length > 0 && (
         <div className="account-section">
           <h2 className="market-title">Blocked accounts</h2>
@@ -282,6 +335,15 @@ export default function AccountPage() {
           </p>
         )}
       </div>
+
+      {user.isAdmin && (
+        <div className="account-section">
+          <h2 className="market-title">Admin</h2>
+          <Link className="btn btn-secondary btn-small" to="/admin/reports">
+            Reported posts
+          </Link>
+        </div>
+      )}
 
       <div className="account-section">
         <Link to="/legal" className="back">

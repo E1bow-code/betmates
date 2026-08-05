@@ -14,7 +14,8 @@ const RECORDS = [
   { key: 'longestStreak', icon: '🔥', title: 'Longest win streak', render: (r) => `${r.count} in a row` },
   { key: 'topProfit', icon: '🏆', title: 'Top all-time profit', render: (r) => `+£${r.profit.toFixed(2)}` },
   { key: 'underdog', icon: '🐎', title: 'Biggest underdog win', render: (r) => `${r.odds.toFixed(2)} odds on ${r.event}` },
-  { key: 'mostActive', icon: '📣', title: 'Most public picks shared', render: (r) => `${r.count} picks` }
+  { key: 'mostActive', icon: '📣', title: 'Most public picks shared', render: (r) => `${r.count} picks` },
+  { key: 'topRecruiter', icon: '🤝', title: 'Brought in the most mates', render: (r) => `${r.count} invited` }
 ]
 
 export default function HallOfFamePage() {

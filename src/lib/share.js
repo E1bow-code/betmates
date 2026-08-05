@@ -23,3 +23,7 @@ export function groupInviteUrl(inviteCode) {
 export function publicProfileUrl(friendCode) {
   return `${window.location.origin}/#/u/${friendCode}`
 }
+
+export function referralUrl(friendCode) {
+  return `${window.location.origin}/#/r/${friendCode}`
+}

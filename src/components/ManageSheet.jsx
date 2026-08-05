@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { Link } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext.jsx'
 import * as dataStore from '../lib/dataStore.js'
 import { shareOrCopy, groupInviteUrl } from '../lib/share.js'
@@ -142,6 +143,9 @@ export default function ManageSheet({ segment, groups, friends, onClose, onChang
                 {friends.map((f) => (
                   <div key={f.id} className="manage-list-row">
                     <span>{f.displayName}</span>
+                    <Link className="btn btn-ghost btn-small" to={`/messages/${f.id}`} onClick={onClose}>
+                      Message
+                    </Link>
                   </div>
                 ))}
               </div>

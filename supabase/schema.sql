@@ -390,4 +390,79 @@ create policy "user unblocks as themselves" on blocks for delete using (auth.uid
 
 create policy "user reads own reports" on post_reports for select using (auth.uid() = reporter_id);
 create policy "user reports as themselves" on post_reports for insert with check (auth.uid() = reporter_id);
-alter table manual_entries add column if not exists kickoff_reminder_sent_at timestamptz;
+
+-- --- Report moderation ---------------------------------------------------
+-- One flag on profiles rather than a separate roles table - this project
+-- has exactly one operator, not a team with different permission levels.
+-- src/pages/AdminReportsPage.jsx (route /admin/reports) is the only thing
+-- gated on it, client-side for UX and via these two policies for the real
+-- enforcement. bet_posts never had a delete policy before this - nobody,
+-- not even a post's own author, could delete one; this adds exactly one
+-- way for a post to be removed; admin takedown.
+alter table profiles add column if not exists is_admin boolean not null default false;
+
+create policy "admins read all reports" on post_reports for select using (
+  exists (select 1 from profiles p where p.id = auth.uid() and p.is_admin)
+);
+create policy "admins dismiss reports" on post_reports for delete using (
+  exists (select 1 from profiles p where p.id = auth.uid() and p.is_admin)
+);
+create policy "admins remove reported posts" on bet_posts for delete using (
+  exists (select 1 from profiles p where p.id = auth.uid() and p.is_admin)
+);
+
+-- --- Direct messages ------------------------------------------------------
+-- 1:1 chat between friends - separate from group_messages (which is scoped
+-- to a group's members) and bet_comments (threaded under one bet post).
+
+create table direct_messages (
+  id uuid primary key default gen_random_uuid(),
+  sender_id uuid not null references profiles(id) on delete cascade,
+  recipient_id uuid not null references profiles(id) on delete cascade,
+  body text not null,
+  created_at timestamptz not null default now(),
+  check (sender_id <> recipient_id)
+);
+
+alter table direct_messages enable row level security;
+
+create policy "user reads own direct messages" on direct_messages for select using (
+  auth.uid() = sender_id or auth.uid() = recipient_id
+);
+create policy "user sends direct messages as themselves" on direct_messages for insert with check (
+  auth.uid() = sender_id
+);
+
+-- --- Profile photos --------------------------------------------------------
+-- Storage bucket for uploaded avatars. Public read (avatars are shown to
+-- anyone who can see the profile at all, same as display_name already is)
+-- but writes are scoped to a path prefixed with the uploader's own user id
+-- (see src/lib/dataStore.js's uploadAvatar, which uploads to `${userId}/...`),
+-- checked via storage.foldername() rather than a users table join since
+-- storage.objects has no direct FK to profiles.
+
+alter table profiles add column if not exists avatar_url text;
+
+insert into storage.buckets (id, name, public) values ('avatars', 'avatars', true)
+on conflict (id) do nothing;
+
+create policy "anyone can view avatars" on storage.objects for select using (bucket_id = 'avatars');
+create policy "user uploads own avatar" on storage.objects for insert with check (
+  bucket_id = 'avatars' and (storage.foldername(name))[1] = auth.uid()::text
+);
+create policy "user replaces own avatar" on storage.objects for update using (
+  bucket_id = 'avatars' and (storage.foldername(name))[1] = auth.uid()::text
+);
+
+-- --- Referrals -------------------------------------------------------------
+-- Who invited whom, captured at sign-up from a stashed /r/:code (mirrors
+-- App.jsx's existing StashJoinCode pattern for group invites) - not a
+-- points/rewards system, just attribution for a "most invites" leaderboard
+-- (see netlify/functions/hall-of-fame.js) since a competitive stat is more
+-- honest right now than inventing a currency with nothing to spend it on.
+-- on delete set null (not cascade) - if the referrer's account is later
+-- deleted (see delete-account.js), the person they referred keeps their own
+-- account; they just lose that attribution, same as the referrer forfeits
+-- the Hall of Fame credit rather than taking their invitee down with them.
+
+alter table profiles add column if not exists referred_by uuid references profiles(id) on delete set null;

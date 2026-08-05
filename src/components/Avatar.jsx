@@ -14,7 +14,18 @@ function initialsFor(name) {
   return parts.length > 1 ? (parts[0][0] + parts[1][0]).toUpperCase() : name.slice(0, 2).toUpperCase()
 }
 
-export default function Avatar({ name, size = 28 }) {
+export default function Avatar({ name, size = 28, photoUrl }) {
+  if (photoUrl) {
+    return (
+      <img
+        className="avatar avatar-photo"
+        src={photoUrl}
+        alt=""
+        title={name}
+        style={{ width: size, height: size }}
+      />
+    )
+  }
   return (
     <span
       className="avatar"

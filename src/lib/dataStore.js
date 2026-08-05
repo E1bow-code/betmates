@@ -20,7 +20,9 @@ function mapProfile(row) {
     bookmakerPrefs: row.bookmaker_prefs || [],
     notificationPrefs: row.notification_prefs || { betPosted: true, betSettled: true, oddsMoved: false },
     acceptedTermsAt: row.accepted_terms_at,
-    createdAt: row.created_at
+    createdAt: row.created_at,
+    isAdmin: row.is_admin || false,
+    avatarUrl: row.avatar_url || null
   }
 }
 
@@ -79,8 +81,8 @@ export async function getSession() {
   return mapProfile(profile)
 }
 
-export async function signUp({ email, password, displayName, dob }) {
-  if (!isSupabaseConfigured) return local.signUp({ email, displayName, dob })
+export async function signUp({ email, password, displayName, dob, referredByCode }) {
+  if (!isSupabaseConfigured) return local.signUp({ email, displayName, dob, referredByCode })
 
   const age = Math.floor((Date.now() - new Date(dob).getTime()) / (365.25 * 24 * 3600 * 1000))
   if (age < 18) throw new Error('You must be 18 or older to use BetMates.')
@@ -90,6 +92,18 @@ export async function signUp({ email, password, displayName, dob }) {
   const authUser = data.user
   if (!authUser) throw new Error('Sign-up failed - check your inbox to confirm your email, then sign in.')
 
+  // A bad/stale referral code should never block sign-up - look it up
+  // best-effort and just leave referred_by null if it doesn't resolve.
+  let referredBy = null
+  if (referredByCode) {
+    const { data: referrer } = await supabase
+      .from('profiles')
+      .select('id')
+      .eq('friend_code', referredByCode.trim().toUpperCase())
+      .maybeSingle()
+    referredBy = referrer?.id ?? null
+  }
+
   const { data: profile, error: profileError } = await supabase
     .from('profiles')
     .insert({
@@ -97,7 +111,8 @@ export async function signUp({ email, password, displayName, dob }) {
       email,
       display_name: displayName,
       date_of_birth: dob,
-      accepted_terms_at: new Date().toISOString()
+      accepted_terms_at: new Date().toISOString(),
+      referred_by: referredBy
     })
     .select()
     .single()
@@ -255,6 +270,43 @@ export async function sendGroupMessage(groupId, userId, body) {
   return mapGroupMessage(data)
 }
 
+// --- Direct messages -----------------------------------------------------
+// 1:1 chat between two friends, separate from group_messages (scoped to a
+// group) and bet_comments (threaded under one bet post).
+
+function mapDirectMessage(row) {
+  return { id: row.id, senderId: row.sender_id, recipientId: row.recipient_id, body: row.body, createdAt: row.created_at }
+}
+
+export async function getProfileById(userId) {
+  if (!isSupabaseConfigured) return local.getProfileById(userId)
+  const { data, error } = await supabase.from('profiles').select('id, display_name, avatar_url').eq('id', userId).maybeSingle()
+  if (error) throw error
+  return data ? { id: data.id, displayName: data.display_name, avatarUrl: data.avatar_url } : null
+}
+
+export async function listDirectMessages(userId, friendId) {
+  if (!isSupabaseConfigured) return local.listDirectMessages(userId, friendId)
+  const { data, error } = await supabase
+    .from('direct_messages')
+    .select('*')
+    .or(`and(sender_id.eq.${userId},recipient_id.eq.${friendId}),and(sender_id.eq.${friendId},recipient_id.eq.${userId})`)
+    .order('created_at', { ascending: true })
+  if (error) throw error
+  return data.map(mapDirectMessage)
+}
+
+export async function sendDirectMessage(userId, friendId, body) {
+  if (!isSupabaseConfigured) return local.sendDirectMessage(userId, friendId, body)
+  const { data, error } = await supabase
+    .from('direct_messages')
+    .insert({ sender_id: userId, recipient_id: friendId, body })
+    .select()
+    .single()
+  if (error) throw error
+  return mapDirectMessage(data)
+}
+
 // --- Bet posts --------------------------------------------------------
 
 export async function listBetPosts(groupId) {
@@ -395,6 +447,52 @@ export async function reportPost(postId, reporterId, reason) {
   return true
 }
 
+// --- Report moderation ---------------------------------------------------
+// Admin-only (see AdminReportsPage.jsx) - enforced both client-side (the
+// route redirects a non-admin away) and by the "admins read/dismiss/remove"
+// RLS policies in schema.sql, which is the real gate.
+
+export async function listAllReports() {
+  if (!isSupabaseConfigured) return local.listAllReports()
+  const { data, error } = await supabase
+    .from('post_reports')
+    .select(
+      'id, reason, created_at, post_id, reporter:profiles!post_reports_reporter_id_fkey(display_name), post:bet_posts(id, user_id, selections, stake, status, author:profiles!bet_posts_user_id_fkey(display_name))'
+    )
+    .order('created_at', { ascending: false })
+  if (error) throw error
+  return data
+    .filter((row) => row.post) // the post's own delete policy cascades its reports away too, but guard anyway
+    .map((row) => ({
+      id: row.id,
+      reason: row.reason,
+      createdAt: row.created_at,
+      reporterName: row.reporter?.display_name ?? 'Someone',
+      postId: row.post_id,
+      post: {
+        id: row.post.id,
+        authorName: row.post.author?.display_name ?? 'Someone',
+        event: row.post.selections?.[0]?.event ?? 'Bet',
+        stake: row.post.stake,
+        status: row.post.status
+      }
+    }))
+}
+
+export async function dismissReportsForPost(postId) {
+  if (!isSupabaseConfigured) return local.dismissReportsForPost(postId)
+  const { error } = await supabase.from('post_reports').delete().eq('post_id', postId)
+  if (error) throw error
+  return true
+}
+
+export async function removePost(postId) {
+  if (!isSupabaseConfigured) return local.removePost(postId)
+  const { error } = await supabase.from('bet_posts').delete().eq('id', postId)
+  if (error) throw error
+  return true
+}
+
 // --- Reactions & comments ------------------------------------------------
 
 export async function toggleReaction(betId, userId, emoji) {
@@ -515,6 +613,31 @@ export async function updateNotificationPrefs(userId, prefs) {
   const { error } = await supabase.from('profiles').update({ notification_prefs: prefs }).eq('id', userId)
   if (error) throw error
   return prefs
+}
+
+// Path is prefixed with the uploader's own user id - the storage RLS
+// policies (see schema.sql) check exactly that prefix, so anything else
+// would be rejected before it ever reached here. upsert:true means
+// re-uploading (changing your photo) overwrites the same object instead of
+// accumulating orphaned files.
+export async function uploadAvatar(userId, file) {
+  if (!isSupabaseConfigured) return local.uploadAvatar(userId, file)
+  const ext = file.name.split('.').pop() || 'jpg'
+  const path = `${userId}/avatar.${ext}`
+  const { error: uploadError } = await supabase.storage.from('avatars').upload(path, file, { upsert: true })
+  if (uploadError) throw uploadError
+  const { data: publicUrlData } = supabase.storage.from('avatars').getPublicUrl(path)
+  const url = `${publicUrlData.publicUrl}?v=${Date.now()}` // cache-bust so a re-upload shows immediately
+  const { error: updateError } = await supabase.from('profiles').update({ avatar_url: url }).eq('id', userId)
+  if (updateError) throw updateError
+  return url
+}
+
+export async function countReferrals(userId) {
+  if (!isSupabaseConfigured) return local.countReferrals(userId)
+  const { count, error } = await supabase.from('profiles').select('id', { count: 'exact', head: true }).eq('referred_by', userId)
+  if (error) throw error
+  return count ?? 0
 }
 
 // --- Push subscriptions -------------------------------------------------

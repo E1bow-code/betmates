@@ -76,7 +76,20 @@ export default async (req) => {
       if (!mostActive || count > mostActive.count) mostActive = { ...info, count }
     }
 
-    const body = { biggestWin, underdog, topProfit, longestStreak, mostActive }
+    // Not scoped to public posts like everything else above - referred_by
+    // is attribution (who invited whom), not betting activity, so there's
+    // no visibility='public' concept to filter it by.
+    let topRecruiter = null
+    const { data: referred } = await supabase.from('profiles').select('referred_by').not('referred_by', 'is', null)
+    const referralCounts = new Map()
+    for (const p of referred ?? []) referralCounts.set(p.referred_by, (referralCounts.get(p.referred_by) ?? 0) + 1)
+    if (referralCounts.size) {
+      const [topId, count] = [...referralCounts.entries()].sort((a, b) => b[1] - a[1])[0]
+      const { data: recruiter } = await supabase.from('profiles').select('display_name,friend_code').eq('id', topId).maybeSingle()
+      if (recruiter) topRecruiter = { name: recruiter.display_name, code: recruiter.friend_code, count }
+    }
+
+    const body = { biggestWin, underdog, topProfit, longestStreak, mostActive, topRecruiter }
     cacheSet('hall-of-fame', body, TTL)
     return new Response(JSON.stringify(body), { status: 200, headers: { 'content-type': 'application/json' } })
   } catch (err) {

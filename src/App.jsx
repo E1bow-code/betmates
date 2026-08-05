@@ -25,6 +25,9 @@ import NotificationsPage from './pages/NotificationsPage.jsx'
 import ResetPasswordPage from './pages/ResetPasswordPage.jsx'
 import AchievementsPage from './pages/AchievementsPage.jsx'
 import HallOfFamePage from './pages/HallOfFamePage.jsx'
+import AdminReportsPage from './pages/AdminReportsPage.jsx'
+import DirectMessagePage from './pages/DirectMessagePage.jsx'
+import { PENDING_REFERRAL_KEY } from './lib/referral.js'
 
 const PENDING_JOIN_KEY = 'betmates:pendingJoinCode'
 
@@ -47,6 +50,19 @@ function StashJoinCode() {
   const { code } = useParams()
   useEffect(() => {
     if (code) localStorage.setItem(PENDING_JOIN_KEY, code)
+  }, [code])
+  return <Navigate to="/" replace />
+}
+
+// Same idea as StashJoinCode, but a referral only ever matters once - at
+// the sign-up insert itself (see AuthPage.jsx) - not after an authenticated
+// action, so there's no HomeRedirect-style pickup step needed. Landing on
+// "/" for a logged-out visitor already shows AuthPage, which reads this key
+// directly when the sign-up form submits.
+function StashReferralCode() {
+  const { code } = useParams()
+  useEffect(() => {
+    if (code) localStorage.setItem(PENDING_REFERRAL_KEY, code)
   }, [code])
   return <Navigate to="/" replace />
 }
@@ -108,6 +124,7 @@ function Shell() {
       <Routes>
         <Route path="/legal" element={<LegalPage />} />
         <Route path="/join/:code" element={<StashJoinCode />} />
+        <Route path="/r/:code" element={<StashReferralCode />} />
         <Route path="/u/:code" element={<PublicProfilePage />} />
         <Route path="/hall-of-fame" element={<HallOfFamePage />} />
         <Route path="*" element={<AuthPage />} />
@@ -131,10 +148,12 @@ function Shell() {
               <Route path="/groups" element={<SocialFeedPage />} />
               <Route path="/groups/:id" element={<GroupFeedPage />} />
               <Route path="/join/:code" element={<JoinGroupPage />} />
+              <Route path="/messages/:friendId" element={<DirectMessagePage />} />
               <Route path="/tracker" element={<TrackerPage />} />
               <Route path="/achievements" element={<AchievementsPage />} />
               <Route path="/alerts" element={<NotificationsPage />} />
               <Route path="/account" element={<AccountPage />} />
+              <Route path="/admin/reports" element={<AdminReportsPage />} />
               <Route path="/u/:code" element={<PublicProfilePage />} />
               <Route path="/hall-of-fame" element={<HallOfFamePage />} />
               <Route path="/legal" element={<LegalPage />} />

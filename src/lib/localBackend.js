@@ -23,7 +23,8 @@ const EMPTY_DB = {
   follows: [],
   groupMessages: [],
   blocks: [],
-  postReports: []
+  postReports: [],
+  directMessages: []
 }
 
 // Merges in any table keys added after a browser's db was first created -
@@ -100,7 +101,7 @@ function removeDemoContent(db) {
   return true
 }
 
-export function signUp({ email, displayName, dob }) {
+export function signUp({ email, displayName, dob, referredByCode }) {
   const age = ageFromDob(dob)
   if (age < 18) return Promise.reject(new Error('You must be 18 or older to use BetMates.'))
 
@@ -108,6 +109,7 @@ export function signUp({ email, displayName, dob }) {
   if (db.users.some((u) => u.email === email)) {
     return Promise.reject(new Error('An account with that email already exists.'))
   }
+  const referrer = referredByCode ? db.users.find((u) => u.friendCode === referredByCode.trim().toUpperCase()) : null
   const user = {
     id: uid('user'),
     email,
@@ -117,7 +119,10 @@ export function signUp({ email, displayName, dob }) {
     notificationPrefs: { betPosted: true, betSettled: true, oddsMoved: false, kickoffReminders: false },
     friendCode: Math.random().toString(36).slice(2, 8).toUpperCase(),
     acceptedTermsAt: new Date().toISOString(),
-    createdAt: new Date().toISOString()
+    createdAt: new Date().toISOString(),
+    isAdmin: false,
+    avatarUrl: null,
+    referredBy: referrer?.id ?? null
   }
   db.users.push(user)
   writeDb(db)
@@ -277,6 +282,31 @@ export function sendGroupMessage(groupId, userId, body) {
   const db = readDb()
   const message = { id: uid('msg'), groupId, userId, body, createdAt: new Date().toISOString() }
   db.groupMessages.push(message)
+  writeDb(db)
+  return delay(message)
+}
+
+// --- Direct messages ---------------------------------------------------
+
+export function getProfileById(userId) {
+  const db = readDb()
+  const user = db.users.find((u) => u.id === userId)
+  return delay(user ? { id: user.id, displayName: user.displayName, avatarUrl: user.avatarUrl ?? null } : null)
+}
+
+export function listDirectMessages(userId, friendId) {
+  const db = readDb()
+  return delay(
+    db.directMessages
+      .filter((m) => (m.senderId === userId && m.recipientId === friendId) || (m.senderId === friendId && m.recipientId === userId))
+      .sort((a, b) => new Date(a.createdAt) - new Date(b.createdAt))
+  )
+}
+
+export function sendDirectMessage(userId, friendId, body) {
+  const db = readDb()
+  const message = { id: uid('dm'), senderId: userId, recipientId: friendId, body, createdAt: new Date().toISOString() }
+  db.directMessages.push(message)
   writeDb(db)
   return delay(message)
 }
@@ -460,6 +490,41 @@ export function updateNotificationPrefs(userId, prefs) {
   return delay(prefs)
 }
 
+// No real object storage in local mode - reads the file as a data URL and
+// stores that directly, which is fine at avatar-sized files but would bloat
+// localStorage fast at any real size. Fine for dev-mode clicking around;
+// the Supabase-backed uploadAvatar in dataStore.js is what production uses.
+export function uploadAvatar(userId, file) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader()
+    reader.onload = () => {
+      const url = reader.result
+      const db = readDb()
+      const user = db.users.find((u) => u.id === userId)
+      if (user) {
+        user.avatarUrl = url
+        writeDb(db)
+      }
+      const session = localStorage.getItem(SESSION_KEY)
+      if (session) {
+        const sessionUser = JSON.parse(session)
+        if (sessionUser.id === userId) {
+          sessionUser.avatarUrl = url
+          localStorage.setItem(SESSION_KEY, JSON.stringify(sessionUser))
+        }
+      }
+      resolve(url)
+    }
+    reader.onerror = () => reject(new Error('Could not read that file.'))
+    reader.readAsDataURL(file)
+  })
+}
+
+export function countReferrals(userId) {
+  const db = readDb()
+  return delay(db.users.filter((u) => u.referredBy === userId).length)
+}
+
 // --- Push subscriptions -------------------------------------------------
 // No server to send a push from in local mode - the real subscribe/permission
 // flow in src/lib/push.js still runs, this just has nowhere to persist it.
@@ -639,5 +704,52 @@ export function reportPost(postId, reporterId, reason) {
     db.postReports.push({ id: uid('report'), postId, reporterId, reason, createdAt: new Date().toISOString() })
     writeDb(db)
   }
+  return delay(true)
+}
+
+// --- Report moderation ---------------------------------------------------
+
+export function listAllReports() {
+  const db = readDb()
+  const names = Object.fromEntries(db.users.map((u) => [u.id, u.displayName]))
+  return delay(
+    db.postReports
+      .map((r) => {
+        const post = db.betPosts.find((p) => p.id === r.postId)
+        if (!post) return null
+        return {
+          id: r.id,
+          reason: r.reason,
+          createdAt: r.createdAt,
+          reporterName: names[r.reporterId] ?? 'Someone',
+          postId: r.postId,
+          post: {
+            id: post.id,
+            authorName: names[post.userId] ?? 'Someone',
+            event: post.selections?.[0]?.event ?? 'Bet',
+            stake: post.stake,
+            status: post.status
+          }
+        }
+      })
+      .filter(Boolean)
+      .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))
+  )
+}
+
+export function dismissReportsForPost(postId) {
+  const db = readDb()
+  db.postReports = db.postReports.filter((r) => r.postId !== postId)
+  writeDb(db)
+  return delay(true)
+}
+
+export function removePost(postId) {
+  const db = readDb()
+  db.betPosts = db.betPosts.filter((p) => p.id !== postId)
+  db.reactions = db.reactions.filter((r) => r.betId !== postId)
+  db.comments = db.comments.filter((c) => c.betId !== postId)
+  db.postReports = db.postReports.filter((r) => r.postId !== postId)
+  writeDb(db)
   return delay(true)
 }

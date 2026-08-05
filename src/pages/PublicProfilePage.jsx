@@ -39,7 +39,7 @@ export default function PublicProfilePage() {
       {data && (
         <>
           <div className="account-identity">
-            <Avatar name={data.displayName} size={48} />
+            <Avatar name={data.displayName} photoUrl={data.avatarUrl} size={48} />
             <div>
               <span className="account-name">{data.displayName}</span>
               <div className="race-card-meta">

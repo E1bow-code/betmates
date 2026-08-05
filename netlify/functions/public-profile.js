@@ -25,7 +25,7 @@ export default async (req) => {
 
     const { data: profile } = await supabase
       .from('profiles')
-      .select('id,display_name,created_at')
+      .select('id,display_name,created_at,avatar_url')
       .eq('friend_code', code)
       .maybeSingle()
     if (!profile) return new Response(JSON.stringify(null), { status: 200, headers: { 'content-type': 'application/json' } })
@@ -50,6 +50,7 @@ export default async (req) => {
     return new Response(
       JSON.stringify({
         displayName: profile.display_name,
+        avatarUrl: profile.avatar_url,
         memberSince: profile.created_at,
         stats,
         recent

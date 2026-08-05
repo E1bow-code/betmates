@@ -4,6 +4,7 @@ import { useAuth } from '../context/AuthContext.jsx'
 import { requestPasswordReset } from '../lib/dataStore.js'
 import { isSupabaseConfigured } from '../lib/supabaseClient.js'
 import { fetchSportPhoto } from '../api/photoClient.js'
+import { PENDING_REFERRAL_KEY } from '../lib/referral.js'
 
 function todayMinusYears(years) {
   const d = new Date()
@@ -49,7 +50,9 @@ export default function AuthPage() {
     try {
       if (mode === 'signup') {
         if (!acceptedTerms) throw new Error('You must confirm your age and accept the Terms to continue.')
-        await signUp({ email, password, displayName, dob })
+        const referredByCode = localStorage.getItem(PENDING_REFERRAL_KEY)
+        localStorage.removeItem(PENDING_REFERRAL_KEY)
+        await signUp({ email, password, displayName, dob, referredByCode })
       } else {
         await signIn({ email, password })
       }

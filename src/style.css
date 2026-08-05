@@ -337,6 +337,12 @@ h1, h2, .topbar h1, .sheet-title, .auth-title {
 
 .danger-zone { border: 1px solid var(--bad); border-radius: 4px; padding: 12px; }
 
+.report-list { display: flex; flex-direction: column; gap: 10px; }
+.report-card { border: 1px solid var(--border); border-radius: 4px; padding: 12px; background: var(--surface); }
+.report-card-meta { font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.03em; color: var(--bad); font-weight: 700; margin-bottom: 4px; }
+.report-card-title { font-weight: 600; }
+.report-card-actions { display: flex; gap: 8px; }
+
 .hint { color: var(--text-dim); font-size: 0.8rem; padding: 4px 4px 12px; }
 .hint-with-action { display: flex; justify-content: space-between; align-items: center; gap: 8px; }
 
@@ -801,6 +807,8 @@ h1, h2, .topbar h1, .sheet-title, .auth-title {
   flex-shrink: 0;
 }
 
+.avatar-photo { object-fit: cover; }
+
 /* Leaderboard - a scoreboard, not stacked cards: one bordered panel, rows
    divided by hairlines, rank + P&L set in tabular monospace. */
 .leaderboard { margin: 12px 0; }
@@ -1136,6 +1144,23 @@ h1, h2, .topbar h1, .sheet-title, .auth-title {
 .account-name { font-weight: 700; font-size: 1.1rem; }
 .account-identity { display: flex; align-items: center; gap: 12px; }
 .account-name-row { display: flex; align-items: center; gap: 8px; }
+
+.avatar-upload { position: relative; display: inline-block; cursor: pointer; flex-shrink: 0; }
+.avatar-upload-badge {
+  position: absolute;
+  bottom: -2px;
+  right: -2px;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: var(--accent);
+  color: var(--accent-ink);
+  font-size: 0.62rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 2px solid var(--bg);
+}
 .bookmaker-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px 16px; margin-top: 8px; }
 .bookmaker-check { align-items: center; }
 

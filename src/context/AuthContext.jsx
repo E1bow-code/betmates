@@ -64,9 +64,29 @@ export function AuthProvider({ children }) {
     [user]
   )
 
+  const updateAvatar = useCallback(
+    async (file) => {
+      if (!user) return
+      const url = await dataStore.uploadAvatar(user.id, file)
+      setUser((u) => ({ ...u, avatarUrl: url }))
+    },
+    [user]
+  )
+
   return (
     <AuthContext.Provider
-      value={{ user, loading, signUp, signIn, signOut, deleteAccount, updateDisplayName, updateBookmakerPrefs, updateNotificationPrefs }}
+      value={{
+        user,
+        loading,
+        signUp,
+        signIn,
+        signOut,
+        deleteAccount,
+        updateDisplayName,
+        updateBookmakerPrefs,
+        updateNotificationPrefs,
+        updateAvatar
+      }}
     >
       {children}
     </AuthContext.Provider>
