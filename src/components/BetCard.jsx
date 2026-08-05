@@ -3,6 +3,7 @@ import { useAuth } from '../context/AuthContext.jsx'
 import { useOddsFormat } from '../context/OddsFormatContext.jsx'
 import * as dataStore from '../lib/dataStore.js'
 import { formatOdds } from '../utils/oddsFormat.js'
+import { notifyBetAuthor } from '../lib/notify.js'
 import CopyBetButton from './CopyBetButton.jsx'
 import BackBetButton from './BackBetButton.jsx'
 import ShareImageButton from './ShareImageButton.jsx'
@@ -68,9 +69,14 @@ export default function BetCard({ post, memberNames, variant = 'group', onBlocke
   async function handleAddComment(e) {
     e.preventDefault()
     if (!commentBody.trim()) return
-    const comment = await dataStore.addComment(post.id, user.id, commentBody.trim())
+    const body = commentBody.trim()
+    const comment = await dataStore.addComment(post.id, user.id, body)
     setComments((c) => [...c, comment])
     setCommentBody('')
+    if (!isAuthor) {
+      const commenterName = memberNames?.[user.id] ?? user.displayName ?? 'Someone'
+      notifyBetAuthor(post.userId, { title: `💬 ${commenterName} commented`, body, url: '/#/groups' })
+    }
   }
 
   async function handleFollowToggle() {

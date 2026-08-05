@@ -7,7 +7,8 @@
 // great pick only shared inside a private group can't show up here.
 import { createClient } from '@supabase/supabase-js'
 import { cacheGet, cacheSet } from '../../src/lib/apiCache.js'
-import { computeLongestWinStreak } from '../../src/utils/trackerStats.js'
+import { computeLongestWinStreak, computeStats } from '../../src/utils/trackerStats.js'
+import { tipsterBadge } from '../../src/utils/tipsterBadge.js'
 
 const SUPABASE_URL = process.env.VITE_SUPABASE_URL
 const SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY
@@ -59,6 +60,7 @@ export default async (req) => {
 
     let topProfit = null
     let longestStreak = null
+    let sharpestTipster = null
     for (const { info, entries } of byUser.values()) {
       const profit = entries.reduce((sum, e) => {
         if (e.status === 'won') return sum + (Number(e.potentialReturn) - Number(e.stake))
@@ -69,6 +71,12 @@ export default async (req) => {
 
       const count = computeLongestWinStreak(entries)
       if (count > 0 && (!longestStreak || count > longestStreak.count)) longestStreak = { ...info, count }
+
+      const stats = computeStats(entries)
+      const badge = tipsterBadge(stats)
+      if (badge && (!sharpestTipster || stats.winRate > sharpestTipster.winRate)) {
+        sharpestTipster = { ...info, winRate: stats.winRate, decidedCount: stats.decidedCount, badge }
+      }
     }
 
     let mostActive = null
@@ -89,7 +97,7 @@ export default async (req) => {
       if (recruiter) topRecruiter = { name: recruiter.display_name, code: recruiter.friend_code, count }
     }
 
-    const body = { biggestWin, underdog, topProfit, longestStreak, mostActive, topRecruiter }
+    const body = { biggestWin, underdog, topProfit, longestStreak, mostActive, topRecruiter, sharpestTipster }
     cacheSet('hall-of-fame', body, TTL)
     return new Response(JSON.stringify(body), { status: 200, headers: { 'content-type': 'application/json' } })
   } catch (err) {

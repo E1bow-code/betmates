@@ -479,6 +479,20 @@ create policy "friends can read each other's push subscriptions" on push_subscri
   )
 );
 
+-- --- Bet comment push notifications -----------------------------------
+-- Same idea again, for send-push.js's authorId branch: a comment can land
+-- on a public-feed post from someone who's neither a group-mate nor a
+-- friend of the poster, so neither policy above would cover it. Scoped
+-- tightly to "you've actually just commented on one of their bets", not a
+-- blanket grant.
+create policy "commenters can read the bet author's push subscriptions" on push_subscriptions for select using (
+  exists (
+    select 1 from bet_comments c
+    join bet_posts p on p.id = c.bet_id
+    where c.user_id = auth.uid() and p.user_id = push_subscriptions.user_id
+  )
+);
+
 -- --- Responsible gambling: spending limit -----------------------------
 -- A self-set weekly/monthly stake cap (see src/pages/AccountPage.jsx and
 -- src/components/BetBuilderSheet.jsx's soft warning nudge) - null/null means
@@ -538,3 +552,21 @@ create table followed_fixtures (
 );
 alter table followed_fixtures enable row level security;
 create policy "user manages own follows" on followed_fixtures for all using (auth.uid() = user_id) with check (auth.uid() = user_id);
+
+-- --- Followed teams/players (standing preference) -------------------------
+-- Distinct from followed_fixtures above: that's "notify me about this ONE
+-- upcoming game", this is "always show me this team/player wherever they
+-- show up" - powers OddsListPage's "My teams only" filter. participant_name
+-- is a plain string match against whatever the odds provider calls that
+-- team/player (fixture.homeTeam, fight.fighterA, event.participantA, etc.),
+-- not a foreign key - there's no shared participant table across sports.
+create table followed_participants (
+  id uuid primary key default gen_random_uuid(),
+  user_id uuid not null references profiles(id) on delete cascade,
+  sport text not null,
+  participant_name text not null,
+  created_at timestamptz not null default now(),
+  unique (user_id, sport, participant_name)
+);
+alter table followed_participants enable row level security;
+create policy "user manages own followed participants" on followed_participants for all using (auth.uid() = user_id) with check (auth.uid() = user_id);

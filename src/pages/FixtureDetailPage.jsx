@@ -18,6 +18,7 @@ import LiveBadge from '../components/LiveBadge.jsx'
 import WatchLiveButton from '../components/WatchLiveButton.jsx'
 import OddsAlertSheet from '../components/OddsAlertSheet.jsx'
 import FollowButton from '../components/FollowButton.jsx'
+import FollowParticipantButton from '../components/FollowParticipantButton.jsx'
 
 const PLAYER_MARKET_KEYS = ['player_goal_scorer_anytime', 'player_first_goal_scorer', 'player_last_goal_scorer']
 
@@ -90,11 +91,13 @@ export default function FixtureDetailPage() {
           <span className="fixture-team">
             <TeamBadge team={fixture.homeTeam} size={26} />
             <span>{fixture.homeTeam}</span>
+            <FollowParticipantButton sport="football" name={fixture.homeTeam} />
           </span>
           <span className="fixture-vs">v</span>
           <span className="fixture-team">
             <TeamBadge team={fixture.awayTeam} size={26} />
             <span>{fixture.awayTeam}</span>
+            <FollowParticipantButton sport="football" name={fixture.awayTeam} />
           </span>
         </h1>
         <div className="race-header-meta">

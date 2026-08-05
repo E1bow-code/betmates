@@ -19,6 +19,7 @@ import LiveBadge from '../components/LiveBadge.jsx'
 import WatchLiveButton from '../components/WatchLiveButton.jsx'
 import OddsAlertSheet from '../components/OddsAlertSheet.jsx'
 import FollowButton from '../components/FollowButton.jsx'
+import FollowParticipantButton from '../components/FollowParticipantButton.jsx'
 
 export default function GenericEventDetailPage() {
   const { sportKey, id } = useParams()
@@ -94,11 +95,13 @@ export default function GenericEventDetailPage() {
           <span className="fixture-team">
             <Photo {...{ [photoProp]: event.participantA }} size={26} />
             <span>{event.participantA}</span>
+            <FollowParticipantButton sport={sportKey} name={event.participantA} />
           </span>
           <span className="fixture-vs">v</span>
           <span className="fixture-team">
             <Photo {...{ [photoProp]: event.participantB }} size={26} />
             <span>{event.participantB}</span>
+            <FollowParticipantButton sport={sportKey} name={event.participantB} />
           </span>
         </h1>
         <div className="race-header-meta">

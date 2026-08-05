@@ -27,9 +27,9 @@ export default async (req) => {
   }
 
   try {
-    const { accessToken, groupId, friendId, excludeUserId, title, body, url } = await req.json()
-    if (!accessToken || (!groupId && !friendId)) {
-      return new Response(JSON.stringify({ sent: 0, reason: 'missing accessToken and groupId/friendId' }), { status: 200 })
+    const { accessToken, groupId, friendId, authorId, excludeUserId, title, body, url } = await req.json()
+    if (!accessToken || (!groupId && !friendId && !authorId)) {
+      return new Response(JSON.stringify({ sent: 0, reason: 'missing accessToken and groupId/friendId/authorId' }), { status: 200 })
     }
 
     webpush.setVapidDetails('mailto:betmates@example.com', VAPID_PUBLIC_KEY, VAPID_PRIVATE_KEY)
@@ -42,6 +42,11 @@ export default async (req) => {
       // "friends can read each other's push subscriptions" (schema.sql)
       // covers the read below - no group lookup needed for a 1:1 DM.
       targetUserIds = [friendId]
+    } else if (authorId) {
+      // "commenters can read the bet author's push subscriptions"
+      // (schema.sql) covers this - scoped to only whoever the caller has
+      // actually just commented on, not a blanket grant.
+      targetUserIds = [authorId]
     } else {
       const { data: members, error: membersError } = await supabase.from('group_members').select('user_id').eq('group_id', groupId)
       if (membersError) throw membersError

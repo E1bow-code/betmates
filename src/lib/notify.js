@@ -35,3 +35,19 @@ export async function notifyFriend(friendId, { title, body, url }) {
     // Best-effort - see comment above.
   }
 }
+
+export async function notifyBetAuthor(authorId, { title, body, url }) {
+  if (!isSupabaseConfigured) return
+  try {
+    const { data } = await supabase.auth.getSession()
+    const accessToken = data.session?.access_token
+    if (!accessToken) return
+    await fetch('/api/send-push', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ accessToken, authorId, title, body, url })
+    })
+  } catch {
+    // Best-effort - see comment above.
+  }
+}

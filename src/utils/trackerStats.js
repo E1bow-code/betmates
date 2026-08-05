@@ -10,7 +10,15 @@ export function computeStats(entries) {
   const won = decided.filter((e) => e.status === 'won').length
   const winRate = decided.length ? Math.round((won / decided.length) * 100) : null
   const roi = staked ? Math.round((profit / staked) * 1000) / 10 : null
-  return { staked, profit, winRate, roi, settledCount: settled.length, openCount: entries.length - settled.length }
+  return {
+    staked,
+    profit,
+    winRate,
+    roi,
+    settledCount: settled.length,
+    openCount: entries.length - settled.length,
+    decidedCount: decided.length
+  }
 }
 
 // Current run of consecutive wins or consecutive losses, most recent bet

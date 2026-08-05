@@ -20,6 +20,7 @@ import PullToRefresh from '../components/PullToRefresh.jsx'
 import SportIcon from '../components/icons/SportIcons.jsx'
 import LiveBadge from '../components/LiveBadge.jsx'
 import PayoutCalculatorButton from '../components/PayoutCalculatorSheet.jsx'
+import * as dataStore from '../lib/dataStore.js'
 
 const SPORTS = ['football', 'racing', 'ufc', ...Object.keys(GENERIC_SPORTS)].map((key) => ({ key, label: SPORT_LABEL[key] }))
 
@@ -49,6 +50,16 @@ function groupByCompetition(items) {
     groups.get(key).push(item)
   }
   return [...groups.entries()].map(([competition, items]) => ({ competition, items }))
+}
+
+// Racing has no team/player concept (a field of runners, not two sides),
+// so it's left out here and the "My teams only" toggle just doesn't show
+// on that tab - same reasoning as bookmaker filtering not applying there.
+function participantNames(item, sport) {
+  if (sport === 'football') return [item.homeTeam, item.awayTeam]
+  if (sport === 'ufc') return [item.fighterA, item.fighterB]
+  if (sport === 'racing') return []
+  return [item.participantA, item.participantB]
 }
 
 // Same idea as groupByCompetition but for the cross-sport search results
@@ -95,6 +106,8 @@ export default function OddsListPage() {
   const [itemsSport, setItemsSport] = useState(null) // which sport `items` was fetched for
   const [error, setError] = useState(null)
   const [myBookiesOnly, setMyBookiesOnly] = useState(false)
+  const [myTeamsOnly, setMyTeamsOnly] = useState(false)
+  const [followedParticipants, setFollowedParticipants] = useState([])
   const [results, setResults] = useState(null)
   const [resultsSport, setResultsSport] = useState(null)
   const [resultsError, setResultsError] = useState(null)
@@ -102,6 +115,10 @@ export default function OddsListPage() {
   const [crossSportCache, setCrossSportCache] = useState({}) // sport key -> items[], filled lazily once a search starts
   const [crossSportLoading, setCrossSportLoading] = useState(false)
   const searchActive = search.trim().length > 0
+
+  useEffect(() => {
+    dataStore.listFollowedParticipants(user.id).then(setFollowedParticipants)
+  }, [user.id])
 
   useEffect(() => {
     setError(null)
@@ -147,9 +164,12 @@ export default function OddsListPage() {
   }, [mode, sport])
 
   const bookmakerFilter = myBookiesOnly ? user?.bookmakerPrefs ?? [] : null
+  const followedSet = useMemo(() => new Set(followedParticipants.map((p) => `${p.sport}::${p.name}`)), [followedParticipants])
   const rawLoaded = itemsSport === sport ? items : null
   const rawLoadedResults = resultsSport === sport ? results : null
-  const loaded = filterBySearch(rawLoaded, search)
+  const bySearch = filterBySearch(rawLoaded, search)
+  const loaded =
+    myTeamsOnly && bySearch ? bySearch.filter((item) => participantNames(item, sport).some((n) => followedSet.has(`${sport}::${n}`))) : bySearch
   const loadedResults = filterBySearch(rawLoadedResults, search)
   const groupedLoaded = loaded && sport !== 'racing' ? groupByCompetition(loaded) : null
 
@@ -159,10 +179,14 @@ export default function OddsListPage() {
     for (const s of SPORTS) {
       const list = crossSportCache[s.key]
       if (!list) continue
-      for (const item of filterBySearch(list, search)) all.push({ ...item, __sport: s.key })
+      for (const item of filterBySearch(list, search)) {
+        if (myTeamsOnly && !participantNames(item, s.key).some((n) => followedSet.has(`${s.key}::${n}`))) continue
+        all.push({ ...item, __sport: s.key })
+      }
     }
     return all.sort((a, b) => new Date(a.kickoff ?? a.offTime) - new Date(b.kickoff ?? b.offTime))
-  }, [searchActive, search, crossSportCache])
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchActive, search, crossSportCache, myTeamsOnly, followedSet])
 
   function refresh() {
     return mode === 'results'
@@ -213,6 +237,17 @@ export default function OddsListPage() {
                 disabled={!user?.bookmakerPrefs?.length}
               />
               <span>My bookies only</span>
+            </label>
+          )}
+          {mode === 'upcoming' && sport !== 'racing' && (
+            <label className="filter-toggle filter-toggle-inline">
+              <input
+                type="checkbox"
+                checked={myTeamsOnly}
+                onChange={(e) => setMyTeamsOnly(e.target.checked)}
+                disabled={!followedParticipants.length}
+              />
+              <span>My teams only</span>
             </label>
           )}
         </div>

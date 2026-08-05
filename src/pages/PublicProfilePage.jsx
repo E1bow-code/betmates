@@ -4,6 +4,7 @@ import { useAuth } from '../context/AuthContext.jsx'
 import Avatar from '../components/Avatar.jsx'
 import SportIcon from '../components/icons/SportIcons.jsx'
 import SportHeroBanner from '../components/SportHeroBanner.jsx'
+import { tipsterBadge } from '../utils/tipsterBadge.js'
 
 // The one route in this app that works fully logged out - reachable from a
 // "Share my profile" link (see AccountPage) without the visitor needing an
@@ -43,7 +44,14 @@ export default function PublicProfilePage() {
           <div className="account-identity">
             <Avatar name={data.displayName} photoUrl={data.avatarUrl} size={48} />
             <div>
-              <span className="account-name">{data.displayName}</span>
+              <span className="account-name">
+                {data.displayName}
+                {tipsterBadge(data.stats) && (
+                  <span className="tipster-badge" title={`${tipsterBadge(data.stats).label} - ${data.stats.decidedCount}+ decided public picks`}>
+                    {tipsterBadge(data.stats).icon} {tipsterBadge(data.stats).label}
+                  </span>
+                )}
+              </span>
               <div className="race-card-meta">
                 On BetMates since {new Date(data.memberSince).toLocaleDateString([], { month: 'long', year: 'numeric' })}
               </div>

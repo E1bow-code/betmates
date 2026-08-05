@@ -17,6 +17,7 @@ import LiveBadge from '../components/LiveBadge.jsx'
 import WatchLiveButton from '../components/WatchLiveButton.jsx'
 import OddsAlertSheet from '../components/OddsAlertSheet.jsx'
 import FollowButton from '../components/FollowButton.jsx'
+import FollowParticipantButton from '../components/FollowParticipantButton.jsx'
 
 export default function FightDetailPage() {
   const { id } = useParams()
@@ -83,11 +84,13 @@ export default function FightDetailPage() {
           <span className="fixture-team">
             <PlayerPhoto name={fight.fighterA} size={26} />
             <span>{fight.fighterA}</span>
+            <FollowParticipantButton sport="ufc" name={fight.fighterA} />
           </span>
           <span className="fixture-vs">v</span>
           <span className="fixture-team">
             <PlayerPhoto name={fight.fighterB} size={26} />
             <span>{fight.fighterB}</span>
+            <FollowParticipantButton sport="ufc" name={fight.fighterB} />
           </span>
         </h1>
         <div className="race-header-meta">

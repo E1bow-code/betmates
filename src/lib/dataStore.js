@@ -832,6 +832,36 @@ export async function isFollowingFixture(userId, sport, eventId) {
   return !!data
 }
 
+// --- Followed teams/players (standing preference, not per-fixture) --------
+// Distinct from followFixture above: that's "notify me about this ONE
+// upcoming game", this is "always show me this team/player wherever they
+// show up" - surfaced as the "My teams only" filter on OddsListPage.
+export async function followParticipant(userId, sport, name) {
+  if (!isSupabaseConfigured) return local.followParticipant(userId, sport, name)
+  const { error } = await supabase
+    .from('followed_participants')
+    .upsert({ user_id: userId, sport, participant_name: name }, { onConflict: 'user_id,sport,participant_name' })
+  if (error) throw error
+}
+
+export async function unfollowParticipant(userId, sport, name) {
+  if (!isSupabaseConfigured) return local.unfollowParticipant(userId, sport, name)
+  const { error } = await supabase
+    .from('followed_participants')
+    .delete()
+    .eq('user_id', userId)
+    .eq('sport', sport)
+    .eq('participant_name', name)
+  if (error) throw error
+}
+
+export async function listFollowedParticipants(userId) {
+  if (!isSupabaseConfigured) return local.listFollowedParticipants(userId)
+  const { data, error } = await supabase.from('followed_participants').select('sport,participant_name').eq('user_id', userId)
+  if (error) throw error
+  return data.map((r) => ({ sport: r.sport, name: r.participant_name }))
+}
+
 // --- Aggregated social feed ------------------------------------------------
 // Composed from the primitives above (not backend-specific) so it works
 // unchanged on both the local mock and Supabase: pulls every group the

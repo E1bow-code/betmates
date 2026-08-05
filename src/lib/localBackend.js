@@ -26,7 +26,8 @@ const EMPTY_DB = {
   postReports: [],
   directMessages: [],
   oddsAlerts: [],
-  followedFixtures: []
+  followedFixtures: [],
+  followedParticipants: []
 }
 
 // Merges in any table keys added after a browser's db was first created -
@@ -628,6 +629,28 @@ export function unfollowFixture(userId, sport, eventId) {
 export function isFollowingFixture(userId, sport, eventId) {
   const db = readDb()
   return delay(db.followedFixtures.some((f) => f.userId === userId && f.sport === sport && f.eventId === eventId))
+}
+
+// --- Followed teams/players ---------------------------------------------
+
+export function followParticipant(userId, sport, name) {
+  const db = readDb()
+  db.followedParticipants = db.followedParticipants.filter((p) => !(p.userId === userId && p.sport === sport && p.name === name))
+  db.followedParticipants.push({ id: uid('followp'), userId, sport, name, createdAt: new Date().toISOString() })
+  writeDb(db)
+  return delay(null)
+}
+
+export function unfollowParticipant(userId, sport, name) {
+  const db = readDb()
+  db.followedParticipants = db.followedParticipants.filter((p) => !(p.userId === userId && p.sport === sport && p.name === name))
+  writeDb(db)
+  return delay(null)
+}
+
+export function listFollowedParticipants(userId) {
+  const db = readDb()
+  return delay(db.followedParticipants.filter((p) => p.userId === userId).map((p) => ({ sport: p.sport, name: p.name })))
 }
 
 // --- Friends ----------------------------------------------------------

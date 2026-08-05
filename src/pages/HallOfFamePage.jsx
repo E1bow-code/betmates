@@ -17,7 +17,13 @@ const RECORDS = [
   { key: 'topProfit', icon: '🏆', title: 'Top all-time profit', render: (r) => `+£${r.profit.toFixed(2)}` },
   { key: 'underdog', icon: '🐎', title: 'Biggest underdog win', render: (r, format) => `${formatOdds(r.odds, format)} odds on ${r.event}` },
   { key: 'mostActive', icon: '📣', title: 'Most public picks shared', render: (r) => `${r.count} picks` },
-  { key: 'topRecruiter', icon: '🤝', title: 'Brought in the most mates', render: (r) => `${r.count} invited` }
+  { key: 'topRecruiter', icon: '🤝', title: 'Brought in the most mates', render: (r) => `${r.count} invited` },
+  {
+    key: 'sharpestTipster',
+    icon: '🎯',
+    title: 'Sharpest tipster',
+    render: (r) => `${r.badge.icon} ${r.badge.label} · ${r.winRate}% win rate (${r.decidedCount}+ picks)`
+  }
 ]
 
 export default function HallOfFamePage() {
