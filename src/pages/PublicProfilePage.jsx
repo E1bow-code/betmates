@@ -3,6 +3,7 @@ import { Link, useParams } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext.jsx'
 import Avatar from '../components/Avatar.jsx'
 import SportIcon from '../components/icons/SportIcons.jsx'
+import SportHeroBanner from '../components/SportHeroBanner.jsx'
 
 // The one route in this app that works fully logged out - reachable from a
 // "Share my profile" link (see AccountPage) without the visitor needing an
@@ -24,6 +25,7 @@ export default function PublicProfilePage() {
 
   return (
     <div>
+      <SportHeroBanner sport="profile" />
       <div className="topbar">
         <Link to={user ? '/odds' : '/'} className="back">
           &larr; BetMates

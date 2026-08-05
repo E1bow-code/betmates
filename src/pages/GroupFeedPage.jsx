@@ -9,6 +9,7 @@ import Avatar from '../components/Avatar.jsx'
 import EmptyState from '../components/EmptyState.jsx'
 import { shareOrCopy, groupInviteUrl } from '../lib/share.js'
 import PullToRefresh from '../components/PullToRefresh.jsx'
+import SportHeroBanner from '../components/SportHeroBanner.jsx'
 
 export default function GroupFeedPage() {
   const { id } = useParams()
@@ -138,6 +139,7 @@ export default function GroupFeedPage() {
 
   return (
     <PullToRefresh onRefresh={refreshCurrentTab}>
+      <SportHeroBanner sport="group" />
       <div className="topbar">
         <Link to="/groups" className="back">
           &larr; Social

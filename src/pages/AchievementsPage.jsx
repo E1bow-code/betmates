@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext.jsx'
 import * as dataStore from '../lib/dataStore.js'
 import { computeAchievements } from '../utils/achievements.js'
+import SportHeroBanner from '../components/SportHeroBanner.jsx'
 
 export default function AchievementsPage() {
   const { user } = useAuth()
@@ -21,6 +22,7 @@ export default function AchievementsPage() {
 
   return (
     <div>
+      <SportHeroBanner sport="achievements" />
       <div className="topbar">
         <Link to="/tracker" className="back">
           &larr; Tracker

@@ -9,6 +9,7 @@ import { isIOS, isStandalone } from '../lib/platform.js'
 import { shareOrCopy, publicProfileUrl, referralUrl } from '../lib/share.js'
 import Avatar from '../components/Avatar.jsx'
 import InstallGuide from '../components/InstallGuide.jsx'
+import SportHeroBanner from '../components/SportHeroBanner.jsx'
 
 export default function AccountPage() {
   const { user, signOut, deleteAccount, updateDisplayName, updateBookmakerPrefs, updateNotificationPrefs, updateAvatar } = useAuth()
@@ -155,6 +156,7 @@ export default function AccountPage() {
 
   return (
     <div>
+      <SportHeroBanner sport="account" />
       <div className="topbar">
         <h1>Account</h1>
       </div>

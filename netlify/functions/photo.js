@@ -23,10 +23,18 @@ const SPORT_QUERIES = {
   cricket: 'cricket stadium match',
   boxing: 'boxing ring gloves',
   // Page-level banners (not tied to a specific sport) - same treatment,
-  // just a different query per page instead of per sport.
+  // just a different query per page instead of per sport. All of these
+  // are deliberately action/equipment/stadium shots rather than generic
+  // lifestyle photography, so every banner in the app reads as sport at
+  // a glance, not just the ones on a sport-specific tab.
   auth: 'stadium floodlights night',
-  social: 'friends watching sports pub',
-  tracker: 'sports stadium scoreboard'
+  social: 'sports fans celebrating stadium',
+  tracker: 'sports stadium scoreboard',
+  account: 'sports equipment locker room',
+  achievements: 'trophy celebration stadium',
+  alerts: 'football referee whistle',
+  group: 'football team huddle celebration',
+  profile: 'athlete action shot stadium'
 }
 
 export default async (req) => {

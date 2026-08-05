@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom'
 import { useActivity } from '../context/ActivityContext.jsx'
 import { formatRelativeTime } from '../utils/format.js'
 import EmptyState from '../components/EmptyState.jsx'
+import SportHeroBanner from '../components/SportHeroBanner.jsx'
 
 // A real tab rather than a floating bell dropdown - matches how the rest of
 // the app navigates (Odds/Social/Tracker/Account are all pages, not
@@ -19,6 +20,7 @@ export default function NotificationsPage() {
 
   return (
     <div>
+      <SportHeroBanner sport="alerts" />
       <div className="topbar">
         <h1>Alerts</h1>
       </div>
