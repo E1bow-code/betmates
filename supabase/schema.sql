@@ -493,6 +493,18 @@ create policy "commenters can read the bet author's push subscriptions" on push_
   )
 );
 
+-- --- New-pick push notifications for followers -----------------------
+-- send-push.js's followersOf branch: the poster's own token needs to read
+-- their followers' subscriptions to announce a new public pick. followersOf
+-- is always the caller's own id (auth.uid()), so this only ever exposes a
+-- follower's subscription to the specific person they chose to follow.
+create policy "followed users can read their followers' push subscriptions" on push_subscriptions for select using (
+  exists (
+    select 1 from follows f
+    where f.following_id = auth.uid() and f.follower_id = push_subscriptions.user_id
+  )
+);
+
 -- --- Responsible gambling: spending limit -----------------------------
 -- A self-set weekly/monthly stake cap (see src/pages/AccountPage.jsx and
 -- src/components/BetBuilderSheet.jsx's soft warning nudge) - null/null means

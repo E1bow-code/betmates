@@ -27,9 +27,11 @@ export default async (req) => {
   }
 
   try {
-    const { accessToken, groupId, friendId, authorId, excludeUserId, title, body, url } = await req.json()
-    if (!accessToken || (!groupId && !friendId && !authorId)) {
-      return new Response(JSON.stringify({ sent: 0, reason: 'missing accessToken and groupId/friendId/authorId' }), { status: 200 })
+    const { accessToken, groupId, friendId, authorId, followersOf, excludeUserId, title, body, url } = await req.json()
+    if (!accessToken || (!groupId && !friendId && !authorId && !followersOf)) {
+      return new Response(JSON.stringify({ sent: 0, reason: 'missing accessToken and groupId/friendId/authorId/followersOf' }), {
+        status: 200
+      })
     }
 
     webpush.setVapidDetails('mailto:betmates@example.com', VAPID_PUBLIC_KEY, VAPID_PRIVATE_KEY)
@@ -47,6 +49,13 @@ export default async (req) => {
       // (schema.sql) covers this - scoped to only whoever the caller has
       // actually just commented on, not a blanket grant.
       targetUserIds = [authorId]
+    } else if (followersOf) {
+      // "followed users can read their followers' push subscriptions"
+      // (schema.sql) covers the read below - followersOf is always the
+      // caller's own id here (you can only announce your own new posts).
+      const { data: followers, error: followersError } = await supabase.from('follows').select('follower_id').eq('following_id', followersOf)
+      if (followersError) throw followersError
+      targetUserIds = followers.map((f) => f.follower_id)
     } else {
       const { data: members, error: membersError } = await supabase.from('group_members').select('user_id').eq('group_id', groupId)
       if (membersError) throw membersError

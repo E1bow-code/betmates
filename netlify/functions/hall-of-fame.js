@@ -58,7 +58,11 @@ export default async (req) => {
     const postCounts = new Map()
     for (const p of visible) postCounts.set(p.user_id, { info: holder(p), count: (postCounts.get(p.user_id)?.count ?? 0) + 1 })
 
+    const now = new Date()
+    const monthStart = new Date(now.getFullYear(), now.getMonth(), 1)
+
     let topProfit = null
+    let monthTopProfit = null
     let longestStreak = null
     let sharpestTipster = null
     for (const { info, entries } of byUser.values()) {
@@ -68,6 +72,19 @@ export default async (req) => {
         return sum
       }, 0)
       if (!topProfit || profit > topProfit.profit) topProfit = { ...info, profit }
+
+      // Resets naturally every month since it's a live filter, not a
+      // stored snapshot - so there's no separate cron job needed to "roll
+      // over" the record, it's just whatever the current month's numbers say.
+      const monthEntries = entries.filter((e) => e.settledAt && new Date(e.settledAt) >= monthStart)
+      if (monthEntries.length) {
+        const monthProfit = monthEntries.reduce((sum, e) => {
+          if (e.status === 'won') return sum + (Number(e.potentialReturn) - Number(e.stake))
+          if (e.status === 'lost') return sum - Number(e.stake)
+          return sum
+        }, 0)
+        if (!monthTopProfit || monthProfit > monthTopProfit.profit) monthTopProfit = { ...info, profit: monthProfit }
+      }
 
       const count = computeLongestWinStreak(entries)
       if (count > 0 && (!longestStreak || count > longestStreak.count)) longestStreak = { ...info, count }
@@ -97,7 +114,7 @@ export default async (req) => {
       if (recruiter) topRecruiter = { name: recruiter.display_name, code: recruiter.friend_code, count }
     }
 
-    const body = { biggestWin, underdog, topProfit, longestStreak, mostActive, topRecruiter, sharpestTipster }
+    const body = { biggestWin, underdog, topProfit, monthTopProfit, longestStreak, mostActive, topRecruiter, sharpestTipster }
     cacheSet('hall-of-fame', body, TTL)
     return new Response(JSON.stringify(body), { status: 200, headers: { 'content-type': 'application/json' } })
   } catch (err) {

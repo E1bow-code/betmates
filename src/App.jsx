@@ -11,6 +11,7 @@ import BetSlipBar from './components/BetSlipBar.jsx'
 import BetBuilderSheet from './components/BetBuilderSheet.jsx'
 import AuthPage from './pages/AuthPage.jsx'
 import LegalPage from './pages/LegalPage.jsx'
+import HelpPage from './pages/HelpPage.jsx'
 import OddsListPage from './pages/OddsListPage.jsx'
 import FixtureDetailPage from './pages/FixtureDetailPage.jsx'
 import RaceDetailPage from './pages/RaceDetailPage.jsx'
@@ -156,6 +157,7 @@ function Shell() {
     return (
       <Routes>
         <Route path="/legal" element={<LegalPage />} />
+        <Route path="/help" element={<HelpPage />} />
         <Route path="/join/:code" element={<StashJoinCode />} />
         <Route path="/r/:code" element={<StashReferralCode />} />
         <Route path="/u/:code" element={<PublicProfilePage />} />
@@ -193,6 +195,7 @@ function Shell() {
               <Route path="/u/:code" element={<PublicProfilePage />} />
               <Route path="/hall-of-fame" element={<HallOfFamePage />} />
               <Route path="/legal" element={<LegalPage />} />
+              <Route path="/help" element={<HelpPage />} />
               <Route path="*" element={<Navigate to="/odds" replace />} />
             </Routes>
           </div>

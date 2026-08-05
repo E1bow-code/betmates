@@ -455,6 +455,12 @@ export default function AccountPage() {
       )}
 
       <div className="account-section">
+        <Link to="/help" className="back">
+          Help &amp; FAQ
+        </Link>
+      </div>
+
+      <div className="account-section">
         <Link to="/legal" className="back">
           Terms &amp; Responsible Gambling
         </Link>

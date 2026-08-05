@@ -15,6 +15,12 @@ const RECORDS = [
   { key: 'biggestWin', icon: '💰', title: 'Biggest single win', render: (r) => `+£${r.profit.toFixed(2)} on ${r.event}` },
   { key: 'longestStreak', icon: '🔥', title: 'Longest win streak', render: (r) => `${r.count} in a row` },
   { key: 'topProfit', icon: '🏆', title: 'Top all-time profit', render: (r) => `+£${r.profit.toFixed(2)}` },
+  {
+    key: 'monthTopProfit',
+    icon: '🗓️',
+    title: `Top profit this month`,
+    render: (r) => `+£${r.profit.toFixed(2)} - resets next month`
+  },
   { key: 'underdog', icon: '🐎', title: 'Biggest underdog win', render: (r, format) => `${formatOdds(r.odds, format)} odds on ${r.event}` },
   { key: 'mostActive', icon: '📣', title: 'Most public picks shared', render: (r) => `${r.count} picks` },
   { key: 'topRecruiter', icon: '🤝', title: 'Brought in the most mates', render: (r) => `${r.count} invited` },

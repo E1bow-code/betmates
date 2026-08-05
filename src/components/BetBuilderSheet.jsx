@@ -4,7 +4,7 @@ import { useAuth } from '../context/AuthContext.jsx'
 import { useBetSlip } from '../context/BetSlipContext.jsx'
 import { useOddsFormat } from '../context/OddsFormatContext.jsx'
 import * as dataStore from '../lib/dataStore.js'
-import { notifyGroup } from '../lib/notify.js'
+import { notifyGroup, notifyFollowers } from '../lib/notify.js'
 import { formatOdds } from '../utils/oddsFormat.js'
 import { periodStart, sumStakesSince } from '../utils/spendLimit.js'
 import { getEachWayTerms, computeEachWayReturn } from '../utils/eachWay.js'
@@ -120,6 +120,11 @@ export default function BetBuilderSheet() {
         stakeHidden,
         potentialReturn,
         visibility: 'public'
+      })
+      notifyFollowers(user.id, {
+        title: `${user.displayName} posted a new pick`,
+        body: `${legs[0].event} - ${legs[0].market}: ${legs[0].selection}${legs.length > 1 ? ` +${legs.length - 1} more` : ''}`,
+        url: '/#/groups'
       })
       clearSlip()
       navigate('/groups', { state: { segment: 'feed' } })
