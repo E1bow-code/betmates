@@ -30,7 +30,12 @@ import HallOfFamePage from './pages/HallOfFamePage.jsx'
 import AdminReportsPage from './pages/AdminReportsPage.jsx'
 import DirectMessagePage from './pages/DirectMessagePage.jsx'
 import MessagesInboxPage from './pages/MessagesInboxPage.jsx'
+import NewsTickerBar from './components/NewsTickerBar.jsx'
+import NewsSidebar from './components/NewsSidebar.jsx'
+import { fetchSportsNews } from './api/newsClient.js'
 import { PENDING_REFERRAL_KEY } from './lib/referral.js'
+
+const NEWS_REFRESH_MS = 10 * 60 * 1000
 
 const PENDING_JOIN_KEY = 'betmates:pendingJoinCode'
 
@@ -104,9 +109,30 @@ const ONBOARDED_PREFIX = 'betmates:onboarded:'
 function Shell() {
   const { user, loading, passwordRecovery } = useAuth()
   const [showTour, setShowTour] = useState(false)
+  const [newsHeadlines, setNewsHeadlines] = useState([])
 
   useEffect(() => {
     if (user && !localStorage.getItem(ONBOARDED_PREFIX + user.id)) setShowTour(true)
+  }, [user])
+
+  // Fetched once here rather than inside NewsTickerBar/NewsSidebar
+  // individually so the two - one shown on narrow screens, the other on
+  // wide ones (see style.css's 1280px breakpoint) - share a single poll
+  // instead of doubling up requests neither of them needs on its own.
+  useEffect(() => {
+    if (!user) return
+    let cancelled = false
+    function load() {
+      fetchSportsNews()
+        .then((items) => !cancelled && setNewsHeadlines(items))
+        .catch(() => {})
+    }
+    load()
+    const interval = setInterval(load, NEWS_REFRESH_MS)
+    return () => {
+      cancelled = true
+      clearInterval(interval)
+    }
   }, [user])
 
   function dismissTour() {
@@ -142,6 +168,7 @@ function Shell() {
   return (
     <ActivityProvider userId={user.id}>
       <BetSlipProvider>
+        <NewsTickerBar headlines={newsHeadlines} />
         <div className="app-shell">
           <div className="app-content">
             <InstallGuideBanner />
@@ -172,6 +199,7 @@ function Shell() {
           <BetSlipBar />
           <BetBuilderSheet />
           <BottomNav />
+          <NewsSidebar headlines={newsHeadlines} />
           {showTour && <OnboardingTour onDone={dismissTour} />}
         </div>
       </BetSlipProvider>

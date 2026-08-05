@@ -204,6 +204,115 @@ h1, h2, .topbar h1, .sheet-title, .auth-title {
   .bet-slip-bar { bottom: 20px; left: 252px; right: 32px; margin: 0; }
 }
 
+/* Sports news ticker - a horizontal scrolling bar by default (every
+   screen size), swapping to a vertical sidebar once the window is wide
+   enough to have genuine room to spare on the right (well past the point
+   the nav itself becomes a sidebar at 880px, so the two breakpoints never
+   fight each other for space). Both read from the same headline list
+   fetched once in App.jsx's Shell - see NewsTickerBar.jsx/NewsSidebar.jsx. */
+.news-ticker-bar {
+  display: flex;
+  align-items: center;
+  background: var(--surface);
+  border-bottom: 1px solid var(--border);
+  overflow: hidden;
+  height: 30px;
+}
+.news-ticker-label {
+  flex-shrink: 0;
+  background: var(--accent);
+  color: var(--accent-ink);
+  font-size: 0.62rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  padding: 0 10px;
+  height: 100%;
+  display: flex;
+  align-items: center;
+}
+.news-ticker-track {
+  display: flex;
+  align-items: center;
+  width: max-content;
+  animation: news-scroll-x 70s linear infinite;
+}
+.news-ticker-item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 0 20px;
+  white-space: nowrap;
+  font-size: 0.75rem;
+  color: var(--text-dim);
+  text-decoration: none;
+  border-right: 1px solid var(--border);
+  height: 30px;
+}
+.news-ticker-source { color: var(--accent); font-weight: 700; font-size: 0.66rem; text-transform: uppercase; }
+@keyframes news-scroll-x {
+  from { transform: translateX(0); }
+  to { transform: translateX(-50%); }
+}
+
+.news-sidebar { display: none; }
+
+@media (prefers-reduced-motion: reduce) {
+  .news-ticker-track { animation: none; }
+}
+
+@media (min-width: 1280px) {
+  #app { max-width: 1420px; }
+
+  .news-ticker-bar { display: none; }
+
+  .news-sidebar {
+    display: flex;
+    flex-direction: column;
+    width: 220px;
+    flex-shrink: 0;
+    border-left: 1px solid var(--border);
+    height: 100vh;
+    position: sticky;
+    top: 0;
+    overflow: hidden;
+  }
+  .news-sidebar-header {
+    flex-shrink: 0;
+    padding: 16px;
+    font-family: Georgia, 'Times New Roman', serif;
+    font-size: 1rem;
+    color: var(--accent);
+    border-bottom: 1px solid var(--border);
+  }
+  .news-sidebar-viewport { flex: 1; overflow: hidden; }
+  .news-sidebar-track {
+    display: flex;
+    flex-direction: column;
+    animation: news-scroll-y 100s linear infinite;
+  }
+  .news-sidebar-item {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    padding: 12px 16px;
+    border-bottom: 1px solid var(--border);
+    text-decoration: none;
+    color: var(--text);
+    font-size: 0.8rem;
+    line-height: 1.35;
+  }
+  .news-sidebar-source { color: var(--accent); font-weight: 700; font-size: 0.66rem; text-transform: uppercase; letter-spacing: 0.03em; }
+  @keyframes news-scroll-y {
+    from { transform: translateY(0); }
+    to { transform: translateY(-50%); }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .news-sidebar-track { animation: none; }
+    .news-sidebar-viewport { overflow-y: auto; }
+  }
+}
+
 /* Floating bet-slip bar: pinned just above the bottom nav whenever the
    slip has picks but its sheet is closed, so it survives navigating to
    another fixture to add another leg. */
