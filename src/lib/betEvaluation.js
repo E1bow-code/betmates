@@ -39,7 +39,13 @@ function evaluateRacingLeg(leg, raceResults) {
     return 'undetermined'
   }
   const runner = race.runners.find((r) => r.horseId === leg.horseId) ?? race.runners.find((r) => r.name === leg.selection)
-  if (!runner) return 'undetermined'
+  // The race has a confirmed result but this horse isn't among the
+  // finishers - a withdrawn/non-runner, not missing data (results only
+  // ever lists horses that actually ran, even ones pulled up or fallen).
+  // No need to wait this one out like the whole-race case above: the
+  // result is already in, so void it now (stake back, standard
+  // non-runner-no-bet convention) rather than treating it as pending.
+  if (!runner) return 'void'
   if (runner.position === 1) return 'won'
   if (leg.eachWay && runner.position != null && runner.position <= leg.eachWayPlaces) return 'placed'
   return 'lost'
