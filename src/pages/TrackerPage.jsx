@@ -1,8 +1,10 @@
 import { useEffect, useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext.jsx'
+import { useOddsFormat } from '../context/OddsFormatContext.jsx'
 import * as dataStore from '../lib/dataStore.js'
 import { checkAndSettleBets } from '../lib/settlement.js'
+import { formatOdds } from '../utils/oddsFormat.js'
 import {
   computeStats,
   computeStreak,
@@ -25,6 +27,7 @@ const STATUS_LABEL = { open: 'Pending', won: 'Won', lost: 'Lost', void: 'Void' }
 
 export default function TrackerPage() {
   const { user } = useAuth()
+  const { format } = useOddsFormat()
   const [entries, setEntries] = useState(null)
   const [checking, setChecking] = useState(false)
   const [rebetting, setRebetting] = useState(null)
@@ -217,13 +220,13 @@ export default function TrackerPage() {
                     <div key={i}>
                       <div className="selection-event">{selection.event}</div>
                       <div className="race-card-meta">
-                        {selection.market}: {selection.selection} @ {selection.odds.toFixed(2)} ({selection.bookmaker})
+                        {selection.market}: {selection.selection} @ {formatOdds(selection.odds, format)} ({selection.bookmaker})
                       </div>
                     </div>
                   ))}
                   {combinedOdds && (
                     <div className="race-card-meta">
-                      Combined odds: <strong>{combinedOdds.toFixed(2)}</strong>
+                      Combined odds: <strong>{formatOdds(combinedOdds, format)}</strong>
                     </div>
                   )}
                   {entry.stake ? (

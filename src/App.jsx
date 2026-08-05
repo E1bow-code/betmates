@@ -3,6 +3,7 @@ import { HashRouter, Routes, Route, Navigate, useNavigate, useParams } from 'rea
 import { AuthProvider, useAuth } from './context/AuthContext.jsx'
 import { BetSlipProvider } from './context/BetSlipContext.jsx'
 import { ActivityProvider } from './context/ActivityContext.jsx'
+import { OddsFormatProvider } from './context/OddsFormatContext.jsx'
 import BottomNav from './components/BottomNav.jsx'
 import InstallGuideBanner from './components/InstallGuideBanner.jsx'
 import OnboardingTour from './components/OnboardingTour.jsx'
@@ -35,9 +36,11 @@ const PENDING_JOIN_KEY = 'betmates:pendingJoinCode'
 export default function App() {
   return (
     <AuthProvider>
-      <HashRouter>
-        <Shell />
-      </HashRouter>
+      <OddsFormatProvider>
+        <HashRouter>
+          <Shell />
+        </HashRouter>
+      </OddsFormatProvider>
     </AuthProvider>
   )
 }

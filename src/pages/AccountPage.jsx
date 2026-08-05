@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext.jsx'
+import { useOddsFormat } from '../context/OddsFormatContext.jsx'
 import { BOOKMAKERS } from '../lib/bookmakers.js'
 import * as dataStore from '../lib/dataStore.js'
 import { isPushSupported, getPushSubscription, subscribeToPush, unsubscribeFromPush } from '../lib/push.js'
@@ -13,6 +14,7 @@ import SportHeroBanner from '../components/SportHeroBanner.jsx'
 
 export default function AccountPage() {
   const { user, signOut, deleteAccount, updateDisplayName, updateBookmakerPrefs, updateNotificationPrefs, updateAvatar } = useAuth()
+  const { format: oddsFormat, setFormat: setOddsFormat } = useOddsFormat()
   const [pushEnabled, setPushEnabled] = useState(false)
   const [pushBusy, setPushBusy] = useState(false)
   const [pushError, setPushError] = useState(null)
@@ -218,6 +220,19 @@ export default function AccountPage() {
           </button>
           <button className={theme === 'light' ? 'mode-tab active' : 'mode-tab'} onClick={() => handleThemeChange('light')}>
             Light
+          </button>
+        </div>
+      </div>
+
+      <div className="account-section">
+        <h2 className="market-title">Odds format</h2>
+        <p className="hint">Applies everywhere prices are shown - Odds, bet slips, Tracker, and Hall of Fame.</p>
+        <div className="mode-switcher">
+          <button className={oddsFormat === 'decimal' ? 'mode-tab active' : 'mode-tab'} onClick={() => setOddsFormat('decimal')}>
+            Decimal (2.05)
+          </button>
+          <button className={oddsFormat === 'fractional' ? 'mode-tab active' : 'mode-tab'} onClick={() => setOddsFormat('fractional')}>
+            Fractional (21/20)
           </button>
         </div>
       </div>

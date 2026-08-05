@@ -1,6 +1,11 @@
 // Renders a bet post as a branded PNG (canvas, no image library) for the
 // "share as image" button - the screenshot-style bet-slip graphic real
 // bookmaker apps let you post, rather than only a plain-text copy.
+// Deliberately always decimal regardless of the Account odds-format
+// preference (see OddsFormatContext.jsx) - this image is meant for an
+// outside audience (social media), not just the poster, so it uses the
+// more universally-recognised format rather than whatever the poster
+// happens to have set for their own browsing.
 
 const COLORS = {
   bg: '#15120f',

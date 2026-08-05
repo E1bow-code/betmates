@@ -3,8 +3,10 @@ import { Link, useParams } from 'react-router-dom'
 import { fetchFixture } from '../api/oddsClient.js'
 import { formatDateTime, formatCountdown } from '../utils/format.js'
 import { bestWithinFilter } from '../utils/oddsUtils.js'
+import { formatOdds } from '../utils/oddsFormat.js'
 import { useAuth } from '../context/AuthContext.jsx'
 import { useBetSlip } from '../context/BetSlipContext.jsx'
+import { useOddsFormat } from '../context/OddsFormatContext.jsx'
 import { useOddsMovement, movementKey } from '../lib/oddsMemory.js'
 import { useBacking } from '../lib/backing.js'
 import TeamBadge from '../components/TeamBadge.jsx'
@@ -18,6 +20,7 @@ export default function FixtureDetailPage() {
   const { id } = useParams()
   const { user } = useAuth()
   const { toggleLeg, isSelected } = useBetSlip()
+  const { format } = useOddsFormat()
   const [fixture, setFixture] = useState(null)
   const [error, setError] = useState(null)
   const [myBookiesOnly, setMyBookiesOnly] = useState(false)
@@ -129,7 +132,7 @@ export default function FixtureDetailPage() {
                   {best ? (
                     <span className="outcome-odds">
                       <span className="best-price">
-                        {best.decimal.toFixed(2)}
+                        {formatOdds(best.decimal, format)}
                         <OddsMoveIndicator direction={movements[movementKey(fixture.id, market.key, outcome.name)]} />
                       </span>
                       <span className="best-bookmaker">{best.bookmaker}</span>

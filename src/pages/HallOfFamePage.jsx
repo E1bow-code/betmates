@@ -1,6 +1,8 @@
 import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext.jsx'
+import { useOddsFormat } from '../context/OddsFormatContext.jsx'
+import { formatOdds } from '../utils/oddsFormat.js'
 import SportHeroBanner from '../components/SportHeroBanner.jsx'
 import EmptyState from '../components/EmptyState.jsx'
 
@@ -13,13 +15,14 @@ const RECORDS = [
   { key: 'biggestWin', icon: '💰', title: 'Biggest single win', render: (r) => `+£${r.profit.toFixed(2)} on ${r.event}` },
   { key: 'longestStreak', icon: '🔥', title: 'Longest win streak', render: (r) => `${r.count} in a row` },
   { key: 'topProfit', icon: '🏆', title: 'Top all-time profit', render: (r) => `+£${r.profit.toFixed(2)}` },
-  { key: 'underdog', icon: '🐎', title: 'Biggest underdog win', render: (r) => `${r.odds.toFixed(2)} odds on ${r.event}` },
+  { key: 'underdog', icon: '🐎', title: 'Biggest underdog win', render: (r, format) => `${formatOdds(r.odds, format)} odds on ${r.event}` },
   { key: 'mostActive', icon: '📣', title: 'Most public picks shared', render: (r) => `${r.count} picks` },
   { key: 'topRecruiter', icon: '🤝', title: 'Brought in the most mates', render: (r) => `${r.count} invited` }
 ]
 
 export default function HallOfFamePage() {
   const { user } = useAuth()
+  const { format } = useOddsFormat()
   const [data, setData] = useState(undefined)
   const [error, setError] = useState(null)
 
@@ -63,7 +66,7 @@ export default function HallOfFamePage() {
                   <div className="selection-event">
                     {icon} {title}
                   </div>
-                  <div className="race-card-meta">{render(record)}</div>
+                  <div className="race-card-meta">{render(record, format)}</div>
                 </div>
                 {record.code ? (
                   <Link to={`/u/${record.code}`} className="leaderboard-name">

@@ -2,8 +2,10 @@ import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext.jsx'
 import { useBetSlip } from '../context/BetSlipContext.jsx'
+import { useOddsFormat } from '../context/OddsFormatContext.jsx'
 import * as dataStore from '../lib/dataStore.js'
 import { notifyGroup } from '../lib/notify.js'
+import { formatOdds } from '../utils/oddsFormat.js'
 
 // The bet slip: reads its legs from BetSlipContext rather than a single
 // `selection` prop, so tapping outcomes across different fixtures builds
@@ -16,6 +18,7 @@ export default function BetBuilderSheet() {
   const { user } = useAuth()
   const navigate = useNavigate()
   const { legs, removeLeg, clearSlip, sheetOpen, closeSheet } = useBetSlip()
+  const { format } = useOddsFormat()
   const [groups, setGroups] = useState([])
   const [groupId, setGroupId] = useState('')
   const [stake, setStake] = useState('')
@@ -140,7 +143,7 @@ export default function BetBuilderSheet() {
                 <span className="selection-pick">{leg.selection}</span>
               </div>
               <div className="selection-odds-row">
-                <span className="selection-odds">{leg.odds.toFixed(2)}</span>
+                <span className="selection-odds">{formatOdds(leg.odds, format)}</span>
                 <span className="selection-bookmaker">{leg.bookmaker}</span>
               </div>
             </div>
@@ -149,7 +152,7 @@ export default function BetBuilderSheet() {
 
         {legs.length > 1 && (
           <div className="potential-return">
-            Combined odds: <strong>{combinedOdds.toFixed(2)}</strong>
+            Combined odds: <strong>{formatOdds(combinedOdds, format)}</strong>
           </div>
         )}
 

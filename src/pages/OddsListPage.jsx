@@ -8,7 +8,9 @@ import { fetchResults } from '../api/resultsClient.js'
 import { GENERIC_SPORTS, SPORT_LABEL } from '../lib/sportsConfig.js'
 import { formatKickoff, formatCountdown } from '../utils/format.js'
 import { bestWithinFilter } from '../utils/oddsUtils.js'
+import { formatOdds } from '../utils/oddsFormat.js'
 import { useAuth } from '../context/AuthContext.jsx'
+import { useOddsFormat } from '../context/OddsFormatContext.jsx'
 import EmptyState from '../components/EmptyState.jsx'
 import TeamBadge from '../components/TeamBadge.jsx'
 import PlayerPhoto from '../components/PlayerPhoto.jsx'
@@ -83,6 +85,7 @@ function filterBySearch(list, query) {
 
 export default function OddsListPage() {
   const { user } = useAuth()
+  const { format } = useOddsFormat()
   const [sport, setSport] = useState('football')
   const [mode, setMode] = useState('upcoming')
   const [items, setItems] = useState(null)
@@ -232,7 +235,7 @@ export default function OddsListPage() {
                 </h2>
                 <div className="race-list">
                   {group.items.map((item) => (
-                    <CrossSportCard key={`${item.__sport}-${item.id}`} item={item} bookmakerFilter={bookmakerFilter} />
+                    <CrossSportCard key={`${item.__sport}-${item.id}`} item={item} bookmakerFilter={bookmakerFilter} format={format} />
                   ))}
                 </div>
               </div>
@@ -260,7 +263,7 @@ export default function OddsListPage() {
 
           {loaded && loaded.length > 0 && sport === 'racing' && (
             <div className="race-list">
-              {loaded.map((race) => <RaceCard key={race.id} race={race} bookmakerFilter={bookmakerFilter} />)}
+              {loaded.map((race) => <RaceCard key={race.id} race={race} bookmakerFilter={bookmakerFilter} format={format} />)}
             </div>
           )}
 
@@ -271,11 +274,21 @@ export default function OddsListPage() {
                 {groupedLoaded.length > 1 && <h2 className="league-group-title">{group.competition}</h2>}
                 <div className="race-list">
                   {sport === 'football' &&
-                    group.items.map((fixture) => <FixtureCard key={fixture.id} fixture={fixture} bookmakerFilter={bookmakerFilter} />)}
-                  {sport === 'ufc' && group.items.map((fight) => <FightCard key={fight.id} fight={fight} bookmakerFilter={bookmakerFilter} />)}
+                    group.items.map((fixture) => (
+                      <FixtureCard key={fixture.id} fixture={fixture} bookmakerFilter={bookmakerFilter} format={format} />
+                    ))}
+                  {sport === 'ufc' &&
+                    group.items.map((fight) => <FightCard key={fight.id} fight={fight} bookmakerFilter={bookmakerFilter} format={format} />)}
                   {GENERIC_SPORTS[sport] &&
                     group.items.map((event) => (
-                      <EventCard key={event.id} event={event} sportKey={sport} config={GENERIC_SPORTS[sport]} bookmakerFilter={bookmakerFilter} />
+                      <EventCard
+                        key={event.id}
+                        event={event}
+                        sportKey={sport}
+                        config={GENERIC_SPORTS[sport]}
+                        bookmakerFilter={bookmakerFilter}
+                        format={format}
+                      />
                     ))}
                 </div>
               </div>
@@ -310,11 +323,19 @@ export default function OddsListPage() {
 // Dispatches a cross-sport search hit to whichever card its own sport tab
 // would normally use - the item shapes are unrelated across sports, so this
 // is just a switch, not a shared component.
-function CrossSportCard({ item, bookmakerFilter }) {
-  if (item.__sport === 'football') return <FixtureCard fixture={item} bookmakerFilter={bookmakerFilter} />
-  if (item.__sport === 'racing') return <RaceCard race={item} bookmakerFilter={bookmakerFilter} />
-  if (item.__sport === 'ufc') return <FightCard fight={item} bookmakerFilter={bookmakerFilter} />
-  return <EventCard event={item} sportKey={item.__sport} config={GENERIC_SPORTS[item.__sport]} bookmakerFilter={bookmakerFilter} />
+function CrossSportCard({ item, bookmakerFilter, format }) {
+  if (item.__sport === 'football') return <FixtureCard fixture={item} bookmakerFilter={bookmakerFilter} format={format} />
+  if (item.__sport === 'racing') return <RaceCard race={item} bookmakerFilter={bookmakerFilter} format={format} />
+  if (item.__sport === 'ufc') return <FightCard fight={item} bookmakerFilter={bookmakerFilter} format={format} />
+  return (
+    <EventCard
+      event={item}
+      sportKey={item.__sport}
+      config={GENERIC_SPORTS[item.__sport]}
+      bookmakerFilter={bookmakerFilter}
+      format={format}
+    />
+  )
 }
 
 function ResultCard({ game }) {
@@ -336,7 +357,7 @@ function ResultCard({ game }) {
   )
 }
 
-function FixtureCard({ fixture, bookmakerFilter }) {
+function FixtureCard({ fixture, bookmakerFilter, format }) {
   const h2h = fixture.markets.find((m) => m.key === 'h2h')
   const home = h2h?.outcomes.find((o) => o.name === 'Home')
   const away = h2h?.outcomes.find((o) => o.name === 'Away')
@@ -365,14 +386,14 @@ function FixtureCard({ fixture, bookmakerFilter }) {
       </div>
       <div className="race-card-fav">
         <div className="fav-label">Best 1X2</div>
-        <div className="fav-price">{homeBest ? homeBest.decimal.toFixed(2) : '-'}</div>
-        <div className="fav-price-away">{awayBest ? awayBest.decimal.toFixed(2) : '-'}</div>
+        <div className="fav-price">{homeBest ? formatOdds(homeBest.decimal, format) : '-'}</div>
+        <div className="fav-price-away">{awayBest ? formatOdds(awayBest.decimal, format) : '-'}</div>
       </div>
     </Link>
   )
 }
 
-function RaceCard({ race, bookmakerFilter }) {
+function RaceCard({ race, bookmakerFilter, format }) {
   const withBest = race.runners
     .map((r) => ({ runner: r, best: bestWithinFilter(r.allOdds, bookmakerFilter) }))
     .filter((r) => r.best)
@@ -397,7 +418,7 @@ function RaceCard({ race, bookmakerFilter }) {
         {favourite ? (
           <>
             <div className="fav-name">{favourite.runner.name}</div>
-            <div className="fav-price">{favourite.best.price}</div>
+            <div className="fav-price">{formatOdds(favourite.best.decimal, format, favourite.best.price)}</div>
           </>
         ) : (
           <div className="fav-price">-</div>
@@ -407,7 +428,7 @@ function RaceCard({ race, bookmakerFilter }) {
   )
 }
 
-function FightCard({ fight, bookmakerFilter }) {
+function FightCard({ fight, bookmakerFilter, format }) {
   const h2h = fight.markets.find((m) => m.key === 'h2h')
   const a = h2h?.outcomes.find((o) => o.name === fight.fighterA)
   const b = h2h?.outcomes.find((o) => o.name === fight.fighterB)
@@ -436,14 +457,14 @@ function FightCard({ fight, bookmakerFilter }) {
       </div>
       <div className="race-card-fav">
         <div className="fav-label">Moneyline</div>
-        <div className="fav-price">{aBest ? aBest.decimal.toFixed(2) : '-'}</div>
-        <div className="fav-price-away">{bBest ? bBest.decimal.toFixed(2) : '-'}</div>
+        <div className="fav-price">{aBest ? formatOdds(aBest.decimal, format) : '-'}</div>
+        <div className="fav-price-away">{bBest ? formatOdds(bBest.decimal, format) : '-'}</div>
       </div>
     </Link>
   )
 }
 
-function EventCard({ event, sportKey, config, bookmakerFilter }) {
+function EventCard({ event, sportKey, config, bookmakerFilter, format }) {
   const h2h = event.markets.find((m) => m.key === 'h2h')
   const home = h2h?.outcomes.find((o) => o.name === 'Home')
   const away = h2h?.outcomes.find((o) => o.name === 'Away')
@@ -474,8 +495,8 @@ function EventCard({ event, sportKey, config, bookmakerFilter }) {
       </div>
       <div className="race-card-fav">
         <div className="fav-label">Moneyline</div>
-        <div className="fav-price">{homeBest ? homeBest.decimal.toFixed(2) : '-'}</div>
-        <div className="fav-price-away">{awayBest ? awayBest.decimal.toFixed(2) : '-'}</div>
+        <div className="fav-price">{homeBest ? formatOdds(homeBest.decimal, format) : '-'}</div>
+        <div className="fav-price-away">{awayBest ? formatOdds(awayBest.decimal, format) : '-'}</div>
       </div>
     </Link>
   )

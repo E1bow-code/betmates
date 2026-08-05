@@ -1,4 +1,6 @@
 import { useBetSlip } from '../context/BetSlipContext.jsx'
+import { useOddsFormat } from '../context/OddsFormatContext.jsx'
+import { formatOdds } from '../utils/oddsFormat.js'
 
 // Pinned above the bottom nav whenever the slip has picks in it but the
 // sheet itself is closed (e.g. user backed out to go add another leg from
@@ -7,6 +9,7 @@ import { useBetSlip } from '../context/BetSlipContext.jsx'
 
 export default function BetSlipBar() {
   const { legs, sheetOpen, openSheet } = useBetSlip()
+  const { format } = useOddsFormat()
 
   if (!legs.length || sheetOpen) return null
 
@@ -17,7 +20,7 @@ export default function BetSlipBar() {
       <span>
         {legs.length} pick{legs.length > 1 ? 's' : ''}
       </span>
-      <span className="bet-slip-bar-odds">{combinedOdds.toFixed(2)}</span>
+      <span className="bet-slip-bar-odds">{formatOdds(combinedOdds, format)}</span>
     </button>
   )
 }

@@ -1,6 +1,8 @@
 import { useEffect, useState } from 'react'
 import { useAuth } from '../context/AuthContext.jsx'
+import { useOddsFormat } from '../context/OddsFormatContext.jsx'
 import * as dataStore from '../lib/dataStore.js'
+import { formatOdds } from '../utils/oddsFormat.js'
 import CopyBetButton from './CopyBetButton.jsx'
 import BackBetButton from './BackBetButton.jsx'
 import ShareImageButton from './ShareImageButton.jsx'
@@ -28,6 +30,7 @@ const REPORT_REASONS = [
 
 export default function BetCard({ post, memberNames, variant = 'group', onBlocked }) {
   const { user } = useAuth()
+  const { format } = useOddsFormat()
   const [reactions, setReactions] = useState([])
   const [comments, setComments] = useState([])
   const [showComments, setShowComments] = useState(false)
@@ -149,14 +152,14 @@ export default function BetCard({ post, memberNames, variant = 'group', onBlocke
               <span className="selection-pick">{selection.selection}</span>
             </div>
             <div className="selection-odds-row">
-              <span className="selection-odds">{selection.odds.toFixed(2)}</span>
+              <span className="selection-odds">{formatOdds(selection.odds, format)}</span>
               <span className="selection-bookmaker">{selection.bookmaker}</span>
             </div>
           </div>
         ))}
         {combinedOdds && (
           <div className="bet-card-combined-odds">
-            Combined odds: <strong>{combinedOdds.toFixed(2)}</strong>
+            Combined odds: <strong>{formatOdds(combinedOdds, format)}</strong>
           </div>
         )}
         {!post.stakeHidden && post.stake ? (

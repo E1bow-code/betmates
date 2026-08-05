@@ -1,6 +1,8 @@
 import { useState } from 'react'
 import { BOOKMAKER_LINKS, buildDeepLink } from '../lib/bookmakers.js'
 import * as dataStore from '../lib/dataStore.js'
+import { useOddsFormat } from '../context/OddsFormatContext.jsx'
+import { formatOdds } from '../utils/oddsFormat.js'
 
 // Section 2B's Copy Bet button: clipboard + "open bookmaker" always;
 // pre-filled deep link when src/lib/bookmakers.js has a verified scheme
@@ -8,21 +10,22 @@ import * as dataStore from '../lib/dataStore.js'
 // auto-submits anything; the user places the bet themselves, per the
 // legal note in Section 6.
 
-function formatBetSlip(post) {
-  const lines = post.selections.map((s) => `${s.event} - ${s.market}: ${s.selection} @ ${s.odds.toFixed(2)} (${s.bookmaker})`)
+function formatBetSlip(post, format) {
+  const lines = post.selections.map((s) => `${s.event} - ${s.market}: ${s.selection} @ ${formatOdds(s.odds, format)} (${s.bookmaker})`)
   const stakeLine = post.stakeHidden || !post.stake ? '' : `\nStake: £${post.stake}${post.potentialReturn ? ` (returns £${post.potentialReturn.toFixed(2)})` : ''}`
   return `BetMates bet slip\n${lines.join('\n')}${stakeLine}`
 }
 
 export default function CopyBetButton({ post, userId }) {
   const [copied, setCopied] = useState(false)
+  const { format } = useOddsFormat()
   const selection = post.selections[0]
   const bookmaker = selection?.bookmaker
   const deepLink = buildDeepLink(bookmaker, selection)
   const link = deepLink ?? BOOKMAKER_LINKS[bookmaker]
 
   async function handleCopy() {
-    await navigator.clipboard.writeText(formatBetSlip(post))
+    await navigator.clipboard.writeText(formatBetSlip(post, format))
     setCopied(true)
     setTimeout(() => setCopied(false), 2000)
     dataStore.recordBetCopy(post.id, userId).catch(() => {})

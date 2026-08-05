@@ -1,6 +1,9 @@
 // Plain client-side CSV generation + download - no library needed for
 // something this simple, and it keeps a user's own bet history exportable
-// without any server round-trip.
+// without any server round-trip. Deliberately always decimal regardless of
+// the Account odds-format preference (see OddsFormatContext.jsx) - a
+// fraction like "21/20" isn't a number a spreadsheet can sort or do math
+// on, and decimal is what every other odds export format uses anyway.
 function csvEscape(value) {
   const str = String(value ?? '')
   return /[",\n]/.test(str) ? `"${str.replace(/"/g, '""')}"` : str

@@ -3,14 +3,17 @@ import { Link, useParams } from 'react-router-dom'
 import { fetchRace } from '../api/racingClient.js'
 import { formatKickoff, formatCountdown } from '../utils/format.js'
 import { bestWithinFilter } from '../utils/oddsUtils.js'
+import { formatOdds } from '../utils/oddsFormat.js'
 import { useAuth } from '../context/AuthContext.jsx'
 import { useBetSlip } from '../context/BetSlipContext.jsx'
+import { useOddsFormat } from '../context/OddsFormatContext.jsx'
 import SportHeroBanner from '../components/SportHeroBanner.jsx'
 
 export default function RaceDetailPage() {
   const { id } = useParams()
   const { user } = useAuth()
   const { toggleLeg, isSelected } = useBetSlip()
+  const { format } = useOddsFormat()
   const [race, setRace] = useState(null)
   const [error, setError] = useState(null)
   const [myBookiesOnly, setMyBookiesOnly] = useState(false)
@@ -98,7 +101,7 @@ export default function RaceDetailPage() {
                       pick(runner, best)
                     }}
                   >
-                    <div className="best-price">{best.price}</div>
+                    <div className="best-price">{formatOdds(best.decimal, format, best.price)}</div>
                     <div className="best-bookmaker">{best.bookmaker}</div>
                   </button>
                 ) : (
@@ -111,7 +114,7 @@ export default function RaceDetailPage() {
                 {runner.allOdds.map((o) => (
                   <div key={o.bookmaker} className={o.bookmaker === best?.bookmaker ? 'odds-cell is-best' : 'odds-cell'}>
                     <span className="odds-bookmaker">{o.bookmaker}</span>
-                    <span className="odds-price">{o.price}</span>
+                    <span className="odds-price">{formatOdds(o.decimal, format, o.price)}</span>
                   </div>
                 ))}
               </div>
