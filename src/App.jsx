@@ -23,6 +23,7 @@ import PublicProfilePage from './pages/PublicProfilePage.jsx'
 import NotificationsPage from './pages/NotificationsPage.jsx'
 import ResetPasswordPage from './pages/ResetPasswordPage.jsx'
 import AchievementsPage from './pages/AchievementsPage.jsx'
+import HallOfFamePage from './pages/HallOfFamePage.jsx'
 
 const PENDING_JOIN_KEY = 'betmates:pendingJoinCode'
 
@@ -95,6 +96,7 @@ function Shell() {
         <Route path="/legal" element={<LegalPage />} />
         <Route path="/join/:code" element={<StashJoinCode />} />
         <Route path="/u/:code" element={<PublicProfilePage />} />
+        <Route path="/hall-of-fame" element={<HallOfFamePage />} />
         <Route path="*" element={<AuthPage />} />
       </Routes>
     )
@@ -121,6 +123,7 @@ function Shell() {
               <Route path="/alerts" element={<NotificationsPage />} />
               <Route path="/account" element={<AccountPage />} />
               <Route path="/u/:code" element={<PublicProfilePage />} />
+              <Route path="/hall-of-fame" element={<HallOfFamePage />} />
               <Route path="/legal" element={<LegalPage />} />
               <Route path="*" element={<Navigate to="/odds" replace />} />
             </Routes>

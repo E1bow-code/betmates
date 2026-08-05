@@ -266,7 +266,10 @@ export default function SocialFeedPage() {
 
       {segment === 'leaderboard' && (
         <>
-          <p className="hint">Ranked by profit across every group you're in, plus the public feed - hidden-stake bets don't count.</p>
+          <p className="hint">
+            Ranked by profit across every group you're in, plus the public feed - hidden-stake bets don't count.{' '}
+            <Link to="/hall-of-fame">See the all-time Hall of Fame →</Link>
+          </p>
 
           <div className="mode-switcher">
             {LEADERBOARD_WINDOWS.map((w) => (
