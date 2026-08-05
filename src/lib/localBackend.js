@@ -122,6 +122,8 @@ export function signUp({ email, displayName, dob, referredByCode }) {
     createdAt: new Date().toISOString(),
     isAdmin: false,
     avatarUrl: null,
+    stakeLimitAmount: null,
+    stakeLimitPeriod: null,
     referredBy: referrer?.id ?? null
   }
   db.users.push(user)
@@ -509,6 +511,26 @@ export function updateNotificationPrefs(userId, prefs) {
     }
   }
   return delay(prefs)
+}
+
+export function updateStakeLimit(userId, { amount, period }) {
+  const db = readDb()
+  const user = db.users.find((u) => u.id === userId)
+  if (user) {
+    user.stakeLimitAmount = amount
+    user.stakeLimitPeriod = period
+    writeDb(db)
+  }
+  const session = localStorage.getItem(SESSION_KEY)
+  if (session) {
+    const sessionUser = JSON.parse(session)
+    if (sessionUser.id === userId) {
+      sessionUser.stakeLimitAmount = amount
+      sessionUser.stakeLimitPeriod = period
+      localStorage.setItem(SESSION_KEY, JSON.stringify(sessionUser))
+    }
+  }
+  return delay({ amount, period })
 }
 
 // No real object storage in local mode - reads the file as a data URL and

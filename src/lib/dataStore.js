@@ -22,7 +22,9 @@ function mapProfile(row) {
     acceptedTermsAt: row.accepted_terms_at,
     createdAt: row.created_at,
     isAdmin: row.is_admin || false,
-    avatarUrl: row.avatar_url || null
+    avatarUrl: row.avatar_url || null,
+    stakeLimitAmount: row.stake_limit_amount ?? null,
+    stakeLimitPeriod: row.stake_limit_period ?? null
   }
 }
 
@@ -650,6 +652,17 @@ export async function updateNotificationPrefs(userId, prefs) {
   const { error } = await supabase.from('profiles').update({ notification_prefs: prefs }).eq('id', userId)
   if (error) throw error
   return prefs
+}
+
+// amount/period both null clears the limit (the "off" state).
+export async function updateStakeLimit(userId, { amount, period }) {
+  if (!isSupabaseConfigured) return local.updateStakeLimit(userId, { amount, period })
+  const { error } = await supabase
+    .from('profiles')
+    .update({ stake_limit_amount: amount, stake_limit_period: period })
+    .eq('id', userId)
+  if (error) throw error
+  return { amount, period }
 }
 
 // Path is prefixed with the uploader's own user id - the storage RLS

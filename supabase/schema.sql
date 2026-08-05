@@ -478,3 +478,12 @@ create policy "friends can read each other's push subscriptions" on push_subscri
        or (f.user_b = auth.uid() and f.user_a = push_subscriptions.user_id)
   )
 );
+
+-- --- Responsible gambling: spending limit -----------------------------
+-- A self-set weekly/monthly stake cap (see src/pages/AccountPage.jsx and
+-- src/components/BetBuilderSheet.jsx's soft warning nudge) - null/null means
+-- no limit set. No new RLS policy needed: "update own profile" above
+-- already covers these columns.
+
+alter table profiles add column if not exists stake_limit_amount numeric;
+alter table profiles add column if not exists stake_limit_period text check (stake_limit_period in ('weekly', 'monthly'));

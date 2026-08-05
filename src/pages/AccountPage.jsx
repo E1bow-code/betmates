@@ -8,12 +8,22 @@ import { isPushSupported, getPushSubscription, subscribeToPush, unsubscribeFromP
 import { getStoredTheme, setTheme } from '../lib/theme.js'
 import { isIOS, isStandalone } from '../lib/platform.js'
 import { shareOrCopy, publicProfileUrl, referralUrl } from '../lib/share.js'
+import { periodStart, sumStakesSince } from '../utils/spendLimit.js'
 import Avatar from '../components/Avatar.jsx'
 import InstallGuide from '../components/InstallGuide.jsx'
 import SportHeroBanner from '../components/SportHeroBanner.jsx'
 
 export default function AccountPage() {
-  const { user, signOut, deleteAccount, updateDisplayName, updateBookmakerPrefs, updateNotificationPrefs, updateAvatar } = useAuth()
+  const {
+    user,
+    signOut,
+    deleteAccount,
+    updateDisplayName,
+    updateBookmakerPrefs,
+    updateNotificationPrefs,
+    updateAvatar,
+    updateStakeLimit
+  } = useAuth()
   const { format: oddsFormat, setFormat: setOddsFormat } = useOddsFormat()
   const [pushEnabled, setPushEnabled] = useState(false)
   const [pushBusy, setPushBusy] = useState(false)
@@ -33,6 +43,11 @@ export default function AccountPage() {
   const [avatarError, setAvatarError] = useState(null)
   const [referralCount, setReferralCount] = useState(null)
   const [referralShareStatus, setReferralShareStatus] = useState(null)
+  const [limitAmountInput, setLimitAmountInput] = useState(user.stakeLimitAmount ?? '')
+  const [limitPeriodInput, setLimitPeriodInput] = useState(user.stakeLimitPeriod ?? 'weekly')
+  const [limitSaving, setLimitSaving] = useState(false)
+  const [limitSaved, setLimitSaved] = useState(false)
+  const [periodSpend, setPeriodSpend] = useState(null)
 
   function handleThemeChange(next) {
     setTheme(next)
@@ -51,6 +66,13 @@ export default function AccountPage() {
   useEffect(() => {
     dataStore.countReferrals(user.id).then(setReferralCount)
   }, [])
+
+  useEffect(() => {
+    if (!user.stakeLimitAmount) return
+    Promise.all([dataStore.listBetPostsByUser(user.id), dataStore.listManualEntries(user.id)]).then(([posted, manual]) => {
+      setPeriodSpend(sumStakesSince([...posted, ...manual], periodStart(user.stakeLimitPeriod)))
+    })
+  }, [user.id, user.stakeLimitAmount, user.stakeLimitPeriod])
 
   async function handleUnblock(blockedId) {
     await dataStore.unblockUser(user.id, blockedId)
@@ -97,6 +119,29 @@ export default function AccountPage() {
     const current = user.bookmakerPrefs ?? []
     const next = current.includes(name) ? current.filter((b) => b !== name) : [...current, name]
     updateBookmakerPrefs(next)
+  }
+
+  async function handleSaveLimit(e) {
+    e.preventDefault()
+    setLimitSaving(true)
+    try {
+      const amount = limitAmountInput === '' ? null : Number(limitAmountInput)
+      await updateStakeLimit(amount, amount ? limitPeriodInput : null)
+      setLimitSaved(true)
+      setTimeout(() => setLimitSaved(false), 2000)
+    } finally {
+      setLimitSaving(false)
+    }
+  }
+
+  async function handleClearLimit() {
+    setLimitAmountInput('')
+    setLimitSaving(true)
+    try {
+      await updateStakeLimit(null, null)
+    } finally {
+      setLimitSaving(false)
+    }
   }
 
   function toggleNotification(key) {
@@ -296,6 +341,53 @@ export default function AccountPage() {
             ? 'Turn on push above to actually receive these on this device, not just store the preference.'
             : "These are stored for when you're on a browser that supports push."}
         </p>
+      </div>
+
+      <div className="account-section">
+        <h2 className="market-title">Spending limit</h2>
+        <p className="hint">
+          A self-set cap on how much you log as staked in a week or month - a gentle check-in, not a hard block. BetMates never
+          places bets or holds funds, so this can't stop you betting elsewhere; it's here for your own awareness.
+        </p>
+        <form className="inline-form" onSubmit={handleSaveLimit}>
+          <input
+            type="number"
+            min="0"
+            step="5"
+            placeholder="No limit"
+            value={limitAmountInput}
+            onChange={(e) => setLimitAmountInput(e.target.value)}
+          />
+          <select value={limitPeriodInput} onChange={(e) => setLimitPeriodInput(e.target.value)}>
+            <option value="weekly">per week</option>
+            <option value="monthly">per month</option>
+          </select>
+          <button className="btn btn-primary btn-small" type="submit" disabled={limitSaving}>
+            {limitSaving ? 'Saving…' : limitSaved ? 'Saved ✓' : 'Save'}
+          </button>
+        </form>
+        {user.stakeLimitAmount ? (
+          <>
+            <div className="limit-progress-track">
+              <div
+                className={`limit-progress-fill ${
+                  periodSpend >= user.stakeLimitAmount ? 'tone-bad' : periodSpend >= user.stakeLimitAmount * 0.8 ? 'tone-warn' : ''
+                }`}
+                style={{ width: `${periodSpend === null ? 0 : Math.min(100, (periodSpend / user.stakeLimitAmount) * 100)}%` }}
+              />
+            </div>
+            <p className="hint">
+              {periodSpend === null
+                ? 'Loading…'
+                : `£${periodSpend.toFixed(2)} of £${Number(user.stakeLimitAmount).toFixed(2)} logged this ${user.stakeLimitPeriod === 'monthly' ? 'month' : 'week'}${periodSpend >= user.stakeLimitAmount ? ' - limit reached' : ''}.`}
+            </p>
+            <button className="btn btn-ghost btn-small" onClick={handleClearLimit} disabled={limitSaving}>
+              Turn off limit
+            </button>
+          </>
+        ) : (
+          <p className="hint">No limit set.</p>
+        )}
       </div>
 
       <div className="account-section">

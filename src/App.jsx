@@ -25,6 +25,7 @@ import PublicProfilePage from './pages/PublicProfilePage.jsx'
 import NotificationsPage from './pages/NotificationsPage.jsx'
 import ResetPasswordPage from './pages/ResetPasswordPage.jsx'
 import AchievementsPage from './pages/AchievementsPage.jsx'
+import InsightsPage from './pages/InsightsPage.jsx'
 import HallOfFamePage from './pages/HallOfFamePage.jsx'
 import AdminReportsPage from './pages/AdminReportsPage.jsx'
 import DirectMessagePage from './pages/DirectMessagePage.jsx'
@@ -156,6 +157,7 @@ function Shell() {
               <Route path="/messages/:friendId" element={<DirectMessagePage />} />
               <Route path="/tracker" element={<TrackerPage />} />
               <Route path="/achievements" element={<AchievementsPage />} />
+              <Route path="/insights" element={<InsightsPage />} />
               <Route path="/alerts" element={<NotificationsPage />} />
               <Route path="/account" element={<AccountPage />} />
               <Route path="/admin/reports" element={<AdminReportsPage />} />

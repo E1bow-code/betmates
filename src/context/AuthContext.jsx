@@ -73,6 +73,15 @@ export function AuthProvider({ children }) {
     [user]
   )
 
+  const updateStakeLimit = useCallback(
+    async (amount, period) => {
+      if (!user) return
+      await dataStore.updateStakeLimit(user.id, { amount, period })
+      setUser((u) => ({ ...u, stakeLimitAmount: amount, stakeLimitPeriod: period }))
+    },
+    [user]
+  )
+
   return (
     <AuthContext.Provider
       value={{
@@ -85,7 +94,8 @@ export function AuthProvider({ children }) {
         updateDisplayName,
         updateBookmakerPrefs,
         updateNotificationPrefs,
-        updateAvatar
+        updateAvatar,
+        updateStakeLimit
       }}
     >
       {children}

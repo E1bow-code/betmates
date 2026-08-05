@@ -288,6 +288,7 @@ h1, h2, .topbar h1, .sheet-title, .auth-title {
 
 .auth-form { display: flex; flex-direction: column; gap: 14px; }
 .auth-error { color: var(--bad); font-size: 0.85rem; }
+.limit-warning { background: color-mix(in srgb, var(--accent) 15%, transparent); border: 1px solid var(--accent); border-radius: 10px; padding: 10px 12px; font-size: 0.85rem; color: var(--text); }
 .auth-footnote { color: var(--text-dim); font-size: 0.75rem; text-align: center; margin-top: 20px; line-height: 1.5; }
 .auth-footnote a { color: var(--text-dim); }
 
@@ -1088,6 +1089,12 @@ h1, h2, .topbar h1, .sheet-title, .auth-title {
 }
 
 .achievements-link { display: inline-block; margin-bottom: 12px; font-size: 0.82rem; }
+.tracker-links-row { display: flex; gap: 16px; flex-wrap: wrap; }
+
+.limit-progress-track { height: 8px; border-radius: 999px; background: var(--border); overflow: hidden; margin: 10px 0 6px; }
+.limit-progress-fill { height: 100%; border-radius: 999px; background: var(--text-dim); transition: width 0.3s ease; }
+.limit-progress-fill.tone-warn { background: var(--accent); }
+.limit-progress-fill.tone-bad { background: var(--bad); }
 
 .achievements-grid {
   display: grid;

@@ -176,9 +176,14 @@ export default function TrackerPage() {
           ))}
         </div>
       )}
-      <Link to="/achievements" className="back achievements-link">
-        View all achievements &rarr;
-      </Link>
+      <div className="tracker-links-row">
+        <Link to="/achievements" className="back achievements-link">
+          View all achievements &rarr;
+        </Link>
+        <Link to="/insights" className="back achievements-link">
+          Your insights &rarr;
+        </Link>
+      </div>
 
       <PnlChart entries={entries} />
 

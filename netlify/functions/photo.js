@@ -34,7 +34,8 @@ const SPORT_QUERIES = {
   achievements: 'trophy celebration stadium',
   alerts: 'football referee whistle',
   group: 'football team huddle celebration',
-  profile: 'athlete action shot stadium'
+  profile: 'athlete action shot stadium',
+  insights: 'stadium scoreboard lights night'
 }
 
 export default async (req) => {

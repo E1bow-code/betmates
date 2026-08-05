@@ -6,6 +6,7 @@ import { useOddsFormat } from '../context/OddsFormatContext.jsx'
 import * as dataStore from '../lib/dataStore.js'
 import { notifyGroup } from '../lib/notify.js'
 import { formatOdds } from '../utils/oddsFormat.js'
+import { periodStart, sumStakesSince } from '../utils/spendLimit.js'
 
 // The bet slip: reads its legs from BetSlipContext rather than a single
 // `selection` prop, so tapping outcomes across different fixtures builds
@@ -25,6 +26,7 @@ export default function BetBuilderSheet() {
   const [stakeHidden, setStakeHidden] = useState(false)
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState(null)
+  const [periodSpend, setPeriodSpend] = useState(null)
 
   useEffect(() => {
     dataStore.listMyGroups(user.id).then((gs) => {
@@ -32,6 +34,16 @@ export default function BetBuilderSheet() {
       if (gs.length) setGroupId(gs[0].id)
     })
   }, [user.id])
+
+  // Only fetched when the user actually has a limit set - a soft,
+  // non-blocking heads-up before they post/save, not a hard stop (the app
+  // never places bets, so it has no way to actually prevent one).
+  useEffect(() => {
+    if (!user.stakeLimitAmount) return
+    Promise.all([dataStore.listBetPostsByUser(user.id), dataStore.listManualEntries(user.id)]).then(([posted, manual]) => {
+      setPeriodSpend(sumStakesSince([...posted, ...manual], periodStart(user.stakeLimitPeriod)))
+    })
+  }, [user.id, user.stakeLimitAmount, user.stakeLimitPeriod])
 
   if (!sheetOpen || !legs.length) return null
 
@@ -166,6 +178,13 @@ export default function BetBuilderSheet() {
             <input type="checkbox" checked={stakeHidden} onChange={(e) => setStakeHidden(e.target.checked)} />
             <span>Hide stake amount from the group</span>
           </label>
+        )}
+
+        {user.stakeLimitAmount && periodSpend !== null && stakeNum > 0 && periodSpend + stakeNum > user.stakeLimitAmount && (
+          <div className="limit-warning">
+            ⚠️ This would take you to £{(periodSpend + stakeNum).toFixed(2)} of your £{Number(user.stakeLimitAmount).toFixed(2)}{' '}
+            {user.stakeLimitPeriod === 'monthly' ? 'monthly' : 'weekly'} limit.
+          </div>
         )}
 
         {potentialReturn && (
