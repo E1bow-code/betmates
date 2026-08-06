@@ -169,16 +169,13 @@ export default function FixtureDetailPage() {
                           setProfileTarget(outcome.name)
                         }}
                       >
-                        ⓘ
+                        <PlayerPhoto name={outcome.name} size={30} />
                       </button>
                     )}
                     <button className="outcome-row-main" onClick={() => pick(market, outcome)} disabled={!best}>
                       <span className="outcome-name">
                         {PLAYER_MARKET_KEYS.includes(market.key) ? (
-                          <span className="fixture-team">
-                            <PlayerPhoto name={outcome.name} size={26} />
-                            <span>{outcome.name}</span>
-                          </span>
+                          <span>{outcome.name}</span>
                         ) : outcome.name === 'Home' || outcome.name === 'Away' ? (
                           <span className="fixture-team">
                             <TeamBadge team={outcome.name === 'Home' ? fixture.homeTeam : fixture.awayTeam} size={20} />

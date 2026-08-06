@@ -31,6 +31,7 @@ export default function TeamBadge({ team, size = 24 }) {
         src={src}
         alt=""
         className="team-badge"
+        loading="lazy"
         style={{ width: size, height: size }}
         onError={() => setFailed(true)}
       />

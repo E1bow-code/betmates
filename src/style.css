@@ -769,15 +769,17 @@ h1, h2, .topbar h1, .sheet-title, .auth-title {
 
 /* Sits before outcome-row-main (see FixtureDetailPage's player markets) -
    border-right rather than the -left the buttons after it use, since it's
-   the row's first element. */
+   the row's first element. The player's own photo is the tap target - a
+   small "ⓘ" glyph tested as too easy to miss; a photo reads as "tap for
+   profile" the way it already does on social apps. */
 .outcome-profile-btn {
   flex-shrink: 0;
+  display: flex;
+  align-items: center;
   background: none;
   border: none;
   border-right: 1px solid var(--border);
   padding: 0 10px;
-  font-size: 0.95rem;
-  color: var(--text-dim);
   cursor: pointer;
 }
 

@@ -61,7 +61,7 @@ export default function ParticipantProfileSheet({ name, onClose }) {
           <>
             <div className="profile-sheet-header">
               {profile.photo ? (
-                <img src={profile.photo} alt="" className="profile-sheet-photo" />
+                <img src={profile.photo} alt="" className="profile-sheet-photo" loading="lazy" />
               ) : (
                 <span className="profile-sheet-photo profile-sheet-photo-fallback">{name.slice(0, 1)}</span>
               )}

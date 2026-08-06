@@ -31,6 +31,7 @@ export default function PlayerPhoto({ name, size = 28 }) {
         src={src}
         alt=""
         className="player-photo"
+        loading="lazy"
         style={{ width: size, height: size }}
         onError={() => setFailed(true)}
       />

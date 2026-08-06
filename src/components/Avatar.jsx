@@ -22,6 +22,7 @@ export default function Avatar({ name, size = 28, photoUrl }) {
         src={photoUrl}
         alt=""
         title={name}
+        loading="lazy"
         style={{ width: size, height: size }}
       />
     )
