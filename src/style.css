@@ -1712,6 +1712,24 @@ h1, h2, .topbar h1, .sheet-title, .auth-title {
   overflow: hidden;
   background: linear-gradient(180deg, var(--surface) 0%, var(--surface-2) 100%);
 }
+/* Hall of Fame row - a trophy plaque, not a bet-history line: the icon
+   gets its own bordered badge instead of sitting inline with the title,
+   and the record holder gets a face next to their name. */
+.hof-row { gap: 12px; }
+.hof-icon {
+  flex-shrink: 0;
+  width: 34px;
+  height: 34px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.1rem;
+  border: 1px solid var(--accent-dim);
+  border-radius: 4px;
+  background: linear-gradient(180deg, var(--surface-2) 0%, var(--surface) 100%);
+}
+.hof-holder { display: flex; align-items: center; gap: 6px; flex-shrink: 0; }
+
 .tracker-row {
   display: flex;
   justify-content: space-between;
