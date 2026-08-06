@@ -10,6 +10,7 @@ import { isIOS, isStandalone } from '../lib/platform.js'
 import { shareOrCopy, publicProfileUrl, referralUrl } from '../lib/share.js'
 import { periodStart, sumStakesSince } from '../utils/spendLimit.js'
 import { getRealityCheckMins, setRealityCheckMins, REALITY_CHECK_OPTIONS } from '../lib/realityCheck.js'
+import { referralRewardState } from '../utils/referralRewards.js'
 import Avatar from '../components/Avatar.jsx'
 import InstallGuide from '../components/InstallGuide.jsx'
 import SportHeroBanner from '../components/SportHeroBanner.jsx'
@@ -444,9 +445,32 @@ export default function AccountPage() {
           {referralCount === null
             ? 'Loading…'
             : referralCount === 0
-              ? "You haven't brought anyone in yet - share your link below."
+              ? "You haven't brought anyone in yet - share your link below to start earning rewards."
               : `You've brought ${referralCount} ${referralCount === 1 ? 'person' : 'people'} to BetMates.`}
         </p>
+        {referralCount !== null &&
+          (() => {
+            const rewards = referralRewardState(referralCount)
+            return (
+              <>
+                {rewards.earned.length > 0 && (
+                  <div className="badge-row">
+                    {rewards.earned.map((tier) => (
+                      <span key={tier.threshold} className="badge">
+                        {tier.icon} {tier.label}
+                      </span>
+                    ))}
+                  </div>
+                )}
+                {rewards.next && (
+                  <p className="hint">
+                    {rewards.toNext} more {rewards.toNext === 1 ? 'mate' : 'mates'} to unlock {rewards.next.icon}{' '}
+                    {rewards.next.label}.
+                  </p>
+                )}
+              </>
+            )
+          })()}
         <button className="btn btn-secondary btn-small" onClick={handleShareReferral}>
           Share invite link
         </button>

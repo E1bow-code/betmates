@@ -1393,6 +1393,7 @@ h1, h2, .topbar h1, .sheet-title, .auth-title {
   gap: 10px;
   padding: 4px 0 24px;
 }
+.achievements-subhead { margin-top: 8px; }
 
 .achievement-card {
   display: flex;
