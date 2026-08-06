@@ -1367,6 +1367,23 @@ h1, h2, .topbar h1, .sheet-title, .auth-title {
 .stat-tile.tone-bad .stat-tile-value { color: var(--bad); }
 .stat-tile-label { font-size: 0.66rem; color: var(--text-dim); text-transform: uppercase; margin-top: 2px; letter-spacing: 0.03em; }
 
+/* "This week" group recap card at the top of a group feed. */
+.group-recap-card {
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  background: var(--surface);
+  padding: 14px;
+  margin-bottom: 14px;
+}
+.group-recap-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-bottom: 10px; }
+.group-recap-head .market-title { margin: 0; }
+.group-recap-tiles { margin: 0 0 10px; }
+.group-recap-highlights { display: flex; flex-direction: column; gap: 6px; }
+.group-recap-line { display: flex; align-items: baseline; gap: 8px; font-size: 0.85rem; }
+.group-recap-line-icon { flex-shrink: 0; }
+.group-recap-line .tone-good { color: var(--accent); font-weight: 700; }
+.group-recap-line .tone-bad { color: var(--bad); font-weight: 700; }
+
 .badge-row { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 12px; }
 .badge {
   background: linear-gradient(180deg, var(--surface-2) 0%, var(--surface) 100%);
