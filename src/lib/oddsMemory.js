@@ -72,3 +72,66 @@ export function useOddsMovement(event, ns = 'detail') {
 
   return movements
 }
+
+// --- Price history (for the detail-page sparkline) ----------------------
+// The same "cheap version that ships" idea as the movement cache above, one
+// step further: instead of only the last price, keep a short, capped series
+// of the best price each time this device has viewed an outcome. It's a
+// per-device sample (points land only when someone opens the page and the
+// price has changed since last time), not the regular server-side sampling
+// the unused odds_snapshots table was meant for - but it needs no backend
+// and gives a real "which way has this drifted" trend line.
+const HISTORY_KEY = 'betmates:oddsHistory'
+const MAX_POINTS = 24 // per outcome - a few weeks of "opened it and it moved"
+const MAX_HISTORY_KEYS = 400
+
+function readHistory() {
+  try {
+    return JSON.parse(localStorage.getItem(HISTORY_KEY)) ?? {}
+  } catch {
+    return {}
+  }
+}
+
+function writeHistory(store) {
+  const keys = Object.keys(store)
+  if (keys.length > MAX_HISTORY_KEYS) {
+    for (const key of keys.slice(0, keys.length - MAX_HISTORY_KEYS)) delete store[key]
+  }
+  localStorage.setItem(HISTORY_KEY, JSON.stringify(store))
+}
+
+export function historyKey(eventId, marketKey, outcomeName) {
+  return `${eventId}|${marketKey}|${outcomeName}`
+}
+
+// Records this view's best price for every outcome (skipping a point when it
+// hasn't moved since the last one, so revisiting without a change doesn't pad
+// the series or fake a flat line) and returns each outcome's series as
+// [{ t, p }]. Reads the unfiltered bestOdds, same as useOddsMovement, so the
+// trend is the market's, not a filtered subset's.
+export function useOddsHistory(event) {
+  const [histories, setHistories] = useState({})
+
+  useEffect(() => {
+    if (!event) return
+    const store = readHistory()
+    const result = {}
+    for (const market of event.markets) {
+      for (const outcome of market.outcomes) {
+        const price = outcome.bestOdds?.decimal
+        if (price == null) continue
+        const key = historyKey(event.id, market.key, outcome.name)
+        const series = store[key] ?? []
+        const last = series[series.length - 1]
+        const next = last && last.p === price ? series : [...series, { t: Date.now(), p: price }].slice(-MAX_POINTS)
+        store[key] = next
+        result[key] = next
+      }
+    }
+    writeHistory(store)
+    setHistories(result)
+  }, [event])
+
+  return histories
+}

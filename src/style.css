@@ -831,6 +831,9 @@ h1, h2, .topbar h1, .sheet-title, .auth-title {
   color: var(--accent-dim);
   white-space: nowrap;
 }
+/* Price-history trend line under the best price. Muted like the movement
+   arrow - it shows direction, not whether that direction is good for you. */
+.odds-sparkline { margin-top: 3px; color: var(--text-dim); display: block; }
 .outcome-odds-empty { font-size: 0.75rem; color: var(--text-dim); font-family: -apple-system, sans-serif; }
 
 /* First-run onboarding carousel (see src/components/OnboardingTour.jsx) -
