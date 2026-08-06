@@ -9,6 +9,7 @@ import { getStoredTheme, setTheme } from '../lib/theme.js'
 import { isIOS, isStandalone } from '../lib/platform.js'
 import { shareOrCopy, publicProfileUrl, referralUrl } from '../lib/share.js'
 import { periodStart, sumStakesSince } from '../utils/spendLimit.js'
+import { getRealityCheckMins, setRealityCheckMins, REALITY_CHECK_OPTIONS } from '../lib/realityCheck.js'
 import Avatar from '../components/Avatar.jsx'
 import InstallGuide from '../components/InstallGuide.jsx'
 import SportHeroBanner from '../components/SportHeroBanner.jsx'
@@ -33,6 +34,7 @@ export default function AccountPage() {
   const [nameSaving, setNameSaving] = useState(false)
   const [nameError, setNameError] = useState(null)
   const [theme, setThemeState] = useState(getStoredTheme() === 'light' ? 'light' : 'dark')
+  const [realityCheckMins, setRealityCheckMinsState] = useState(getRealityCheckMins)
   const [profileShareStatus, setProfileShareStatus] = useState(null)
   const [blockedUsers, setBlockedUsers] = useState(null)
   const [confirmingDelete, setConfirmingDelete] = useState(false)
@@ -388,6 +390,43 @@ export default function AccountPage() {
         ) : (
           <p className="hint">No limit set.</p>
         )}
+      </div>
+
+      <div className="account-section">
+        <h2 className="market-title">Safer gambling</h2>
+        <p className="hint">
+          A reality check pops up every so often to show how long you’ve been in the app - a nudge to take a break. Off by default.
+        </p>
+        <div className="mode-switcher">
+          {REALITY_CHECK_OPTIONS.map((opt) => (
+            <button
+              key={opt.value}
+              className={realityCheckMins === opt.value ? 'mode-tab active' : 'mode-tab'}
+              onClick={() => {
+                setRealityCheckMins(opt.value)
+                setRealityCheckMinsState(opt.value)
+              }}
+            >
+              {opt.label}
+            </button>
+          ))}
+        </div>
+        <p className="hint">
+          If gambling has stopped being fun, help is free and confidential. Call the National Gambling Helpline on{' '}
+          <a href="tel:08088020133">0808 8020 133</a>, or visit{' '}
+          <a href="https://www.begambleaware.org" target="_blank" rel="noreferrer">
+            BeGambleAware
+          </a>{' '}
+          and{' '}
+          <a href="https://www.gamcare.org.uk" target="_blank" rel="noreferrer">
+            GamCare
+          </a>
+          . To block yourself from UK gambling sites, register with{' '}
+          <a href="https://www.gamstop.co.uk" target="_blank" rel="noreferrer">
+            GAMSTOP
+          </a>
+          .
+        </p>
       </div>
 
       <div className="account-section">
