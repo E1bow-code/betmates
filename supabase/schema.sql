@@ -582,3 +582,44 @@ create table followed_participants (
 );
 alter table followed_participants enable row level security;
 create policy "user manages own followed participants" on followed_participants for all using (auth.uid() = user_id) with check (auth.uid() = user_id);
+
+-- --- Admin flag integrity -------------------------------------------------
+-- profiles.is_admin decides who can read every moderation report and delete
+-- anyone's bet post, but "update own profile" lets a user write their own
+-- profiles row, and a Postgres RLS policy is row-level - it can't stop one
+-- particular column being set. Nothing here is hidden, either: the anon key
+-- ships in the client bundle by design (RLS is what protects the data), so
+-- any signed-in user could open a console and run
+--   supabase.from('profiles').update({ is_admin: true }).eq('id', <own id>)
+-- and hand themselves moderator rights. The insert policy has the same hole
+-- at sign-up time.
+--
+-- Column-level GRANTs would fix it but need every updatable column listing
+-- by hand, which silently breaks open again the next time one is added.
+-- A trigger defaults the other way: is_admin holds its previous value (and
+-- starts false) for anything arriving over the public API, whatever columns
+-- the row grows later. auth.role() is 'anon'/'authenticated' only for those
+-- requests, so the service-role key and direct SQL - the two ways an
+-- operator actually grants admin - still work untouched.
+create or replace function guard_is_admin()
+returns trigger
+language plpgsql
+security definer
+set search_path = public
+as $$
+begin
+  if auth.role() in ('anon', 'authenticated') then
+    if tg_op = 'INSERT' then
+      new.is_admin := false;
+    else
+      new.is_admin := old.is_admin;
+    end if;
+  end if;
+  return new;
+end;
+$$;
+
+drop trigger if exists guard_is_admin_on_profiles on profiles;
+create trigger guard_is_admin_on_profiles
+  before insert or update on profiles
+  for each row execute function guard_is_admin();
