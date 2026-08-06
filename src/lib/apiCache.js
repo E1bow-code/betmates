@@ -8,6 +8,15 @@
 // live fetch, not a correctness problem.
 const store = new Map()
 
+// Entries were only ever dropped when something read them again, so a key
+// that's written once and never re-read - a fixture id that's finished, a
+// sport nobody opens twice - stayed in a warm instance's memory for its
+// whole life, holding a full API response. Sweeping expired entries on
+// write bounds that by TTL instead of by luck, and the hard cap is a
+// backstop for the case where they're all still live: evict oldest-first,
+// since Map iterates in insertion order.
+const MAX_ENTRIES = 200
+
 export function cacheGet(key) {
   const entry = store.get(key)
   if (!entry) return undefined
@@ -19,5 +28,15 @@ export function cacheGet(key) {
 }
 
 export function cacheSet(key, value, ttlMs) {
-  store.set(key, { value, expiresAt: Date.now() + ttlMs })
+  const now = Date.now()
+  for (const [k, entry] of store) {
+    if (now > entry.expiresAt) store.delete(k)
+  }
+  // Re-inserting an existing key has to move it to the back of the eviction
+  // order, not leave it where it first landed.
+  store.delete(key)
+  store.set(key, { value, expiresAt: now + ttlMs })
+  while (store.size > MAX_ENTRIES) {
+    store.delete(store.keys().next().value)
+  }
 }
