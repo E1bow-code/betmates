@@ -108,28 +108,79 @@ breaks them can't be merged. Run them locally before you push.
 
 ---
 
-## How to submit changes
+## Your everyday workflow
 
 We use a **pull-request workflow** — nothing is pushed straight to `master`.
+Every change goes onto its own branch, becomes a pull request (PR), and only
+lands on `master` after review. Here's the loop you'll repeat each time you
+work on something.
 
-1. Make a branch:
-   ```bash
-   git checkout -b my-change
-   ```
-2. Make your edits, then run the tests:
-   ```bash
-   npm test
-   ```
-3. Commit and push your branch:
-   ```bash
-   git add .
-   git commit -m "Short description of what you changed"
-   git push origin my-change
-   ```
-4. On GitHub, open a **Pull Request** from your branch into `master`.
-5. The owner reviews it, CI runs the tests, and once it's green it gets merged.
+**1. Start from the latest code.**
 
-Keep each PR focused on one thing — it's much easier to review.
+```bash
+git checkout master
+git pull
+```
+
+**2. Make a branch** for what you're about to do (never edit `master`
+directly). Name it after the change:
+
+```bash
+git checkout -b add-dark-mode
+```
+
+**3. Edit the code**, with the app running so you see changes live:
+
+```bash
+npm run dev
+```
+
+Save a file and the browser refreshes automatically.
+
+**4. Run the tests** before you share anything:
+
+```bash
+npm test
+```
+
+**5. Save and upload your branch:**
+
+```bash
+git add .
+git commit -m "Add a dark mode toggle"
+git push origin add-dark-mode
+```
+
+**6. Open a Pull Request.** On GitHub you'll see a **"Compare & pull request"**
+button — click it and open the PR into `master`. CI runs the tests on it
+automatically.
+
+**7. It gets reviewed and merged.** The owner reviews the PR; once it's green
+and approved, it's merged into `master`.
+
+Then start again from step 1 for your next change.
+
+> Keep each PR focused on **one thing** — a small, single-purpose PR is far
+> easier and faster to review than a big mixed one.
+
+### Prefer buttons over the command line?
+
+[GitHub Desktop](https://desktop.github.com) does all of the git steps above
+(make a branch, commit, push, open a PR) with point-and-click — no terminal
+needed. You'll still run `npm run dev` and `npm test` in a terminal, but the
+git parts become buttons.
+
+### Staying in sync
+
+If you've been away for a while, or the owner has merged other PRs, refresh
+your local copy before starting new work:
+
+```bash
+git checkout master
+git pull
+```
+
+Always branch from an up-to-date `master` — it keeps merge conflicts rare.
 
 ---
 
