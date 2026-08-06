@@ -565,6 +565,7 @@ h1, h2, .topbar h1, .sheet-title, .auth-title {
   border: 1px solid var(--border);
   border-radius: 4px;
   overflow: hidden;
+  background: linear-gradient(180deg, var(--surface) 0%, var(--surface-2) 100%);
 }
 .conversation-row {
   display: flex;
@@ -574,7 +575,9 @@ h1, h2, .topbar h1, .sheet-title, .auth-title {
   border-bottom: 1px solid var(--border);
   text-decoration: none;
   color: var(--text);
+  transition: background-color 0.15s ease;
 }
+.conversation-row:hover { background: rgba(var(--accent-rgb), 0.06); }
 .conversation-list .conversation-row:last-child { border-bottom: none; }
 .conversation-row-main { flex: 1; min-width: 0; }
 .conversation-row-name { font-weight: 600; font-size: 0.92rem; }
@@ -770,6 +773,15 @@ h1, h2, .topbar h1, .sheet-title, .auth-title {
 }
 .chat-message-mine .chat-bubble { background: var(--accent); color: var(--accent-ink); border-color: var(--accent-dim); }
 .chat-author { font-size: 0.66rem; font-weight: 700; color: var(--accent); margin-bottom: 2px; }
+.chat-message-time {
+  font-size: 0.64rem;
+  color: var(--text-dim);
+  font-family: var(--font-mono);
+  margin: 2px 4px 0;
+}
+.chat-message-mine .chat-message-time { text-align: right; }
+.dm-header-row { display: flex; align-items: center; gap: 8px; }
+.dm-header-row h1 { margin: 0; }
 .chat-input-row { display: flex; gap: 8px; }
 .chat-input-row input {
   flex: 1;
