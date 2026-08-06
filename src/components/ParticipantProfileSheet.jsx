@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { getPlayerProfile } from '../lib/playerProfile.js'
+import { useEscapeKey } from '../lib/useEscapeKey.js'
 
 // dateBorn from TheSportsDB is a plain "YYYY-MM-DD" string, not a full ISO
 // timestamp - src/utils/format.js's helpers all assume the latter, so this
@@ -15,6 +16,7 @@ function formatBirthDate(dateStr) {
 // needs actually came back.
 export default function ParticipantProfileSheet({ name, onClose }) {
   const [profile, setProfile] = useState(undefined)
+  useEscapeKey(onClose)
 
   useEffect(() => {
     let cancelled = false

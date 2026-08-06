@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext.jsx'
 import * as dataStore from '../lib/dataStore.js'
 import { shareOrCopy, groupInviteUrl } from '../lib/share.js'
+import { useEscapeKey } from '../lib/useEscapeKey.js'
 
 // Everything that isn't the feed itself - creating/joining a group, or
 // adding a friend by code - lives behind this sheet instead of sitting
@@ -11,6 +12,7 @@ import { shareOrCopy, groupInviteUrl } from '../lib/share.js'
 
 export default function ManageSheet({ segment, groups, friends, onClose, onChanged }) {
   const { user } = useAuth()
+  useEscapeKey(onClose)
   const [name, setName] = useState('')
   const [code, setCode] = useState('')
   const [friendCode, setFriendCode] = useState('')

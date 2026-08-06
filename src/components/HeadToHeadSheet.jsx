@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { useAuth } from '../context/AuthContext.jsx'
 import * as dataStore from '../lib/dataStore.js'
 import { computeStats } from '../utils/trackerStats.js'
+import { useEscapeKey } from '../lib/useEscapeKey.js'
 
 // Compares two people using only bets both of them could actually see -
 // their shared groups' posts plus the public feed - not either person's
@@ -11,6 +12,7 @@ import { computeStats } from '../utils/trackerStats.js'
 export default function HeadToHeadSheet({ friend, onClose }) {
   const { user } = useAuth()
   const [rows, setRows] = useState(null)
+  useEscapeKey(onClose)
 
   useEffect(() => {
     Promise.all([dataStore.listFeedForUser(user.id), dataStore.listPublicFeed()]).then(([feed, publicFeed]) => {

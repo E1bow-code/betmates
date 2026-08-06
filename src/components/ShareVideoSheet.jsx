@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { useAuth } from '../context/AuthContext.jsx'
 import * as dataStore from '../lib/dataStore.js'
+import { useEscapeKey } from '../lib/useEscapeKey.js'
 
 // "If someone sees a video they think is good advice, send it to a group
 // or a friend" - forwards an existing video post without re-uploading
@@ -8,6 +9,7 @@ import * as dataStore from '../lib/dataStore.js'
 
 export default function ShareVideoSheet({ video, onClose }) {
   const { user } = useAuth()
+  useEscapeKey(onClose)
   const [groups, setGroups] = useState([])
   const [friends, setFriends] = useState([])
   const [sent, setSent] = useState(null)
