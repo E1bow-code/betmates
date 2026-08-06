@@ -395,11 +395,73 @@ h1, h2, .topbar h1, .sheet-title, .auth-title {
   background: linear-gradient(180deg, rgba(var(--bg-rgb), 0.55) 0%, rgba(var(--bg-rgb), 0.92) 60%, var(--bg) 100%);
 }
 
-.auth-card {
+.auth-layout {
   position: relative;
   z-index: 1;
   width: 100%;
+  max-width: 980px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 36px;
+}
+
+.auth-card {
+  width: 100%;
   max-width: 380px;
+  flex-shrink: 0;
+}
+
+/* Only rendered in signup mode (see AuthPage.jsx) - a returning visitor
+   who taps "Sign in" gets straight to the compact form, no pitch to
+   scroll past. Every referral/share link in the app lands a first-time,
+   logged-out visitor right here, so this is the one place that explains
+   what BetMates is before asking for an email address. */
+.landing-pitch {
+  width: 100%;
+  max-width: 480px;
+  text-align: center;
+}
+
+.landing-pitch-title { font-size: 1.7rem; margin: 0 0 12px; text-wrap: balance; }
+.landing-pitch-lead { color: var(--text-dim); font-size: 1rem; line-height: 1.6; margin: 0 0 28px; }
+
+.landing-features {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+  margin-bottom: 24px;
+  text-align: left;
+}
+
+.landing-feature { display: flex; align-items: flex-start; gap: 14px; }
+.landing-feature-icon { color: var(--accent); flex-shrink: 0; margin-top: 3px; }
+.landing-feature-title { font-weight: 600; margin-bottom: 2px; }
+.landing-feature-body { color: var(--text-dim); font-size: 0.88rem; line-height: 1.5; margin: 0; }
+
+.landing-trust {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  text-align: left;
+  color: var(--text-dim);
+  font-size: 0.85rem;
+  line-height: 1.5;
+  background: color-mix(in srgb, var(--accent) 12%, transparent);
+  border: 1px solid var(--accent-dim);
+  border-radius: 10px;
+  padding: 12px 14px;
+  margin-bottom: 24px;
+}
+.landing-trust svg { color: var(--accent); flex-shrink: 0; margin-top: 1px; }
+
+.landing-cta { width: 100%; max-width: 300px; }
+
+@media (min-width: 860px) {
+  .auth-layout { flex-direction: row; align-items: flex-start; justify-content: center; gap: 64px; }
+  .landing-pitch { text-align: left; padding-top: 12px; }
+  .landing-pitch-lead { margin-left: 0; margin-right: 0; }
+  .landing-cta { margin: 0 auto; }
 }
 
 .auth-forgot-link {
