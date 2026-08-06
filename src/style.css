@@ -767,6 +767,20 @@ h1, h2, .topbar h1, .sheet-title, .auth-title {
 }
 .outcome-row-main:disabled { opacity: 0.5; cursor: default; }
 
+/* Sits before outcome-row-main (see FixtureDetailPage's player markets) -
+   border-right rather than the -left the buttons after it use, since it's
+   the row's first element. */
+.outcome-profile-btn {
+  flex-shrink: 0;
+  background: none;
+  border: none;
+  border-right: 1px solid var(--border);
+  padding: 0 10px;
+  font-size: 0.95rem;
+  color: var(--text-dim);
+  cursor: pointer;
+}
+
 .outcome-expand-btn {
   flex-shrink: 0;
   background: none;
@@ -1840,6 +1854,38 @@ h1, h2, .topbar h1, .sheet-title, .auth-title {
 }
 
 .runner-row.expanded .runner-all-odds { display: grid; }
+
+/* Recent form/ratings - same expand-on-tap gating as .runner-all-odds above. */
+.runner-form {
+  display: none;
+  flex-direction: column;
+  gap: 6px;
+  padding: 0 14px 12px;
+}
+.runner-row.expanded .runner-form { display: flex; }
+
+.runner-form-chips { display: flex; align-items: center; flex-wrap: wrap; gap: 4px; }
+.runner-form-label { font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.04em; color: var(--text-dim); margin-right: 2px; }
+.runner-form-chip {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 3px;
+  border-radius: 3px;
+  font-size: 0.7rem;
+  font-weight: 700;
+  background: var(--surface-2);
+  color: var(--text-dim);
+}
+.runner-form-chip-win { background: var(--accent); color: #1a1a1a; }
+.runner-form-chip-placed { background: var(--accent-dim); color: var(--text); }
+.runner-form-chip-nonfinish { background: var(--bad); color: #fff; }
+.runner-form-divider { width: 1px; height: 14px; background: var(--border); margin: 0 2px; }
+
+.runner-form-facts { font-size: 0.78rem; color: var(--text-dim); }
+.runner-form-spotlight { font-size: 0.85rem; line-height: 1.45; color: var(--text); margin: 0; }
 
 .odds-cell {
   display: flex;

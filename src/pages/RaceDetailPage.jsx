@@ -12,6 +12,7 @@ import SportHeroBanner from '../components/SportHeroBanner.jsx'
 import LiveBadge from '../components/LiveBadge.jsx'
 import WatchLiveButton from '../components/WatchLiveButton.jsx'
 import FollowButton from '../components/FollowButton.jsx'
+import RunnerForm from '../components/RunnerForm.jsx'
 
 export default function RaceDetailPage() {
   const { id } = useParams()
@@ -124,6 +125,7 @@ export default function RaceDetailPage() {
                   </div>
                 )}
               </div>
+              <RunnerForm runner={runner} />
               <div className="runner-all-odds">
                 {runner.allOdds.map((o) => (
                   <div key={o.bookmaker} className={o.bookmaker === best?.bookmaker ? 'odds-cell is-best' : 'odds-cell'}>

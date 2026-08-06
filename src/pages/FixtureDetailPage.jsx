@@ -19,6 +19,7 @@ import WatchLiveButton from '../components/WatchLiveButton.jsx'
 import OddsAlertSheet from '../components/OddsAlertSheet.jsx'
 import FollowButton from '../components/FollowButton.jsx'
 import FollowParticipantButton from '../components/FollowParticipantButton.jsx'
+import ParticipantProfileSheet from '../components/ParticipantProfileSheet.jsx'
 
 const PLAYER_MARKET_KEYS = ['player_goal_scorer_anytime', 'player_first_goal_scorer', 'player_last_goal_scorer']
 
@@ -33,6 +34,7 @@ export default function FixtureDetailPage() {
   const [alertTarget, setAlertTarget] = useState(null)
   const [expandedOutcome, setExpandedOutcome] = useState(null)
   const [expandedMarkets, setExpandedMarkets] = useState(new Set())
+  const [profileTarget, setProfileTarget] = useState(null)
 
   useEffect(() => {
     fetchFixture(id)
@@ -157,6 +159,19 @@ export default function FixtureDetailPage() {
               return (
                 <div key={outcome.name} className={selected ? 'outcome-row is-selected' : 'outcome-row'}>
                   <div className="outcome-row-buttons">
+                    {PLAYER_MARKET_KEYS.includes(market.key) && (
+                      <button
+                        className="outcome-profile-btn"
+                        type="button"
+                        aria-label={`View ${outcome.name}'s profile`}
+                        onClick={(e) => {
+                          e.stopPropagation()
+                          setProfileTarget(outcome.name)
+                        }}
+                      >
+                        ⓘ
+                      </button>
+                    )}
                     <button className="outcome-row-main" onClick={() => pick(market, outcome)} disabled={!best}>
                       <span className="outcome-name">
                         {PLAYER_MARKET_KEYS.includes(market.key) ? (
@@ -243,6 +258,7 @@ export default function FixtureDetailPage() {
       })}
 
       {alertTarget && <OddsAlertSheet target={alertTarget} onClose={() => setAlertTarget(null)} />}
+      {profileTarget && <ParticipantProfileSheet name={profileTarget} onClose={() => setProfileTarget(null)} />}
     </div>
   )
 }
