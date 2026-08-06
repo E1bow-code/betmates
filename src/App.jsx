@@ -33,6 +33,7 @@ import AdminReportsPage from './pages/AdminReportsPage.jsx'
 import DirectMessagePage from './pages/DirectMessagePage.jsx'
 import MessagesInboxPage from './pages/MessagesInboxPage.jsx'
 import NewsTickerBar from './components/NewsTickerBar.jsx'
+import ScatteredSportPhotos from './components/ScatteredSportPhotos.jsx'
 import NewsSidebar from './components/NewsSidebar.jsx'
 import { fetchSportsNews } from './api/newsClient.js'
 import { PENDING_REFERRAL_KEY } from './lib/referral.js'
@@ -171,6 +172,7 @@ function Shell() {
   return (
     <ActivityProvider userId={user.id}>
       <BetSlipProvider>
+        <ScatteredSportPhotos />
         <NewsTickerBar headlines={newsHeadlines} />
         <div className="app-shell">
           <div className="app-content">
