@@ -4,6 +4,7 @@ import { AuthProvider, useAuth } from './context/AuthContext.jsx'
 import { BetSlipProvider } from './context/BetSlipContext.jsx'
 import { ActivityProvider } from './context/ActivityContext.jsx'
 import { OddsFormatProvider } from './context/OddsFormatContext.jsx'
+import { ToastProvider } from './context/ToastContext.jsx'
 import BottomNav from './components/BottomNav.jsx'
 import InstallGuideBanner from './components/InstallGuideBanner.jsx'
 import OnboardingTour from './components/OnboardingTour.jsx'
@@ -53,9 +54,11 @@ export default function App() {
   return (
     <AuthProvider>
       <OddsFormatProvider>
-        <HashRouter>
-          <Shell />
-        </HashRouter>
+        <ToastProvider>
+          <HashRouter>
+            <Shell />
+          </HashRouter>
+        </ToastProvider>
       </OddsFormatProvider>
     </AuthProvider>
   )

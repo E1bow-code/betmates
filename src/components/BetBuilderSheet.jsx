@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext.jsx'
 import { useBetSlip } from '../context/BetSlipContext.jsx'
 import { useOddsFormat } from '../context/OddsFormatContext.jsx'
+import { useToast } from '../context/ToastContext.jsx'
 import * as dataStore from '../lib/dataStore.js'
 import { notifyGroup, notifyFollowers } from '../lib/notify.js'
 import { formatOdds } from '../utils/oddsFormat.js'
@@ -21,6 +22,7 @@ export default function BetBuilderSheet() {
   const navigate = useNavigate()
   const { legs, removeLeg, clearSlip, sheetOpen, closeSheet } = useBetSlip()
   const { format } = useOddsFormat()
+  const { showToast } = useToast()
   const [groups, setGroups] = useState([])
   const [groupId, setGroupId] = useState('')
   const [stake, setStake] = useState('')
@@ -97,6 +99,7 @@ export default function BetBuilderSheet() {
         user.id
       )
       clearSlip()
+      showToast(`Posted to ${groupName}`)
       navigate(`/groups/${groupId}`)
       return post
     } catch (err) {
@@ -127,6 +130,7 @@ export default function BetBuilderSheet() {
         url: '/#/groups'
       })
       clearSlip()
+      showToast('Posted to everyone')
       navigate('/groups', { state: { segment: 'feed' } })
     } catch (err) {
       setError(err.message)
@@ -148,6 +152,7 @@ export default function BetBuilderSheet() {
         potentialReturn
       })
       clearSlip()
+      showToast('Saved to Tracker')
       navigate('/tracker')
     } catch (err) {
       setError(err.message)
