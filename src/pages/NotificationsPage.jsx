@@ -71,7 +71,8 @@ export default function NotificationsPage() {
           <p className="hint">Set from the 🔔 button on any outcome's price. Checked every 15 minutes while pending.</p>
           <div className="tracker-list">
             {priceAlerts.map((a) => (
-              <div key={a.id} className="tracker-row">
+              <div key={a.id} className={a.triggeredAt ? 'tracker-row icon-row status-triggered' : 'tracker-row icon-row'}>
+                <span className="icon-row-badge">🔔</span>
                 <div className="tracker-row-main">
                   <div className="selection-event">
                     {a.eventLabel} · {a.marketLabel}: {a.selectionLabel}
@@ -94,9 +95,16 @@ export default function NotificationsPage() {
   )
 }
 
+const SETTLED_ICON = { won: '✅', lost: '❌', void: '➖' }
+
 function NotificationRow({ item }) {
+  const rowClass =
+    item.kind === 'settled'
+      ? `tracker-row icon-row notification-row status-${item.status}`
+      : 'tracker-row icon-row notification-row'
   const content = (
     <>
+      <span className="icon-row-badge">{item.kind === 'posted' ? '💬' : SETTLED_ICON[item.status]}</span>
       <div className="tracker-row-main">
         <div className="selection-event">
           {item.kind === 'posted' ? (
@@ -119,20 +127,20 @@ function NotificationRow({ item }) {
 
   if (item.kind === 'posted' && item.groupId) {
     return (
-      <Link to={`/groups/${item.groupId}`} className="tracker-row notification-row">
+      <Link to={`/groups/${item.groupId}`} className={rowClass}>
         {content}
       </Link>
     )
   }
   if (item.kind === 'posted') {
     return (
-      <Link to="/groups" state={{ segment: 'feed' }} className="tracker-row notification-row">
+      <Link to="/groups" state={{ segment: 'feed' }} className={rowClass}>
         {content}
       </Link>
     )
   }
   return (
-    <Link to="/tracker" className="tracker-row notification-row">
+    <Link to="/tracker" className={rowClass}>
       {content}
     </Link>
   )

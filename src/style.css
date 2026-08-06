@@ -1751,6 +1751,7 @@ h1, h2, .topbar h1, .sheet-title, .auth-title {
 .tracker-row.status-won { border-left-color: var(--accent); }
 .tracker-row.status-lost { border-left-color: var(--bad); }
 .tracker-row.status-void { border-left-color: var(--text-dim); }
+.tracker-row.status-triggered { border-left-color: var(--accent); }
 .tracker-row-main { flex: 1; min-width: 0; }
 .notification-row { text-decoration: none; color: inherit; }
 .notification-row:hover { background: var(--surface-2); }
