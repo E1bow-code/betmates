@@ -409,6 +409,33 @@ export async function updateBetStatus(betId, status, potentialReturnOverride) {
   return mapBetPost(data)
 }
 
+// Corrects a mis-typed stake (and stakeHidden) on a bet the author hasn't
+// settled yet - RLS additionally enforces status = 'open' server-side (see
+// supabase/schema.sql), this check is the client-side half so the button
+// simply isn't offered once a bet is settled.
+export async function updateBetPost(betId, { stake, stakeHidden, potentialReturn }) {
+  if (!isSupabaseConfigured) return local.updateBetPost(betId, { stake, stakeHidden, potentialReturn })
+  const { data, error } = await supabase
+    .from('bet_posts')
+    .update({ stake, stake_hidden: stakeHidden, potential_return: potentialReturn })
+    .eq('id', betId)
+    .select()
+    .single()
+  if (error) throw error
+  return mapBetPost(data)
+}
+
+// RLS only allows this while the bet is still open (see schema.sql) - a
+// blocked delete returns zero rows rather than an error, so this checks
+// for that explicitly instead of reporting success on a no-op.
+export async function deleteBetPost(betId) {
+  if (!isSupabaseConfigured) return local.deleteBetPost(betId)
+  const { data, error } = await supabase.from('bet_posts').delete().eq('id', betId).select()
+  if (error) throw error
+  if (!data?.length) throw new Error("Couldn't delete this bet - it may already be settled.")
+  return true
+}
+
 export async function listBetPostsByUser(userId) {
   if (!isSupabaseConfigured) return local.listBetPostsByUser(userId)
   const { data, error } = await supabase.from('bet_posts').select('*').eq('user_id', userId)
@@ -651,6 +678,30 @@ export async function updateManualEntryStatus(entryId, status, potentialReturnOv
     .single()
   if (error) throw error
   return data
+}
+
+// Corrects a mis-typed stake on a private entry that's still open - same
+// status = 'open' restriction as updateBetPost above, enforced by RLS too.
+export async function updateManualEntry(entryId, { stake, potentialReturn }) {
+  if (!isSupabaseConfigured) return local.updateManualEntry(entryId, { stake, potentialReturn })
+  const { data, error } = await supabase
+    .from('manual_entries')
+    .update({ stake, potential_return: potentialReturn })
+    .eq('id', entryId)
+    .select()
+    .single()
+  if (error) throw error
+  return mapManualEntry(data)
+}
+
+// See deleteBetPost's comment - a blocked delete returns zero rows, not an
+// error, so that's checked for explicitly here too.
+export async function deleteManualEntry(entryId) {
+  if (!isSupabaseConfigured) return local.deleteManualEntry(entryId)
+  const { data, error } = await supabase.from('manual_entries').delete().eq('id', entryId).select()
+  if (error) throw error
+  if (!data?.length) throw new Error("Couldn't delete this entry - it may already be settled.")
+  return true
 }
 
 // --- Account -----------------------------------------------------------

@@ -493,6 +493,7 @@ h1, h2, .topbar h1, .sheet-title, .auth-title {
 .btn-danger { background: var(--bad); color: #fff; }
 .btn-danger:disabled { opacity: 0.5; }
 .btn-danger-outline { background: transparent; color: var(--bad); border: 1px solid var(--bad); }
+.btn-danger-outline:disabled { opacity: 0.5; }
 
 .danger-zone { border: 1px solid var(--bad); border-radius: 4px; padding: 12px; }
 

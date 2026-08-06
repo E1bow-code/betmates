@@ -17,6 +17,7 @@ import {
 } from '../utils/trackerStats.js'
 import { SPORT_LABEL } from '../lib/sportsConfig.js'
 import EmptyState from '../components/EmptyState.jsx'
+import EditBetSheet from '../components/EditBetSheet.jsx'
 import PnlChart from '../components/PnlChart.jsx'
 import { trackerEntriesToCsv, downloadCsv } from '../lib/csvExport.js'
 import PullToRefresh from '../components/PullToRefresh.jsx'
@@ -33,6 +34,7 @@ export default function TrackerPage() {
   const [checking, setChecking] = useState(false)
   const [rebetting, setRebetting] = useState(null)
   const [rebetDone, setRebetDone] = useState(null)
+  const [editingEntry, setEditingEntry] = useState(null)
 
   useEffect(() => {
     let cancelled = false
@@ -266,6 +268,11 @@ export default function TrackerPage() {
                   ) : (
                     <span className={`bet-status-pill status-${entry.status}`}>{STATUS_LABEL[entry.status]}</span>
                   )}
+                  {entry.status === 'open' && (
+                    <button className="btn btn-ghost btn-small" onClick={() => setEditingEntry(entry)}>
+                      Edit
+                    </button>
+                  )}
                   <button
                     className="btn btn-ghost btn-small"
                     onClick={() => handleRebet(entry)}
@@ -278,6 +285,15 @@ export default function TrackerPage() {
             )
           })}
         </div>
+      )}
+
+      {editingEntry && (
+        <EditBetSheet
+          entry={editingEntry}
+          onClose={() => setEditingEntry(null)}
+          onUpdated={refresh}
+          onDeleted={refresh}
+        />
       )}
     </PullToRefresh>
   )

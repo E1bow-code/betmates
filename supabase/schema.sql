@@ -184,7 +184,28 @@ create policy "members post bets as themselves" on bet_posts for insert with che
     or exists (select 1 from group_members m where m.group_id = bet_posts.group_id and m.user_id = auth.uid())
   )
 );
-create policy "author updates own bet status" on bet_posts for update using (auth.uid() = user_id);
+-- Restricted to status = 'open' - without it, an author could rewrite a
+-- settled bet's stake or outcome after the fact via a raw API call, which
+-- undermines the whole trust-based-leaderboard model. Matches how the
+-- existing self-report "mark result" flow already only ever fires from
+-- 'open', and how the edit/delete UI (src/components/EditBetSheet.jsx)
+-- gates itself client-side - this makes that the enforced rule, not just
+-- the convention. DELETE didn't exist for authors at all before this.
+--
+-- The with check clause matters: Postgres reuses an UPDATE policy's using
+-- expression as its check on the *new* row when no with check is given,
+-- which would make status = 'open' a requirement of the result too - and
+-- break the self-report transition into 'won'/'lost'/'void' this policy is
+-- meant to allow. using still gates which rows can be touched at all
+-- (must be open going in); with check only re-confirms ownership.
+create policy "author updates own open bet post" on bet_posts for update using (
+  auth.uid() = user_id and status = 'open'
+) with check (
+  auth.uid() = user_id
+);
+create policy "author deletes own open bet post" on bet_posts for delete using (
+  auth.uid() = user_id and status = 'open'
+);
 
 create policy "members or anyone read copies of visible bet posts" on bet_copies for select using (
   exists (
@@ -216,7 +237,19 @@ create policy "user comments as themselves" on bet_comments for insert with chec
 
 create policy "user reads own tracker entries" on manual_entries for select using (auth.uid() = user_id);
 create policy "user writes own tracker entries" on manual_entries for insert with check (auth.uid() = user_id);
-create policy "user updates own tracker entries" on manual_entries for update using (auth.uid() = user_id);
+-- Same status = 'open' restriction as bet_posts above, and for the same
+-- reason - a settled entry is a historical record, not something to
+-- quietly rewrite after the fact. with check is the same fix too: without
+-- it Postgres would reuse using as the check on the new row and block the
+-- open -> won/lost/void self-report transition this policy needs to allow.
+create policy "user updates own open tracker entry" on manual_entries for update using (
+  auth.uid() = user_id and status = 'open'
+) with check (
+  auth.uid() = user_id
+);
+create policy "user deletes own open tracker entry" on manual_entries for delete using (
+  auth.uid() = user_id and status = 'open'
+);
 
 -- fixtures / odds_snapshots are public reference data cached by the
 -- Netlify Function (netlify/functions/odds.js) using the service role key,

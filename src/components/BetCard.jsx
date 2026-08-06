@@ -8,6 +8,7 @@ import CopyBetButton from './CopyBetButton.jsx'
 import BackBetButton from './BackBetButton.jsx'
 import ShareImageButton from './ShareImageButton.jsx'
 import Avatar from './Avatar.jsx'
+import EditBetSheet from './EditBetSheet.jsx'
 
 const REACTION_EMOJIS = ['🔥', '😬', '👍']
 const VOTE_OPTIONS = [
@@ -29,7 +30,7 @@ const REPORT_REASONS = [
 // report only make sense here too - group posts are already people you
 // chose to be around, not unsolicited exposure.
 
-export default function BetCard({ post, memberNames, variant = 'group', onBlocked }) {
+export default function BetCard({ post, memberNames, variant = 'group', onBlocked, onChanged }) {
   const { user } = useAuth()
   const { format } = useOddsFormat()
   const [reactions, setReactions] = useState([])
@@ -40,6 +41,7 @@ export default function BetCard({ post, memberNames, variant = 'group', onBlocke
   const [following, setFollowing] = useState(false)
   const [showModeration, setShowModeration] = useState(false)
   const [reported, setReported] = useState(false)
+  const [showEdit, setShowEdit] = useState(false)
 
   useEffect(() => {
     dataStore.listReactions(post.id).then(setReactions)
@@ -212,15 +214,29 @@ export default function BetCard({ post, memberNames, variant = 'group', onBlocke
           {!isAuthor && <BackBetButton post={post} />}
           <ShareImageButton post={post} />
           {isAuthor && status === 'open' && (
-            <select className="status-select" defaultValue="open" onChange={handleStatusChange}>
-              <option value="open">Mark result</option>
-              <option value="won">Won</option>
-              <option value="lost">Lost</option>
-              <option value="void">Void</option>
-            </select>
+            <>
+              <button className="btn btn-ghost btn-small" type="button" onClick={() => setShowEdit(true)}>
+                Edit
+              </button>
+              <select className="status-select" defaultValue="open" onChange={handleStatusChange}>
+                <option value="open">Mark result</option>
+                <option value="won">Won</option>
+                <option value="lost">Lost</option>
+                <option value="void">Void</option>
+              </select>
+            </>
           )}
         </div>
       </div>
+
+      {showEdit && (
+        <EditBetSheet
+          entry={{ ...post, source: 'group' }}
+          onClose={() => setShowEdit(false)}
+          onUpdated={onChanged}
+          onDeleted={onChanged}
+        />
+      )}
 
       {showComments && (
         <div className="comment-thread">

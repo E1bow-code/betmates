@@ -178,7 +178,7 @@ export default function GroupFeedPage() {
             <div className="bet-feed">
               {items.map((item) =>
                 item.kind === 'bet' ? (
-                  <BetCard key={`bet-${item.data.id}`} post={item.data} memberNames={memberNames} />
+                  <BetCard key={`bet-${item.data.id}`} post={item.data} memberNames={memberNames} onChanged={refresh} />
                 ) : (
                   <VideoCard key={`video-${item.data.id}-${item.data.sharedAt}`} post={item.data} />
                 )

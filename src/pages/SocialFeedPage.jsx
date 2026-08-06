@@ -185,7 +185,7 @@ export default function SocialFeedPage() {
           {feed && feed.length > 0 && (
             <div className="bet-feed">
               {feed.map((post) => (
-                <BetCard key={post.id} post={post} memberNames={post.memberNames} />
+                <BetCard key={post.id} post={post} memberNames={post.memberNames} onChanged={refreshBets} />
               ))}
             </div>
           )}
@@ -223,7 +223,7 @@ export default function SocialFeedPage() {
           {publicFeed && publicFeed.length > 0 && (
             <div className="bet-feed">
               {publicFeed.map((post) => (
-                <BetCard key={post.id} post={post} variant="public" onBlocked={handleBlocked} />
+                <BetCard key={post.id} post={post} variant="public" onBlocked={handleBlocked} onChanged={refreshPublicFeed} />
               ))}
             </div>
           )}
