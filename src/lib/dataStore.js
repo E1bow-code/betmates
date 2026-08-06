@@ -634,6 +634,13 @@ export async function recordBetCopy(originalBetId, copyingUserId) {
   if (error) throw error
 }
 
+export async function listBetCopies(betId) {
+  if (!isSupabaseConfigured) return local.listBetCopies(betId)
+  const { data, error } = await supabase.from('bet_copies').select('*').eq('original_bet_id', betId)
+  if (error) throw error
+  return data
+}
+
 // --- Tracker (manual entries, separate from group bet_posts) --------------
 
 export async function listManualEntries(userId) {

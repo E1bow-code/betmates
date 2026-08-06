@@ -36,6 +36,7 @@ export default function BetCard({ post, memberNames, variant = 'group', onBlocke
   const { format } = useOddsFormat()
   const [reactions, setReactions] = useState([])
   const [comments, setComments] = useState([])
+  const [copyCount, setCopyCount] = useState(0)
   const [showComments, setShowComments] = useState(false)
   const [commentBody, setCommentBody] = useState('')
   const [status, setStatus] = useState(post.status)
@@ -47,6 +48,7 @@ export default function BetCard({ post, memberNames, variant = 'group', onBlocke
   useEffect(() => {
     dataStore.listReactions(post.id).then(setReactions)
     dataStore.listComments(post.id).then(setComments)
+    dataStore.listBetCopies(post.id).then((copies) => setCopyCount(copies.length))
   }, [post.id])
 
   useEffect(() => {
@@ -227,7 +229,7 @@ export default function BetCard({ post, memberNames, variant = 'group', onBlocke
           >
             💬 {comments.length > 0 && comments.length}
           </button>
-          <CopyBetButton post={post} userId={user.id} />
+          <CopyBetButton post={post} userId={user.id} copyCount={copyCount} onCopied={() => setCopyCount((c) => c + 1)} />
           {!isAuthor && <BackBetButton post={post} />}
           <ShareImageButton post={post} />
           {isAuthor && status === 'open' && (

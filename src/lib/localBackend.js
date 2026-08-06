@@ -463,6 +463,11 @@ export function recordBetCopy(originalBetId, copyingUserId) {
   return delay(copy)
 }
 
+export function listBetCopies(betId) {
+  const db = readDb()
+  return delay(db.betCopies.filter((c) => c.originalBetId === betId))
+}
+
 // --- Tracker ---------------------------------------------------------------
 
 export function listManualEntries(userId) {

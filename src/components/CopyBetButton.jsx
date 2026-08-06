@@ -21,7 +21,7 @@ function formatBetSlip(post, format) {
   return `BetMates bet slip\n${lines.join('\n')}${stakeLine}`
 }
 
-export default function CopyBetButton({ post, userId }) {
+export default function CopyBetButton({ post, userId, copyCount = 0, onCopied }) {
   const [copied, setCopied] = useState(false)
   const { format } = useOddsFormat()
   const selection = post.selections[0]
@@ -34,13 +34,14 @@ export default function CopyBetButton({ post, userId }) {
     await navigator.clipboard.writeText(formatBetSlip(post, format))
     setCopied(true)
     setTimeout(() => setCopied(false), 2000)
+    onCopied?.()
     dataStore.recordBetCopy(post.id, userId).catch(() => {})
   }
 
   return (
     <div className="copy-bet-row">
       <button className="btn btn-secondary btn-small" onClick={handleCopy}>
-        {copied ? 'Copied!' : 'Copy Bet'}
+        {copied ? 'Copied!' : copyCount > 0 ? `Copy Bet · ${copyCount}` : 'Copy Bet'}
       </button>
       {link && (
         <a className="btn btn-ghost btn-small" href={link} target="_blank" rel="noreferrer">
