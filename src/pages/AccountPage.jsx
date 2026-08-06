@@ -9,6 +9,8 @@ import { getStoredTheme, setTheme } from '../lib/theme.js'
 import { isIOS, isStandalone } from '../lib/platform.js'
 import { shareOrCopy, publicProfileUrl, referralUrl } from '../lib/share.js'
 import { periodStart, sumStakesSince } from '../utils/spendLimit.js'
+import { getRealityCheckMins, setRealityCheckMins, REALITY_CHECK_OPTIONS } from '../lib/realityCheck.js'
+import { referralRewardState } from '../utils/referralRewards.js'
 import Avatar from '../components/Avatar.jsx'
 import InstallGuide from '../components/InstallGuide.jsx'
 import SportHeroBanner from '../components/SportHeroBanner.jsx'
@@ -33,6 +35,7 @@ export default function AccountPage() {
   const [nameSaving, setNameSaving] = useState(false)
   const [nameError, setNameError] = useState(null)
   const [theme, setThemeState] = useState(getStoredTheme() === 'light' ? 'light' : 'dark')
+  const [realityCheckMins, setRealityCheckMinsState] = useState(getRealityCheckMins)
   const [profileShareStatus, setProfileShareStatus] = useState(null)
   const [blockedUsers, setBlockedUsers] = useState(null)
   const [confirmingDelete, setConfirmingDelete] = useState(false)
@@ -391,6 +394,43 @@ export default function AccountPage() {
       </div>
 
       <div className="account-section">
+        <h2 className="market-title">Safer gambling</h2>
+        <p className="hint">
+          A reality check pops up every so often to show how long you’ve been in the app - a nudge to take a break. Off by default.
+        </p>
+        <div className="mode-switcher">
+          {REALITY_CHECK_OPTIONS.map((opt) => (
+            <button
+              key={opt.value}
+              className={realityCheckMins === opt.value ? 'mode-tab active' : 'mode-tab'}
+              onClick={() => {
+                setRealityCheckMins(opt.value)
+                setRealityCheckMinsState(opt.value)
+              }}
+            >
+              {opt.label}
+            </button>
+          ))}
+        </div>
+        <p className="hint">
+          If gambling has stopped being fun, help is free and confidential. Call the National Gambling Helpline on{' '}
+          <a href="tel:08088020133">0808 8020 133</a>, or visit{' '}
+          <a href="https://www.begambleaware.org" target="_blank" rel="noreferrer">
+            BeGambleAware
+          </a>{' '}
+          and{' '}
+          <a href="https://www.gamcare.org.uk" target="_blank" rel="noreferrer">
+            GamCare
+          </a>
+          . To block yourself from UK gambling sites, register with{' '}
+          <a href="https://www.gamstop.co.uk" target="_blank" rel="noreferrer">
+            GAMSTOP
+          </a>
+          .
+        </p>
+      </div>
+
+      <div className="account-section">
         <h2 className="market-title">Public profile</h2>
         <p className="hint">Share a link to your stats - anyone can view it, no BetMates account needed.</p>
         <button className="btn btn-secondary btn-small" onClick={handleShareProfile}>
@@ -405,9 +445,32 @@ export default function AccountPage() {
           {referralCount === null
             ? 'Loading…'
             : referralCount === 0
-              ? "You haven't brought anyone in yet - share your link below."
+              ? "You haven't brought anyone in yet - share your link below to start earning rewards."
               : `You've brought ${referralCount} ${referralCount === 1 ? 'person' : 'people'} to BetMates.`}
         </p>
+        {referralCount !== null &&
+          (() => {
+            const rewards = referralRewardState(referralCount)
+            return (
+              <>
+                {rewards.earned.length > 0 && (
+                  <div className="badge-row">
+                    {rewards.earned.map((tier) => (
+                      <span key={tier.threshold} className="badge">
+                        {tier.icon} {tier.label}
+                      </span>
+                    ))}
+                  </div>
+                )}
+                {rewards.next && (
+                  <p className="hint">
+                    {rewards.toNext} more {rewards.toNext === 1 ? 'mate' : 'mates'} to unlock {rewards.next.icon}{' '}
+                    {rewards.next.label}.
+                  </p>
+                )}
+              </>
+            )
+          })()}
         <button className="btn btn-secondary btn-small" onClick={handleShareReferral}>
           Share invite link
         </button>

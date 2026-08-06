@@ -1,0 +1,81 @@
+// Proxy to TheSportsDB (https://www.thesportsdb.com/free_sports_api) for
+// club crests, keeping the lookup server-side instead of firing it from the
+// browser like src/lib/teamBadges.js used to. Two reasons this belongs on
+// the server, both of which showed up as missing badges (initials-only) on
+// real devices, worst on mobile:
+//   1. TheSportsDB's JSON API doesn't reliably send CORS headers, so a
+//      browser fetch can be blocked outright and fall straight to initials.
+//   2. The free tier is rate-limited, and the Odds list mounts ~20 fixtures
+//      = ~40 team lookups at once. From a flaky mobile connection that burst
+//      loses far more requests than a desktop on wifi - which is exactly the
+//      "works on my laptop, blank on my phone" report. Proxying means the
+//      whole userbase shares one cached lookup per club (see apiCache.js),
+//      so each crest is fetched from TheSportsDB at most once per TTL total.
+// Never throws - the client gets { url: null } on any failure and renders an
+// initials badge (src/components/TeamBadge.jsx).
+import { cacheGet, cacheSet } from '../../src/lib/apiCache.js'
+
+// Crests effectively never change, so cache hits for a week. A miss (team
+// not found, or the API had a wobble) is cached only briefly so a transient
+// failure doesn't blank a club for a week - the next viewer retries it.
+const HIT_TTL = 7 * 24 * 60 * 60 * 1000
+const MISS_TTL = 60 * 60 * 1000
+
+// The odds feed and TheSportsDB don't always spell a club the same way, so
+// a raw lookup misses and the crest falls back to initials. Map the short
+// forms we actually see onto the name TheSportsDB indexes. Keyed lowercase;
+// only list a club when the two genuinely differ - a wrong alias is worse
+// than none. Extend as more mismatches turn up.
+const TEAM_ALIASES = {
+  'man city': 'Manchester City',
+  'man utd': 'Manchester United',
+  'man united': 'Manchester United',
+  spurs: 'Tottenham Hotspur',
+  wolves: 'Wolverhampton Wanderers',
+  'nottm forest': 'Nottingham Forest',
+  "nott'm forest": 'Nottingham Forest',
+  'sheffield utd': 'Sheffield United',
+  psg: 'Paris Saint-Germain',
+  'paris saint germain': 'Paris Saint-Germain',
+  inter: 'Inter Milan',
+  'bayern munich': 'Bayern Munich',
+  'atletico madrid': 'Atlético Madrid'
+}
+
+function resolveTeam(name) {
+  return TEAM_ALIASES[name.trim().toLowerCase()] ?? name
+}
+
+function json(url, source) {
+  const headers = { 'content-type': 'application/json' }
+  if (source) headers['x-data-source'] = source
+  return new Response(JSON.stringify({ url }), { status: 200, headers })
+}
+
+export default async (req) => {
+  const team = new URL(req.url).searchParams.get('team')
+  if (!team) return json(null)
+
+  // Cache and look up by the resolved name, so every spelling of a club
+  // ("Man City", "Manchester City") shares one crest and one upstream call.
+  const resolved = resolveTeam(team)
+  const key = `badge-${resolved.toLowerCase()}`
+  const cached = cacheGet(key)
+  if (cached !== undefined) return json(cached, 'live-cached')
+
+  // Test key "3" needs no registration; set SPORTSDB_API_KEY to a paid key
+  // if the free tier's rate limits start blanking badges under real traffic.
+  const apiKey = process.env.SPORTSDB_API_KEY || '3'
+  try {
+    const res = await fetch(`https://www.thesportsdb.com/api/v1/json/${apiKey}/searchteams.php?t=${encodeURIComponent(resolved)}`)
+    if (!res.ok) throw new Error(`TheSportsDB: ${res.status}`)
+    const data = await res.json()
+    const badge = data?.teams?.[0]?.strBadge ?? null
+    cacheSet(key, badge, badge ? HIT_TTL : MISS_TTL)
+    return json(badge, 'live')
+  } catch (err) {
+    console.error(`team-badge lookup failed for "${team}":`, err.message)
+    cacheSet(key, null, MISS_TTL)
+    return json(null)
+  }
+}

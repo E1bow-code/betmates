@@ -8,11 +8,13 @@ import { isLive } from '../utils/liveStatus.js'
 import { useAuth } from '../context/AuthContext.jsx'
 import { useBetSlip } from '../context/BetSlipContext.jsx'
 import { useOddsFormat } from '../context/OddsFormatContext.jsx'
-import { useOddsMovement, movementKey } from '../lib/oddsMemory.js'
+import { useOddsMovement, movementKey, useOddsHistory, historyKey } from '../lib/oddsMemory.js'
 import { useBacking } from '../lib/backing.js'
 import TeamBadge from '../components/TeamBadge.jsx'
 import PlayerPhoto from '../components/PlayerPhoto.jsx'
 import OddsMoveIndicator from '../components/OddsMoveIndicator.jsx'
+import BestValueBadge from '../components/BestValueBadge.jsx'
+import Sparkline from '../components/Sparkline.jsx'
 import SportHeroBanner from '../components/SportHeroBanner.jsx'
 import LiveBadge from '../components/LiveBadge.jsx'
 import WatchLiveButton from '../components/WatchLiveButton.jsx'
@@ -58,6 +60,7 @@ export default function FixtureDetailPage() {
   }
 
   const movements = useOddsMovement(fixture)
+  const histories = useOddsHistory(fixture)
   const backing = useBacking(fixture ? `${fixture.homeTeam} v ${fixture.awayTeam}` : null, user.id)
 
   if (error) return <ErrorState message={error} />
@@ -185,6 +188,8 @@ export default function FixtureDetailPage() {
                             <OddsMoveIndicator direction={movements[movementKey(fixture.id, market.key, outcome.name)]} />
                           </span>
                           <span className="best-bookmaker">{best.bookmaker}</span>
+                          {!bookmakerFilter && <BestValueBadge allOdds={outcome.allOdds} />}
+                          <Sparkline points={histories[historyKey(fixture.id, market.key, outcome.name)]} />
                         </span>
                       ) : (
                         <span className="outcome-odds outcome-odds-empty">No price for your bookies</span>

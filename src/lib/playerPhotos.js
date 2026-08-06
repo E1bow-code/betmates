@@ -1,14 +1,16 @@
-// Player photo lookup, same approach as src/lib/teamBadges.js: TheSportsDB's
-// free public API (test key "3"), client-side, in-memory cached per name.
+// Player photo lookup, same approach as src/lib/teamBadges.js: proxied
+// through netlify/functions/player-photo.js instead of hitting TheSportsDB
+// straight from the browser (CORS + free-tier rate limits blanked headshots
+// on real devices, worst on mobile). Client-side in-memory cached per name.
 
 const cache = new Map()
 
 export async function getPlayerPhoto(playerName) {
   if (cache.has(playerName)) return cache.get(playerName)
 
-  const promise = fetch(`https://www.thesportsdb.com/api/v1/json/3/searchplayers.php?p=${encodeURIComponent(playerName)}`)
+  const promise = fetch(`/api/player-photo?name=${encodeURIComponent(playerName)}`)
     .then((res) => (res.ok ? res.json() : null))
-    .then((data) => data?.player?.[0]?.strThumb ?? data?.player?.[0]?.strCutout ?? null)
+    .then((data) => data?.url ?? null)
     .catch(() => null)
 
   cache.set(playerName, promise)
