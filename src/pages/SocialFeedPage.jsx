@@ -200,8 +200,9 @@ export default function SocialFeedPage() {
             <div className="account-section">
               <h2 className="market-title">🔥 Trending this week</h2>
               <div className="trending-row">
-                {trendingPicks.map((pick) => (
+                {trendingPicks.map((pick, i) => (
                   <div key={pick.key} className="trending-chip">
+                    <span className="trending-chip-rank">{i + 1}</span>
                     <SportIcon sport={pick.sport} size={18} />
                     <div>
                       <div className="trending-chip-pick">{pick.selection}</div>

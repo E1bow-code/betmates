@@ -146,7 +146,11 @@ export default function GroupFeedPage() {
           &larr; Social
         </Link>
         <h1>{group?.name ?? 'Group'}</h1>
-        {group && <div className="race-header-meta">Invite code: {group.inviteCode}</div>}
+        {group && (
+          <div className="group-invite-tag">
+            Invite code<span className="group-invite-code">{group.inviteCode}</span>
+          </div>
+        )}
         <div className="mode-switcher">
           <button className={tab === 'feed' ? 'mode-tab active' : 'mode-tab'} onClick={() => setTab('feed')}>
             Feed

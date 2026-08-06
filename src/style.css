@@ -1357,19 +1357,30 @@ h1, h2, .topbar h1, .sheet-title, .auth-title {
   gap: 10px;
   background: var(--surface);
   border-bottom: 1px solid var(--border);
-  padding: 8px 14px;
+  border-left: 3px solid transparent;
+  padding: 8px 14px 8px 11px;
   font-size: 0.85rem;
 }
 .leaderboard-list .leaderboard-row:last-child { border-bottom: none; }
 
-.leaderboard-row-top { background: var(--surface-2); }
-.leaderboard-row-top .leaderboard-rank { color: var(--accent); font-weight: 700; }
-.leaderboard-rank { color: var(--text-dim); width: 24px; font-family: var(--font-mono); }
+/* Top row gets the same left-stripe treatment as a won bet or a settled
+   tracker row - the app's one recurring signal for "this one's the good
+   one" - instead of just a flat background tint. */
+.leaderboard-row-top { background: var(--surface-2); border-left-color: var(--accent); }
+.leaderboard-row-top .leaderboard-rank { color: var(--accent); }
+.leaderboard-rank {
+  color: var(--text-dim);
+  width: 22px;
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+  font-weight: 700;
+  text-align: right;
+}
 .leaderboard-name { flex: 1; font-weight: 600; }
-.leaderboard-pnl { font-weight: 700; }
+.leaderboard-pnl { font-weight: 700; font-family: var(--font-mono); font-variant-numeric: tabular-nums; }
 .leaderboard-pnl.tone-good { color: var(--accent); }
 .leaderboard-pnl.tone-bad { color: var(--bad); }
-.leaderboard-meta { color: var(--text-dim); font-size: 0.75rem; }
+.leaderboard-meta { color: var(--text-dim); font-size: 0.75rem; font-family: var(--font-mono); font-variant-numeric: tabular-nums; }
 .leaderboard-list-standalone { margin-top: 10px; }
 
 /* Bet feed / bet cards - styled like an actual betting slip: sharp
@@ -1865,6 +1876,18 @@ h1, h2, .topbar h1, .sheet-title, .auth-title {
 .topbar-row { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
 .topbar-row h1 { margin: 0; }
 .topbar-actions { display: flex; align-items: center; gap: 8px; }
+
+.group-invite-tag { font-size: 0.78rem; color: var(--text-dim); margin: 2px 0 4px; }
+.group-invite-code {
+  font-family: var(--font-mono);
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  color: var(--accent);
+  border: 1px solid var(--accent-dim);
+  border-radius: 3px;
+  padding: 1px 6px;
+  margin-left: 4px;
+}
 
 .manage-list {
   display: flex;
