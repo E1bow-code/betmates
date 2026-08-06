@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react'
+import { Suspense, lazy, useEffect, useRef, useState } from 'react'
 import { HashRouter, Routes, Route, Navigate, useNavigate, useParams } from 'react-router-dom'
 import { AuthProvider, useAuth } from './context/AuthContext.jsx'
 import { BetSlipProvider } from './context/BetSlipContext.jsx'
@@ -9,29 +9,36 @@ import InstallGuideBanner from './components/InstallGuideBanner.jsx'
 import OnboardingTour from './components/OnboardingTour.jsx'
 import BetSlipBar from './components/BetSlipBar.jsx'
 import BetBuilderSheet from './components/BetBuilderSheet.jsx'
+// AuthPage is the one page kept as a regular (non-lazy) import - it's the
+// very first thing a logged-out visitor sees, so splitting it would add a
+// network round-trip to the app's most common cold-start path instead of
+// saving one. Every other route only matters once someone's signed in and
+// already has the shell loaded, so lazy-loading them shrinks the initial
+// bundle (see the recurring "chunks larger than 500kB" build warning)
+// without costing anything on that critical first paint.
 import AuthPage from './pages/AuthPage.jsx'
-import LegalPage from './pages/LegalPage.jsx'
-import HelpPage from './pages/HelpPage.jsx'
-import DashboardPage from './pages/DashboardPage.jsx'
-import OddsListPage from './pages/OddsListPage.jsx'
-import FixtureDetailPage from './pages/FixtureDetailPage.jsx'
-import RaceDetailPage from './pages/RaceDetailPage.jsx'
-import FightDetailPage from './pages/FightDetailPage.jsx'
-import GenericEventDetailPage from './pages/GenericEventDetailPage.jsx'
-import SocialFeedPage from './pages/SocialFeedPage.jsx'
-import GroupFeedPage from './pages/GroupFeedPage.jsx'
-import JoinGroupPage from './pages/JoinGroupPage.jsx'
-import TrackerPage from './pages/TrackerPage.jsx'
-import AccountPage from './pages/AccountPage.jsx'
-import PublicProfilePage from './pages/PublicProfilePage.jsx'
-import NotificationsPage from './pages/NotificationsPage.jsx'
-import ResetPasswordPage from './pages/ResetPasswordPage.jsx'
-import AchievementsPage from './pages/AchievementsPage.jsx'
-import InsightsPage from './pages/InsightsPage.jsx'
-import HallOfFamePage from './pages/HallOfFamePage.jsx'
-import AdminReportsPage from './pages/AdminReportsPage.jsx'
-import DirectMessagePage from './pages/DirectMessagePage.jsx'
-import MessagesInboxPage from './pages/MessagesInboxPage.jsx'
+const LegalPage = lazy(() => import('./pages/LegalPage.jsx'))
+const HelpPage = lazy(() => import('./pages/HelpPage.jsx'))
+const DashboardPage = lazy(() => import('./pages/DashboardPage.jsx'))
+const OddsListPage = lazy(() => import('./pages/OddsListPage.jsx'))
+const FixtureDetailPage = lazy(() => import('./pages/FixtureDetailPage.jsx'))
+const RaceDetailPage = lazy(() => import('./pages/RaceDetailPage.jsx'))
+const FightDetailPage = lazy(() => import('./pages/FightDetailPage.jsx'))
+const GenericEventDetailPage = lazy(() => import('./pages/GenericEventDetailPage.jsx'))
+const SocialFeedPage = lazy(() => import('./pages/SocialFeedPage.jsx'))
+const GroupFeedPage = lazy(() => import('./pages/GroupFeedPage.jsx'))
+const JoinGroupPage = lazy(() => import('./pages/JoinGroupPage.jsx'))
+const TrackerPage = lazy(() => import('./pages/TrackerPage.jsx'))
+const AccountPage = lazy(() => import('./pages/AccountPage.jsx'))
+const PublicProfilePage = lazy(() => import('./pages/PublicProfilePage.jsx'))
+const NotificationsPage = lazy(() => import('./pages/NotificationsPage.jsx'))
+const ResetPasswordPage = lazy(() => import('./pages/ResetPasswordPage.jsx'))
+const AchievementsPage = lazy(() => import('./pages/AchievementsPage.jsx'))
+const InsightsPage = lazy(() => import('./pages/InsightsPage.jsx'))
+const HallOfFamePage = lazy(() => import('./pages/HallOfFamePage.jsx'))
+const AdminReportsPage = lazy(() => import('./pages/AdminReportsPage.jsx'))
+const DirectMessagePage = lazy(() => import('./pages/DirectMessagePage.jsx'))
+const MessagesInboxPage = lazy(() => import('./pages/MessagesInboxPage.jsx'))
 import NewsTickerBar from './components/NewsTickerBar.jsx'
 import ScatteredSportPhotos from './components/ScatteredSportPhotos.jsx'
 import NewsSidebar from './components/NewsSidebar.jsx'
@@ -150,22 +157,28 @@ function Shell() {
   // reset-password form. See AuthContext.jsx/dataStore.js's
   // onAuthStateChange for why this reads a state flag rather than the URL.
   if (passwordRecovery) {
-    return <ResetPasswordPage />
+    return (
+      <Suspense fallback={<div className="loading">Loading BetMates…</div>}>
+        <ResetPasswordPage />
+      </Suspense>
+    )
   }
 
   if (loading) return <div className="loading">Loading BetMates…</div>
 
   if (!user) {
     return (
-      <Routes>
-        <Route path="/legal" element={<LegalPage />} />
-        <Route path="/help" element={<HelpPage />} />
-        <Route path="/join/:code" element={<StashJoinCode />} />
-        <Route path="/r/:code" element={<StashReferralCode />} />
-        <Route path="/u/:code" element={<PublicProfilePage />} />
-        <Route path="/hall-of-fame" element={<HallOfFamePage />} />
-        <Route path="*" element={<AuthPage />} />
-      </Routes>
+      <Suspense fallback={<div className="loading">Loading BetMates…</div>}>
+        <Routes>
+          <Route path="/legal" element={<LegalPage />} />
+          <Route path="/help" element={<HelpPage />} />
+          <Route path="/join/:code" element={<StashJoinCode />} />
+          <Route path="/r/:code" element={<StashReferralCode />} />
+          <Route path="/u/:code" element={<PublicProfilePage />} />
+          <Route path="/hall-of-fame" element={<HallOfFamePage />} />
+          <Route path="*" element={<AuthPage />} />
+        </Routes>
+      </Suspense>
     )
   }
 
@@ -177,31 +190,33 @@ function Shell() {
         <div className="app-shell">
           <div className="app-content">
             <InstallGuideBanner />
-            <Routes>
-              <Route path="/" element={<HomeRedirect />} />
-              <Route path="/dashboard" element={<DashboardPage />} />
-              <Route path="/odds" element={<OddsListPage />} />
-              <Route path="/odds/football/:id" element={<FixtureDetailPage />} />
-              <Route path="/odds/racing/:id" element={<RaceDetailPage />} />
-              <Route path="/odds/ufc/:id" element={<FightDetailPage />} />
-              <Route path="/odds/:sportKey/:id" element={<GenericEventDetailPage />} />
-              <Route path="/groups" element={<SocialFeedPage />} />
-              <Route path="/groups/:id" element={<GroupFeedPage />} />
-              <Route path="/join/:code" element={<JoinGroupPage />} />
-              <Route path="/messages" element={<MessagesInboxPage />} />
-              <Route path="/messages/:friendId" element={<DirectMessagePage />} />
-              <Route path="/tracker" element={<TrackerPage />} />
-              <Route path="/achievements" element={<AchievementsPage />} />
-              <Route path="/insights" element={<InsightsPage />} />
-              <Route path="/alerts" element={<NotificationsPage />} />
-              <Route path="/account" element={<AccountPage />} />
-              <Route path="/admin/reports" element={<AdminReportsPage />} />
-              <Route path="/u/:code" element={<PublicProfilePage />} />
-              <Route path="/hall-of-fame" element={<HallOfFamePage />} />
-              <Route path="/legal" element={<LegalPage />} />
-              <Route path="/help" element={<HelpPage />} />
-              <Route path="*" element={<Navigate to="/dashboard" replace />} />
-            </Routes>
+            <Suspense fallback={<div className="loading">Loading…</div>}>
+              <Routes>
+                <Route path="/" element={<HomeRedirect />} />
+                <Route path="/dashboard" element={<DashboardPage />} />
+                <Route path="/odds" element={<OddsListPage />} />
+                <Route path="/odds/football/:id" element={<FixtureDetailPage />} />
+                <Route path="/odds/racing/:id" element={<RaceDetailPage />} />
+                <Route path="/odds/ufc/:id" element={<FightDetailPage />} />
+                <Route path="/odds/:sportKey/:id" element={<GenericEventDetailPage />} />
+                <Route path="/groups" element={<SocialFeedPage />} />
+                <Route path="/groups/:id" element={<GroupFeedPage />} />
+                <Route path="/join/:code" element={<JoinGroupPage />} />
+                <Route path="/messages" element={<MessagesInboxPage />} />
+                <Route path="/messages/:friendId" element={<DirectMessagePage />} />
+                <Route path="/tracker" element={<TrackerPage />} />
+                <Route path="/achievements" element={<AchievementsPage />} />
+                <Route path="/insights" element={<InsightsPage />} />
+                <Route path="/alerts" element={<NotificationsPage />} />
+                <Route path="/account" element={<AccountPage />} />
+                <Route path="/admin/reports" element={<AdminReportsPage />} />
+                <Route path="/u/:code" element={<PublicProfilePage />} />
+                <Route path="/hall-of-fame" element={<HallOfFamePage />} />
+                <Route path="/legal" element={<LegalPage />} />
+                <Route path="/help" element={<HelpPage />} />
+                <Route path="*" element={<Navigate to="/dashboard" replace />} />
+              </Routes>
+            </Suspense>
           </div>
           <BetSlipBar />
           <BetBuilderSheet />
