@@ -114,7 +114,7 @@ export default function FixtureDetailPage() {
         {isLive(fixture.kickoff, 'football') && (
           <div className="race-header-live">
             <LiveBadge />
-            <WatchLiveButton />
+            <WatchLiveButton leagueKey={fixture.sportKey} participants={[fixture.homeTeam, fixture.awayTeam]} kickoff={fixture.kickoff} />
           </div>
         )}
         <label className="filter-toggle">

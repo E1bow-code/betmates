@@ -118,7 +118,7 @@ export default function GenericEventDetailPage() {
         {isLive(event.kickoff, sportKey) && (
           <div className="race-header-live">
             <LiveBadge />
-            <WatchLiveButton />
+            <WatchLiveButton leagueKey={sportKey} participants={[event.participantA, event.participantB]} kickoff={event.kickoff} />
           </div>
         )}
         <label className="filter-toggle">

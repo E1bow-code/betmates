@@ -881,6 +881,30 @@ h1, h2, .topbar h1, .sheet-title, .auth-title {
 .sheet-title { margin: 0; font-size: 1.1rem; }
 .sheet-actions { display: flex; flex-direction: column; gap: 8px; }
 
+/* Participant profile sheet - opened by tapping a name/photo on a detail page */
+.profile-sheet-header { display: flex; gap: 14px; align-items: flex-start; }
+.profile-sheet-photo {
+  width: 72px;
+  height: 72px;
+  border-radius: 50%;
+  object-fit: cover;
+  background: var(--surface-2);
+  flex-shrink: 0;
+}
+.profile-sheet-photo-fallback {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.6rem;
+  font-weight: 600;
+  color: var(--text-dim);
+}
+.profile-sheet-facts { display: flex; flex-wrap: wrap; gap: 6px 12px; margin-top: 6px; font-size: 0.82rem; color: var(--text-dim); }
+.profile-sheet-fact-label { font-weight: 600; color: var(--text); }
+.profile-sheet-bio { font-size: 0.88rem; line-height: 1.5; color: var(--text-dim); max-height: 30vh; overflow-y: auto; }
+.profile-sheet-socials { display: flex; flex-wrap: wrap; gap: 8px; }
+.profile-sheet-socials .btn { flex: none; }
+
 .video-choose, .video-recording, .video-preview-form { display: flex; flex-direction: column; gap: 10px; }
 .video-preview {
   width: 100%;
@@ -1075,6 +1099,24 @@ h1, h2, .topbar h1, .sheet-title, .auth-title {
   text-overflow: ellipsis;
   white-space: nowrap;
 }
+
+/* Tappable name/photo that opens ParticipantProfileSheet - reset to look
+   like the plain text it's replacing, not a button. */
+.fixture-team-profile-btn {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+  background: none;
+  border: none;
+  padding: 0;
+  margin: 0;
+  font: inherit;
+  color: inherit;
+  cursor: pointer;
+  text-align: left;
+}
+.fixture-team-profile-btn:hover span { text-decoration: underline; }
 
 .fixture-vs { color: var(--text-dim); font-size: 0.75rem; flex-shrink: 0; }
 
