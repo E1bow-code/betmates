@@ -176,11 +176,29 @@ export default function TrackerPage() {
         {checking && <span className="tracker-checking">Checking latest results…</span>}
       </div>
 
-      <div className="stat-tiles">
-        <StatTile label="P&L" value={`${stats.profit >= 0 ? '+' : ''}£${stats.profit.toFixed(2)}`} tone={stats.profit >= 0 ? 'good' : 'bad'} />
-        <StatTile label="ROI" value={stats.roi === null ? '-' : `${stats.roi >= 0 ? '+' : ''}${stats.roi}%`} tone={stats.roi >= 0 ? 'good' : 'bad'} />
-        <StatTile label="Win rate" value={stats.winRate === null ? '-' : `${stats.winRate}%`} />
-        <StatTile label="Staked" value={`£${stats.staked.toFixed(2)}`} />
+      <div className="scoreboard-panel">
+        <div>
+          <p className="scoreboard-headline-label">All-time P&amp;L</p>
+          <div className={`scoreboard-headline-value ${stats.profit >= 0 ? 'tone-good' : 'tone-bad'}`}>
+            {stats.profit >= 0 ? '+' : ''}£{stats.profit.toFixed(2)}
+          </div>
+        </div>
+        <div className="scoreboard-side-stats tracker-scoreboard-stats">
+          <div>
+            <div className={`scoreboard-side-stat-value ${stats.roi === null ? '' : stats.roi >= 0 ? 'tone-good' : 'tone-bad'}`}>
+              {stats.roi === null ? '-' : `${stats.roi >= 0 ? '+' : ''}${stats.roi}%`}
+            </div>
+            <div className="scoreboard-side-stat-label">ROI</div>
+          </div>
+          <div>
+            <div className="scoreboard-side-stat-value">{stats.winRate === null ? '-' : `${stats.winRate}%`}</div>
+            <div className="scoreboard-side-stat-label">Win rate</div>
+          </div>
+          <div>
+            <div className="scoreboard-side-stat-value">£{stats.staked.toFixed(2)}</div>
+            <div className="scoreboard-side-stat-label">Staked</div>
+          </div>
+        </div>
       </div>
 
       {badges.length > 0 && (
@@ -204,20 +222,24 @@ export default function TrackerPage() {
       <PnlChart entries={entries} />
 
       {bySport.length > 1 && (
-        <div className="sport-breakdown">
-          {bySport.map((row) => (
-            <div key={row.sport} className="sport-breakdown-row">
-              <span className="sport-breakdown-icon">
-                <SportIcon sport={row.sport} />
-              </span>
-              <span className="sport-breakdown-name">{SPORT_LABEL[row.sport] ?? row.sport}</span>
-              <span className={`sport-breakdown-pnl ${row.profit >= 0 ? 'tone-good' : 'tone-bad'}`}>
-                {row.profit >= 0 ? '+' : ''}£{row.profit.toFixed(2)}
-              </span>
-              <span className="sport-breakdown-meta">{row.winRate === null ? '-' : `${row.winRate}% WR`}</span>
-            </div>
-          ))}
-        </div>
+        <>
+          <h2 className="tracker-section-title">Sport breakdown</h2>
+          <div className="sport-breakdown">
+            {bySport.map((row, i) => (
+              <div key={row.sport} className="sport-breakdown-row">
+                <span className="sport-breakdown-rank">{i + 1}</span>
+                <span className="sport-breakdown-icon">
+                  <SportIcon sport={row.sport} />
+                </span>
+                <span className="sport-breakdown-name">{SPORT_LABEL[row.sport] ?? row.sport}</span>
+                <span className={`sport-breakdown-pnl ${row.profit >= 0 ? 'tone-good' : 'tone-bad'}`}>
+                  {row.profit >= 0 ? '+' : ''}£{row.profit.toFixed(2)}
+                </span>
+                <span className="sport-breakdown-meta">{row.winRate === null ? '-' : `${row.winRate}% WR`}</span>
+              </div>
+            ))}
+          </div>
+        </>
       )}
 
       {!entries.length && (
@@ -229,7 +251,9 @@ export default function TrackerPage() {
       )}
 
       {entries.length > 0 && (
-        <div className="tracker-list">
+        <>
+          <h2 className="tracker-section-title">Bet history</h2>
+          <div className="tracker-list">
           {entries.map((entry) => {
             const selections = entry.selections
             const combinedOdds = selections.length > 1 ? selections.reduce((acc, s) => acc * s.odds, 1) : null
@@ -284,7 +308,8 @@ export default function TrackerPage() {
               </div>
             )
           })}
-        </div>
+          </div>
+        </>
       )}
 
       {editingEntry && (
@@ -296,14 +321,5 @@ export default function TrackerPage() {
         />
       )}
     </PullToRefresh>
-  )
-}
-
-function StatTile({ label, value, tone }) {
-  return (
-    <div className={`stat-tile ${tone ? `tone-${tone}` : ''}`}>
-      <div className="stat-tile-value">{value}</div>
-      <div className="stat-tile-label">{label}</div>
-    </div>
   )
 }

@@ -1557,15 +1557,40 @@ h1, h2, .topbar h1, .sheet-title, .auth-title {
 .stat-tile-label { font-size: 0.66rem; color: var(--text-dim); text-transform: uppercase; margin-top: 2px; letter-spacing: 0.03em; }
 
 .badge-row { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 12px; }
+
+/* Rectangular, like every other badge/tag in the app - not a pill. Pills
+   are reserved for the sport/segment switcher (see the top-of-file note). */
 .badge {
   background: linear-gradient(180deg, var(--surface-2) 0%, var(--surface) 100%);
   border: 1px solid var(--accent-dim);
-  border-radius: 999px;
+  border-radius: 3px;
   padding: 5px 12px;
   font-size: 0.75rem;
   font-weight: 600;
   color: var(--accent);
   box-shadow: 0 1px 6px rgba(var(--accent-rgb), 0.2);
+}
+
+/* Chalk section label reused above the sport breakdown and bet history -
+   its own small class rather than reaching for Odds' .league-group-title,
+   since that one's margins are tuned for stacked .league-group blocks. */
+.tracker-section-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-family: var(--font-mono);
+  font-size: 0.7rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--text-dim);
+  margin: 18px 0 6px;
+}
+.tracker-section-title::after {
+  content: '';
+  flex: 1;
+  height: 0;
+  border-top: 1px dashed var(--border);
 }
 
 .achievements-link { display: inline-block; margin-bottom: 12px; font-size: 0.82rem; }
@@ -1642,6 +1667,15 @@ h1, h2, .topbar h1, .sheet-title, .auth-title {
   font-size: 0.85rem;
 }
 .sport-breakdown-row:last-child { border-bottom: none; }
+.sport-breakdown-rank {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+  font-size: 0.72rem;
+  color: var(--text-dim);
+  width: 14px;
+  text-align: right;
+  flex-shrink: 0;
+}
 .sport-breakdown-name { flex: 1; font-weight: 600; }
 .sport-breakdown-pnl { font-weight: 700; font-family: var(--font-mono); font-variant-numeric: tabular-nums; }
 .sport-breakdown-pnl.tone-good { color: var(--accent); }
@@ -1663,9 +1697,18 @@ h1, h2, .topbar h1, .sheet-title, .auth-title {
   gap: 10px;
   background: transparent;
   border-bottom: 1px solid var(--border);
-  padding: 12px 14px;
+  border-left: 3px solid transparent;
+  padding: 12px 14px 12px 11px;
 }
 .tracker-list .tracker-row:last-child { border-bottom: none; }
+
+/* Won/lost/void reads at a glance off the left edge, like a marker pen
+   through a row on a paper results sheet - .tracker-row is shared well
+   beyond Tracker itself (Hall of Fame, Insights, notifications, public
+   profiles), so every one of those picks this up for free. */
+.tracker-row.status-won { border-left-color: var(--accent); }
+.tracker-row.status-lost { border-left-color: var(--bad); }
+.tracker-row.status-void { border-left-color: var(--text-dim); }
 .tracker-row-main { flex: 1; min-width: 0; }
 .notification-row { text-decoration: none; color: inherit; }
 .notification-row:hover { background: var(--surface-2); }
@@ -1716,7 +1759,14 @@ h1, h2, .topbar h1, .sheet-title, .auth-title {
 .scoreboard-headline-value.tone-bad { color: var(--bad); }
 .scoreboard-side-stats { display: flex; flex-direction: column; gap: 10px; text-align: right; flex-shrink: 0; }
 .scoreboard-side-stat-value { font-family: var(--font-mono); font-variant-numeric: tabular-nums; font-weight: 700; font-size: 1.05rem; }
+.scoreboard-side-stat-value.tone-good { color: var(--accent); }
+.scoreboard-side-stat-value.tone-bad { color: var(--bad); }
 .scoreboard-side-stat-label { font-size: 0.64rem; color: var(--text-dim); text-transform: uppercase; letter-spacing: 0.03em; }
+
+/* Tracker's scoreboard has three side stats (ROI/win rate/staked) instead
+   of Dashboard's two, and reads better as a row than a stack even on
+   desktop. */
+.tracker-scoreboard-stats { flex-direction: row; flex-wrap: wrap; gap: 14px 20px; }
 
 @media (max-width: 420px) {
   .scoreboard-panel { flex-direction: column; align-items: flex-start; }
