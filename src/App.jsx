@@ -5,6 +5,7 @@ import { BetSlipProvider } from './context/BetSlipContext.jsx'
 import { ActivityProvider } from './context/ActivityContext.jsx'
 import { OddsFormatProvider } from './context/OddsFormatContext.jsx'
 import { ToastProvider } from './context/ToastContext.jsx'
+import ErrorBoundary from './components/ErrorBoundary.jsx'
 import BottomNav from './components/BottomNav.jsx'
 import InstallGuideBanner from './components/InstallGuideBanner.jsx'
 import OnboardingTour from './components/OnboardingTour.jsx'
@@ -51,16 +52,21 @@ const NEWS_REFRESH_MS = 10 * 60 * 1000
 const PENDING_JOIN_KEY = 'betmates:pendingJoinCode'
 
 export default function App() {
+  // Outside the providers as well as the router: a throw in AuthProvider's
+  // own initialisation would otherwise have nothing above it to catch, which
+  // is the one case where a blank page is hardest to diagnose.
   return (
-    <AuthProvider>
-      <OddsFormatProvider>
-        <ToastProvider>
-          <HashRouter>
-            <Shell />
-          </HashRouter>
-        </ToastProvider>
-      </OddsFormatProvider>
-    </AuthProvider>
+    <ErrorBoundary>
+      <AuthProvider>
+        <OddsFormatProvider>
+          <ToastProvider>
+            <HashRouter>
+              <Shell />
+            </HashRouter>
+          </ToastProvider>
+        </OddsFormatProvider>
+      </AuthProvider>
+    </ErrorBoundary>
   )
 }
 
