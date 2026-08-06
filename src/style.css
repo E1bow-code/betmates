@@ -1841,6 +1841,10 @@ h1, h2, .topbar h1, .sheet-title, .auth-title {
 .runner-info { flex: 1; min-width: 0; }
 .runner-name { font-weight: 600; font-size: 0.95rem; }
 .runner-connections { font-size: 0.75rem; color: var(--text-dim); margin-top: 2px; }
+/* Compact always-visible echo of RunnerForm's full chip/stat breakdown -
+   that only shows once a runner is tapped open, which buries recent form
+   behind an interaction most people won't guess exists on their own. */
+.runner-form-inline { font-variant-numeric: tabular-nums; color: var(--text); }
 
 .runner-best { text-align: right; }
 .best-price { color: var(--accent); font-weight: 700; font-size: 1.05rem; }

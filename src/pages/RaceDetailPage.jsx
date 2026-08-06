@@ -106,6 +106,7 @@ export default function RaceDetailPage() {
                   <div className="runner-name">{runner.name}</div>
                   <div className="runner-connections">
                     {runner.jockey} · {runner.trainer}
+                    {runner.form && <span className="runner-form-inline"> · Form {runner.form}</span>}
                   </div>
                 </div>
                 {best ? (
