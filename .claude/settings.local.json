@@ -50,7 +50,8 @@
       "Bash(curl -s -o /dev/null -w \"%{http_code}\" http://localhost:5173)",
       "Bash(netlify env:set VITE_SUPABASE_URL \"https://jhhbhaonlvnmwkwwalbp.supabase.co\")",
       "Bash(netlify env:set VITE_SUPABASE_ANON_KEY \"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImpoaGJoYW9ubHZubXdrd3dhbGJwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODU2NjI5NDEsImV4cCI6MjEwMTIzODk0MX0.zp4ihNSVd57HV1Jt_zZcaVpVJlwOpb-1F__yRG8jz0Y\")",
-      "Bash(netlify deploy *)"
+      "Bash(netlify deploy *)",
+      "Bash(curl -s -i \"https://bettingwithbuddies.netlify.app/api/odds?id=2b50ce61e415a3b3bd3f10ac39d0dbe3\")"
     ]
   }
 }
