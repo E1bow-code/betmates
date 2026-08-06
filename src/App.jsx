@@ -12,6 +12,7 @@ import BetBuilderSheet from './components/BetBuilderSheet.jsx'
 import AuthPage from './pages/AuthPage.jsx'
 import LegalPage from './pages/LegalPage.jsx'
 import HelpPage from './pages/HelpPage.jsx'
+import DashboardPage from './pages/DashboardPage.jsx'
 import OddsListPage from './pages/OddsListPage.jsx'
 import FixtureDetailPage from './pages/FixtureDetailPage.jsx'
 import RaceDetailPage from './pages/RaceDetailPage.jsx'
@@ -98,7 +99,7 @@ function HomeRedirect() {
       localStorage.removeItem(PENDING_JOIN_KEY)
       navigate(`/join/${pending}`, { replace: true })
     } else {
-      navigate('/odds', { replace: true })
+      navigate('/dashboard', { replace: true })
     }
   }, [navigate])
 
@@ -176,6 +177,7 @@ function Shell() {
             <InstallGuideBanner />
             <Routes>
               <Route path="/" element={<HomeRedirect />} />
+              <Route path="/dashboard" element={<DashboardPage />} />
               <Route path="/odds" element={<OddsListPage />} />
               <Route path="/odds/football/:id" element={<FixtureDetailPage />} />
               <Route path="/odds/racing/:id" element={<RaceDetailPage />} />
@@ -196,7 +198,7 @@ function Shell() {
               <Route path="/hall-of-fame" element={<HallOfFamePage />} />
               <Route path="/legal" element={<LegalPage />} />
               <Route path="/help" element={<HelpPage />} />
-              <Route path="*" element={<Navigate to="/odds" replace />} />
+              <Route path="*" element={<Navigate to="/dashboard" replace />} />
             </Routes>
           </div>
           <BetSlipBar />

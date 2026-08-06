@@ -13,6 +13,17 @@ const base = {
   strokeLinejoin: 'round'
 }
 
+// Simple roofline - home/dashboard.
+export function HomeIcon(props) {
+  return (
+    <svg {...base} {...props}>
+      <path d="M4 11.5 12 4l8 7.5" />
+      <path d="M6 10v9.5h12V10" />
+      <path d="M9.5 19.5v-6h5v6" />
+    </svg>
+  )
+}
+
 // Concentric rings - "best odds", closing in on a target price.
 export function OddsIcon(props) {
   return (

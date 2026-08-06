@@ -1,8 +1,9 @@
-import { NavLink } from 'react-router-dom'
+import { Link, NavLink } from 'react-router-dom'
 import { useActivity } from '../context/ActivityContext.jsx'
-import { OddsIcon, SocialIcon, TrackerIcon, AlertsIcon, AccountIcon } from './icons/NavIcons.jsx'
+import { HomeIcon, OddsIcon, SocialIcon, TrackerIcon, AlertsIcon, AccountIcon } from './icons/NavIcons.jsx'
 
 const TABS = [
+  { to: '/dashboard', label: 'Home', Icon: HomeIcon },
   { to: '/odds', label: 'Odds', Icon: OddsIcon },
   { to: '/groups', label: 'Social', Icon: SocialIcon },
   { to: '/tracker', label: 'Tracker', Icon: TrackerIcon },
@@ -19,7 +20,9 @@ export default function BottomNav() {
 
   return (
     <nav className="bottom-nav">
-      <div className="sidebar-brand">BetMates</div>
+      <Link to="/dashboard" className="sidebar-brand">
+        BetMates
+      </Link>
       {TABS.map((tab) => (
         <NavLink key={tab.to} to={tab.to} className={({ isActive }) => (isActive ? 'bottom-nav-item active' : 'bottom-nav-item')}>
           <span className="bottom-nav-icon">

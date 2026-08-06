@@ -1407,6 +1407,10 @@ h1, h2, .topbar h1, .sheet-title, .auth-title {
 
 /* Account */
 .account-section { margin-bottom: 18px; }
+.dashboard-quick-links { display: flex; gap: 10px; margin-bottom: 24px; }
+.dashboard-quick-links .btn { flex: 1; text-align: center; }
+.dashboard-section-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 4px; }
+.dashboard-section-header .market-title { margin: 0; }
 .account-name { font-weight: 700; font-size: 1.1rem; }
 .account-identity { display: flex; align-items: center; gap: 12px; }
 .account-name-row { display: flex; align-items: center; gap: 8px; }
