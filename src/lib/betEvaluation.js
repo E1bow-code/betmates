@@ -33,6 +33,13 @@ export function findGame(leg, games) {
 const ABANDONED_GRACE_MS = 6 * 60 * 60 * 1000
 
 function evaluateRacingLeg(leg, raceResults) {
+  // A leg placed before raceId/horseId were tracked on the leg (or copied
+  // through some path that dropped them) can never match a real race -
+  // without this guard it would eventually hit the abandoned-race timeout
+  // below and get auto-voided regardless of its real outcome. Falling back
+  // to manual settling here is the same behaviour this bet already had
+  // before auto-settlement for racing existed at all.
+  if (!leg.raceId) return 'undetermined'
   const race = raceResults?.find((r) => r.raceId === leg.raceId)
   if (!race) {
     if (leg.kickoff && Date.now() - new Date(leg.kickoff).getTime() > ABANDONED_GRACE_MS) return 'void'
