@@ -4,7 +4,7 @@
 // and netlify/functions/auto-settle.js on a schedule).
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { evaluateLeg, evaluateEntry, evaluateEntryDetailed, voidAdjustedReturn } from './betEvaluation.js'
+import { evaluateLeg, evaluateEntry, evaluateEntryDetailed, voidAdjustedReturn, resolveSettlement } from './betEvaluation.js'
 import { getEachWayTerms, computeEachWayReturn } from '../utils/eachWay.js'
 
 const games = [
@@ -151,4 +151,50 @@ test('each-way pays both parts on a win and the place part alone on a place', ()
   assert.equal(computeEachWayReturn(10, 5, terms, 'win'), 35)
   assert.equal(computeEachWayReturn(10, 5, terms, 'place'), 10)
   assert.equal(computeEachWayReturn(10, 5, terms, 'lose'), 0)
+})
+
+// --- resolveSettlement ------------------------------------------------------
+// The single place both settle paths (src/lib/settlement.js and
+// netlify/functions/auto-settle.js) turn an evaluated entry into what
+// actually gets written. Deliberately entry-shape-agnostic - it never looks
+// at entry.source/entry.table, which is what stops the two paths reaching
+// different conclusions for the same bet.
+
+test('an undetermined leg resolves to nothing settleable yet', () => {
+  const e = entry(10, [leg({ market: '1X2', selection: 'Spurs' }), leg({ market: '1X2', event: 'Leeds v Hull', selection: 'Leeds' })])
+  assert.equal(resolveSettlement(e, evaluateEntryDetailed(e, games, [])), null)
+})
+
+test('a plain loss or win carries no potentialReturn correction', () => {
+  const lost = entry(10, [leg({ market: '1X2', selection: 'Everton' })])
+  assert.deepEqual(resolveSettlement(lost, evaluateEntryDetailed(lost, games, [])), { status: 'lost', potentialReturnOverride: undefined })
+
+  const won = entry(10, [leg({ market: '1X2', selection: 'Spurs' })])
+  assert.deepEqual(resolveSettlement(won, evaluateEntryDetailed(won, games, [])), { status: 'won', potentialReturnOverride: undefined })
+})
+
+test('a winning multi with a void leg resolves with the re-priced return', () => {
+  const e = entry(10, [
+    leg({ market: 'Draw No Bet', event: 'Arsenal v Chelsea', selection: 'Arsenal', odds: 2 }),
+    leg({ market: 'Over/Under 2.5', selection: 'Over 2.5', odds: 1.5 })
+  ])
+  assert.deepEqual(resolveSettlement(e, evaluateEntryDetailed(e, games, [])), { status: 'won', potentialReturnOverride: 15 })
+})
+
+// Regression test: an each-way leg that placed used to only resolve for
+// manual_entries (see git history) - a bet_post left in this state stayed
+// "open" forever, since nothing ever called resolveSettlement's bet_post
+// path for a 'placed' result. resolveSettlement doesn't know or care what
+// table the entry came from, so there is no such path to skip any more.
+test('an each-way leg that placed resolves to won with the place-part return, regardless of source', () => {
+  const l = racingLeg({ horseId: 'h2', selection: 'Beta', eachWay: true, eachWayPlaces: 3, eachWayFraction: 0.25 })
+  const e = entry(10, [l])
+  const resolved = resolveSettlement(e, evaluateEntryDetailed(e, [], races))
+  assert.equal(resolved.status, 'won')
+  assert.equal(resolved.potentialReturnOverride, computeEachWayReturn(10, l.odds, { fraction: 0.25, places: 3 }, 'place'))
+})
+
+test('an all-void bet resolves to void with no correction', () => {
+  const e = entry(10, [leg({ market: 'Draw No Bet', event: 'Arsenal v Chelsea', selection: 'Arsenal' })])
+  assert.deepEqual(resolveSettlement(e, evaluateEntryDetailed(e, games, [])), { status: 'void', potentialReturnOverride: undefined })
 })

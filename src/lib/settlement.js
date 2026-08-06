@@ -6,8 +6,7 @@
 // two never disagree on what counts as settled.
 import * as dataStore from './dataStore.js'
 import { apiKeysForSport } from './sportsConfig.js'
-import { evaluateEntryDetailed, voidAdjustedReturn } from './betEvaluation.js'
-import { computeEachWayReturn } from '../utils/eachWay.js'
+import { evaluateEntryDetailed, resolveSettlement } from './betEvaluation.js'
 
 async function fetchScores(apiSportKeys) {
   if (!apiSportKeys.length) return []
@@ -46,24 +45,10 @@ export async function checkAndSettleBets(userId) {
   let settled = 0
   await Promise.all(
     open.map(async (entry) => {
-      const { status, outcomes } = evaluateEntryDetailed(entry, games, raceResults)
-      if (!status) return
-      if (status === 'placed') {
-        // Only manual_entries can carry a corrected (reduced) potentialReturn -
-        // see betEvaluation.js's evaluateRacingLeg comment.
-        if (entry.source !== 'manual') return
-        const leg = entry.selections[0]
-        const terms = { fraction: leg.eachWayFraction, places: leg.eachWayPlaces }
-        const placeReturn = Math.round(computeEachWayReturn(entry.stake, leg.odds, terms, 'place') * 100) / 100
-        await dataStore.updateManualEntryStatus(entry.id, 'won', placeReturn)
-        settled++
-        return
-      }
-      // A winning multi carrying a void leg is re-priced with that leg at
-      // odds 1.00 rather than paid at the price it was struck at.
-      const adjusted = status === 'won' ? voidAdjustedReturn(entry, outcomes) : undefined
-      if (entry.source === 'post') await dataStore.updateBetStatus(entry.id, status, adjusted)
-      else await dataStore.updateManualEntryStatus(entry.id, status, adjusted)
+      const resolved = resolveSettlement(entry, evaluateEntryDetailed(entry, games, raceResults))
+      if (!resolved) return
+      if (entry.source === 'post') await dataStore.updateBetStatus(entry.id, resolved.status, resolved.potentialReturnOverride)
+      else await dataStore.updateManualEntryStatus(entry.id, resolved.status, resolved.potentialReturnOverride)
       settled++
     })
   )

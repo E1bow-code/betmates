@@ -1,3 +1,5 @@
+import { computeEachWayReturn } from '../utils/eachWay.js'
+
 // Pure score-vs-selection evaluation, no I/O - shared by src/lib/settlement.js
 // (client-triggered, on a Tracker visit) and netlify/functions/auto-settle.js
 // (scheduled, runs without anyone visiting). Keeping this side-effect-free is
@@ -20,9 +22,10 @@ export function findGame(leg, games) {
 // win. Not a real status the DB accepts (see supabase/schema.sql's check
 // constraint) - callers settle it as 'won' with potentialReturn corrected
 // down to the place-part payout (src/utils/eachWay.js), the same way
-// TrackerPage's manual "Placed (not won)" option already does. Only
-// manual_entries can represent that reduced payout today, so a 'placed'
-// result on a bet_post is left open rather than settled incorrectly.
+// TrackerPage's manual "Placed (not won)" option already does. bet_posts and
+// manual_entries share the same status/potential_return shape, so both
+// settle paths apply this the same way regardless of which table the entry
+// came from.
 
 // A race that never shows up in results (abandoned meeting, waterlogged
 // track, etc.) doesn't get flagged as such anywhere the results endpoint
@@ -139,4 +142,23 @@ export function voidAdjustedReturn(entry, outcomes) {
   const odds = entry.selections.reduce((acc, leg, i) => (outcomes[i] === 'void' ? acc : acc * Number(leg.odds)), 1)
   if (!Number.isFinite(odds)) return undefined
   return Math.round(Number(entry.stake) * odds * 100) / 100
+}
+
+// Turns an evaluateEntryDetailed() result into what to actually write on
+// settlement: the DB status plus any potentialReturn correction (void-leg
+// re-pricing or an each-way place). Pure, and deliberately table-agnostic -
+// bet_posts and manual_entries share the same status/potential_return
+// columns (see supabase/schema.sql), so this is the one place that decides
+// the payout for both, rather than settlement.js and auto-settle.js each
+// hand-rolling their own copy of this branching and risking the two
+// disagreeing. Returns null when there's nothing to settle yet
+// (evaluateEntryDetailed found an undetermined leg).
+export function resolveSettlement(entry, { status, outcomes }) {
+  if (!status) return null
+  if (status === 'placed') {
+    const leg = entry.selections[0]
+    const terms = { fraction: leg.eachWayFraction, places: leg.eachWayPlaces }
+    return { status: 'won', potentialReturnOverride: Math.round(computeEachWayReturn(entry.stake, leg.odds, terms, 'place') * 100) / 100 }
+  }
+  return { status, potentialReturnOverride: status === 'won' ? voidAdjustedReturn(entry, outcomes) : undefined }
 }
