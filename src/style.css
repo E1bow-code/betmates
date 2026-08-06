@@ -547,24 +547,26 @@ h1, h2, .topbar h1, .sheet-title, .auth-title {
    Negative z-index keeps every instance below normal page content (cards,
    the news ticker, nav) in CSS's stacking order, painted only above the
    root <body> background - so these only ever show up in the empty gaps
-   between real content, never over it. Desaturated and blurred so they
-   read as texture, not competing photography, and toned down further in
-   light mode where a busy photo fights the paper-coloured background more. */
+   between real content, never over it. First pass at this positioned them
+   mostly off-screen at low opacity and they were functionally invisible -
+   sized and positioned now to keep most of each circle genuinely on
+   screen, with opacity high enough to actually read as a design element
+   rather than disappearing into the background. */
 .scattered-photos { position: fixed; inset: 0; z-index: -1; pointer-events: none; overflow: hidden; }
 .scattered-photo {
   position: absolute;
   background-size: cover;
   background-position: center;
   border-radius: 50%;
-  filter: grayscale(0.55) blur(1px);
+  filter: grayscale(0.4);
 }
-.scattered-photo-1 { width: 46vw; height: 46vw; max-width: 420px; max-height: 420px; top: -12vw; right: -14vw; opacity: 0.09; }
-.scattered-photo-2 { width: 34vw; height: 34vw; max-width: 320px; max-height: 320px; bottom: 8vh; left: -12vw; opacity: 0.06; }
-.scattered-photo-3 { width: 40vw; height: 40vw; max-width: 380px; max-height: 380px; bottom: -16vw; right: 4vw; opacity: 0.045; }
+.scattered-photo-1 { width: 340px; height: 340px; top: -60px; right: -60px; opacity: 0.28; }
+.scattered-photo-2 { width: 260px; height: 260px; bottom: 12vh; left: -70px; opacity: 0.22; }
+.scattered-photo-3 { width: 300px; height: 300px; bottom: -70px; right: -40px; opacity: 0.18; }
 
-:root[data-theme='light'] .scattered-photo-1 { opacity: 0.06; }
-:root[data-theme='light'] .scattered-photo-2 { opacity: 0.04; }
-:root[data-theme='light'] .scattered-photo-3 { opacity: 0.03; }
+:root[data-theme='light'] .scattered-photo-1 { opacity: 0.16; }
+:root[data-theme='light'] .scattered-photo-2 { opacity: 0.13; }
+:root[data-theme='light'] .scattered-photo-3 { opacity: 0.1; }
 
 /* Topbar with filter toggle */
 .topbar { display: flex; flex-direction: column; gap: 4px; }
