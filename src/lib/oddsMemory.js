@@ -27,8 +27,13 @@ function writeCache(cache) {
   localStorage.setItem(CACHE_KEY, JSON.stringify(cache))
 }
 
-export function movementKey(eventId, marketKey, outcomeName) {
-  return `${eventId}|${marketKey}|${outcomeName}`
+// `ns` namespaces the "last price seen" so different views can track the
+// same outcome independently. The odds list and a fixture's detail page both
+// show the h2h price; without separate namespaces whichever rendered first
+// would record the price and the other would never show an arrow. 'detail'
+// is the default so existing callers are unchanged.
+export function movementKey(eventId, marketKey, outcomeName, ns = 'detail') {
+  return `${ns}|${eventId}|${marketKey}|${outcomeName}`
 }
 
 // Returns 'up' | 'down' | null for this view, and updates the cache to
@@ -47,7 +52,7 @@ function trackMovement(key, price) {
 // Always compares the unfiltered best price (not whatever "my bookies
 // only" happens to be showing), so toggling that filter can't be
 // mistaken for the market itself moving.
-export function useOddsMovement(event) {
+export function useOddsMovement(event, ns = 'detail') {
   const [movements, setMovements] = useState({})
 
   useEffect(() => {
@@ -57,12 +62,13 @@ export function useOddsMovement(event) {
       for (const outcome of market.outcomes) {
         const price = outcome.bestOdds?.decimal
         if (price == null) continue
-        const dir = trackMovement(movementKey(event.id, market.key, outcome.name), price)
-        if (dir) next[movementKey(event.id, market.key, outcome.name)] = dir
+        const key = movementKey(event.id, market.key, outcome.name, ns)
+        const dir = trackMovement(key, price)
+        if (dir) next[key] = dir
       }
     }
     setMovements(next)
-  }, [event])
+  }, [event, ns])
 
   return movements
 }

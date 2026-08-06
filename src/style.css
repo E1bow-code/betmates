@@ -816,6 +816,9 @@ h1, h2, .topbar h1, .sheet-title, .auth-title {
    or drifting is "good" depends on whether you're looking to back that
    price now or already have, so this only signals direction, not value. */
 .odds-move { font-size: 0.7em; margin-left: 4px; color: var(--text-dim); }
+
+.live-score-tag { display: inline-flex; align-items: center; gap: 5px; margin-left: 8px; vertical-align: middle; }
+.live-score { font-size: 0.82em; font-weight: 700; color: var(--bad); font-variant-numeric: tabular-nums; }
 .outcome-odds { display: flex; flex-direction: column; align-items: flex-end; }
 .outcome-odds-empty { font-size: 0.75rem; color: var(--text-dim); font-family: -apple-system, sans-serif; }
 

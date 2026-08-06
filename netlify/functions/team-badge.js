@@ -21,6 +21,31 @@ import { cacheGet, cacheSet } from '../../src/lib/apiCache.js'
 const HIT_TTL = 7 * 24 * 60 * 60 * 1000
 const MISS_TTL = 60 * 60 * 1000
 
+// The odds feed and TheSportsDB don't always spell a club the same way, so
+// a raw lookup misses and the crest falls back to initials. Map the short
+// forms we actually see onto the name TheSportsDB indexes. Keyed lowercase;
+// only list a club when the two genuinely differ - a wrong alias is worse
+// than none. Extend as more mismatches turn up.
+const TEAM_ALIASES = {
+  'man city': 'Manchester City',
+  'man utd': 'Manchester United',
+  'man united': 'Manchester United',
+  spurs: 'Tottenham Hotspur',
+  wolves: 'Wolverhampton Wanderers',
+  'nottm forest': 'Nottingham Forest',
+  "nott'm forest": 'Nottingham Forest',
+  'sheffield utd': 'Sheffield United',
+  psg: 'Paris Saint-Germain',
+  'paris saint germain': 'Paris Saint-Germain',
+  inter: 'Inter Milan',
+  'bayern munich': 'Bayern Munich',
+  'atletico madrid': 'Atlético Madrid'
+}
+
+function resolveTeam(name) {
+  return TEAM_ALIASES[name.trim().toLowerCase()] ?? name
+}
+
 function json(url, source) {
   const headers = { 'content-type': 'application/json' }
   if (source) headers['x-data-source'] = source
@@ -31,7 +56,10 @@ export default async (req) => {
   const team = new URL(req.url).searchParams.get('team')
   if (!team) return json(null)
 
-  const key = `badge-${team.toLowerCase()}`
+  // Cache and look up by the resolved name, so every spelling of a club
+  // ("Man City", "Manchester City") shares one crest and one upstream call.
+  const resolved = resolveTeam(team)
+  const key = `badge-${resolved.toLowerCase()}`
   const cached = cacheGet(key)
   if (cached !== undefined) return json(cached, 'live-cached')
 
@@ -39,7 +67,7 @@ export default async (req) => {
   // if the free tier's rate limits start blanking badges under real traffic.
   const apiKey = process.env.SPORTSDB_API_KEY || '3'
   try {
-    const res = await fetch(`https://www.thesportsdb.com/api/v1/json/${apiKey}/searchteams.php?t=${encodeURIComponent(team)}`)
+    const res = await fetch(`https://www.thesportsdb.com/api/v1/json/${apiKey}/searchteams.php?t=${encodeURIComponent(resolved)}`)
     if (!res.ok) throw new Error(`TheSportsDB: ${res.status}`)
     const data = await res.json()
     const badge = data?.teams?.[0]?.strBadge ?? null
