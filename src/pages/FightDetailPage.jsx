@@ -131,7 +131,7 @@ export default function FightDetailPage() {
         const marketOpen = expandedMarkets.has(market.key)
         return (
         <div key={market.key} className="market-block">
-          <button className="market-header" onClick={() => toggleMarket(market.key)} type="button">
+          <button className="market-header" onClick={() => toggleMarket(market.key)} type="button" aria-expanded={marketOpen}>
             <h2 className="market-title">{market.label}</h2>
             <span className="market-header-meta">
               {market.outcomes.length} {marketOpen ? '▴' : '▾'}

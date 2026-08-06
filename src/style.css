@@ -43,7 +43,7 @@
   --surface-2: #ece1c9;
   --border: #d9c8a3;
   --text: #241a06;
-  --text-dim: #8a7754;
+  --text-dim: #7d6a49; /* darkened from #8a7754 - the original was 4.26:1 against --surface, just under WCAG AA's 4.5:1 for normal text; this clears ~5.1:1 */
   --accent: #b9822a;
   --accent-rgb: 185, 130, 42;
   --accent-dim: #96681f;
@@ -577,7 +577,7 @@ h1, h2, .topbar h1, .sheet-title, .auth-title {
   color: var(--text);
   transition: background-color 0.15s ease;
 }
-.conversation-row:hover { background: rgba(var(--accent-rgb), 0.06); }
+.conversation-row:hover, .conversation-row:focus-visible { background: rgba(var(--accent-rgb), 0.06); }
 .conversation-list .conversation-row:last-child { border-bottom: none; }
 .conversation-row-main { flex: 1; min-width: 0; }
 .conversation-row-name { font-weight: 600; font-size: 0.92rem; }
@@ -1766,7 +1766,7 @@ h1, h2, .topbar h1, .sheet-title, .auth-title {
 .tracker-row.status-triggered { border-left-color: var(--accent); }
 .tracker-row-main { flex: 1; min-width: 0; }
 .notification-row { text-decoration: none; color: inherit; }
-.notification-row:hover { background: var(--surface-2); }
+.notification-row:hover, .notification-row:focus-visible { background: var(--surface-2); }
 .tracker-row-status { display: flex; flex-direction: column; align-items: flex-end; gap: 6px; }
 
 /* Account */
@@ -2275,6 +2275,7 @@ a.race-card:hover, a.race-card:focus-visible { background: rgba(var(--accent-rgb
   gap: 12px;
   padding: 12px 14px;
 }
+.runner-summary:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
 
 .runner-silk {
   width: 28px;

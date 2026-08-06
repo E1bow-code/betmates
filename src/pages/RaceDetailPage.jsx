@@ -98,7 +98,18 @@ export default function RaceDetailPage() {
           const selected = best && isSelected({ event: raceEvent, market: 'Win', selection: runner.name })
           return (
             <div key={runner.id} className={isExpanded ? 'runner-row expanded' : 'runner-row'}>
-              <div className="runner-summary" onClick={() => setExpandedRunner(isExpanded ? null : runner.id)}>
+              <div
+                className="runner-summary"
+                role="button"
+                tabIndex={0}
+                aria-expanded={isExpanded}
+                onClick={() => setExpandedRunner(isExpanded ? null : runner.id)}
+                onKeyDown={(e) => {
+                  if (e.key !== 'Enter' && e.key !== ' ') return
+                  e.preventDefault()
+                  setExpandedRunner(isExpanded ? null : runner.id)
+                }}
+              >
                 <span className="runner-silk" style={{ background: runner.silkColor }}>
                   {runner.number}
                 </span>

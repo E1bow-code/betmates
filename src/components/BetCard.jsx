@@ -11,6 +11,7 @@ import Avatar from './Avatar.jsx'
 import EditBetSheet from './EditBetSheet.jsx'
 
 const REACTION_EMOJIS = ['🔥', '😬', '👍']
+const REACTION_LABEL = { '🔥': 'fire', '😬': 'grimace', '👍': 'thumbs up' }
 const VOTE_OPTIONS = [
   { key: 'lock_in', label: 'Lock in' },
   { key: 'not_sure', label: 'Not sure' },
@@ -123,7 +124,12 @@ export default function BetCard({ post, memberNames, variant = 'group', onBlocke
           )}
           <span className={`bet-status-pill status-${status}`}>{STATUS_LABEL[status]}</span>
           {variant === 'public' && !isAuthor && (
-            <button className="moderation-toggle" onClick={() => setShowModeration((v) => !v)} aria-label="More options">
+            <button
+              className="moderation-toggle"
+              onClick={() => setShowModeration((v) => !v)}
+              aria-label="More options"
+              aria-expanded={showModeration}
+            >
               ⋯
             </button>
           )}
@@ -198,7 +204,13 @@ export default function BetCard({ post, memberNames, variant = 'group', onBlocke
               const count = reactions.filter((r) => r.emoji === emoji).length
               const mine = reactions.some((r) => r.emoji === emoji && r.userId === user.id)
               return (
-                <button key={emoji} className={mine ? 'reaction-btn active' : 'reaction-btn'} onClick={() => toggleReaction(emoji)}>
+                <button
+                  key={emoji}
+                  className={mine ? 'reaction-btn active' : 'reaction-btn'}
+                  onClick={() => toggleReaction(emoji)}
+                  aria-label={`${mine ? 'Remove' : 'React with'} ${REACTION_LABEL[emoji]}${count > 0 ? ` · ${count}` : ''}`}
+                  aria-pressed={mine}
+                >
                   {emoji} {count > 0 && count}
                 </button>
               )
@@ -207,7 +219,12 @@ export default function BetCard({ post, memberNames, variant = 'group', onBlocke
         )}
 
         <div className="bet-card-actions">
-          <button className="reaction-btn" onClick={() => setShowComments((v) => !v)}>
+          <button
+            className="reaction-btn"
+            onClick={() => setShowComments((v) => !v)}
+            aria-expanded={showComments}
+            aria-label={`${showComments ? 'Hide' : 'Show'} comments${comments.length > 0 ? ` · ${comments.length}` : ''}`}
+          >
             💬 {comments.length > 0 && comments.length}
           </button>
           <CopyBetButton post={post} userId={user.id} />

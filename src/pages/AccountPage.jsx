@@ -211,8 +211,15 @@ export default function AccountPage() {
       <div className="account-hero">
         <label className="avatar-upload">
           <Avatar name={user.displayName} photoUrl={user.avatarUrl} size={64} />
-          <span className="avatar-upload-badge">{avatarUploading ? '…' : '✎'}</span>
-          <input type="file" accept="image/*" onChange={handleAvatarChange} disabled={avatarUploading} hidden />
+          <span className="avatar-upload-badge" aria-hidden="true">{avatarUploading ? '…' : '✎'}</span>
+          <input
+            type="file"
+            accept="image/*"
+            onChange={handleAvatarChange}
+            disabled={avatarUploading}
+            aria-label="Upload profile photo"
+            hidden
+          />
         </label>
         <div>
           {editingName ? (
@@ -368,7 +375,14 @@ export default function AccountPage() {
         </form>
         {user.stakeLimitAmount ? (
           <>
-            <div className="limit-progress-track">
+            <div
+              className="limit-progress-track"
+              role="progressbar"
+              aria-label="Spending toward limit"
+              aria-valuenow={periodSpend === null ? 0 : Math.min(periodSpend, user.stakeLimitAmount)}
+              aria-valuemin={0}
+              aria-valuemax={user.stakeLimitAmount}
+            >
               <div
                 className={`limit-progress-fill ${
                   periodSpend >= user.stakeLimitAmount ? 'tone-bad' : periodSpend >= user.stakeLimitAmount * 0.8 ? 'tone-warn' : ''
