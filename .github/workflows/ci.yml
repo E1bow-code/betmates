@@ -1,0 +1,28 @@
+name: CI
+
+# Runs the test suite on every push to master and on every pull request,
+# so a change that breaks settlement/odds logic is caught before it ships.
+on:
+  push:
+    branches: [master]
+  pull_request:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          # Node 22 (LTS) - matches the glob support the test script relies on
+          # (node --test "src/**/*.test.js" needs Node >= 21).
+          node-version: '22'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run tests
+        run: npm test
