@@ -208,54 +208,54 @@ export default function AccountPage() {
         <h1>Account</h1>
       </div>
 
-      <div className="account-section">
-        <div className="account-identity">
-          <label className="avatar-upload">
-            <Avatar name={user.displayName} photoUrl={user.avatarUrl} size={48} />
-            <span className="avatar-upload-badge">{avatarUploading ? '…' : '✎'}</span>
-            <input type="file" accept="image/*" onChange={handleAvatarChange} disabled={avatarUploading} hidden />
-          </label>
-          <div>
-            {editingName ? (
-              <form className="inline-form" onSubmit={handleSaveName}>
-                <input
-                  value={nameInput}
-                  onChange={(e) => setNameInput(e.target.value)}
-                  maxLength={40}
-                  autoFocus
-                  disabled={nameSaving}
-                />
-                <button className="btn btn-primary btn-small" type="submit" disabled={nameSaving}>
-                  {nameSaving ? 'Saving…' : 'Save'}
-                </button>
-                <button
-                  type="button"
-                  className="btn btn-ghost btn-small"
-                  disabled={nameSaving}
-                  onClick={() => {
-                    setNameInput(user.displayName)
-                    setEditingName(false)
-                    setNameError(null)
-                  }}
-                >
-                  Cancel
-                </button>
-              </form>
-            ) : (
-              <div className="account-name-row">
-                <span className="account-name">{user.displayName}</span>
-                <button className="btn btn-ghost btn-small" onClick={() => setEditingName(true)}>
-                  Edit
-                </button>
-              </div>
-            )}
-            <div className="race-card-meta">{user.email}</div>
-          </div>
+      <div className="account-hero">
+        <label className="avatar-upload">
+          <Avatar name={user.displayName} photoUrl={user.avatarUrl} size={64} />
+          <span className="avatar-upload-badge">{avatarUploading ? '…' : '✎'}</span>
+          <input type="file" accept="image/*" onChange={handleAvatarChange} disabled={avatarUploading} hidden />
+        </label>
+        <div>
+          {editingName ? (
+            <form className="inline-form" onSubmit={handleSaveName}>
+              <input
+                value={nameInput}
+                onChange={(e) => setNameInput(e.target.value)}
+                maxLength={40}
+                autoFocus
+                disabled={nameSaving}
+              />
+              <button className="btn btn-primary btn-small" type="submit" disabled={nameSaving}>
+                {nameSaving ? 'Saving…' : 'Save'}
+              </button>
+              <button
+                type="button"
+                className="btn btn-ghost btn-small"
+                disabled={nameSaving}
+                onClick={() => {
+                  setNameInput(user.displayName)
+                  setEditingName(false)
+                  setNameError(null)
+                }}
+              >
+                Cancel
+              </button>
+            </form>
+          ) : (
+            <div className="account-name-row">
+              <span className="account-name">{user.displayName}</span>
+              <button className="btn btn-ghost btn-small" onClick={() => setEditingName(true)}>
+                Edit
+              </button>
+            </div>
+          )}
+          <div className="race-card-meta">{user.email}</div>
+          {nameError && <div className="auth-error">{nameError}</div>}
+          {avatarError && <div className="auth-error">{avatarError}</div>}
         </div>
-        {nameError && <div className="auth-error">{nameError}</div>}
-        {avatarError && <div className="auth-error">{avatarError}</div>}
-        <p className="hint">Tap your avatar to upload a photo, or leave it - initials and colour come from your name automatically.</p>
       </div>
+      <p className="hint account-hero-hint">
+        Tap your avatar to upload a photo, or leave it - initials and colour come from your name automatically.
+      </p>
 
       <div className="account-section">
         <h2 className="market-title">Appearance</h2>
@@ -274,10 +274,10 @@ export default function AccountPage() {
         <p className="hint">Applies everywhere prices are shown - Odds, bet slips, Tracker, and Hall of Fame.</p>
         <div className="mode-switcher">
           <button className={oddsFormat === 'decimal' ? 'mode-tab active' : 'mode-tab'} onClick={() => setOddsFormat('decimal')}>
-            Decimal (2.05)
+            Decimal (<span className="account-mono">2.05</span>)
           </button>
           <button className={oddsFormat === 'fractional' ? 'mode-tab active' : 'mode-tab'} onClick={() => setOddsFormat('fractional')}>
-            Fractional (21/20)
+            Fractional (<span className="account-mono">21/20</span>)
           </button>
         </div>
       </div>
@@ -287,7 +287,7 @@ export default function AccountPage() {
         <p className="hint">Used to filter odds and prioritise Copy Bet suggestions to accounts you actually hold.</p>
         <div className="bookmaker-grid">
           {BOOKMAKERS.map((b) => (
-            <label key={b} className="field-check bookmaker-check">
+            <label key={b} className="bookmaker-chip">
               <input type="checkbox" checked={(user.bookmakerPrefs ?? []).includes(b)} onChange={() => toggleBookmaker(b)} />
               <span>{b}</span>
             </label>

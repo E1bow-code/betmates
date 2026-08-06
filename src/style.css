@@ -1851,8 +1851,52 @@ h1, h2, .topbar h1, .sheet-title, .auth-title {
   justify-content: center;
   border: 2px solid var(--bg);
 }
-.bookmaker-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px 16px; margin-top: 8px; }
-.bookmaker-check { align-items: center; }
+/* Bookmaker picks read as toggle chips, not a checkbox form - they're tags
+   you hold, not fields you're filling in. Rectangular per the app's own
+   tag/badge rule, not the sport-switcher pill shape. */
+.bookmaker-grid { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 8px; }
+.bookmaker-chip { position: relative; display: inline-block; }
+.bookmaker-chip input {
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+  margin: 0;
+  cursor: pointer;
+}
+.bookmaker-chip span {
+  display: inline-block;
+  border: 1px solid var(--border);
+  border-radius: 3px;
+  padding: 6px 12px;
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: var(--text-dim);
+  transition: border-color 0.15s ease, color 0.15s ease, background-color 0.15s ease;
+}
+.bookmaker-chip input:checked + span {
+  border-color: var(--accent);
+  color: var(--accent);
+  background: rgba(var(--accent-rgb), 0.1);
+  font-weight: 700;
+}
+.bookmaker-chip input:focus-visible + span { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+/* Account identity reads as a small profile card up top instead of a bare
+   avatar+name row - the one place on this page that earns a bordered
+   panel, everything below it is plain settings rows. */
+.account-hero {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  padding: 16px;
+  margin-bottom: 8px;
+  background: linear-gradient(180deg, var(--surface) 0%, var(--surface-2) 100%);
+}
+.account-hero .account-name { font-size: 1.25rem; }
+.account-hero-hint { margin-bottom: 10px; }
+.account-mono { font-family: var(--font-mono); }
 
 /* Legal */
 .legal-content { display: flex; flex-direction: column; gap: 16px; padding: 8px 4px 32px; }
