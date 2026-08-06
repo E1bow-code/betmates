@@ -41,11 +41,10 @@ export default function InsightsPage() {
         <>
           <div className="tracker-list">
             {insights.map((i) => (
-              <div key={i.key} className="tracker-row">
+              <div key={i.key} className="tracker-row icon-row">
+                <span className="icon-row-badge">{i.icon}</span>
                 <div className="tracker-row-main">
-                  <div className="selection-event">
-                    {i.icon} {i.title}
-                  </div>
+                  <div className="selection-event">{i.title}</div>
                   <div className="race-card-meta">{i.value}</div>
                 </div>
               </div>

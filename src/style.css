@@ -1622,6 +1622,7 @@ h1, h2, .topbar h1, .sheet-title, .auth-title {
 .limit-progress-fill { height: 100%; border-radius: 999px; background: var(--text-dim); transition: width 0.3s ease; }
 .limit-progress-fill.tone-warn { background: var(--accent); }
 .limit-progress-fill.tone-bad { background: var(--bad); }
+.limit-progress-fill.tone-good { background: var(--accent); }
 
 .achievements-grid {
   display: grid;
@@ -1712,11 +1713,12 @@ h1, h2, .topbar h1, .sheet-title, .auth-title {
   overflow: hidden;
   background: linear-gradient(180deg, var(--surface) 0%, var(--surface-2) 100%);
 }
-/* Hall of Fame row - a trophy plaque, not a bet-history line: the icon
-   gets its own bordered badge instead of sitting inline with the title,
-   and the record holder gets a face next to their name. */
-.hof-row { gap: 12px; }
-.hof-icon {
+/* Icon-led tracker row - Hall of Fame records and Insights facts both
+   read as a plaque, not a bet-history line: the icon gets its own bordered
+   badge instead of sitting inline with the title. Hall of Fame additionally
+   gives the record holder a face next to their name (.hof-holder). */
+.icon-row { gap: 12px; }
+.icon-row-badge {
   flex-shrink: 0;
   width: 34px;
   height: 34px;

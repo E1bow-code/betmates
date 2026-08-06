@@ -31,6 +31,12 @@ export default function AchievementsPage() {
         <p className="race-card-meta">
           {earnedCount} of {achievements.length} unlocked
         </p>
+        <div className="limit-progress-track">
+          <div
+            className="limit-progress-fill tone-good"
+            style={{ width: `${achievements.length ? (earnedCount / achievements.length) * 100 : 0}%` }}
+          />
+        </div>
       </div>
 
       <div className="achievements-grid">

@@ -74,8 +74,8 @@ export default function HallOfFamePage() {
           {rows.map(({ key, icon, title, render }) => {
             const record = data[key]
             return (
-              <div key={key} className="tracker-row hof-row">
-                <span className="hof-icon">{icon}</span>
+              <div key={key} className="tracker-row icon-row">
+                <span className="icon-row-badge">{icon}</span>
                 <div className="tracker-row-main">
                   <div className="selection-event">{title}</div>
                   <div className="race-card-meta">{render(record, format)}</div>
