@@ -14,6 +14,7 @@ import { useBacking } from '../lib/backing.js'
 import TeamBadge from '../components/TeamBadge.jsx'
 import PlayerPhoto from '../components/PlayerPhoto.jsx'
 import OddsMoveIndicator from '../components/OddsMoveIndicator.jsx'
+import BestValueBadge from '../components/BestValueBadge.jsx'
 import SportHeroBanner from '../components/SportHeroBanner.jsx'
 import LiveBadge from '../components/LiveBadge.jsx'
 import WatchLiveButton from '../components/WatchLiveButton.jsx'
@@ -183,6 +184,7 @@ export default function GenericEventDetailPage() {
                             <OddsMoveIndicator direction={movements[movementKey(event.id, market.key, outcome.name)]} />
                           </span>
                           <span className="best-bookmaker">{best.bookmaker}</span>
+                          {!bookmakerFilter && <BestValueBadge allOdds={outcome.allOdds} />}
                         </span>
                       ) : (
                         <span className="outcome-odds outcome-odds-empty">No price for your bookies</span>
