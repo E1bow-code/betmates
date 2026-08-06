@@ -394,12 +394,14 @@ export async function createBetPost(post) {
   return mapBetPost(data)
 }
 
-export async function updateBetStatus(betId, status) {
-  if (!isSupabaseConfigured) return local.updateBetStatus(betId, status)
+export async function updateBetStatus(betId, status, potentialReturnOverride) {
+  if (!isSupabaseConfigured) return local.updateBetStatus(betId, status, potentialReturnOverride)
   const settledAt = ['won', 'lost', 'void'].includes(status) ? new Date().toISOString() : null
+  const update = { status, settled_at: settledAt }
+  if (potentialReturnOverride !== undefined) update.potential_return = potentialReturnOverride
   const { data, error } = await supabase
     .from('bet_posts')
-    .update({ status, settled_at: settledAt })
+    .update(update)
     .eq('id', betId)
     .select()
     .single()

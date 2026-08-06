@@ -109,9 +109,34 @@ export function evaluateLeg(leg, games, raceResults) {
 // single-leg each-way bet (the only shape BetBuilderSheet allows each-way
 // on), so it never has to compete with other legs' outcomes.
 export function evaluateEntry(entry, games, raceResults) {
+  return evaluateEntryDetailed(entry, games, raceResults).status
+}
+
+// Same rules as evaluateEntry, but keeps the per-leg outcomes so callers can
+// re-price a winning multi that contains a void leg (see voidAdjustedReturn).
+export function evaluateEntryDetailed(entry, games, raceResults) {
   const outcomes = entry.selections.map((leg) => evaluateLeg(leg, games, raceResults))
-  if (outcomes.some((o) => o === 'lost')) return 'lost'
-  if (outcomes.some((o) => o === 'undetermined')) return null
-  if (outcomes.some((o) => o === 'placed')) return 'placed'
-  return outcomes.every((o) => o === 'void') ? 'void' : 'won'
+  if (outcomes.some((o) => o === 'lost')) return { status: 'lost', outcomes }
+  if (outcomes.some((o) => o === 'undetermined')) return { status: null, outcomes }
+  if (outcomes.some((o) => o === 'placed')) return { status: 'placed', outcomes }
+  return { status: outcomes.every((o) => o === 'void') ? 'void' : 'won', outcomes }
+}
+
+// A void leg in an otherwise-winning multi doesn't sink the bet, but it must
+// not be paid on either - the standard bookmaker rule is to set that leg to
+// odds 1.00 and re-price the accumulator, so the punter gets the rest of the
+// multi at its real price. The stored potentialReturn was computed at bet
+// time from every leg (see BetBuilderSheet), so without this correction a
+// postponed fixture or a non-runner pays out as if it had won.
+//
+// Returns undefined when there's nothing to correct (no void legs, or the
+// whole bet voided and the stake just comes back), which is exactly the
+// "leave potential_return alone" signal both settle paths already use.
+export function voidAdjustedReturn(entry, outcomes) {
+  if (!outcomes.some((o) => o === 'void')) return undefined
+  if (outcomes.every((o) => o === 'void')) return undefined
+  if (!Number.isFinite(Number(entry.stake))) return undefined
+  const odds = entry.selections.reduce((acc, leg, i) => (outcomes[i] === 'void' ? acc : acc * Number(leg.odds)), 1)
+  if (!Number.isFinite(odds)) return undefined
+  return Math.round(Number(entry.stake) * odds * 100) / 100
 }

@@ -11,7 +11,7 @@
 // own group.
 import { createClient } from '@supabase/supabase-js'
 import webpush from 'web-push'
-import { evaluateEntry } from '../../src/lib/betEvaluation.js'
+import { evaluateEntryDetailed, voidAdjustedReturn } from '../../src/lib/betEvaluation.js'
 import { apiKeysForSport } from '../../src/lib/sportsConfig.js'
 import { computeEachWayReturn } from '../../src/utils/eachWay.js'
 
@@ -119,7 +119,7 @@ export default async (req) => {
 
     const settledEntries = []
     for (const entry of open) {
-      const status = evaluateEntry(entry, games, raceResults)
+      const { status, outcomes } = evaluateEntryDetailed(entry, games, raceResults)
       if (!status) continue
       if (status === 'placed') {
         // Only manual_entries can carry a corrected (reduced) potentialReturn -
@@ -130,7 +130,10 @@ export default async (req) => {
         const potentialReturnOverride = Math.round(computeEachWayReturn(entry.stake, leg.odds, terms, 'place') * 100) / 100
         settledEntries.push({ ...entry, status: 'won', potentialReturnOverride })
       } else {
-        settledEntries.push({ ...entry, status })
+        // A winning multi carrying a void leg is re-priced with that leg at
+        // odds 1.00 rather than paid at the price it was struck at.
+        const potentialReturnOverride = status === 'won' ? voidAdjustedReturn(entry, outcomes) : undefined
+        settledEntries.push({ ...entry, status, potentialReturnOverride })
       }
     }
     if (!settledEntries.length) return new Response(JSON.stringify({ settled: 0 }), { status: 200 })

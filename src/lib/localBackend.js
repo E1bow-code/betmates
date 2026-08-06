@@ -362,12 +362,13 @@ export function createBetPost(post) {
   return delay(record)
 }
 
-export function updateBetStatus(betId, status) {
+export function updateBetStatus(betId, status, potentialReturnOverride) {
   const db = readDb()
   const post = db.betPosts.find((b) => b.id === betId)
   if (!post) return Promise.reject(new Error('Bet not found.'))
   post.status = status
   post.settledAt = ['won', 'lost', 'void'].includes(status) ? new Date().toISOString() : null
+  if (potentialReturnOverride !== undefined) post.potentialReturn = potentialReturnOverride
   writeDb(db)
   return delay(post)
 }
