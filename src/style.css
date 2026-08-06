@@ -873,7 +873,8 @@ h1, h2, .topbar h1, .sheet-title, .auth-title {
   font: inherit;
 }
 .market-header .market-title { margin: 0; }
-.market-header-meta { font-size: 0.75rem; color: var(--text-dim); flex-shrink: 0; }
+.market-header-meta { font-size: 0.75rem; color: var(--text-dim); flex-shrink: 0; font-family: var(--font-mono); font-variant-numeric: tabular-nums; }
+.market-header-meta-open { color: var(--accent); font-weight: 700; }
 
 .outcome-list {
   display: flex;
@@ -909,8 +910,10 @@ h1, h2, .topbar h1, .sheet-title, .auth-title {
   font: inherit;
   cursor: pointer;
   text-align: left;
+  transition: background-color 0.15s ease;
 }
 .outcome-row-main:disabled { opacity: 0.5; cursor: default; }
+.outcome-row-main:not(:disabled):hover { background: rgba(var(--accent-rgb), 0.06); }
 
 /* Sits before outcome-row-main (see FixtureDetailPage's player markets) -
    border-right rather than the -left the buttons after it use, since it's
@@ -968,10 +971,18 @@ h1, h2, .topbar h1, .sheet-title, .auth-title {
 
 .outcome-name { display: flex; flex-direction: column; align-items: flex-start; gap: 3px; font-weight: 500; }
 
+/* Stamped rectangular tag, not just dim inline text - matches every other
+   badge in the app instead of reading as an afterthought next to the name. */
 .backing-badge {
-  font-weight: 400;
-  font-size: 0.75rem;
-  color: var(--text-dim);
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  font-weight: 700;
+  font-size: 0.66rem;
+  color: var(--accent);
+  border: 1px solid rgba(var(--accent-rgb), 0.35);
+  border-radius: 3px;
+  padding: 1px 5px;
 }
 /* Deliberately not colored good/bad (--accent/--bad) - whether shortening
    or drifting is "good" depends on whether you're looking to back that
@@ -2201,8 +2212,10 @@ a.race-card:hover, a.race-card:focus-visible { background: rgba(var(--accent-rgb
   }
 }
 
-/* Race header */
-.race-header { padding: 4px 4px 16px; }
+/* Race header - shared across every detail page (fixture/race/fight/event),
+   so the dashed rule under it is the same "torn off" divider the rest of
+   the app uses before an action row, not new territory. */
+.race-header { padding: 4px 4px 16px; border-bottom: 1px dashed var(--border); margin-bottom: 12px; }
 .race-header h1 { font-size: 1.25rem; margin: 0 0 4px; }
 .race-header-meta { color: var(--text-dim); font-size: 0.85rem; }
 
@@ -2252,8 +2265,23 @@ a.race-card:hover, a.race-card:focus-visible { background: rgba(var(--accent-rgb
 .runner-form-inline { font-variant-numeric: tabular-nums; color: var(--text); }
 
 .runner-best { text-align: right; }
-.best-price { color: var(--accent); font-weight: 700; font-size: 1.05rem; }
-.best-bookmaker { font-size: 0.75rem; color: var(--text-dim); }
+
+/* The headline price is stamped in a bordered chip, same family as the
+   Odds page's .fav-price - the price is the reason the row exists, so it
+   gets the one piece of "boxed" treatment on an otherwise plain row. */
+.best-price {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  color: var(--accent);
+  font-weight: 800;
+  font-size: 0.95rem;
+  border: 1px solid rgba(var(--accent-rgb), 0.4);
+  border-radius: 4px;
+  padding: 3px 8px;
+  background: rgba(var(--accent-rgb), 0.08);
+}
+.best-bookmaker { font-size: 0.75rem; color: var(--text-dim); margin-top: 3px; display: inline-block; }
 
 .runner-all-odds {
   display: none;

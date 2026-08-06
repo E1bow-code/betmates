@@ -137,7 +137,7 @@ export default function FixtureDetailPage() {
         <div key={market.key} className="market-block">
           <button className="market-header" onClick={() => toggleMarket(market.key)} type="button">
             <h2 className="market-title">{market.label}</h2>
-            <span className="market-header-meta">
+            <span className={marketOpen ? 'market-header-meta market-header-meta-open' : 'market-header-meta'}>
               {market.outcomes.length} {marketOpen ? '▴' : '▾'}
             </span>
           </button>
