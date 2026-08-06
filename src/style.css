@@ -1590,6 +1590,86 @@ h1, h2, .topbar h1, .sheet-title, .auth-title {
 .tracker-row-status { display: flex; flex-direction: column; align-items: flex-end; gap: 6px; }
 
 /* Account */
+/* Dashboard - the one page meant to feel like a front door, not another
+   list page, so it gets its own bigger header and a single dominant
+   scoreboard number instead of Tracker's four-tile grid at the same
+   scale. Everything below still speaks the app's existing betting-slip/
+   scoreboard grammar (stub-striped dockets, dashed dividers, monospace
+   tabular numbers) - bigger, not a different visual language. */
+.dashboard-hero {
+  position: relative;
+  margin: 0 -12px 20px;
+  padding: 30px 16px 22px;
+}
+.dashboard-hero-date { font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.08em; color: var(--text-dim); margin: 0 0 6px; }
+.dashboard-hero-greeting { font-size: 2.1rem; margin: 0; text-wrap: balance; }
+.dashboard-hero-streak {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 12px;
+  padding: 5px 10px;
+  background: rgba(var(--accent-rgb), 0.15);
+  border: 1px solid var(--accent-dim);
+  border-radius: 3px;
+  font-size: 0.78rem;
+  font-weight: 700;
+  color: var(--accent);
+}
+
+.scoreboard-panel {
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  background: linear-gradient(180deg, var(--surface) 0%, var(--surface-2) 100%);
+  padding: 18px 18px 16px;
+  margin-bottom: 22px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+}
+.scoreboard-headline-label { font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.06em; color: var(--text-dim); margin: 0 0 2px; }
+.scoreboard-headline-value { font-family: var(--font-mono); font-variant-numeric: tabular-nums; font-size: 2.3rem; font-weight: 700; line-height: 1; }
+.scoreboard-headline-value.tone-good { color: var(--accent); }
+.scoreboard-headline-value.tone-bad { color: var(--bad); }
+.scoreboard-side-stats { display: flex; flex-direction: column; gap: 10px; text-align: right; flex-shrink: 0; }
+.scoreboard-side-stat-value { font-family: var(--font-mono); font-variant-numeric: tabular-nums; font-weight: 700; font-size: 1.05rem; }
+.scoreboard-side-stat-label { font-size: 0.64rem; color: var(--text-dim); text-transform: uppercase; letter-spacing: 0.03em; }
+
+@media (max-width: 420px) {
+  .scoreboard-panel { flex-direction: column; align-items: flex-start; }
+  .scoreboard-side-stats { flex-direction: row; text-align: left; gap: 18px; }
+}
+
+/* Open bets as dockets - same stub-stripe language as .bet-card (see the
+   bet-feed comment above), compact enough for a dashboard summary rather
+   than the full slip layout. */
+.docket-list { display: flex; flex-direction: column; gap: 10px; }
+.docket {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-left: 4px solid var(--accent-dim);
+  border-radius: 2px;
+  padding: 10px 12px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+.docket-main { min-width: 0; }
+.docket-event { font-weight: 600; font-size: 0.88rem; display: flex; align-items: center; gap: 6px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.docket-meta { font-size: 0.78rem; color: var(--text-dim); margin-top: 2px; }
+
+/* Recent activity as a horizontal tape, not a vertical list - reads as
+   something moving/live rather than a static log (Tracker and Alerts
+   already cover the log view). */
+.pulse-tape { display: flex; gap: 10px; overflow-x: auto; padding: 2px 2px 10px; }
+.pulse-card { flex-shrink: 0; width: 200px; background: var(--surface); border: 1px solid var(--border); border-radius: 2px; padding: 10px 12px; }
+.pulse-card-title { font-size: 0.85rem; font-weight: 600; overflow: hidden; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
+.pulse-card-meta { font-size: 0.72rem; color: var(--text-dim); margin-top: 4px; }
+
+.trending-chip-rank { font-family: var(--font-mono); font-weight: 700; color: var(--accent); font-size: 0.95rem; flex-shrink: 0; }
+
 .account-section { margin-bottom: 18px; }
 .dashboard-quick-links { display: flex; gap: 10px; margin-bottom: 24px; }
 .dashboard-quick-links .btn { flex: 1; text-align: center; }
