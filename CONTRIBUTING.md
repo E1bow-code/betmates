@@ -81,7 +81,8 @@ to share.
 | `VAPID_PRIVATE_KEY` | Private key for sending push notifications |
 | `ODDS_API_KEY` | The Odds API (500 requests/month free tier) |
 | `RACING_API_USERNAME` / `RACING_API_PASSWORD` | Horse racing data |
-| `SGO_API_KEY` | Sports data provider |
+| `SPORTSDB_API_KEY` | TheSportsDB — team crests and player photos (a free test key works for light use) |
+| `SGO_API_KEY` | Alternate sports-odds provider |
 | `PEXELS_API_KEY` | Stock photos |
 
 **You almost certainly don't need the secret keys for day-to-day work.** Every
