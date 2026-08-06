@@ -20,6 +20,7 @@ import WatchLiveButton from '../components/WatchLiveButton.jsx'
 import OddsAlertSheet from '../components/OddsAlertSheet.jsx'
 import FollowButton from '../components/FollowButton.jsx'
 import FollowParticipantButton from '../components/FollowParticipantButton.jsx'
+import ParticipantProfileSheet from '../components/ParticipantProfileSheet.jsx'
 
 export default function GenericEventDetailPage() {
   const { sportKey, id } = useParams()
@@ -33,6 +34,7 @@ export default function GenericEventDetailPage() {
   const [alertTarget, setAlertTarget] = useState(null)
   const [expandedOutcome, setExpandedOutcome] = useState(null)
   const [expandedMarkets, setExpandedMarkets] = useState(new Set())
+  const [profileTarget, setProfileTarget] = useState(null)
 
   useEffect(() => {
     fetchEvent(sportKey, id)
@@ -95,14 +97,32 @@ export default function GenericEventDetailPage() {
       <div className="race-header">
         <h1 className="fixture-teams-row">
           <span className="fixture-team">
-            <Photo {...{ [photoProp]: event.participantA }} size={26} />
-            <span>{event.participantA}</span>
+            {config.participantType === 'player' ? (
+              <button type="button" className="fixture-team-profile-btn" onClick={() => setProfileTarget(event.participantA)}>
+                <Photo {...{ [photoProp]: event.participantA }} size={26} />
+                <span>{event.participantA}</span>
+              </button>
+            ) : (
+              <>
+                <Photo {...{ [photoProp]: event.participantA }} size={26} />
+                <span>{event.participantA}</span>
+              </>
+            )}
             <FollowParticipantButton sport={sportKey} name={event.participantA} />
           </span>
           <span className="fixture-vs">v</span>
           <span className="fixture-team">
-            <Photo {...{ [photoProp]: event.participantB }} size={26} />
-            <span>{event.participantB}</span>
+            {config.participantType === 'player' ? (
+              <button type="button" className="fixture-team-profile-btn" onClick={() => setProfileTarget(event.participantB)}>
+                <Photo {...{ [photoProp]: event.participantB }} size={26} />
+                <span>{event.participantB}</span>
+              </button>
+            ) : (
+              <>
+                <Photo {...{ [photoProp]: event.participantB }} size={26} />
+                <span>{event.participantB}</span>
+              </>
+            )}
             <FollowParticipantButton sport={sportKey} name={event.participantB} />
           </span>
         </h1>
@@ -241,6 +261,7 @@ export default function GenericEventDetailPage() {
       })}
 
       {alertTarget && <OddsAlertSheet target={alertTarget} onClose={() => setAlertTarget(null)} />}
+      {profileTarget && <ParticipantProfileSheet name={profileTarget} onClose={() => setProfileTarget(null)} />}
     </div>
   )
 }

@@ -1,18 +1,13 @@
 // Player photo lookup, same approach as src/lib/teamBadges.js: TheSportsDB's
 // free public API (test key "3"), client-side, in-memory cached per name.
-
-const cache = new Map()
+// The search step itself is shared with src/lib/playerProfile.js via
+// sportsDbPlayerSearch.js - this only adds the "pick a photo field" bit on
+// top, kept separate from the fuller profile fetch so an icon-sized lookup
+// (used on nearly every outcome row) doesn't also pay for the second
+// lookupplayer.php call that only the profile sheet needs.
+import { findPlayer } from './sportsDbPlayerSearch.js'
 
 export async function getPlayerPhoto(playerName) {
-  if (cache.has(playerName)) return cache.get(playerName)
-
-  const promise = fetch(`https://www.thesportsdb.com/api/v1/json/3/searchplayers.php?p=${encodeURIComponent(playerName)}`)
-    .then((res) => (res.ok ? res.json() : null))
-    .then((data) => data?.player?.[0]?.strThumb ?? data?.player?.[0]?.strCutout ?? null)
-    .catch(() => null)
-
-  cache.set(playerName, promise)
-  const photoUrl = await promise
-  cache.set(playerName, photoUrl)
-  return photoUrl
+  const match = await findPlayer(playerName)
+  return match?.strThumb ?? match?.strCutout ?? null
 }

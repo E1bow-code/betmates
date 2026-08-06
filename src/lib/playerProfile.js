@@ -1,10 +1,14 @@
 // Richer participant data for detail pages - same source and free test key
-// as src/lib/playerPhotos.js, but a second call: searchplayers.php only
-// returns a thumbnail and a few fields, lookupplayer.php?id= against that
-// player's id returns a bio, physical stats, and social profile links too.
-// Coverage is uneven (a UFC champion has a full bio and socials, a lower-
-// card fighter often only has the basics) - every field on the returned
-// object can be null, callers render around whatever's actually there.
+// as src/lib/playerPhotos.js, sharing its searchplayers.php step via
+// sportsDbPlayerSearch.js rather than repeating that call. lookupplayer.php
+// against the id that search turns up is the second call this adds - it
+// returns a bio, physical stats, and social profile links that
+// searchplayers.php doesn't. Coverage is uneven (a UFC champion has a full
+// bio and socials, a lower-card fighter often only has the basics) - every
+// field on the returned object can be null, callers render around whatever's
+// actually there.
+import { findPlayer } from './sportsDbPlayerSearch.js'
+
 const cache = new Map()
 
 export async function getPlayerProfile(playerName) {
@@ -18,10 +22,7 @@ export async function getPlayerProfile(playerName) {
 }
 
 async function fetchProfile(playerName) {
-  const searchRes = await fetch(`https://www.thesportsdb.com/api/v1/json/3/searchplayers.php?p=${encodeURIComponent(playerName)}`)
-  if (!searchRes.ok) return null
-  const searchData = await searchRes.json()
-  const match = searchData?.player?.[0]
+  const match = await findPlayer(playerName)
   if (!match?.idPlayer) return null
 
   const lookupRes = await fetch(`https://www.thesportsdb.com/api/v1/json/3/lookupplayer.php?id=${match.idPlayer}`)
