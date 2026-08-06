@@ -90,6 +90,7 @@ Netlify cron, configured per-file via `export const config = { schedule }`:
 | `check-odds-alerts.js` | `*/15 * * * *` | fires user odds alerts |
 | `check-followed-results.js` | `*/15 * * * *` | results for followed teams/players |
 | `weekly-recap.js` | `0 20 * * 0` | Sunday 20:00 recap push |
+| `streak-reminders.js` | `*/30 * * * *` | push on a new 3/5/10 win-streak milestone |
 
 `kickoff-reminders.js` runs with nobody signed in, so it uses
 `SUPABASE_SERVICE_ROLE_KEY` and bypasses RLS - the only place that's true.

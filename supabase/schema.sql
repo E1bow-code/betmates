@@ -656,3 +656,15 @@ drop trigger if exists guard_is_admin_on_profiles on profiles;
 create trigger guard_is_admin_on_profiles
   before insert or update on profiles
   for each row execute function guard_is_admin();
+
+-- --- Streak milestone push reminders --------------------------------------
+-- netlify/functions/streak-reminders.js celebrates a user's win streak the
+-- first time it reaches 3/5/10 (matching the badge thresholds in
+-- src/utils/achievements.js). streak_milestone_notified tracks the highest
+-- milestone already sent so it never re-fires for one they've already hit -
+-- same idea as kickoff_reminder_sent_at, but per-user rather than per-bet
+-- since a streak isn't tied to one row. It's monotonic and never resets on a
+-- loss: like the achievement badges it mirrors, a milestone stays "earned"
+-- even after the streak that reached it ends. No new RLS policy needed:
+-- "update own profile" already covers this column.
+alter table profiles add column if not exists streak_milestone_notified integer not null default 0;
