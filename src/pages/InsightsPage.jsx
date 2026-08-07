@@ -5,6 +5,7 @@ import * as dataStore from '../lib/dataStore.js'
 import { computeInsights } from '../utils/insights.js'
 import SportHeroBanner from '../components/SportHeroBanner.jsx'
 import ShareRecapButton from '../components/ShareRecapButton.jsx'
+import CoachTake from '../components/CoachTake.jsx'
 import EmptyState from '../components/EmptyState.jsx'
 
 export default function InsightsPage() {
@@ -32,6 +33,8 @@ export default function InsightsPage() {
         <h1>Your Insights</h1>
       </div>
       <p className="hint">Patterns from your own betting history - nothing here is a tip, just what's actually happened so far.</p>
+
+      <CoachTake entries={entries} />
 
       {!insights.length && (
         <EmptyState icon="🔍" title="Not enough history yet" subtitle="Settle a few more bets and your patterns will start showing up here." />
