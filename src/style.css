@@ -841,6 +841,25 @@ h1, h2, .topbar h1, .sheet-title, .auth-title {
   box-shadow: 0 2px 8px rgba(var(--accent-rgb), 0.35);
 }
 
+/* Compact round button for a topbar action that isn't a page segment (e.g.
+   Social's Messages link) - same rounded family as .sport-pill, sized to
+   just the icon so it doesn't compete for space with the actual segments. */
+.icon-btn {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 30px;
+  background: none;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  font-size: 0.95rem;
+  color: var(--text-dim);
+  cursor: pointer;
+  text-decoration: none;
+}
+
 .pill-dot {
   position: absolute;
   top: -1px;

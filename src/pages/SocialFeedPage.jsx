@@ -121,11 +121,17 @@ export default function SocialFeedPage() {
       <div className="topbar">
         <div className="topbar-row">
           <h1>Social</h1>
-          {segment !== 'feed' && segment !== 'fpl' && (
-            <button className="btn btn-ghost btn-small" onClick={() => setShowManage(true)}>
-              {segment === 'bets' ? 'Groups' : 'Friends'}
-            </button>
-          )}
+          <div className="topbar-actions">
+            <Link className="icon-btn" to="/messages" aria-label={`Messages${hasUnseenMessages ? ' - unread' : ''}`}>
+              💬
+              {hasUnseenMessages && <span className="pill-dot" />}
+            </Link>
+            {segment !== 'feed' && segment !== 'fpl' && (
+              <button className="btn btn-ghost btn-small" onClick={() => setShowManage(true)}>
+                {segment === 'bets' ? 'Groups' : 'Friends'}
+              </button>
+            )}
+          </div>
         </div>
         <div className="sport-switcher">
           <button className={segment === 'bets' ? 'sport-pill active' : 'sport-pill'} onClick={() => setSegment('bets')}>
@@ -143,10 +149,6 @@ export default function SocialFeedPage() {
           <button className={segment === 'fpl' ? 'sport-pill active' : 'sport-pill'} onClick={() => setSegment('fpl')}>
             FPL
           </button>
-          <Link className="sport-pill" to="/messages">
-            💬 Messages
-            {hasUnseenMessages && <span className="pill-dot" />}
-          </Link>
         </div>
       </div>
 
