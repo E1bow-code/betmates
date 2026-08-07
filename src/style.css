@@ -413,6 +413,20 @@ h1, h2, .topbar h1, .sheet-title, .auth-title {
 }
 
 .auth-card {
+  /* Needs its own stacking position, not just a parent's: the normal
+     sign-up/sign-in render nests this inside .auth-layout (position:
+     relative, z-index: 1), which is what actually lifts it above
+     .auth-page-scrim - a positioned sibling always paints over a
+     position:static one regardless of DOM order or z-index:auto,
+     CSS stacking rules don't care that the card comes later in the
+     markup. The reset-password-request form, ResetPasswordPage, and the
+     recovery-link-failed screen (see AuthContext.jsx) all render this
+     card directly under .auth-page with no .auth-layout wrapper, so
+     without this it sits fully behind the scrim - present but
+     click-and-see-through-dead, which is exactly what got reported as
+     "the screen goes darker and won't let me click anything." */
+  position: relative;
+  z-index: 1;
   width: 100%;
   max-width: 380px;
   flex-shrink: 0;
