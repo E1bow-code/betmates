@@ -125,7 +125,7 @@ export default function TablePredictorPanel({ groupId, userId, memberNames }) {
       <p className="hint">{predictor.competition}</p>
 
       <h3 className="market-title">Your prediction</h3>
-      <OrderList items={order} onChange={setOrder} disabled={saving} />
+      <OrderList items={order} onChange={setOrder} disabled={saving} context="your prediction" />
       <button className="btn btn-primary btn-small" onClick={handleSaveOrder} disabled={saving}>
         {saving ? 'Saving…' : myEntry ? 'Update prediction' : 'Submit prediction'}
       </button>
@@ -158,7 +158,7 @@ export default function TablePredictorPanel({ groupId, userId, memberNames }) {
         </>
       ) : (
         <>
-          <OrderList items={standingsOrder} onChange={setStandingsOrder} disabled={saving} />
+          <OrderList items={standingsOrder} onChange={setStandingsOrder} disabled={saving} context="the standings" />
           <div className="sheet-actions">
             <button className="btn btn-primary btn-small" onClick={handleSaveStandings} disabled={saving}>
               {saving ? 'Saving…' : 'Save standings'}
@@ -189,8 +189,12 @@ export default function TablePredictorPanel({ groupId, userId, memberNames }) {
 }
 
 // Up/down reordering rather than drag-and-drop - no extra dependency, and
-// works the same on touch and desktop without a library.
-function OrderList({ items, onChange, disabled }) {
+// works the same on touch and desktop without a library. `context` goes
+// into each button's aria-label ("...in your prediction" vs "...in the
+// standings") since the two lists on screen at once share the same team
+// names - without it, a screen reader (or a query selector) has no way to
+// tell which "Move Alpha FC up" button is which.
+function OrderList({ items, onChange, disabled, context }) {
   function move(i, dir) {
     const next = [...items]
     const j = i + dir
@@ -211,7 +215,7 @@ function OrderList({ items, onChange, disabled }) {
               className="btn btn-ghost btn-small"
               onClick={() => move(i, -1)}
               disabled={disabled || i === 0}
-              aria-label={`Move ${name} up`}
+              aria-label={`Move ${name} up in ${context}`}
             >
               ↑
             </button>
@@ -220,7 +224,7 @@ function OrderList({ items, onChange, disabled }) {
               className="btn btn-ghost btn-small"
               onClick={() => move(i, 1)}
               disabled={disabled || i === items.length - 1}
-              aria-label={`Move ${name} down`}
+              aria-label={`Move ${name} down in ${context}`}
             >
               ↓
             </button>
