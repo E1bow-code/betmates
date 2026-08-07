@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { BOOKMAKER_LINKS, buildDeepLink } from '../lib/bookmakers.js'
+import { BOOKMAKER_LINKS, buildDeepLink, withAffiliate } from '../lib/bookmakers.js'
 import * as dataStore from '../lib/dataStore.js'
 import { useOddsFormat } from '../context/OddsFormatContext.jsx'
 import { useToast } from '../context/ToastContext.jsx'
@@ -32,7 +32,9 @@ export default function CopyBetButton({ post, userId, copyCount = 0, onCopied })
   const selection = post.selections[0]
   const bookmaker = selection?.bookmaker
   const deepLink = buildDeepLink(bookmaker, selection)
-  const link = selection?.link ?? deepLink ?? BOOKMAKER_LINKS[bookmaker]
+  // Affiliate tag is applied to the final resolved link, so a deep event/slip
+  // link from The Odds API earns commission too, not just the homepage fallback.
+  const link = withAffiliate(bookmaker, selection?.link ?? deepLink ?? BOOKMAKER_LINKS[bookmaker])
   const isBetslipLink = Boolean(selection?.linkIsBetslip) || Boolean(deepLink)
 
   async function handleCopy() {
