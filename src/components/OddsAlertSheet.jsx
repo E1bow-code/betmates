@@ -9,7 +9,7 @@ import { useEscapeKey } from '../lib/useEscapeKey.js'
 // FightDetailPage, GenericEventDetailPage - not RaceDetailPage, see
 // racingClient.js's mock-only note, odds there never move so a target
 // alert would never mean anything). `target` carries everything
-// netlify/functions/check-odds-alerts.js needs to re-fetch this exact
+// netlify/functions/alert-checks.js needs to re-fetch this exact
 // outcome later and compare its price - see dataStore.js's createOddsAlert.
 export default function OddsAlertSheet({ target, onClose, onCreated }) {
   const { user } = useAuth()

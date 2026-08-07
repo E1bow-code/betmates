@@ -5,8 +5,7 @@ import { useAuth } from '../context/AuthContext.jsx'
 // Kickoff reminder + result notification for a fixture with no bet
 // attached - separate from the odds-target alert bell (that's about a
 // price; this is about the fixture itself). See followFixture in
-// dataStore.js, and kickoff-reminders.js / check-followed-results.js on
-// the sending side.
+// dataStore.js, and alert-checks.js on the sending side.
 export default function FollowButton({ sport, eventId, eventLabel, kickoff }) {
   const { user } = useAuth()
   const [following, setFollowing] = useState(null)

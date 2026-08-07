@@ -383,7 +383,7 @@ create policy "group-mates can read push subscriptions to notify them" on push_s
   )
 );
 
--- Kickoff reminders (netlify/functions/kickoff-reminders.js, a scheduled
+-- Kickoff reminders (netlify/functions/alert-checks.js, a scheduled
 -- function) need to scan every user's open bets, not just one poster's own
 -- group - that has no signed-in user to authenticate as, so it runs on the
 -- service-role key instead of RLS. The sent-at column just stops it
@@ -550,7 +550,7 @@ alter table profiles add column if not exists stake_limit_period text check (sta
 -- --- Odds target alerts -------------------------------------------------
 -- "Alert me when this hits X" on a single outcome (see FixtureDetailPage's
 -- bell button on each outcome row). event_id/market_key/outcome_name are
--- exactly what netlify/functions/check-odds-alerts.js needs to re-fetch the
+-- exactly what netlify/functions/alert-checks.js needs to re-fetch the
 -- SAME fixture/fight/event from the same internal /api/* routes the client
 -- uses and find the matching price again - kickoff is captured at creation
 -- so the checker can cheaply drop an alert once its event has clearly
@@ -577,9 +577,9 @@ create policy "user manages own odds alerts" on odds_alerts for all using (auth.
 
 -- --- Followed fixtures ---------------------------------------------------
 -- "Follow" a fixture/fight/event without adding it to the bet slip at all -
--- kickoff reminders (netlify/functions/kickoff-reminders.js) and result
--- notifications (netlify/functions/check-followed-results.js) previously
--- only fired for something tied to an open bet; this is the same two
+-- kickoff reminders and result notifications (both now
+-- netlify/functions/alert-checks.js) previously only fired for something
+-- tied to an open bet; this is the same two
 -- notifications for someone just watching a fixture out of interest.
 -- unique() makes following idempotent - re-following (or a duplicate
 -- FollowButton click) is just an upsert, not a second row.

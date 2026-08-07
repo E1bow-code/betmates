@@ -2,8 +2,8 @@
 // the on-demand "Share recap" button on Tracker (src/lib/shareImage.js)
 // into something proactive: whoever's opted in gets a push with their
 // week's numbers without having to go looking for them. Same service-role
-// pattern as kickoff-reminders.js/auto-settle.js - nobody's signed in when
-// a cron job fires, so it has to bypass RLS rather than work within it.
+// pattern as every other scheduled function - nobody's signed in when a
+// cron job fires, so it has to bypass RLS rather than work within it.
 import { createClient } from '@supabase/supabase-js'
 import webpush from 'web-push'
 import { computeStats } from '../../src/utils/trackerStats.js'

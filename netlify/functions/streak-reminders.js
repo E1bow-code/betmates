@@ -1,8 +1,8 @@
 // Scheduled function (see config.schedule below) - celebrates a win streak
 // the first time it reaches 3/5/10, matching the badge thresholds in
-// src/utils/achievements.js. Same service-role pattern as
-// kickoff-reminders.js/weekly-recap.js: nobody's signed in when a cron job
-// fires, so it bypasses RLS rather than working within it.
+// src/utils/achievements.js. Same service-role pattern as every other
+// scheduled function: nobody's signed in when a cron job fires, so it
+// bypasses RLS rather than working within it.
 import { createClient } from '@supabase/supabase-js'
 import webpush from 'web-push'
 import { computeStreak } from '../../src/utils/trackerStats.js'

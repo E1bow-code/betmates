@@ -796,7 +796,7 @@ export async function deletePushSubscription(endpoint) {
 }
 
 // --- Odds target alerts ---------------------------------------------------
-// Checked server-side by netlify/functions/check-odds-alerts.js, which has
+// Checked server-side by netlify/functions/alert-checks.js, which has
 // no equivalent in local mode (no scheduled functions run against
 // localStorage) - alerts still save/list/delete locally so the flow stays
 // fully clickable, they just never actually fire there.
@@ -857,9 +857,9 @@ export async function deleteOddsAlert(alertId) {
 
 // --- Followed fixtures -----------------------------------------------------
 // Kickoff reminders and result notifications for a fixture the user is just
-// interested in, no bet required - see kickoff-reminders.js and
-// check-followed-results.js. No scheduled functions run against
-// localStorage, so follows still save/list/unfollow there but never
+// interested in, no bet required - see alert-checks.js. No scheduled
+// functions run against localStorage, so follows still save/list/unfollow
+// there but never
 // actually notify (same limitation as odds alerts in local mode).
 
 export async function followFixture(userId, follow) {

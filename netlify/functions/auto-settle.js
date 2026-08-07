@@ -5,16 +5,16 @@
 // the win/lose/void rules with settlement.js via src/lib/betEvaluation.js so
 // a scheduled run and a manual visit can never disagree on a result.
 //
-// Runs on the service-role key like kickoff-reminders.js - nobody's signed
-// in when a cron job fires, so there's no user access token for RLS to key
-// off, and this needs to read/write every user's bets, not just one poster's
-// own group.
+// Runs on the service-role key like every other scheduled function -
+// nobody's signed in when a cron job fires, so there's no user access token
+// for RLS to key off, and this needs to read/write every user's bets, not
+// just one poster's own group.
 //
 // Fetches scores/results through this project's own /api/scores and
-// /api/racing-results (same as check-followed-results.js) rather than
-// hitting the two providers directly - both are already cached per
-// src/lib/apiCache.js, so a run landing soon after a user's own Tracker
-// visit (or after check-followed-results.js's own /api/scores call) shares
+// /api/racing-results (same as alert-checks.js's followed-fixture results
+// check) rather than hitting the two providers directly - both are already
+// cached per src/lib/apiCache.js, so a run landing soon after a user's own
+// Tracker visit (or after alert-checks.js's own /api/scores call) shares
 // that quota instead of spending it twice.
 import { createClient } from '@supabase/supabase-js'
 import webpush from 'web-push'
@@ -93,7 +93,7 @@ export default async (req) => {
     )
 
     // "Bet settled" push, for whoever's opted in - same pattern as
-    // kickoff-reminders.js, just a different trigger condition.
+    // alert-checks.js's kickoff reminders, just a different trigger condition.
     if (VAPID_PUBLIC_KEY && VAPID_PRIVATE_KEY) {
       webpush.setVapidDetails('mailto:betmates@example.com', VAPID_PUBLIC_KEY, VAPID_PRIVATE_KEY)
       const notifiable = settledEntries.filter((e) => e.profiles?.notification_prefs?.betSettled === true)

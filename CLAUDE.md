@@ -86,15 +86,19 @@ Netlify cron, configured per-file via `export const config = { schedule }`:
 | Function | Schedule | Does |
 |---|---|---|
 | `auto-settle.js` | `*/30 * * * *` | settles open bets, pushes "bet settled" |
-| `kickoff-reminders.js` | `*/15 * * * *` | pre-kickoff push |
-| `check-odds-alerts.js` | `*/15 * * * *` | fires user odds alerts |
-| `check-followed-results.js` | `*/15 * * * *` | results for followed teams/players |
+| `alert-checks.js` | `*/15 * * * *` | pre-kickoff push, odds alerts, results for followed teams/players (merged - see file header) |
 | `weekly-recap.js` | `0 20 * * 0` | Sunday 20:00 recap push |
 | `streak-reminders.js` | `*/30 * * * *` | push on a new 3/5/10 win-streak milestone |
 | `team-news-alerts.js` | `*/30 * * * *` | push when a followed team/player appears in a news headline |
 
-`kickoff-reminders.js` runs with nobody signed in, so it uses
-`SUPABASE_SERVICE_ROLE_KEY` and bypasses RLS - the only place that's true.
+`alert-checks.js` (and every other scheduled function above) runs with
+nobody signed in, so it uses `SUPABASE_SERVICE_ROLE_KEY` and bypasses RLS -
+the only place that's true.
+
+`alert-checks.js` used to be three separate `*/15 * * * *` functions
+(kickoff reminders, odds alerts, followed-fixture results) - merged into
+one to cut Netlify usage-credit consumption from three cron invocations
+every 15 minutes down to one, same frequency and behavior either way.
 
 ## Conventions
 
