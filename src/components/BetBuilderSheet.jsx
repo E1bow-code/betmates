@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext.jsx'
 import { useBetSlip } from '../context/BetSlipContext.jsx'
@@ -9,6 +9,7 @@ import { notifyGroup, notifyFollowers } from '../lib/notify.js'
 import { formatOdds } from '../utils/oddsFormat.js'
 import { periodStart, sumStakesSince } from '../utils/spendLimit.js'
 import { getEachWayTerms, computeEachWayReturn } from '../utils/eachWay.js'
+import { detectLossChasing } from '../utils/lossChasing.js'
 import { useEscapeKey } from '../lib/useEscapeKey.js'
 import { computeStats } from '../utils/trackerStats.js'
 import { tipsterBadge } from '../utils/tipsterBadge.js'
@@ -33,7 +34,7 @@ export default function BetBuilderSheet() {
   const [eachWay, setEachWay] = useState(false)
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState(null)
-  const [periodSpend, setPeriodSpend] = useState(null)
+  const [entries, setEntries] = useState(null)
 
   useEffect(() => {
     dataStore.listMyGroups(user.id).then((gs) => {
@@ -42,15 +43,20 @@ export default function BetBuilderSheet() {
     })
   }, [user.id])
 
-  // Only fetched when the user actually has a limit set - a soft,
-  // non-blocking heads-up before they post/save, not a hard stop (the app
-  // never places bets, so it has no way to actually prevent one).
+  // Fetched unconditionally now - both the spend-limit heads-up below and
+  // the loss-chasing nudge need the same recent history, and neither is a
+  // hard stop (the app never places bets, so it has no way to actually
+  // prevent one either way).
   useEffect(() => {
-    if (!user.stakeLimitAmount) return
     Promise.all([dataStore.listBetPostsByUser(user.id), dataStore.listManualEntries(user.id)]).then(([posted, manual]) => {
-      setPeriodSpend(sumStakesSince([...posted, ...manual], periodStart(user.stakeLimitPeriod)))
+      setEntries([...posted, ...manual])
     })
-  }, [user.id, user.stakeLimitAmount, user.stakeLimitPeriod])
+  }, [user.id])
+
+  const periodSpend = useMemo(() => {
+    if (!entries || !user.stakeLimitAmount) return null
+    return sumStakesSince(entries, periodStart(user.stakeLimitPeriod))
+  }, [entries, user.stakeLimitAmount, user.stakeLimitPeriod])
 
   useEscapeKey(() => {
     if (!submitting) closeSheet()
@@ -60,6 +66,7 @@ export default function BetBuilderSheet() {
 
   const combinedOdds = legs.reduce((acc, leg) => acc * leg.odds, 1)
   const stakeNum = stake ? Number(stake) : null
+  const lossChasing = detectLossChasing(entries, stakeNum)
   // Each-way only makes sense for a single racing pick - real books don't
   // offer it on multi-leg accumulators, and combining it with other sports'
   // legs has no defined payout rule.
@@ -247,6 +254,13 @@ export default function BetBuilderSheet() {
           <div className="limit-warning">
             ⚠️ This would take you to £{(periodSpend + stakeNum).toFixed(2)} of your £{Number(user.stakeLimitAmount).toFixed(2)}{' '}
             {user.stakeLimitPeriod === 'monthly' ? 'monthly' : 'weekly'} limit.
+          </div>
+        )}
+
+        {lossChasing && (
+          <div className="limit-warning">
+            👀 Your last logged bet lost at £{lossChasing.lastStake.toFixed(2)} - this one's {lossChasing.increasePct}% bigger. No
+            judgement, just flagging it.
           </div>
         )}
 

@@ -1,10 +1,11 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import * as dataStore from '../lib/dataStore.js'
 import { BOOKMAKERS } from '../lib/bookmakers.js'
 import { SPORT_LABEL } from '../lib/sportsConfig.js'
 import { parseOddsInput } from '../utils/oddsFormat.js'
 import { parseSlipText } from '../utils/betSlipOcr.js'
 import { recognizeSlipText } from '../lib/ocr.js'
+import { detectLossChasing } from '../utils/lossChasing.js'
 import { useAsyncAction } from '../lib/useAsyncAction.js'
 import { useEscapeKey } from '../lib/useEscapeKey.js'
 
@@ -30,12 +31,20 @@ export default function ManualEntrySheet({ userId, onClose, onSaved }) {
   const [rawText, setRawText] = useState('')
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState(null)
+  const [entries, setEntries] = useState(null)
   const runAsync = useAsyncAction()
   useEscapeKey(onClose, !saving && !scanning)
+
+  useEffect(() => {
+    Promise.all([dataStore.listBetPostsByUser(userId), dataStore.listManualEntries(userId)]).then(([posted, manual]) => {
+      setEntries([...posted, ...manual])
+    })
+  }, [userId])
 
   const odds = parseOddsInput(oddsInput)
   const stakeNum = stake ? Number(stake) : null
   const potentialReturn = stakeNum && odds ? Math.round(stakeNum * odds * 100) / 100 : null
+  const lossChasing = detectLossChasing(entries, stakeNum)
 
   async function handleScan(e) {
     const file = e.target.files?.[0]
@@ -144,6 +153,12 @@ export default function ManualEntrySheet({ userId, onClose, onSaved }) {
             <input type="number" min="0" step="0.5" placeholder="£" value={stake} onChange={(e) => setStake(e.target.value)} />
           </label>
           {potentialReturn ? <p className="hint">Potential return: £{potentialReturn.toFixed(2)}</p> : null}
+          {lossChasing && (
+            <div className="limit-warning">
+              👀 Your last logged bet lost at £{lossChasing.lastStake.toFixed(2)} - this one's {lossChasing.increasePct}% bigger. No
+              judgement, just flagging it.
+            </div>
+          )}
           {error && <div className="auth-error">{error}</div>}
           <div className="sheet-actions">
             <button className="btn btn-primary" type="submit" disabled={saving || scanning}>
