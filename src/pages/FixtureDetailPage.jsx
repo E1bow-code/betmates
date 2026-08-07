@@ -81,7 +81,12 @@ export default function FixtureDetailPage() {
       link: best.link,
       linkIsBetslip: best.isBetslipLink,
       sport: 'football',
-      kickoff: fixture.kickoff
+      kickoff: fixture.kickoff,
+      // Identity keys so the Tracker can match this leg back to the recorded
+      // price history and show line value (see src/utils/lineValue.js).
+      eventId: fixture.id,
+      marketKey: market.key,
+      outcomeName: outcome.name
     })
   }
 

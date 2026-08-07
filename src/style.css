@@ -2661,3 +2661,10 @@ a.race-card:hover, a.race-card:focus-visible { background: rgba(var(--accent-rgb
 .tipster-roi.tone-good { color: var(--accent); }
 .tipster-roi.tone-bad { color: var(--bad); }
 .tipster-roi-label { font-size: 0.6rem; color: var(--text-dim); text-transform: uppercase; letter-spacing: 0.04em; }
+
+/* Line-value indicator on a Tracker bet: did your price beat where the market
+   moved to (see src/utils/lineValue.js). Good = you locked a bigger price. */
+.line-value { font-size: 0.72rem; font-weight: 600; margin-top: 3px; }
+.line-value-good { color: var(--accent); }
+.line-value-bad { color: var(--bad); }
+.line-value-detail { font-weight: 400; color: var(--text-dim); font-family: var(--font-mono); }
