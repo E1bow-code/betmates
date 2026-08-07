@@ -195,12 +195,20 @@ export default function TablePredictorPanel({ groupId, userId, memberNames }) {
 // names - without it, a screen reader (or a query selector) has no way to
 // tell which "Move Alpha FC up" button is which.
 function OrderList({ items, onChange, disabled, context }) {
+  // onChange is always a plain useState setter (setOrder/setStandingsOrder),
+  // so passing it a function goes through React's functional-update form -
+  // reading the true latest state instead of the `items` this render closed
+  // over. Without that, two clicks landing in the same batch (e.g. a fast
+  // double-tap) would both compute from the same stale array and the first
+  // move would silently vanish.
   function move(i, dir) {
-    const next = [...items]
-    const j = i + dir
-    if (j < 0 || j >= next.length) return
-    ;[next[i], next[j]] = [next[j], next[i]]
-    onChange(next)
+    onChange((prev) => {
+      const next = [...prev]
+      const j = i + dir
+      if (j < 0 || j >= next.length) return prev
+      ;[next[i], next[j]] = [next[j], next[i]]
+      return next
+    })
   }
   return (
     <div className="manage-list">
