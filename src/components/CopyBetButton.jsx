@@ -5,15 +5,18 @@ import { useOddsFormat } from '../context/OddsFormatContext.jsx'
 import { useToast } from '../context/ToastContext.jsx'
 import { formatOdds } from '../utils/oddsFormat.js'
 
-// Section 2B's Copy Bet button: clipboard + "open bookmaker" always.
-// The "open" link prefers whatever The Odds API's includeLinks feature
-// actually returned for this exact selection (see netlify/functions/odds.js
-// /ufc.js/sport.js and src/lib/oddsLinks.js) - a real pre-filled bet-slip
-// link where the bookmaker supports it (currently just Sky Bet), the
-// specific event's own page otherwise. Falls back to src/lib/bookmakers.js's
-// static homepage/DEEP_LINK_BUILDERS chain only when no live link came
-// through at all (racing, SportsGameOdds sports, or mock data). Never
-// auto-submits anything; the user places the bet themselves, per the
+// Section 2B's Copy Bet button. Clipboard always; whether there's also an
+// "open the bookmaker" side depends on what The Odds API's includeLinks
+// feature actually returned for this exact selection (see
+// netlify/functions/odds.js/ufc.js/sport.js and src/lib/oddsLinks.js):
+//   - a real pre-filled bet slip (currently only Sky Bet ever returns one) -
+//     clicking Copy Bet itself also opens it, since the bet's already sat
+//     right there in the slip rather than needing a second click,
+//   - otherwise just the bookmaker's plain event page or homepage (falling
+//     back to src/lib/bookmakers.js's static links for racing/SportsGameOdds
+//     sports/mock data) - shown as a separate "Open {bookmaker}" link, since
+//     that's not worth auto-opening on every copy.
+// Never auto-submits anything; the user places the bet themselves, per the
 // legal note in Section 6.
 
 function formatBetSlip(post, format) {
@@ -33,6 +36,15 @@ export default function CopyBetButton({ post, userId, copyCount = 0, onCopied })
   const isBetslipLink = Boolean(selection?.linkIsBetslip) || Boolean(deepLink)
 
   async function handleCopy() {
+    // window.open() has to happen synchronously, before any await, or
+    // Safari/most mobile browsers no longer treat it as part of the click
+    // gesture and silently block it as a popup. Only Sky Bet ever sets
+    // isBetslipLink today (see oddsLinks.js) - a real pre-filled slip, not
+    // just the bookmaker's homepage - so this is the one case worth
+    // auto-opening; the plain "Open {bookmaker}" link below still covers
+    // every other bookmaker for a manual click.
+    if (isBetslipLink && link) window.open(link, '_blank', 'noopener,noreferrer')
+
     // Clipboard writes can reject - permission denied, an unfocused page, a
     // browser that just doesn't support it - and this used to have no catch
     // at all, so a rejection silently skipped the copied-state, the count
@@ -54,13 +66,17 @@ export default function CopyBetButton({ post, userId, copyCount = 0, onCopied })
       <button
         className="btn btn-secondary btn-small"
         onClick={handleCopy}
-        aria-label={copied ? 'Copied to clipboard' : `Copy bet${copyCount > 0 ? ` · copied ${copyCount} time${copyCount === 1 ? '' : 's'}` : ''}`}
+        aria-label={
+          copied
+            ? 'Copied to clipboard'
+            : `Copy bet${isBetslipLink ? ` and open in ${bookmaker}` : ''}${copyCount > 0 ? ` · copied ${copyCount} time${copyCount === 1 ? '' : 's'}` : ''}`
+        }
       >
         {copied ? 'Copied!' : copyCount > 0 ? `Copy Bet · ${copyCount}` : 'Copy Bet'}
       </button>
-      {link && (
+      {link && !isBetslipLink && (
         <a className="btn btn-ghost btn-small" href={link} target="_blank" rel="noreferrer">
-          {isBetslipLink ? `Open in ${bookmaker}` : `Open ${bookmaker}`}
+          Open {bookmaker}
         </a>
       )}
     </div>
