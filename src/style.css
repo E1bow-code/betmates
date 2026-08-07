@@ -1655,6 +1655,11 @@ h1, h2, .topbar h1, .sheet-title, .auth-title {
   text-align: center;
 }
 .stat-tiles .stat-tile:last-child { border-right: none; }
+/* PublicProfilePage's fifth tile (Picks) doesn't fit the shared 4-column
+   base without leaving an empty cell, but the base can't just become 5
+   columns either - GroupRecapCard/FplPanel put 3 tiles into it and would
+   end up bunched into 3/5 of the row width instead of filling it. */
+.profile-stat-tiles { grid-template-columns: repeat(5, 1fr); }
 .stat-tile-value { font-weight: 700; font-size: 1.05rem; }
 .stat-tile.tone-good { background: linear-gradient(180deg, rgba(var(--accent-rgb), 0.12) 0%, transparent 75%); }
 .stat-tile.tone-bad { background: linear-gradient(180deg, rgba(var(--bad-rgb), 0.12) 0%, transparent 75%); }
@@ -1916,6 +1921,10 @@ h1, h2, .topbar h1, .sheet-title, .auth-title {
 @media (max-width: 420px) {
   .scoreboard-panel { flex-direction: column; align-items: flex-start; }
   .scoreboard-side-stats { flex-direction: row; text-align: left; gap: 18px; }
+  /* 5 columns at this width squeezes values like "£150.00" past legibility -
+     wraps to a 3-then-2 layout instead. */
+  .profile-stat-tiles { grid-template-columns: repeat(3, 1fr); }
+  .profile-stat-tiles .stat-tile:nth-child(3) { border-right: none; }
 }
 
 /* Open bets as dockets - same stub-stripe language as .bet-card (see the

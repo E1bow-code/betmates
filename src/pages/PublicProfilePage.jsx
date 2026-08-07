@@ -58,7 +58,7 @@ export default function PublicProfilePage() {
             </div>
           </div>
 
-          <div className="stat-tiles">
+          <div className="stat-tiles profile-stat-tiles">
             <StatTile
               label="P&L"
               value={`${data.stats.profit >= 0 ? '+' : ''}£${data.stats.profit.toFixed(2)}`}
@@ -70,6 +70,7 @@ export default function PublicProfilePage() {
               tone={data.stats.roi >= 0 ? 'good' : 'bad'}
             />
             <StatTile label="Win rate" value={data.stats.winRate === null ? '-' : `${data.stats.winRate}%`} />
+            <StatTile label="Picks" value={data.stats.settledCount} />
             <StatTile label="Staked" value={`£${data.stats.staked.toFixed(2)}`} />
           </div>
 
