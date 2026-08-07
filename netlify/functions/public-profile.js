@@ -28,6 +28,9 @@ export default async (req) => {
       .select('id,display_name,created_at,avatar_url')
       .eq('friend_code', code)
       .maybeSingle()
+    // profile.id wasn't in the original response - it's needed client-side
+    // to drive the Follow button (dataStore.followUser/listFollowing key
+    // off the target's user id, not their friend code).
     if (!profile) return new Response(JSON.stringify(null), { status: 200, headers: { 'content-type': 'application/json' } })
 
     const { data: posts } = await supabase
@@ -49,6 +52,7 @@ export default async (req) => {
 
     return new Response(
       JSON.stringify({
+        id: profile.id,
         displayName: profile.display_name,
         avatarUrl: profile.avatar_url,
         memberSince: profile.created_at,

@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext.jsx'
+import * as dataStore from '../lib/dataStore.js'
 import Avatar from '../components/Avatar.jsx'
 import SportIcon from '../components/icons/SportIcons.jsx'
 import SportHeroBanner from '../components/SportHeroBanner.jsx'
@@ -16,6 +17,12 @@ export default function PublicProfilePage() {
   const { user } = useAuth()
   const [data, setData] = useState(undefined) // undefined = loading, null = not found
   const [error, setError] = useState(null)
+  // null until checked - the Tipster Leaderboard is the only other place
+  // this follow relationship is surfaced, and a signed-in visitor arriving
+  // here via a shared link (the whole point of a public profile) had no way
+  // to act on it without navigating back there first.
+  const [following, setFollowing] = useState(null)
+  const [followBusy, setFollowBusy] = useState(false)
 
   useEffect(() => {
     fetch(`/api/public-profile?code=${encodeURIComponent(code)}`)
@@ -23,6 +30,29 @@ export default function PublicProfilePage() {
       .then(setData)
       .catch((err) => setError(err.message))
   }, [code])
+
+  useEffect(() => {
+    if (!user || !data?.id || data.id === user.id) return
+    let cancelled = false
+    dataStore
+      .listFollowing(user.id)
+      .then((ids) => !cancelled && setFollowing(ids.includes(data.id)))
+      .catch(() => {})
+    return () => {
+      cancelled = true
+    }
+  }, [user, data?.id])
+
+  async function toggleFollow() {
+    setFollowBusy(true)
+    try {
+      if (following) await dataStore.unfollowUser(user.id, data.id)
+      else await dataStore.followUser(user.id, data.id)
+      setFollowing((f) => !f)
+    } finally {
+      setFollowBusy(false)
+    }
+  }
 
   return (
     <div>
@@ -41,21 +71,32 @@ export default function PublicProfilePage() {
 
       {data && (
         <>
-          <div className="account-identity">
-            <Avatar name={data.displayName} photoUrl={data.avatarUrl} size={48} />
-            <div>
-              <span className="account-name">
-                {data.displayName}
-                {tipsterBadge(data.stats) && (
-                  <span className="tipster-badge" title={`${tipsterBadge(data.stats).label} - ${data.stats.decidedCount}+ decided public picks`}>
-                    {tipsterBadge(data.stats).icon} {tipsterBadge(data.stats).label}
-                  </span>
-                )}
-              </span>
-              <div className="race-card-meta">
-                On BetMates since {new Date(data.memberSince).toLocaleDateString([], { month: 'long', year: 'numeric' })}
+          <div className="profile-identity-row">
+            <div className="account-identity">
+              <Avatar name={data.displayName} photoUrl={data.avatarUrl} size={48} />
+              <div>
+                <span className="account-name">
+                  {data.displayName}
+                  {tipsterBadge(data.stats) && (
+                    <span className="tipster-badge" title={`${tipsterBadge(data.stats).label} - ${data.stats.decidedCount}+ decided public picks`}>
+                      {tipsterBadge(data.stats).icon} {tipsterBadge(data.stats).label}
+                    </span>
+                  )}
+                </span>
+                <div className="race-card-meta">
+                  On BetMates since {new Date(data.memberSince).toLocaleDateString([], { month: 'long', year: 'numeric' })}
+                </div>
               </div>
             </div>
+            {user && data.id !== user.id && following !== null && (
+              <button
+                className={following ? 'btn btn-ghost btn-small' : 'btn btn-secondary btn-small'}
+                onClick={toggleFollow}
+                disabled={followBusy}
+              >
+                {following ? 'Following' : 'Follow'}
+              </button>
+            )}
           </div>
 
           <div className="stat-tiles profile-stat-tiles">

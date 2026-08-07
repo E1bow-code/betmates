@@ -1963,6 +1963,7 @@ h1, h2, .topbar h1, .sheet-title, .auth-title {
 .dashboard-section-header .market-title { margin: 0; }
 .account-name { font-weight: 700; font-size: 1.1rem; }
 .account-identity { display: flex; align-items: center; gap: 12px; }
+.profile-identity-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
 .account-name-row { display: flex; align-items: center; gap: 8px; }
 .tipster-badge {
   display: inline-flex;
