@@ -23,6 +23,8 @@ import SportIcon from '../components/icons/SportIcons.jsx'
 import { computeTrendingPicks } from '../utils/trending.js'
 import { computeTipsterRankings } from '../utils/tipsters.js'
 import TipsterLeaderboard from '../components/TipsterLeaderboard.jsx'
+import BookmakerScoreboard from '../components/BookmakerScoreboard.jsx'
+import { computeBookmakerScoreboard } from '../utils/bookmakerScoreboard.js'
 
 // Landing view for the Social tab. The feed is the main attraction - group/
 // friend management (create, join, invite codes) lives behind the Manage
@@ -50,6 +52,12 @@ import TipsterLeaderboard from '../components/TipsterLeaderboard.jsx'
 // - Tips: a Twitter-style feed of talking-to-camera picks from the user
 //   and their friends (see src/components/VideoRecorder.jsx), with a way
 //   to forward a good one into a group or straight to a friend.
+// - Bookmakers: same visible-to-you data as Leaderboard, regrouped by
+//   bookmaker instead of by person (src/utils/bookmakerScoreboard.js) -
+//   which bookmaker has actually paid out best, not just who's good at
+//   picking. Nothing else surfaces this: a real bookmaker won't rank
+//   itself against competitors, and a pure EV tracker ranks bettors, not
+//   books.
 
 export default function SocialFeedPage() {
   const { user } = useAuth()
@@ -77,7 +85,8 @@ export default function SocialFeedPage() {
 
   useEffect(() => {
     if (segment === 'tips' && videos === null) refreshTips()
-    if ((segment === 'feed' || segment === 'leaderboard' || segment === 'tipsters') && publicFeed === null) refreshPublicFeed()
+    if ((segment === 'feed' || segment === 'leaderboard' || segment === 'tipsters' || segment === 'bookmakers') && publicFeed === null)
+      refreshPublicFeed()
     if (segment === 'news' && news === null) refreshNews()
   }, [segment])
 
@@ -102,6 +111,11 @@ export default function SocialFeedPage() {
   const trendingPicks = useMemo(() => (publicFeed ? computeTrendingPicks(publicFeed) : []), [publicFeed])
 
   const tipsterRankings = useMemo(() => computeTipsterRankings(publicFeed, leaderboardWindow), [publicFeed, leaderboardWindow])
+
+  const bookmakerRows = useMemo(() => {
+    if (feed === null || publicFeed === null) return null
+    return computeBookmakerScoreboard([...feed, ...publicFeed])
+  }, [feed, publicFeed])
 
   const filteredNews = useMemo(() => {
     if (!news || newsFilter !== 'mine' || !followedParticipants?.length) return news
@@ -184,6 +198,9 @@ export default function SocialFeedPage() {
           </button>
           <button className={segment === 'tipsters' ? 'sport-pill active' : 'sport-pill'} onClick={() => setSegment('tipsters')}>
             🎯 Tipsters
+          </button>
+          <button className={segment === 'bookmakers' ? 'sport-pill active' : 'sport-pill'} onClick={() => setSegment('bookmakers')}>
+            🏦 Bookmakers
           </button>
           <button className={segment === 'feed' ? 'sport-pill active' : 'sport-pill'} onClick={() => setSegment('feed')}>
             Feed
@@ -382,6 +399,8 @@ export default function SocialFeedPage() {
           currentUserId={user.id}
         />
       )}
+
+      {segment === 'bookmakers' && <BookmakerScoreboard rows={bookmakerRows} />}
 
       {segment === 'leaderboard' && (
         <>
