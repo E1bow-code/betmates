@@ -145,7 +145,7 @@ export default function BetBuilderSheet() {
       notifyPublicFollowers()
       clearSlip()
       showToast('Posted to everyone')
-      navigate('/groups', { state: { segment: 'feed' } })
+      navigate('/dashboard')
     } catch (err) {
       setError(err.message)
     } finally {

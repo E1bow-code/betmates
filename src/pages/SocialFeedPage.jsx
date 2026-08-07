@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { Link, useLocation } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext.jsx'
 import { useActivity } from '../context/ActivityContext.jsx'
@@ -8,6 +8,7 @@ import { computeStats } from '../utils/trackerStats.js'
 import { formatRelativeTime } from '../utils/format.js'
 import { LEADERBOARD_WINDOWS, isWithinWindow } from '../utils/dateWindows.js'
 import BetCard from '../components/BetCard.jsx'
+import PublicFeedView from '../components/PublicFeedView.jsx'
 import VideoCard from '../components/VideoCard.jsx'
 import VideoRecorder from '../components/VideoRecorder.jsx'
 import ManageSheet from '../components/ManageSheet.jsx'
@@ -19,8 +20,6 @@ import PullToRefresh from '../components/PullToRefresh.jsx'
 import ShareLeaderboardButton from '../components/ShareLeaderboardButton.jsx'
 import SportHeroBanner from '../components/SportHeroBanner.jsx'
 import FplPanel from '../components/FplPanel.jsx'
-import SportIcon from '../components/icons/SportIcons.jsx'
-import { computeTrendingPicks } from '../utils/trending.js'
 import { computeTipsterRankings } from '../utils/tipsters.js'
 import TipsterLeaderboard from '../components/TipsterLeaderboard.jsx'
 import BookmakerScoreboard from '../components/BookmakerScoreboard.jsx'
@@ -77,6 +76,7 @@ export default function SocialFeedPage() {
   const [compareFriend, setCompareFriend] = useState(null)
   const [showGroupCompare, setShowGroupCompare] = useState(false)
   const [leaderboardWindow, setLeaderboardWindow] = useState('all')
+  const publicFeedViewRef = useRef(null)
 
   useEffect(() => {
     refreshBets()
@@ -85,8 +85,7 @@ export default function SocialFeedPage() {
 
   useEffect(() => {
     if (segment === 'tips' && videos === null) refreshTips()
-    if ((segment === 'feed' || segment === 'leaderboard' || segment === 'tipsters' || segment === 'bookmakers') && publicFeed === null)
-      refreshPublicFeed()
+    if ((segment === 'leaderboard' || segment === 'tipsters' || segment === 'bookmakers') && publicFeed === null) refreshPublicFeed()
     if (segment === 'news' && news === null) refreshNews()
   }, [segment])
 
@@ -107,8 +106,6 @@ export default function SocialFeedPage() {
       .filter((row) => row.settledCount > 0)
       .sort((a, b) => b.profit - a.profit)
   }, [feed, publicFeed, leaderboardWindow])
-
-  const trendingPicks = useMemo(() => (publicFeed ? computeTrendingPicks(publicFeed) : []), [publicFeed])
 
   const tipsterRankings = useMemo(() => computeTipsterRankings(publicFeed, leaderboardWindow), [publicFeed, leaderboardWindow])
 
@@ -154,10 +151,6 @@ export default function SocialFeedPage() {
     ])
   }
 
-  function handleBlocked(blockedUserId) {
-    setPublicFeed((pf) => (pf ? pf.filter((p) => p.userId !== blockedUserId) : pf))
-  }
-
   function handleManageChanged() {
     refreshBets()
     refreshTips()
@@ -168,6 +161,7 @@ export default function SocialFeedPage() {
     if (segment === 'tips') return refreshTips()
     if (segment === 'fpl') return Promise.resolve()
     if (segment === 'news') return refreshNews()
+    if (segment === 'feed') return publicFeedViewRef.current?.refresh() ?? Promise.resolve()
     return refreshPublicFeed()
   }
 
@@ -267,44 +261,7 @@ export default function SocialFeedPage() {
         </>
       )}
 
-      {segment === 'feed' && (
-        <>
-          <p className="hint">Everyone's picks - tap a price on the Odds tab and choose "Post to everyone" to add yours.</p>
-
-          {trendingPicks.length > 0 && (
-            <div className="account-section">
-              <h2 className="market-title">🔥 Trending this week</h2>
-              <div className="trending-row">
-                {trendingPicks.map((pick, i) => (
-                  <div key={pick.key} className="trending-chip">
-                    <span className="trending-chip-rank">{i + 1}</span>
-                    <SportIcon sport={pick.sport} size={18} />
-                    <div>
-                      <div className="trending-chip-pick">{pick.selection}</div>
-                      <div className="trending-chip-meta">
-                        {pick.event} · {pick.count} backing this
-                      </div>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
-
-          {publicFeed === null && <div className="loading">Catching up on the feed…</div>}
-          {publicFeed && !publicFeed.length && (
-            <EmptyState icon="📣" title="Nothing here yet" subtitle="Be the first to post a pick for everyone to see." />
-          )}
-
-          {publicFeed && publicFeed.length > 0 && (
-            <div className="bet-feed">
-              {publicFeed.map((post) => (
-                <BetCard key={post.id} post={post} variant="public" onBlocked={handleBlocked} onChanged={refreshPublicFeed} />
-              ))}
-            </div>
-          )}
-        </>
-      )}
+      {segment === 'feed' && <PublicFeedView ref={publicFeedViewRef} />}
 
       {segment === 'news' && (
         <>

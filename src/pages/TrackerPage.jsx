@@ -17,6 +17,7 @@ import {
   computeBestWin
 } from '../utils/trackerStats.js'
 import { computeDisciplineStreak } from '../utils/discipline.js'
+import { findOnThisDayEntries } from '../utils/onThisDay.js'
 import { SPORT_LABEL } from '../lib/sportsConfig.js'
 import EmptyState from '../components/EmptyState.jsx'
 import EditBetSheet from '../components/EditBetSheet.jsx'
@@ -136,6 +137,7 @@ export default function TrackerPage() {
 
   const openEntries = useMemo(() => (entries ?? []).filter((e) => e.status === 'open'), [entries])
   const liveByEvent = useLiveScores(openEntries)
+  const onThisDay = useMemo(() => (entries ? findOnThisDayEntries(entries) : []), [entries])
 
   if (entries === null) return <div className="loading">Tallying up your bets…</div>
 
@@ -247,6 +249,28 @@ export default function TrackerPage() {
           Your insights &rarr;
         </Link>
       </div>
+
+      {onThisDay.length > 0 && (
+        <div className="account-section">
+          <h2 className="market-title">📅 On this day</h2>
+          <div className="docket-list">
+            {onThisDay.slice(0, 3).map((entry) => (
+              <div key={entry.id} className="docket">
+                <div className="docket-main">
+                  <div className="docket-event">
+                    <SportIcon sport={entry.sport} /> {entry.selections?.[0]?.event ?? 'Bet'}
+                  </div>
+                  <div className="docket-meta">
+                    {new Date(entry.createdAt).getFullYear()} · {entry.selections?.[0]?.selection} @{' '}
+                    {formatOdds(entry.selections?.[0]?.odds, format)}
+                  </div>
+                </div>
+                <span className={`bet-status-pill status-${entry.status}`}>{STATUS_LABEL[entry.status]}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
 
       <PnlChart entries={entries} />
 

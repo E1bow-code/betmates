@@ -192,11 +192,94 @@ h1, h2, .topbar h1, .sheet-title, .auth-title {
   border: 1.5px solid var(--bg);
 }
 
+/* MoreMenu (src/components/MoreMenu.jsx) - secondary nav for pages that
+   don't fit BottomNav's six primary tabs (Messages, Achievements, Insights,
+   Hall of Fame, Help, Admin). A floating trigger opens the same .sheet/
+   .sheet-backdrop bottom sheet every other modal in this app uses, rather
+   than a new drawer idiom. Positioned well above the bet-slip bar (which
+   itself sits just above BottomNav, see .bet-slip-bar) so an active bet
+   slip never gets obscured by the trigger or vice versa. */
+.more-menu-trigger {
+  position: fixed;
+  right: 14px;
+  bottom: calc(126px + env(safe-area-inset-bottom, 0));
+  z-index: 21;
+  width: 44px;
+  height: 44px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--surface);
+  color: var(--text);
+  border: 1px solid var(--border);
+  border-radius: 2px;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.35);
+}
+
+.more-menu-badge {
+  position: absolute;
+  top: -3px;
+  right: -3px;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--accent);
+  border: 1.5px solid var(--bg);
+}
+
+/* One continuous divided list - a results-sheet row for each destination,
+   sharp corners and a bottom hairline rather than .sport-pill's rounded
+   shape (that shape is reserved for sport/segment tabs, see style.css's
+   header comment). Shared by both the mobile sheet and the desktop block. */
+.more-menu-list { display: flex; flex-direction: column; }
+.more-menu-list > *:last-child { border-bottom: none; }
+
+.more-menu-item {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 13px 18px;
+  color: var(--text);
+  text-decoration: none;
+  font-size: 0.92rem;
+  border-bottom: 1px solid var(--border);
+}
+
+.more-menu-group { border-bottom: 1px solid var(--border); }
+
+.more-menu-group-toggle {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background: none;
+  border: none;
+  padding: 13px 18px;
+  font-size: 0.92rem;
+  font-weight: 700;
+  color: var(--text);
+  cursor: pointer;
+  text-align: left;
+}
+
+.more-menu-caret { color: var(--text-dim); font-size: 0.8rem; }
+
+.more-menu-group-items { display: flex; flex-direction: column; background: var(--surface-2); }
+.more-menu-group-items .more-menu-item { padding-left: 32px; font-size: 0.88rem; }
+.more-menu-group-items .more-menu-item:last-child { border-bottom: none; }
+
+.more-menu-desktop { display: none; }
+
 /* Desktop: the same nav markup becomes a left sidebar instead of a bottom
    bar - a mobile tab strip stretched across a wide window is the single
    biggest tell that gives away "this is a phone page", not a real
    installed-feeling app. Everything else (page content, cards, lists)
-   stays exactly as-is, just with more room either side. */
+   stays exactly as-is, just with more room either side. The sticky/height/
+   width/border that used to live on .bottom-nav itself now lives on its
+   .sidebar-nav wrapper (App.jsx) instead, so MoreMenu.jsx's desktop block
+   can stack underneath BottomNav's own tabs as a second row-group inside
+   the same sticky column, rather than becoming its own separate sidebar. */
 @media (min-width: 880px) {
   #app { max-width: 1180px; }
 
@@ -204,21 +287,27 @@ h1, h2, .topbar h1, .sheet-title, .auth-title {
 
   .app-content { padding: 28px 32px 40px; max-width: 720px; margin: 0 auto; width: 100%; }
 
-  .bottom-nav {
-    position: sticky;
-    top: 0;
-    bottom: auto;
-    left: auto;
-    right: auto;
+  .sidebar-nav {
     order: -1;
+    display: flex;
     flex-direction: column;
-    align-items: stretch;
-    justify-content: flex-start;
     width: 220px;
     flex-shrink: 0;
     height: 100vh;
-    border-top: none;
+    position: sticky;
+    top: 0;
     border-right: 1px solid var(--border);
+    overflow-y: auto;
+  }
+
+  .bottom-nav {
+    position: static;
+    flex-direction: column;
+    align-items: stretch;
+    justify-content: flex-start;
+    width: auto;
+    height: auto;
+    border-top: none;
     padding: 0;
     gap: 2px;
   }
@@ -246,6 +335,17 @@ h1, h2, .topbar h1, .sheet-title, .auth-title {
   .bottom-nav-icon { font-size: 1.1rem; }
 
   .bet-slip-bar { bottom: 20px; left: 252px; right: 32px; margin: 0; }
+
+  /* MoreMenu's mobile FAB + sheet give way to the always-visible block
+     below, appended to the same sticky sidebar column as BottomNav. */
+  .more-menu-trigger { display: none; }
+
+  .more-menu-desktop {
+    display: block;
+    border-top: 1px solid var(--border);
+    margin-top: 8px;
+    padding-top: 8px;
+  }
 }
 
 /* Sports news ticker - a horizontal scrolling bar by default (every

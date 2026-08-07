@@ -77,3 +77,15 @@ export function AccountIcon(props) {
     </svg>
   )
 }
+
+// Three stacked lines, shortest on top - a drawer/menu of everything else
+// that doesn't fit BottomNav's six primary tabs (MoreMenu.jsx).
+export function MoreIcon(props) {
+  return (
+    <svg {...base} {...props}>
+      <path d="M8 7h8" />
+      <path d="M4 12h16" />
+      <path d="M4 17h16" />
+    </svg>
+  )
+}

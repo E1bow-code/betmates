@@ -7,6 +7,7 @@ import { OddsFormatProvider } from './context/OddsFormatContext.jsx'
 import { ToastProvider } from './context/ToastContext.jsx'
 import ErrorBoundary from './components/ErrorBoundary.jsx'
 import BottomNav from './components/BottomNav.jsx'
+import MoreMenu from './components/MoreMenu.jsx'
 import InstallGuideBanner from './components/InstallGuideBanner.jsx'
 import OnboardingTour from './components/OnboardingTour.jsx'
 import RealityCheck from './components/RealityCheck.jsx'
@@ -22,7 +23,7 @@ import BetBuilderSheet from './components/BetBuilderSheet.jsx'
 import AuthPage from './pages/AuthPage.jsx'
 const LegalPage = lazy(() => import('./pages/LegalPage.jsx'))
 const HelpPage = lazy(() => import('./pages/HelpPage.jsx'))
-const DashboardPage = lazy(() => import('./pages/DashboardPage.jsx'))
+const HomePage = lazy(() => import('./pages/HomePage.jsx'))
 const OddsListPage = lazy(() => import('./pages/OddsListPage.jsx'))
 const FixtureDetailPage = lazy(() => import('./pages/FixtureDetailPage.jsx'))
 const RaceDetailPage = lazy(() => import('./pages/RaceDetailPage.jsx'))
@@ -228,7 +229,7 @@ function Shell() {
             <Suspense fallback={<div className="loading">Loading…</div>}>
               <Routes>
                 <Route path="/" element={<HomeRedirect />} />
-                <Route path="/dashboard" element={<DashboardPage />} />
+                <Route path="/dashboard" element={<HomePage />} />
                 <Route path="/odds" element={<OddsListPage />} />
                 <Route path="/odds/football/:id" element={<FixtureDetailPage />} />
                 <Route path="/odds/racing/:id" element={<RaceDetailPage />} />
@@ -255,7 +256,10 @@ function Shell() {
           </div>
           <BetSlipBar />
           <BetBuilderSheet />
-          <BottomNav />
+          <div className="sidebar-nav">
+            <BottomNav />
+            <MoreMenu />
+          </div>
           <NewsSidebar headlines={newsHeadlines} />
           {showTour && <OnboardingTour onDone={dismissTour} />}
           <RealityCheck />
