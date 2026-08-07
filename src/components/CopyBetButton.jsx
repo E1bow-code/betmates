@@ -51,7 +51,11 @@ export default function CopyBetButton({ post, userId, copyCount = 0, onCopied })
 
   return (
     <div className="copy-bet-row">
-      <button className="btn btn-secondary btn-small" onClick={handleCopy}>
+      <button
+        className="btn btn-secondary btn-small"
+        onClick={handleCopy}
+        aria-label={copied ? 'Copied to clipboard' : `Copy bet${copyCount > 0 ? ` · copied ${copyCount} time${copyCount === 1 ? '' : 's'}` : ''}`}
+      >
         {copied ? 'Copied!' : copyCount > 0 ? `Copy Bet · ${copyCount}` : 'Copy Bet'}
       </button>
       {link && (
