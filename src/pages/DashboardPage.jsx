@@ -58,7 +58,7 @@ export default function DashboardPage() {
 
   return (
     <div>
-      <SportHeroBanner sport="social" />
+      <SportHeroBanner sport="dashboard" />
 
       <div className="dashboard-hero">
         <p className="dashboard-hero-date">{dateLabel}</p>

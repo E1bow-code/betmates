@@ -28,13 +28,14 @@ const SPORT_QUERIES = {
   // lifestyle photography, so every banner in the app reads as sport at
   // a glance, not just the ones on a sport-specific tab.
   auth: 'stadium floodlights night',
+  dashboard: 'stadium aerial view daytime',
   social: 'sports fans celebrating stadium',
   tracker: 'digital scoreboard close up sports',
-  account: 'sports equipment locker room',
+  account: 'sports jersey number close up',
   achievements: 'championship trophy display',
-  alerts: 'referee whistle close up',
+  alerts: 'stopwatch timer close up sports',
   group: 'sports bar crowd cheering',
-  profile: 'athlete action shot stadium',
+  profile: 'gold medal close up athlete',
   insights: 'stadium scoreboard lights night'
 }
 
