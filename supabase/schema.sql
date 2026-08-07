@@ -657,6 +657,48 @@ create trigger guard_is_admin_on_profiles
   before insert or update on profiles
   for each row execute function guard_is_admin();
 
+-- --- Comment/reaction/copy insert visibility fix --------------------------
+-- Overnight RLS audit: the insert policies for bet_comments, bet_reactions,
+-- and bet_copies only ever checked auth.uid() = the acting user - unlike
+-- bet_posts' own insert policy (which gates on group membership) or
+-- group_messages' (which calls is_group_member()), none of these three
+-- verified the target bet_id was actually something the caller can see.
+-- Since RLS is the only access control this app has (the anon key ships in
+-- the client bundle by design), that meant any signed-in user could POST a
+-- comment/reaction/copy-record onto a private group's bet post via a raw
+-- API call even without being a member - invisible in the UI, but real
+-- against the API directly, and group members WOULD see the injected
+-- comment/reaction show up since the SELECT policies (correctly) already
+-- trust group membership. Reusing each table's own SELECT policy condition
+-- here so insert-eligibility matches read-eligibility exactly: you can only
+-- comment/react/copy on something you could already see.
+drop policy if exists "user comments as themselves" on bet_comments;
+create policy "user comments as themselves" on bet_comments for insert with check (
+  auth.uid() = user_id and exists (
+    select 1 from bet_posts b
+    where b.id = bet_comments.bet_id
+    and (b.visibility = 'public' or exists (select 1 from group_members m where m.group_id = b.group_id and m.user_id = auth.uid()))
+  )
+);
+
+drop policy if exists "user reacts as themselves" on bet_reactions;
+create policy "user reacts as themselves" on bet_reactions for insert with check (
+  auth.uid() = user_id and exists (
+    select 1 from bet_posts b
+    where b.id = bet_reactions.bet_id
+    and (b.visibility = 'public' or exists (select 1 from group_members m where m.group_id = b.group_id and m.user_id = auth.uid()))
+  )
+);
+
+drop policy if exists "user records their own copy" on bet_copies;
+create policy "user records their own copy" on bet_copies for insert with check (
+  auth.uid() = copying_user_id and exists (
+    select 1 from bet_posts b
+    where b.id = bet_copies.original_bet_id
+    and (b.visibility = 'public' or exists (select 1 from group_members m where m.group_id = b.group_id and m.user_id = auth.uid()))
+  )
+);
+
 -- --- Streak milestone push reminders --------------------------------------
 -- netlify/functions/streak-reminders.js celebrates a user's win streak the
 -- first time it reaches 3/5/10 (matching the badge thresholds in
