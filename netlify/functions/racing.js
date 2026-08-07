@@ -77,6 +77,13 @@ function reshapeRace(race) {
   }
 }
 
+// "-" is theracingapi's own placeholder for "no rating yet" - normalised to
+// null so RaceDetailPage can just check truthiness instead of every caller
+// re-checking for the dash.
+function orNull(value) {
+  return value && value !== '-' ? value : null
+}
+
 function reshapeRunner(runner) {
   const number = Number(runner.number) || 0
   const allOdds = (runner.odds ?? [])
@@ -92,6 +99,19 @@ function reshapeRunner(runner) {
     trainer: runner.trainer,
     silkColor: SILK_PALETTE[number % SILK_PALETTE.length],
     allOdds,
-    bestOdds: allOdds.length ? allOdds[0] : null
+    bestOdds: allOdds.length ? allOdds[0] : null,
+    // Recent-form and rating data theracingapi's racecards already return
+    // alongside odds (Standard plan) - previously discarded here. Numbers
+    // come through as strings from the API; left as-is, RaceDetailPage
+    // only displays them, never does arithmetic on them.
+    form: orNull(runner.form),
+    officialRating: orNull(runner.ofr),
+    racingPostRating: orNull(runner.rpr),
+    daysSinceLastRun: orNull(runner.last_run),
+    age: orNull(runner.age),
+    weightLbs: orNull(runner.lbs),
+    draw: orNull(runner.draw),
+    headgear: orNull(runner.headgear),
+    spotlight: orNull(runner.spotlight)
   }
 }

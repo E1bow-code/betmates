@@ -3,6 +3,23 @@ import react from '@vitejs/plugin-react'
 import { VitePWA } from 'vite-plugin-pwa'
 
 export default defineConfig({
+  build: {
+    rollupOptions: {
+      output: {
+        // React and supabase-js are both needed before anything renders, so
+        // splitting them out doesn't cut what a first-time visitor downloads
+        // - it cuts what a returning one re-downloads. They're ~2/3 of the
+        // entry chunk and change only when a dependency is upgraded, but
+        // sharing a chunk with app code meant every deploy rehashed the lot
+        // and invalidated it. Separate chunks keep them cached across the
+        // frequent deploys where only app code moved.
+        manualChunks: {
+          'vendor-react': ['react', 'react-dom', 'react-router-dom'],
+          'vendor-supabase': ['@supabase/supabase-js']
+        }
+      }
+    }
+  },
   plugins: [
     react(),
     VitePWA({

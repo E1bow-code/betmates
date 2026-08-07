@@ -184,7 +184,28 @@ create policy "members post bets as themselves" on bet_posts for insert with che
     or exists (select 1 from group_members m where m.group_id = bet_posts.group_id and m.user_id = auth.uid())
   )
 );
-create policy "author updates own bet status" on bet_posts for update using (auth.uid() = user_id);
+-- Restricted to status = 'open' - without it, an author could rewrite a
+-- settled bet's stake or outcome after the fact via a raw API call, which
+-- undermines the whole trust-based-leaderboard model. Matches how the
+-- existing self-report "mark result" flow already only ever fires from
+-- 'open', and how the edit/delete UI (src/components/EditBetSheet.jsx)
+-- gates itself client-side - this makes that the enforced rule, not just
+-- the convention. DELETE didn't exist for authors at all before this.
+--
+-- The with check clause matters: Postgres reuses an UPDATE policy's using
+-- expression as its check on the *new* row when no with check is given,
+-- which would make status = 'open' a requirement of the result too - and
+-- break the self-report transition into 'won'/'lost'/'void' this policy is
+-- meant to allow. using still gates which rows can be touched at all
+-- (must be open going in); with check only re-confirms ownership.
+create policy "author updates own open bet post" on bet_posts for update using (
+  auth.uid() = user_id and status = 'open'
+) with check (
+  auth.uid() = user_id
+);
+create policy "author deletes own open bet post" on bet_posts for delete using (
+  auth.uid() = user_id and status = 'open'
+);
 
 create policy "members or anyone read copies of visible bet posts" on bet_copies for select using (
   exists (
@@ -216,7 +237,19 @@ create policy "user comments as themselves" on bet_comments for insert with chec
 
 create policy "user reads own tracker entries" on manual_entries for select using (auth.uid() = user_id);
 create policy "user writes own tracker entries" on manual_entries for insert with check (auth.uid() = user_id);
-create policy "user updates own tracker entries" on manual_entries for update using (auth.uid() = user_id);
+-- Same status = 'open' restriction as bet_posts above, and for the same
+-- reason - a settled entry is a historical record, not something to
+-- quietly rewrite after the fact. with check is the same fix too: without
+-- it Postgres would reuse using as the check on the new row and block the
+-- open -> won/lost/void self-report transition this policy needs to allow.
+create policy "user updates own open tracker entry" on manual_entries for update using (
+  auth.uid() = user_id and status = 'open'
+) with check (
+  auth.uid() = user_id
+);
+create policy "user deletes own open tracker entry" on manual_entries for delete using (
+  auth.uid() = user_id and status = 'open'
+);
 
 -- fixtures / odds_snapshots are public reference data cached by the
 -- Netlify Function (netlify/functions/odds.js) using the service role key,
@@ -582,3 +615,98 @@ create table followed_participants (
 );
 alter table followed_participants enable row level security;
 create policy "user manages own followed participants" on followed_participants for all using (auth.uid() = user_id) with check (auth.uid() = user_id);
+
+-- --- Admin flag integrity -------------------------------------------------
+-- profiles.is_admin decides who can read every moderation report and delete
+-- anyone's bet post, but "update own profile" lets a user write their own
+-- profiles row, and a Postgres RLS policy is row-level - it can't stop one
+-- particular column being set. Nothing here is hidden, either: the anon key
+-- ships in the client bundle by design (RLS is what protects the data), so
+-- any signed-in user could open a console and run
+--   supabase.from('profiles').update({ is_admin: true }).eq('id', <own id>)
+-- and hand themselves moderator rights. The insert policy has the same hole
+-- at sign-up time.
+--
+-- Column-level GRANTs would fix it but need every updatable column listing
+-- by hand, which silently breaks open again the next time one is added.
+-- A trigger defaults the other way: is_admin holds its previous value (and
+-- starts false) for anything arriving over the public API, whatever columns
+-- the row grows later. auth.role() is 'anon'/'authenticated' only for those
+-- requests, so the service-role key and direct SQL - the two ways an
+-- operator actually grants admin - still work untouched.
+create or replace function guard_is_admin()
+returns trigger
+language plpgsql
+security definer
+set search_path = public
+as $$
+begin
+  if auth.role() in ('anon', 'authenticated') then
+    if tg_op = 'INSERT' then
+      new.is_admin := false;
+    else
+      new.is_admin := old.is_admin;
+    end if;
+  end if;
+  return new;
+end;
+$$;
+
+drop trigger if exists guard_is_admin_on_profiles on profiles;
+create trigger guard_is_admin_on_profiles
+  before insert or update on profiles
+  for each row execute function guard_is_admin();
+
+-- --- Comment/reaction/copy insert visibility fix --------------------------
+-- Overnight RLS audit: the insert policies for bet_comments, bet_reactions,
+-- and bet_copies only ever checked auth.uid() = the acting user - unlike
+-- bet_posts' own insert policy (which gates on group membership) or
+-- group_messages' (which calls is_group_member()), none of these three
+-- verified the target bet_id was actually something the caller can see.
+-- Since RLS is the only access control this app has (the anon key ships in
+-- the client bundle by design), that meant any signed-in user could POST a
+-- comment/reaction/copy-record onto a private group's bet post via a raw
+-- API call even without being a member - invisible in the UI, but real
+-- against the API directly, and group members WOULD see the injected
+-- comment/reaction show up since the SELECT policies (correctly) already
+-- trust group membership. Reusing each table's own SELECT policy condition
+-- here so insert-eligibility matches read-eligibility exactly: you can only
+-- comment/react/copy on something you could already see.
+drop policy if exists "user comments as themselves" on bet_comments;
+create policy "user comments as themselves" on bet_comments for insert with check (
+  auth.uid() = user_id and exists (
+    select 1 from bet_posts b
+    where b.id = bet_comments.bet_id
+    and (b.visibility = 'public' or exists (select 1 from group_members m where m.group_id = b.group_id and m.user_id = auth.uid()))
+  )
+);
+
+drop policy if exists "user reacts as themselves" on bet_reactions;
+create policy "user reacts as themselves" on bet_reactions for insert with check (
+  auth.uid() = user_id and exists (
+    select 1 from bet_posts b
+    where b.id = bet_reactions.bet_id
+    and (b.visibility = 'public' or exists (select 1 from group_members m where m.group_id = b.group_id and m.user_id = auth.uid()))
+  )
+);
+
+drop policy if exists "user records their own copy" on bet_copies;
+create policy "user records their own copy" on bet_copies for insert with check (
+  auth.uid() = copying_user_id and exists (
+    select 1 from bet_posts b
+    where b.id = bet_copies.original_bet_id
+    and (b.visibility = 'public' or exists (select 1 from group_members m where m.group_id = b.group_id and m.user_id = auth.uid()))
+  )
+);
+
+-- --- Streak milestone push reminders --------------------------------------
+-- netlify/functions/streak-reminders.js celebrates a user's win streak the
+-- first time it reaches 3/5/10 (matching the badge thresholds in
+-- src/utils/achievements.js). streak_milestone_notified tracks the highest
+-- milestone already sent so it never re-fires for one they've already hit -
+-- same idea as kickoff_reminder_sent_at, but per-user rather than per-bet
+-- since a streak isn't tied to one row. It's monotonic and never resets on a
+-- loss: like the achievement badges it mirrors, a milestone stays "earned"
+-- even after the streak that reached it ends. No new RLS policy needed:
+-- "update own profile" already covers this column.
+alter table profiles add column if not exists streak_milestone_notified integer not null default 0;

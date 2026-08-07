@@ -21,6 +21,7 @@ import WatchLiveButton from '../components/WatchLiveButton.jsx'
 import OddsAlertSheet from '../components/OddsAlertSheet.jsx'
 import FollowButton from '../components/FollowButton.jsx'
 import FollowParticipantButton from '../components/FollowParticipantButton.jsx'
+import ParticipantProfileSheet from '../components/ParticipantProfileSheet.jsx'
 
 const PLAYER_MARKET_KEYS = ['player_goal_scorer_anytime', 'player_first_goal_scorer', 'player_last_goal_scorer']
 
@@ -35,6 +36,7 @@ export default function FixtureDetailPage() {
   const [alertTarget, setAlertTarget] = useState(null)
   const [expandedOutcome, setExpandedOutcome] = useState(null)
   const [expandedMarkets, setExpandedMarkets] = useState(new Set())
+  const [profileTarget, setProfileTarget] = useState(null)
 
   useEffect(() => {
     fetchFixture(id)
@@ -117,7 +119,7 @@ export default function FixtureDetailPage() {
         {isLive(fixture.kickoff, 'football') && (
           <div className="race-header-live">
             <LiveBadge />
-            <WatchLiveButton />
+            <WatchLiveButton leagueKey={fixture.sportKey} participants={[fixture.homeTeam, fixture.awayTeam]} kickoff={fixture.kickoff} />
           </div>
         )}
         <label className="filter-toggle">
@@ -136,9 +138,9 @@ export default function FixtureDetailPage() {
         const marketOpen = expandedMarkets.has(market.key)
         return (
         <div key={market.key} className="market-block">
-          <button className="market-header" onClick={() => toggleMarket(market.key)} type="button">
+          <button className="market-header" onClick={() => toggleMarket(market.key)} type="button" aria-expanded={marketOpen}>
             <h2 className="market-title">{market.label}</h2>
-            <span className="market-header-meta">
+            <span className={marketOpen ? 'market-header-meta market-header-meta-open' : 'market-header-meta'}>
               {market.outcomes.length} {marketOpen ? '▴' : '▾'}
             </span>
           </button>
@@ -160,13 +162,23 @@ export default function FixtureDetailPage() {
               return (
                 <div key={outcome.name} className={selected ? 'outcome-row is-selected' : 'outcome-row'}>
                   <div className="outcome-row-buttons">
+                    {PLAYER_MARKET_KEYS.includes(market.key) && (
+                      <button
+                        className="outcome-profile-btn"
+                        type="button"
+                        aria-label={`View ${outcome.name}'s profile`}
+                        onClick={(e) => {
+                          e.stopPropagation()
+                          setProfileTarget(outcome.name)
+                        }}
+                      >
+                        <PlayerPhoto name={outcome.name} size={30} />
+                      </button>
+                    )}
                     <button className="outcome-row-main" onClick={() => pick(market, outcome)} disabled={!best}>
                       <span className="outcome-name">
                         {PLAYER_MARKET_KEYS.includes(market.key) ? (
-                          <span className="fixture-team">
-                            <PlayerPhoto name={outcome.name} size={26} />
-                            <span>{outcome.name}</span>
-                          </span>
+                          <span>{outcome.name}</span>
                         ) : outcome.name === 'Home' || outcome.name === 'Away' ? (
                           <span className="fixture-team">
                             <TeamBadge team={outcome.name === 'Home' ? fixture.homeTeam : fixture.awayTeam} size={20} />
@@ -248,6 +260,7 @@ export default function FixtureDetailPage() {
       })}
 
       {alertTarget && <OddsAlertSheet target={alertTarget} onClose={() => setAlertTarget(null)} />}
+      {profileTarget && <ParticipantProfileSheet name={profileTarget} onClose={() => setProfileTarget(null)} />}
     </div>
   )
 }

@@ -5,6 +5,7 @@ import { requestPasswordReset } from '../lib/dataStore.js'
 import { isSupabaseConfigured } from '../lib/supabaseClient.js'
 import { fetchSportPhoto } from '../api/photoClient.js'
 import { PENDING_REFERRAL_KEY } from '../lib/referral.js'
+import LandingPitch from '../components/LandingPitch.jsx'
 
 function todayMinusYears(years) {
   const d = new Date()
@@ -109,7 +110,11 @@ export default function AuthPage() {
   return (
     <div className="auth-page" style={bannerUrl ? { backgroundImage: `url(${bannerUrl})` } : undefined}>
       <div className="auth-page-scrim" />
-      <div className="auth-card">
+      <div className="auth-layout">
+        {mode === 'signup' && (
+          <LandingPitch onGetStarted={() => document.getElementById('auth-form')?.scrollIntoView({ behavior: 'smooth' })} />
+        )}
+        <div className="auth-card" id="auth-form">
         <h1 className="auth-title">
           <img src="/favicon.svg" alt="" className="auth-logo-mark" />
           BetMates
@@ -185,6 +190,7 @@ export default function AuthPage() {
             BeGambleAware.org
           </a>
         </p>
+        </div>
       </div>
     </div>
   )

@@ -33,13 +33,19 @@ export function formatOdds(decimal, format, nativeFraction) {
 export function parseOddsInput(input) {
   const trimmed = String(input ?? '').trim()
   if (!trimmed) return null
+  // A real price is always > 1.0 decimal (evens = 2.0, and a fraction's
+  // parts are both positive) - anything else is a typo, and letting it
+  // through produces a "payout" below the stake in the calculator rather
+  // than an empty field the user can see is wrong.
   if (trimmed.includes('/')) {
-    const [numStr, denStr] = trimmed.split('/')
-    const num = Number(numStr)
-    const den = Number(denStr)
-    if (!Number.isFinite(num) || !Number.isFinite(den) || den === 0) return null
+    const parts = trimmed.split('/')
+    if (parts.length !== 2) return null
+    const num = Number(parts[0])
+    const den = Number(parts[1])
+    if (!Number.isFinite(num) || !Number.isFinite(den)) return null
+    if (num <= 0 || den <= 0) return null
     return 1 + num / den
   }
   const decimal = Number(trimmed)
-  return Number.isFinite(decimal) ? decimal : null
+  return Number.isFinite(decimal) && decimal > 1 ? decimal : null
 }

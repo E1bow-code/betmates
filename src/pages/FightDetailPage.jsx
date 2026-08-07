@@ -20,6 +20,7 @@ import WatchLiveButton from '../components/WatchLiveButton.jsx'
 import OddsAlertSheet from '../components/OddsAlertSheet.jsx'
 import FollowButton from '../components/FollowButton.jsx'
 import FollowParticipantButton from '../components/FollowParticipantButton.jsx'
+import ParticipantProfileSheet from '../components/ParticipantProfileSheet.jsx'
 
 export default function FightDetailPage() {
   const { id } = useParams()
@@ -32,6 +33,7 @@ export default function FightDetailPage() {
   const [alertTarget, setAlertTarget] = useState(null)
   const [expandedOutcome, setExpandedOutcome] = useState(null)
   const [expandedMarkets, setExpandedMarkets] = useState(new Set())
+  const [profileTarget, setProfileTarget] = useState(null)
 
   useEffect(() => {
     fetchFight(id)
@@ -87,14 +89,18 @@ export default function FightDetailPage() {
       <div className="race-header">
         <h1 className="fixture-teams-row">
           <span className="fixture-team">
-            <PlayerPhoto name={fight.fighterA} size={26} />
-            <span>{fight.fighterA}</span>
+            <button type="button" className="fixture-team-profile-btn" onClick={() => setProfileTarget(fight.fighterA)}>
+              <PlayerPhoto name={fight.fighterA} size={26} />
+              <span>{fight.fighterA}</span>
+            </button>
             <FollowParticipantButton sport="ufc" name={fight.fighterA} />
           </span>
           <span className="fixture-vs">v</span>
           <span className="fixture-team">
-            <PlayerPhoto name={fight.fighterB} size={26} />
-            <span>{fight.fighterB}</span>
+            <button type="button" className="fixture-team-profile-btn" onClick={() => setProfileTarget(fight.fighterB)}>
+              <PlayerPhoto name={fight.fighterB} size={26} />
+              <span>{fight.fighterB}</span>
+            </button>
             <FollowParticipantButton sport="ufc" name={fight.fighterB} />
           </span>
         </h1>
@@ -105,7 +111,7 @@ export default function FightDetailPage() {
         {isLive(fight.kickoff, 'ufc') && (
           <div className="race-header-live">
             <LiveBadge />
-            <WatchLiveButton />
+            <WatchLiveButton leagueKey="ufc" participants={[fight.fighterA, fight.fighterB]} kickoff={fight.kickoff} />
           </div>
         )}
         <label className="filter-toggle">
@@ -128,7 +134,7 @@ export default function FightDetailPage() {
         const marketOpen = expandedMarkets.has(market.key)
         return (
         <div key={market.key} className="market-block">
-          <button className="market-header" onClick={() => toggleMarket(market.key)} type="button">
+          <button className="market-header" onClick={() => toggleMarket(market.key)} type="button" aria-expanded={marketOpen}>
             <h2 className="market-title">{market.label}</h2>
             <span className="market-header-meta">
               {market.outcomes.length} {marketOpen ? '▴' : '▾'}
@@ -225,6 +231,7 @@ export default function FightDetailPage() {
       })}
 
       {alertTarget && <OddsAlertSheet target={alertTarget} onClose={() => setAlertTarget(null)} />}
+      {profileTarget && <ParticipantProfileSheet name={profileTarget} onClose={() => setProfileTarget(null)} />}
     </div>
   )
 }

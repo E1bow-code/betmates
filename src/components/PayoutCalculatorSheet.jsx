@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { useOddsFormat } from '../context/OddsFormatContext.jsx'
 import { parseOddsInput } from '../utils/oddsFormat.js'
+import { useEscapeKey } from '../lib/useEscapeKey.js'
 
 // Standalone "what if" tool, independent of the bet slip - lets someone
 // plan a stake against a price without first tapping a real outcome onto
@@ -12,6 +13,7 @@ export default function PayoutCalculatorButton() {
   const { format } = useOddsFormat()
   const [stake, setStake] = useState('')
   const [oddsInput, setOddsInput] = useState('')
+  useEscapeKey(close, open)
 
   const decimal = parseOddsInput(oddsInput)
   const stakeNum = stake ? Number(stake) : null

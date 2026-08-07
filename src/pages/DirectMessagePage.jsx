@@ -4,6 +4,7 @@ import { useAuth } from '../context/AuthContext.jsx'
 import { useActivity } from '../context/ActivityContext.jsx'
 import * as dataStore from '../lib/dataStore.js'
 import { notifyFriend } from '../lib/notify.js'
+import { formatRelativeTime } from '../utils/format.js'
 import Avatar from '../components/Avatar.jsx'
 import EmptyState from '../components/EmptyState.jsx'
 import PullToRefresh from '../components/PullToRefresh.jsx'
@@ -59,7 +60,10 @@ export default function DirectMessagePage() {
         <Link to="/groups" state={{ segment: 'tips' }} className="back">
           &larr; Friends
         </Link>
-        <h1>{friend?.displayName ?? 'Message'}</h1>
+        <div className="dm-header-row">
+          {friend && <Avatar name={friend.displayName} photoUrl={friend.avatarUrl} size={30} />}
+          <h1>{friend?.displayName ?? 'Message'}</h1>
+        </div>
       </div>
 
       {error && <div className="error">Couldn't load this conversation: {error}</div>}
@@ -76,8 +80,11 @@ export default function DirectMessagePage() {
               return (
                 <div key={m.id} className={mine ? 'chat-message chat-message-mine' : 'chat-message'}>
                   {!mine && <Avatar name={friend?.displayName ?? 'Someone'} photoUrl={friend?.avatarUrl} size={26} />}
-                  <div className="chat-bubble">
-                    <div>{m.body}</div>
+                  <div>
+                    <div className="chat-bubble">
+                      <div>{m.body}</div>
+                    </div>
+                    <div className="chat-message-time">{formatRelativeTime(m.createdAt)}</div>
                   </div>
                 </div>
               )

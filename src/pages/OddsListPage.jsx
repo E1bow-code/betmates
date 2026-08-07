@@ -269,13 +269,19 @@ export default function OddsListPage() {
             </label>
           )}
         </div>
-        <input
-          className="search-input"
-          type="search"
-          placeholder="Search all sports by team, fighter, player…"
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-        />
+        <div className="odds-search">
+          <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <circle cx="11" cy="11" r="7" />
+            <path d="m20 20-3.2-3.2" />
+          </svg>
+          <input
+            className="search-input"
+            type="search"
+            placeholder="Search all sports by team, fighter, player…"
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+          />
+        </div>
       </div>
 
       {mode === 'upcoming' && searchActive && (
@@ -320,6 +326,12 @@ export default function OddsListPage() {
               title="Nothing on the board"
               subtitle="Check back closer to kick-off — new fixtures land as they're announced."
             />
+          )}
+
+          {loaded && loaded.length > 0 && (
+            <p className="odds-tally">
+              {loaded.length} on the board{myBookiesOnly || myTeamsOnly ? ' · filtered' : ''}
+            </p>
           )}
 
           {loaded && loaded.length > 0 && sport === 'racing' && (
@@ -402,18 +414,21 @@ function CrossSportCard({ item, bookmakerFilter, format }) {
 function ResultCard({ game }) {
   const home = game.scores.find((s) => s.name === game.homeTeam)?.score
   const away = game.scores.find((s) => s.name === game.awayTeam)?.score
+  const homeWon = home != null && away != null && home > away
+  const awayWon = home != null && away != null && away > home
   return (
     <div className="race-card result-card">
       <div className="race-card-main">
-        <div className="result-row">
+        <div className={homeWon ? 'result-row result-row-winner' : 'result-row'}>
           <span>{game.homeTeam}</span>
           <span className="result-score">{home ?? '-'}</span>
         </div>
-        <div className="result-row">
+        <div className={awayWon ? 'result-row result-row-winner' : 'result-row'}>
           <span>{game.awayTeam}</span>
           <span className="result-score">{away ?? '-'}</span>
         </div>
       </div>
+      <span className="result-card-tag">FT</span>
     </div>
   )
 }

@@ -9,6 +9,7 @@ import { notifyGroup, notifyFollowers } from '../lib/notify.js'
 import { formatOdds } from '../utils/oddsFormat.js'
 import { periodStart, sumStakesSince } from '../utils/spendLimit.js'
 import { getEachWayTerms, computeEachWayReturn } from '../utils/eachWay.js'
+import { useEscapeKey } from '../lib/useEscapeKey.js'
 
 // The bet slip: reads its legs from BetSlipContext rather than a single
 // `selection` prop, so tapping outcomes across different fixtures builds
@@ -48,6 +49,10 @@ export default function BetBuilderSheet() {
       setPeriodSpend(sumStakesSince([...posted, ...manual], periodStart(user.stakeLimitPeriod)))
     })
   }, [user.id, user.stakeLimitAmount, user.stakeLimitPeriod])
+
+  useEscapeKey(() => {
+    if (!submitting) closeSheet()
+  }, sheetOpen && legs.length > 0)
 
   if (!sheetOpen || !legs.length) return null
 

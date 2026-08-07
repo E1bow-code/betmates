@@ -29,11 +29,11 @@ const SPORT_QUERIES = {
   // a glance, not just the ones on a sport-specific tab.
   auth: 'stadium floodlights night',
   social: 'sports fans celebrating stadium',
-  tracker: 'sports stadium scoreboard',
+  tracker: 'digital scoreboard close up sports',
   account: 'sports equipment locker room',
-  achievements: 'trophy celebration stadium',
-  alerts: 'football referee whistle',
-  group: 'football team huddle celebration',
+  achievements: 'championship trophy display',
+  alerts: 'referee whistle close up',
+  group: 'sports bar crowd cheering',
   profile: 'athlete action shot stadium',
   insights: 'stadium scoreboard lights night'
 }

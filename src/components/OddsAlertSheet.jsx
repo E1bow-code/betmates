@@ -3,6 +3,7 @@ import * as dataStore from '../lib/dataStore.js'
 import { useAuth } from '../context/AuthContext.jsx'
 import { useOddsFormat } from '../context/OddsFormatContext.jsx'
 import { formatOdds } from '../utils/oddsFormat.js'
+import { useEscapeKey } from '../lib/useEscapeKey.js'
 
 // Opened from the bell button on an outcome row (FixtureDetailPage,
 // FightDetailPage, GenericEventDetailPage - not RaceDetailPage, see
@@ -13,6 +14,7 @@ import { formatOdds } from '../utils/oddsFormat.js'
 export default function OddsAlertSheet({ target, onClose, onCreated }) {
   const { user } = useAuth()
   const { format } = useOddsFormat()
+  useEscapeKey(onClose)
   const [targetPrice, setTargetPrice] = useState(target.currentDecimal.toFixed(2))
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState(null)

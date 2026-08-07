@@ -1,3 +1,5 @@
+import { computeEachWayReturn } from '../utils/eachWay.js'
+
 // Pure score-vs-selection evaluation, no I/O - shared by src/lib/settlement.js
 // (client-triggered, on a Tracker visit) and netlify/functions/auto-settle.js
 // (scheduled, runs without anyone visiting). Keeping this side-effect-free is
@@ -20,9 +22,10 @@ export function findGame(leg, games) {
 // win. Not a real status the DB accepts (see supabase/schema.sql's check
 // constraint) - callers settle it as 'won' with potentialReturn corrected
 // down to the place-part payout (src/utils/eachWay.js), the same way
-// TrackerPage's manual "Placed (not won)" option already does. Only
-// manual_entries can represent that reduced payout today, so a 'placed'
-// result on a bet_post is left open rather than settled incorrectly.
+// TrackerPage's manual "Placed (not won)" option already does. bet_posts and
+// manual_entries share the same status/potential_return shape, so both
+// settle paths apply this the same way regardless of which table the entry
+// came from.
 
 // A race that never shows up in results (abandoned meeting, waterlogged
 // track, etc.) doesn't get flagged as such anywhere the results endpoint
@@ -109,9 +112,53 @@ export function evaluateLeg(leg, games, raceResults) {
 // single-leg each-way bet (the only shape BetBuilderSheet allows each-way
 // on), so it never has to compete with other legs' outcomes.
 export function evaluateEntry(entry, games, raceResults) {
+  return evaluateEntryDetailed(entry, games, raceResults).status
+}
+
+// Same rules as evaluateEntry, but keeps the per-leg outcomes so callers can
+// re-price a winning multi that contains a void leg (see voidAdjustedReturn).
+export function evaluateEntryDetailed(entry, games, raceResults) {
   const outcomes = entry.selections.map((leg) => evaluateLeg(leg, games, raceResults))
-  if (outcomes.some((o) => o === 'lost')) return 'lost'
-  if (outcomes.some((o) => o === 'undetermined')) return null
-  if (outcomes.some((o) => o === 'placed')) return 'placed'
-  return outcomes.every((o) => o === 'void') ? 'void' : 'won'
+  if (outcomes.some((o) => o === 'lost')) return { status: 'lost', outcomes }
+  if (outcomes.some((o) => o === 'undetermined')) return { status: null, outcomes }
+  if (outcomes.some((o) => o === 'placed')) return { status: 'placed', outcomes }
+  return { status: outcomes.every((o) => o === 'void') ? 'void' : 'won', outcomes }
+}
+
+// A void leg in an otherwise-winning multi doesn't sink the bet, but it must
+// not be paid on either - the standard bookmaker rule is to set that leg to
+// odds 1.00 and re-price the accumulator, so the punter gets the rest of the
+// multi at its real price. The stored potentialReturn was computed at bet
+// time from every leg (see BetBuilderSheet), so without this correction a
+// postponed fixture or a non-runner pays out as if it had won.
+//
+// Returns undefined when there's nothing to correct (no void legs, or the
+// whole bet voided and the stake just comes back), which is exactly the
+// "leave potential_return alone" signal both settle paths already use.
+export function voidAdjustedReturn(entry, outcomes) {
+  if (!outcomes.some((o) => o === 'void')) return undefined
+  if (outcomes.every((o) => o === 'void')) return undefined
+  if (!Number.isFinite(Number(entry.stake))) return undefined
+  const odds = entry.selections.reduce((acc, leg, i) => (outcomes[i] === 'void' ? acc : acc * Number(leg.odds)), 1)
+  if (!Number.isFinite(odds)) return undefined
+  return Math.round(Number(entry.stake) * odds * 100) / 100
+}
+
+// Turns an evaluateEntryDetailed() result into what to actually write on
+// settlement: the DB status plus any potentialReturn correction (void-leg
+// re-pricing or an each-way place). Pure, and deliberately table-agnostic -
+// bet_posts and manual_entries share the same status/potential_return
+// columns (see supabase/schema.sql), so this is the one place that decides
+// the payout for both, rather than settlement.js and auto-settle.js each
+// hand-rolling their own copy of this branching and risking the two
+// disagreeing. Returns null when there's nothing to settle yet
+// (evaluateEntryDetailed found an undetermined leg).
+export function resolveSettlement(entry, { status, outcomes }) {
+  if (!status) return null
+  if (status === 'placed') {
+    const leg = entry.selections[0]
+    const terms = { fraction: leg.eachWayFraction, places: leg.eachWayPlaces }
+    return { status: 'won', potentialReturnOverride: Math.round(computeEachWayReturn(entry.stake, leg.odds, terms, 'place') * 100) / 100 }
+  }
+  return { status, potentialReturnOverride: status === 'won' ? voidAdjustedReturn(entry, outcomes) : undefined }
 }

@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import { useAuth } from '../context/AuthContext.jsx'
 import * as dataStore from '../lib/dataStore.js'
 import { saveVideoBlob } from '../lib/videoStore.js'
+import { useEscapeKey } from '../lib/useEscapeKey.js'
 
 const MAX_SECONDS = 60
 
@@ -22,6 +23,7 @@ export default function VideoRecorder({ onClose, onPosted }) {
   const [tag, setTag] = useState('')
   const [error, setError] = useState(null)
   const [submitting, setSubmitting] = useState(false)
+  useEscapeKey(handleClose)
 
   const videoRef = useRef(null)
   const streamRef = useRef(null)

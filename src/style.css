@@ -43,7 +43,7 @@
   --surface-2: #ece1c9;
   --border: #d9c8a3;
   --text: #241a06;
-  --text-dim: #8a7754;
+  --text-dim: #7d6a49; /* darkened from #8a7754 - the original was 4.26:1 against --surface, just under WCAG AA's 4.5:1 for normal text; this clears ~5.1:1 */
   --accent: #b9822a;
   --accent-rgb: 185, 130, 42;
   --accent-dim: #96681f;
@@ -395,11 +395,73 @@ h1, h2, .topbar h1, .sheet-title, .auth-title {
   background: linear-gradient(180deg, rgba(var(--bg-rgb), 0.55) 0%, rgba(var(--bg-rgb), 0.92) 60%, var(--bg) 100%);
 }
 
-.auth-card {
+.auth-layout {
   position: relative;
   z-index: 1;
   width: 100%;
+  max-width: 980px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 36px;
+}
+
+.auth-card {
+  width: 100%;
   max-width: 380px;
+  flex-shrink: 0;
+}
+
+/* Only rendered in signup mode (see AuthPage.jsx) - a returning visitor
+   who taps "Sign in" gets straight to the compact form, no pitch to
+   scroll past. Every referral/share link in the app lands a first-time,
+   logged-out visitor right here, so this is the one place that explains
+   what BetMates is before asking for an email address. */
+.landing-pitch {
+  width: 100%;
+  max-width: 480px;
+  text-align: center;
+}
+
+.landing-pitch-title { font-size: 1.7rem; margin: 0 0 12px; text-wrap: balance; }
+.landing-pitch-lead { color: var(--text-dim); font-size: 1rem; line-height: 1.6; margin: 0 0 28px; }
+
+.landing-features {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+  margin-bottom: 24px;
+  text-align: left;
+}
+
+.landing-feature { display: flex; align-items: flex-start; gap: 14px; }
+.landing-feature-icon { color: var(--accent); flex-shrink: 0; margin-top: 3px; }
+.landing-feature-title { font-weight: 600; margin-bottom: 2px; }
+.landing-feature-body { color: var(--text-dim); font-size: 0.88rem; line-height: 1.5; margin: 0; }
+
+.landing-trust {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  text-align: left;
+  color: var(--text-dim);
+  font-size: 0.85rem;
+  line-height: 1.5;
+  background: color-mix(in srgb, var(--accent) 12%, transparent);
+  border: 1px solid var(--accent-dim);
+  border-radius: 10px;
+  padding: 12px 14px;
+  margin-bottom: 24px;
+}
+.landing-trust svg { color: var(--accent); flex-shrink: 0; margin-top: 1px; }
+
+.landing-cta { width: 100%; max-width: 300px; }
+
+@media (min-width: 860px) {
+  .auth-layout { flex-direction: row; align-items: flex-start; justify-content: center; gap: 64px; }
+  .landing-pitch { text-align: left; padding-top: 12px; }
+  .landing-pitch-lead { margin-left: 0; margin-right: 0; }
+  .landing-cta { margin: 0 auto; }
 }
 
 .auth-forgot-link {
@@ -493,6 +555,7 @@ h1, h2, .topbar h1, .sheet-title, .auth-title {
 .btn-danger { background: var(--bad); color: #fff; }
 .btn-danger:disabled { opacity: 0.5; }
 .btn-danger-outline { background: transparent; color: var(--bad); border: 1px solid var(--bad); }
+.btn-danger-outline:disabled { opacity: 0.5; }
 
 .danger-zone { border: 1px solid var(--bad); border-radius: 4px; padding: 12px; }
 
@@ -502,6 +565,7 @@ h1, h2, .topbar h1, .sheet-title, .auth-title {
   border: 1px solid var(--border);
   border-radius: 4px;
   overflow: hidden;
+  background: linear-gradient(180deg, var(--surface) 0%, var(--surface-2) 100%);
 }
 .conversation-row {
   display: flex;
@@ -511,7 +575,9 @@ h1, h2, .topbar h1, .sheet-title, .auth-title {
   border-bottom: 1px solid var(--border);
   text-decoration: none;
   color: var(--text);
+  transition: background-color 0.15s ease;
 }
+.conversation-row:hover, .conversation-row:focus-visible { background: rgba(var(--accent-rgb), 0.06); }
 .conversation-list .conversation-row:last-child { border-bottom: none; }
 .conversation-row-main { flex: 1; min-width: 0; }
 .conversation-row-name { font-weight: 600; font-size: 0.92rem; }
@@ -609,8 +675,46 @@ h1, h2, .topbar h1, .sheet-title, .auth-title {
 /* Topbar with filter toggle */
 .topbar { display: flex; flex-direction: column; gap: 4px; }
 .tracker-checking { font-size: 0.75rem; color: var(--text-dim); font-style: italic; }
-.filter-toggle { display: flex; align-items: center; gap: 6px; font-size: 0.82rem; color: var(--text-dim); margin-top: 4px; }
+.filter-toggle { display: flex; align-items: center; gap: 7px; font-size: 0.82rem; color: var(--text-dim); margin-top: 4px; }
 .filter-toggle-inline { margin-top: 0; white-space: nowrap; flex-shrink: 0; }
+
+/* A physical flip-switch rather than a bare checkbox - reused everywhere
+   a "my bookies/teams only" style toggle appears, not just here. */
+.filter-toggle input[type='checkbox'] {
+  appearance: none;
+  -webkit-appearance: none;
+  position: relative;
+  width: 30px;
+  height: 17px;
+  margin: 0;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+  background: var(--surface-2);
+  cursor: pointer;
+  flex-shrink: 0;
+  transition: background-color 0.15s ease, border-color 0.15s ease;
+}
+.filter-toggle input[type='checkbox']::before {
+  content: '';
+  position: absolute;
+  top: 1px;
+  left: 1px;
+  width: 13px;
+  height: 13px;
+  border-radius: 50%;
+  background: var(--text-dim);
+  transition: transform 0.15s ease, background-color 0.15s ease;
+}
+.filter-toggle input[type='checkbox']:checked {
+  background: rgba(var(--accent-rgb), 0.25);
+  border-color: var(--accent);
+}
+.filter-toggle input[type='checkbox']:checked::before {
+  transform: translateX(13px);
+  background: var(--accent);
+}
+.filter-toggle input[type='checkbox']:disabled { opacity: 0.45; cursor: not-allowed; }
+.filter-toggle input[type='checkbox']:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 
 .search-input {
   background: var(--surface);
@@ -622,8 +726,35 @@ h1, h2, .topbar h1, .sheet-title, .auth-title {
   font-family: inherit;
   margin: 6px 0 2px;
   width: 100%;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
 }
 .search-input::placeholder { color: var(--text-dim); }
+.search-input:focus {
+  outline: none;
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px rgba(var(--accent-rgb), 0.15);
+}
+
+/* Wraps .search-input on the Odds page to add a magnifier glyph - own
+   wrapper rather than baking padding into .search-input, since other
+   pages use that class bare with no icon. */
+.odds-search { position: relative; margin: 6px 0 2px; }
+.odds-search .search-input { margin: 0; padding-left: 34px; }
+.odds-search svg {
+  position: absolute;
+  left: 10px;
+  top: 50%;
+  transform: translateY(-50%);
+  color: var(--text-dim);
+  pointer-events: none;
+}
+
+.odds-tally {
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+  color: var(--text-dim);
+  margin: 2px 2px 0;
+}
 
 .mode-switcher { display: flex; gap: 2px; margin: 4px 0 2px; border: 1px solid var(--border); border-radius: 4px; overflow: hidden; width: fit-content; }
 .mode-tab { background: var(--surface); border: none; color: var(--text-dim); padding: 6px 14px; font-size: 0.8rem; font-weight: 600; cursor: pointer; }
@@ -642,6 +773,15 @@ h1, h2, .topbar h1, .sheet-title, .auth-title {
 }
 .chat-message-mine .chat-bubble { background: var(--accent); color: var(--accent-ink); border-color: var(--accent-dim); }
 .chat-author { font-size: 0.66rem; font-weight: 700; color: var(--accent); margin-bottom: 2px; }
+.chat-message-time {
+  font-size: 0.64rem;
+  color: var(--text-dim);
+  font-family: var(--font-mono);
+  margin: 2px 4px 0;
+}
+.chat-message-mine .chat-message-time { text-align: right; }
+.dm-header-row { display: flex; align-items: center; gap: 8px; }
+.dm-header-row h1 { margin: 0; }
 .chat-input-row { display: flex; gap: 8px; }
 .chat-input-row input {
   flex: 1;
@@ -653,10 +793,29 @@ h1, h2, .topbar h1, .sheet-title, .auth-title {
   font-size: 0.9rem;
 }
 
-.result-card { padding: 12px 14px; }
 .result-row { display: flex; justify-content: space-between; padding: 2px 0; }
 .result-row:first-child { border-bottom: 1px dashed var(--border); padding-bottom: 6px; margin-bottom: 4px; }
-.result-score { font-family: var(--font-mono); font-variant-numeric: tabular-nums; font-weight: 700; color: var(--accent); }
+.result-score { font-family: var(--font-mono); font-variant-numeric: tabular-nums; font-weight: 700; color: var(--text-dim); }
+
+/* The winning side's score pops in accent; the loser fades - the final
+   score reads at a glance instead of needing to compare two numbers. */
+.result-row-winner > span:first-child { color: var(--text); font-weight: 600; }
+.result-row-winner .result-score { color: var(--accent); }
+.result-row:not(.result-row-winner) > span:first-child { color: var(--text-dim); }
+
+.result-card-tag {
+  align-self: center;
+  flex-shrink: 0;
+  margin-right: 12px;
+  font-family: var(--font-mono);
+  font-size: 0.64rem;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  color: var(--text-dim);
+  border: 1px solid var(--border);
+  border-radius: 3px;
+  padding: 2px 6px;
+}
 
 /* Sport/segment switcher is the one deliberately pill-shaped control in
    the app - it reads as a physical toggle, which is the point. */
@@ -702,8 +861,6 @@ h1, h2, .topbar h1, .sheet-title, .auth-title {
   color: inherit;
 }
 
-.race-card-fav .fav-price-away { color: var(--text-dim); font-size: 0.85rem; }
-
 /* Markets / outcomes (fixture detail) - a plain divided list, like a
    printed odds board, not stacked cards. */
 .market-block { margin-bottom: 14px; }
@@ -728,7 +885,8 @@ h1, h2, .topbar h1, .sheet-title, .auth-title {
   font: inherit;
 }
 .market-header .market-title { margin: 0; }
-.market-header-meta { font-size: 0.75rem; color: var(--text-dim); flex-shrink: 0; }
+.market-header-meta { font-size: 0.75rem; color: var(--text-dim); flex-shrink: 0; font-family: var(--font-mono); font-variant-numeric: tabular-nums; }
+.market-header-meta-open { color: var(--accent); font-weight: 700; }
 
 .outcome-list {
   display: flex;
@@ -764,8 +922,26 @@ h1, h2, .topbar h1, .sheet-title, .auth-title {
   font: inherit;
   cursor: pointer;
   text-align: left;
+  transition: background-color 0.15s ease;
 }
 .outcome-row-main:disabled { opacity: 0.5; cursor: default; }
+.outcome-row-main:not(:disabled):hover { background: rgba(var(--accent-rgb), 0.06); }
+
+/* Sits before outcome-row-main (see FixtureDetailPage's player markets) -
+   border-right rather than the -left the buttons after it use, since it's
+   the row's first element. The player's own photo is the tap target - a
+   small "ⓘ" glyph tested as too easy to miss; a photo reads as "tap for
+   profile" the way it already does on social apps. */
+.outcome-profile-btn {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  background: none;
+  border: none;
+  border-right: 1px solid var(--border);
+  padding: 0 10px;
+  cursor: pointer;
+}
 
 .outcome-expand-btn {
   flex-shrink: 0;
@@ -807,10 +983,18 @@ h1, h2, .topbar h1, .sheet-title, .auth-title {
 
 .outcome-name { display: flex; flex-direction: column; align-items: flex-start; gap: 3px; font-weight: 500; }
 
+/* Stamped rectangular tag, not just dim inline text - matches every other
+   badge in the app instead of reading as an afterthought next to the name. */
 .backing-badge {
-  font-weight: 400;
-  font-size: 0.75rem;
-  color: var(--text-dim);
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  font-weight: 700;
+  font-size: 0.66rem;
+  color: var(--accent);
+  border: 1px solid rgba(var(--accent-rgb), 0.35);
+  border-radius: 3px;
+  padding: 1px 5px;
 }
 /* Deliberately not colored good/bad (--accent/--bad) - whether shortening
    or drifting is "good" depends on whether you're looking to back that
@@ -897,6 +1081,30 @@ h1, h2, .topbar h1, .sheet-title, .auth-title {
 .sheet-handle { width: 36px; height: 4px; background: var(--border); border-radius: 2px; margin: 0 auto; }
 .sheet-title { margin: 0; font-size: 1.1rem; }
 .sheet-actions { display: flex; flex-direction: column; gap: 8px; }
+
+/* Participant profile sheet - opened by tapping a name/photo on a detail page */
+.profile-sheet-header { display: flex; gap: 14px; align-items: flex-start; }
+.profile-sheet-photo {
+  width: 72px;
+  height: 72px;
+  border-radius: 50%;
+  object-fit: cover;
+  background: var(--surface-2);
+  flex-shrink: 0;
+}
+.profile-sheet-photo-fallback {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.6rem;
+  font-weight: 600;
+  color: var(--text-dim);
+}
+.profile-sheet-facts { display: flex; flex-wrap: wrap; gap: 6px 12px; margin-top: 6px; font-size: 0.82rem; color: var(--text-dim); }
+.profile-sheet-fact-label { font-weight: 600; color: var(--text); }
+.profile-sheet-bio { font-size: 0.88rem; line-height: 1.5; color: var(--text-dim); max-height: 30vh; overflow-y: auto; }
+.profile-sheet-socials { display: flex; flex-wrap: wrap; gap: 8px; }
+.profile-sheet-socials .btn { flex: none; }
 
 .video-choose, .video-recording, .video-preview-form { display: flex; flex-direction: column; gap: 10px; }
 .video-preview {
@@ -1093,6 +1301,24 @@ h1, h2, .topbar h1, .sheet-title, .auth-title {
   white-space: nowrap;
 }
 
+/* Tappable name/photo that opens ParticipantProfileSheet - reset to look
+   like the plain text it's replacing, not a button. */
+.fixture-team-profile-btn {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+  background: none;
+  border: none;
+  padding: 0;
+  margin: 0;
+  font: inherit;
+  color: inherit;
+  cursor: pointer;
+  text-align: left;
+}
+.fixture-team-profile-btn:hover span { text-decoration: underline; }
+
 .fixture-vs { color: var(--text-dim); font-size: 0.75rem; flex-shrink: 0; }
 
 .follow-participant-btn {
@@ -1171,19 +1397,30 @@ h1, h2, .topbar h1, .sheet-title, .auth-title {
   gap: 10px;
   background: var(--surface);
   border-bottom: 1px solid var(--border);
-  padding: 8px 14px;
+  border-left: 3px solid transparent;
+  padding: 8px 14px 8px 11px;
   font-size: 0.85rem;
 }
 .leaderboard-list .leaderboard-row:last-child { border-bottom: none; }
 
-.leaderboard-row-top { background: var(--surface-2); }
-.leaderboard-row-top .leaderboard-rank { color: var(--accent); font-weight: 700; }
-.leaderboard-rank { color: var(--text-dim); width: 24px; font-family: var(--font-mono); }
+/* Top row gets the same left-stripe treatment as a won bet or a settled
+   tracker row - the app's one recurring signal for "this one's the good
+   one" - instead of just a flat background tint. */
+.leaderboard-row-top { background: var(--surface-2); border-left-color: var(--accent); }
+.leaderboard-row-top .leaderboard-rank { color: var(--accent); }
+.leaderboard-rank {
+  color: var(--text-dim);
+  width: 22px;
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+  font-weight: 700;
+  text-align: right;
+}
 .leaderboard-name { flex: 1; font-weight: 600; }
-.leaderboard-pnl { font-weight: 700; }
+.leaderboard-pnl { font-weight: 700; font-family: var(--font-mono); font-variant-numeric: tabular-nums; }
 .leaderboard-pnl.tone-good { color: var(--accent); }
 .leaderboard-pnl.tone-bad { color: var(--bad); }
-.leaderboard-meta { color: var(--text-dim); font-size: 0.75rem; }
+.leaderboard-meta { color: var(--text-dim); font-size: 0.75rem; font-family: var(--font-mono); font-variant-numeric: tabular-nums; }
 .leaderboard-list-standalone { margin-top: 10px; }
 
 /* Bet feed / bet cards - styled like an actual betting slip: sharp
@@ -1388,15 +1625,40 @@ h1, h2, .topbar h1, .sheet-title, .auth-title {
 .group-recap-line .tone-bad { color: var(--bad); font-weight: 700; }
 
 .badge-row { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 12px; }
+
+/* Rectangular, like every other badge/tag in the app - not a pill. Pills
+   are reserved for the sport/segment switcher (see the top-of-file note). */
 .badge {
   background: linear-gradient(180deg, var(--surface-2) 0%, var(--surface) 100%);
   border: 1px solid var(--accent-dim);
-  border-radius: 999px;
+  border-radius: 3px;
   padding: 5px 12px;
   font-size: 0.75rem;
   font-weight: 600;
   color: var(--accent);
   box-shadow: 0 1px 6px rgba(var(--accent-rgb), 0.2);
+}
+
+/* Chalk section label reused above the sport breakdown and bet history -
+   its own small class rather than reaching for Odds' .league-group-title,
+   since that one's margins are tuned for stacked .league-group blocks. */
+.tracker-section-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-family: var(--font-mono);
+  font-size: 0.7rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--text-dim);
+  margin: 18px 0 6px;
+}
+.tracker-section-title::after {
+  content: '';
+  flex: 1;
+  height: 0;
+  border-top: 1px dashed var(--border);
 }
 
 .achievements-link { display: inline-block; margin-bottom: 12px; font-size: 0.82rem; }
@@ -1406,6 +1668,7 @@ h1, h2, .topbar h1, .sheet-title, .auth-title {
 .limit-progress-fill { height: 100%; border-radius: 999px; background: var(--text-dim); transition: width 0.3s ease; }
 .limit-progress-fill.tone-warn { background: var(--accent); }
 .limit-progress-fill.tone-bad { background: var(--bad); }
+.limit-progress-fill.tone-good { background: var(--accent); }
 
 .achievements-grid {
   display: grid;
@@ -1474,6 +1737,15 @@ h1, h2, .topbar h1, .sheet-title, .auth-title {
   font-size: 0.85rem;
 }
 .sport-breakdown-row:last-child { border-bottom: none; }
+.sport-breakdown-rank {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+  font-size: 0.72rem;
+  color: var(--text-dim);
+  width: 14px;
+  text-align: right;
+  flex-shrink: 0;
+}
 .sport-breakdown-name { flex: 1; font-weight: 600; }
 .sport-breakdown-pnl { font-weight: 700; font-family: var(--font-mono); font-variant-numeric: tabular-nums; }
 .sport-breakdown-pnl.tone-good { color: var(--accent); }
@@ -1488,6 +1760,25 @@ h1, h2, .topbar h1, .sheet-title, .auth-title {
   overflow: hidden;
   background: linear-gradient(180deg, var(--surface) 0%, var(--surface-2) 100%);
 }
+/* Icon-led tracker row - Hall of Fame records and Insights facts both
+   read as a plaque, not a bet-history line: the icon gets its own bordered
+   badge instead of sitting inline with the title. Hall of Fame additionally
+   gives the record holder a face next to their name (.hof-holder). */
+.icon-row { gap: 12px; }
+.icon-row-badge {
+  flex-shrink: 0;
+  width: 34px;
+  height: 34px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.1rem;
+  border: 1px solid var(--accent-dim);
+  border-radius: 4px;
+  background: linear-gradient(180deg, var(--surface-2) 0%, var(--surface) 100%);
+}
+.hof-holder { display: flex; align-items: center; gap: 6px; flex-shrink: 0; }
+
 .tracker-row {
   display: flex;
   justify-content: space-between;
@@ -1495,15 +1786,112 @@ h1, h2, .topbar h1, .sheet-title, .auth-title {
   gap: 10px;
   background: transparent;
   border-bottom: 1px solid var(--border);
-  padding: 12px 14px;
+  border-left: 3px solid transparent;
+  padding: 12px 14px 12px 11px;
 }
 .tracker-list .tracker-row:last-child { border-bottom: none; }
+
+/* Won/lost/void reads at a glance off the left edge, like a marker pen
+   through a row on a paper results sheet - .tracker-row is shared well
+   beyond Tracker itself (Hall of Fame, Insights, notifications, public
+   profiles), so every one of those picks this up for free. */
+.tracker-row.status-won { border-left-color: var(--accent); }
+.tracker-row.status-lost { border-left-color: var(--bad); }
+.tracker-row.status-void { border-left-color: var(--text-dim); }
+.tracker-row.status-triggered { border-left-color: var(--accent); }
 .tracker-row-main { flex: 1; min-width: 0; }
 .notification-row { text-decoration: none; color: inherit; }
-.notification-row:hover { background: var(--surface-2); }
+.notification-row:hover, .notification-row:focus-visible { background: var(--surface-2); }
 .tracker-row-status { display: flex; flex-direction: column; align-items: flex-end; gap: 6px; }
 
 /* Account */
+/* Dashboard - the one page meant to feel like a front door, not another
+   list page, so it gets its own bigger header and a single dominant
+   scoreboard number instead of Tracker's four-tile grid at the same
+   scale. Everything below still speaks the app's existing betting-slip/
+   scoreboard grammar (stub-striped dockets, dashed dividers, monospace
+   tabular numbers) - bigger, not a different visual language. */
+.dashboard-hero {
+  position: relative;
+  margin: 0 -12px 20px;
+  padding: 30px 16px 22px;
+}
+.dashboard-hero-date { font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.08em; color: var(--text-dim); margin: 0 0 6px; }
+.dashboard-hero-greeting { font-size: 2.1rem; margin: 0; text-wrap: balance; }
+.dashboard-hero-streak {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 12px;
+  padding: 5px 10px;
+  background: rgba(var(--accent-rgb), 0.15);
+  border: 1px solid var(--accent-dim);
+  border-radius: 3px;
+  font-size: 0.78rem;
+  font-weight: 700;
+  color: var(--accent);
+}
+
+.scoreboard-panel {
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  background: linear-gradient(180deg, var(--surface) 0%, var(--surface-2) 100%);
+  padding: 18px 18px 16px;
+  margin-bottom: 22px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+}
+.scoreboard-headline-label { font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.06em; color: var(--text-dim); margin: 0 0 2px; }
+.scoreboard-headline-value { font-family: var(--font-mono); font-variant-numeric: tabular-nums; font-size: 2.3rem; font-weight: 700; line-height: 1; }
+.scoreboard-headline-value.tone-good { color: var(--accent); }
+.scoreboard-headline-value.tone-bad { color: var(--bad); }
+.scoreboard-side-stats { display: flex; flex-direction: column; gap: 10px; text-align: right; flex-shrink: 0; }
+.scoreboard-side-stat-value { font-family: var(--font-mono); font-variant-numeric: tabular-nums; font-weight: 700; font-size: 1.05rem; }
+.scoreboard-side-stat-value.tone-good { color: var(--accent); }
+.scoreboard-side-stat-value.tone-bad { color: var(--bad); }
+.scoreboard-side-stat-label { font-size: 0.64rem; color: var(--text-dim); text-transform: uppercase; letter-spacing: 0.03em; }
+
+/* Tracker's scoreboard has three side stats (ROI/win rate/staked) instead
+   of Dashboard's two, and reads better as a row than a stack even on
+   desktop. */
+.tracker-scoreboard-stats { flex-direction: row; flex-wrap: wrap; gap: 14px 20px; }
+
+@media (max-width: 420px) {
+  .scoreboard-panel { flex-direction: column; align-items: flex-start; }
+  .scoreboard-side-stats { flex-direction: row; text-align: left; gap: 18px; }
+}
+
+/* Open bets as dockets - same stub-stripe language as .bet-card (see the
+   bet-feed comment above), compact enough for a dashboard summary rather
+   than the full slip layout. */
+.docket-list { display: flex; flex-direction: column; gap: 10px; }
+.docket {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-left: 4px solid var(--accent-dim);
+  border-radius: 2px;
+  padding: 10px 12px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+.docket-main { min-width: 0; }
+.docket-event { font-weight: 600; font-size: 0.88rem; display: flex; align-items: center; gap: 6px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.docket-meta { font-size: 0.78rem; color: var(--text-dim); margin-top: 2px; }
+
+/* Recent activity as a horizontal tape, not a vertical list - reads as
+   something moving/live rather than a static log (Tracker and Alerts
+   already cover the log view). */
+.pulse-tape { display: flex; gap: 10px; overflow-x: auto; padding: 2px 2px 10px; }
+.pulse-card { flex-shrink: 0; width: 200px; background: var(--surface); border: 1px solid var(--border); border-radius: 2px; padding: 10px 12px; }
+.pulse-card-title { font-size: 0.85rem; font-weight: 600; overflow: hidden; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
+.pulse-card-meta { font-size: 0.72rem; color: var(--text-dim); margin-top: 4px; }
+
+.trending-chip-rank { font-family: var(--font-mono); font-weight: 700; color: var(--accent); font-size: 0.95rem; flex-shrink: 0; }
+
 .account-section { margin-bottom: 18px; }
 .dashboard-quick-links { display: flex; gap: 10px; margin-bottom: 24px; }
 .dashboard-quick-links .btn { flex: 1; text-align: center; }
@@ -1542,8 +1930,52 @@ h1, h2, .topbar h1, .sheet-title, .auth-title {
   justify-content: center;
   border: 2px solid var(--bg);
 }
-.bookmaker-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px 16px; margin-top: 8px; }
-.bookmaker-check { align-items: center; }
+/* Bookmaker picks read as toggle chips, not a checkbox form - they're tags
+   you hold, not fields you're filling in. Rectangular per the app's own
+   tag/badge rule, not the sport-switcher pill shape. */
+.bookmaker-grid { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 8px; }
+.bookmaker-chip { position: relative; display: inline-block; }
+.bookmaker-chip input {
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+  margin: 0;
+  cursor: pointer;
+}
+.bookmaker-chip span {
+  display: inline-block;
+  border: 1px solid var(--border);
+  border-radius: 3px;
+  padding: 6px 12px;
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: var(--text-dim);
+  transition: border-color 0.15s ease, color 0.15s ease, background-color 0.15s ease;
+}
+.bookmaker-chip input:checked + span {
+  border-color: var(--accent);
+  color: var(--accent);
+  background: rgba(var(--accent-rgb), 0.1);
+  font-weight: 700;
+}
+.bookmaker-chip input:focus-visible + span { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+/* Account identity reads as a small profile card up top instead of a bare
+   avatar+name row - the one place on this page that earns a bordered
+   panel, everything below it is plain settings rows. */
+.account-hero {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  padding: 16px;
+  margin-bottom: 8px;
+  background: linear-gradient(180deg, var(--surface) 0%, var(--surface-2) 100%);
+}
+.account-hero .account-name { font-size: 1.25rem; }
+.account-hero-hint { margin-bottom: 10px; }
+.account-mono { font-family: var(--font-mono); }
 
 /* Legal */
 .legal-content { display: flex; flex-direction: column; gap: 16px; padding: 8px 4px 32px; }
@@ -1567,6 +1999,18 @@ h1, h2, .topbar h1, .sheet-title, .auth-title {
 .topbar-row { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
 .topbar-row h1 { margin: 0; }
 .topbar-actions { display: flex; align-items: center; gap: 8px; }
+
+.group-invite-tag { font-size: 0.78rem; color: var(--text-dim); margin: 2px 0 4px; }
+.group-invite-code {
+  font-family: var(--font-mono);
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  color: var(--accent);
+  border: 1px solid var(--accent-dim);
+  border-radius: 3px;
+  padding: 1px 6px;
+  margin-left: 4px;
+}
 
 .manage-list {
   display: flex;
@@ -1630,19 +2074,33 @@ h1, h2, .topbar h1, .sheet-title, .auth-title {
 
 .error { color: var(--bad); }
 
-.league-group + .league-group { margin-top: 14px; }
+.league-group + .league-group { margin-top: 18px; }
 
 .sport-icon-inline { vertical-align: -3px; flex-shrink: 0; }
 
 .league-group-title-icon { display: flex; align-items: center; gap: 6px; }
 
+/* Chalk section label - uppercase mono tag with a dashed rule trailing
+   off to the right, like a heading chalked across a board rather than a
+   plain small-caps list header. */
 .league-group-title {
-  font-size: 0.75rem;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-family: var(--font-mono);
+  font-size: 0.7rem;
+  font-weight: 700;
   text-transform: uppercase;
-  letter-spacing: 0.03em;
+  letter-spacing: 0.06em;
   color: var(--text-dim);
-  margin: 0 0 5px;
+  margin: 0 0 6px;
   padding: 0 2px;
+}
+.league-group-title::after {
+  content: '';
+  flex: 1;
+  height: 0;
+  border-top: 1px dashed var(--border);
 }
 
 /* Race / fixture / fight list - one bordered panel, rows divided by
@@ -1660,28 +2118,36 @@ h1, h2, .topbar h1, .sheet-title, .auth-title {
   background: linear-gradient(180deg, var(--surface) 0%, var(--surface-2) 100%);
 }
 
+/* Each row reads as a torn ticket stub: time and price sit in their own
+   compartments behind dashed dividers instead of just floating in a flex
+   row, so the row itself looks cut from a betting slip. */
 .race-card {
   display: flex;
-  align-items: center;
-  gap: 10px;
+  align-items: stretch;
   background: transparent;
   border-bottom: 1px solid var(--border);
-  padding: 9px 12px;
   text-decoration: none;
   color: var(--text);
+  transition: background-color 0.15s ease;
 }
 
 .race-list .race-card:last-child { border-bottom: none; }
+
+a.race-card:hover, a.race-card:focus-visible { background: rgba(var(--accent-rgb), 0.07); }
 
 .race-card-time {
   display: flex;
   flex-direction: column;
   align-items: center;
-  min-width: 46px;
+  justify-content: center;
+  gap: 2px;
+  min-width: 50px;
+  padding: 10px 8px;
+  border-right: 1px dashed var(--border);
 }
 
-.off-time { font-weight: 600; font-size: 0.92rem; }
-.countdown { font-size: 0.66rem; color: var(--text-dim); font-family: var(--font-mono); }
+.off-time { font-family: var(--font-mono); font-variant-numeric: tabular-nums; font-weight: 700; font-size: 0.92rem; }
+.countdown { font-size: 0.64rem; color: var(--text-dim); font-family: var(--font-mono); font-variant-numeric: tabular-nums; }
 
 .live-badge {
   display: inline-flex;
@@ -1710,7 +2176,15 @@ h1, h2, .topbar h1, .sheet-title, .auth-title {
 .race-header-live { display: flex; align-items: center; gap: 10px; margin: 4px 0; }
 .watch-live-btn { text-decoration: none; }
 
-.race-card-main { flex: 1; min-width: 0; }
+.race-card-main {
+  flex: 1;
+  min-width: 0;
+  padding: 9px 12px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 1px;
+}
 
 .race-card-title {
   font-weight: 600;
@@ -1727,23 +2201,54 @@ h1, h2, .topbar h1, .sheet-title, .auth-title {
 }
 
 .race-card-fav {
-  text-align: right;
-  min-width: 72px;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  justify-content: center;
+  gap: 2px;
+  min-width: 76px;
+  padding: 9px 12px;
+  border-left: 1px dashed var(--border);
 }
 
-.fav-label { font-size: 0.66rem; color: var(--text-dim); text-transform: uppercase; letter-spacing: 0.03em; }
+.fav-label { font-size: 0.62rem; color: var(--text-dim); text-transform: uppercase; letter-spacing: 0.04em; }
 .fav-name { font-size: 0.8rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 110px; }
-.fav-price { color: var(--accent); font-weight: 700; }
+
+/* The headline price is stamped rather than just coloured text - a bordered
+   chip like an ink stamp on a betting slip, since this number is the whole
+   reason the row exists. */
+.fav-price {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+  color: var(--accent);
+  font-weight: 800;
+  font-size: 0.92rem;
+  line-height: 1;
+  border: 1px solid rgba(var(--accent-rgb), 0.4);
+  border-radius: 4px;
+  padding: 3px 7px;
+  background: rgba(var(--accent-rgb), 0.08);
+  white-space: nowrap;
+}
+
+.race-card-fav .fav-price-away {
+  color: var(--text-dim);
+  font-size: 0.78rem;
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+  margin-top: 1px;
+}
 
 /* At real phone widths (~375-400px), squeezing two full team names plus
    badges into one nowrap line next to the time and odds columns leaves
    maybe 180px to work with - "Wolverhampton Wanderers" ends up as
    "Wolv...". Stack the two names instead of truncating them. */
 @media (max-width: 420px) {
-  .race-card { gap: 8px; padding: 12px 10px; }
-  .race-card-time { min-width: 40px; }
-  .race-card-fav { min-width: 58px; }
-  .fav-name { max-width: 58px; }
+  .race-card-time { min-width: 38px; padding: 8px 6px; }
+  .race-card-main { padding: 8px 8px; }
+  .race-card-fav { min-width: 56px; padding: 8px 8px; }
+  .fav-name { max-width: 56px; }
+  .fav-price { font-size: 0.84rem; padding: 2px 5px; }
   .race-card-title.fixture-teams-row {
     flex-direction: column;
     align-items: flex-start;
@@ -1775,8 +2280,10 @@ h1, h2, .topbar h1, .sheet-title, .auth-title {
   }
 }
 
-/* Race header */
-.race-header { padding: 4px 4px 16px; }
+/* Race header - shared across every detail page (fixture/race/fight/event),
+   so the dashed rule under it is the same "torn off" divider the rest of
+   the app uses before an action row, not new territory. */
+.race-header { padding: 4px 4px 16px; border-bottom: 1px dashed var(--border); margin-bottom: 12px; }
 .race-header h1 { font-size: 1.25rem; margin: 0 0 4px; }
 .race-header-meta { color: var(--text-dim); font-size: 0.85rem; }
 
@@ -1803,6 +2310,7 @@ h1, h2, .topbar h1, .sheet-title, .auth-title {
   gap: 12px;
   padding: 12px 14px;
 }
+.runner-summary:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
 
 .runner-silk {
   width: 28px;
@@ -1820,10 +2328,29 @@ h1, h2, .topbar h1, .sheet-title, .auth-title {
 .runner-info { flex: 1; min-width: 0; }
 .runner-name { font-weight: 600; font-size: 0.95rem; }
 .runner-connections { font-size: 0.75rem; color: var(--text-dim); margin-top: 2px; }
+/* Compact always-visible echo of RunnerForm's full chip/stat breakdown -
+   that only shows once a runner is tapped open, which buries recent form
+   behind an interaction most people won't guess exists on their own. */
+.runner-form-inline { font-variant-numeric: tabular-nums; color: var(--text); }
 
 .runner-best { text-align: right; }
-.best-price { color: var(--accent); font-weight: 700; font-size: 1.05rem; }
-.best-bookmaker { font-size: 0.75rem; color: var(--text-dim); }
+
+/* The headline price is stamped in a bordered chip, same family as the
+   Odds page's .fav-price - the price is the reason the row exists, so it
+   gets the one piece of "boxed" treatment on an otherwise plain row. */
+.best-price {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  color: var(--accent);
+  font-weight: 800;
+  font-size: 0.95rem;
+  border: 1px solid rgba(var(--accent-rgb), 0.4);
+  border-radius: 4px;
+  padding: 3px 8px;
+  background: rgba(var(--accent-rgb), 0.08);
+}
+.best-bookmaker { font-size: 0.75rem; color: var(--text-dim); margin-top: 3px; display: inline-block; }
 
 .runner-all-odds {
   display: none;
@@ -1833,6 +2360,38 @@ h1, h2, .topbar h1, .sheet-title, .auth-title {
 }
 
 .runner-row.expanded .runner-all-odds { display: grid; }
+
+/* Recent form/ratings - same expand-on-tap gating as .runner-all-odds above. */
+.runner-form {
+  display: none;
+  flex-direction: column;
+  gap: 6px;
+  padding: 0 14px 12px;
+}
+.runner-row.expanded .runner-form { display: flex; }
+
+.runner-form-chips { display: flex; align-items: center; flex-wrap: wrap; gap: 4px; }
+.runner-form-label { font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.04em; color: var(--text-dim); margin-right: 2px; }
+.runner-form-chip {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 3px;
+  border-radius: 3px;
+  font-size: 0.7rem;
+  font-weight: 700;
+  background: var(--surface-2);
+  color: var(--text-dim);
+}
+.runner-form-chip-win { background: var(--accent); color: #1a1a1a; }
+.runner-form-chip-placed { background: var(--accent-dim); color: var(--text); }
+.runner-form-chip-nonfinish { background: var(--bad); color: #fff; }
+.runner-form-divider { width: 1px; height: 14px; background: var(--border); margin: 0 2px; }
+
+.runner-form-facts { font-size: 0.78rem; color: var(--text-dim); }
+.runner-form-spotlight { font-size: 0.85rem; line-height: 1.45; color: var(--text); margin: 0; }
 
 .odds-cell {
   display: flex;
@@ -1871,4 +2430,35 @@ h1, h2, .topbar h1, .sheet-title, .auth-title {
   to {
     transform: rotate(360deg);
   }
+}
+
+/* Full-page fallback from src/components/ErrorBoundary.jsx - the app shell
+   (nav, ticker) is gone by the time this renders, so it centres itself in
+   the viewport rather than sitting in a content column. */
+.error-boundary {
+  min-height: 100dvh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  padding: 32px 24px;
+  text-align: center;
+  color: var(--text-dim);
+}
+
+.error-boundary h1 {
+  margin: 0;
+  font-size: 20px;
+  color: var(--text);
+}
+
+.error-boundary p {
+  margin: 0;
+  max-width: 32ch;
+  line-height: 1.5;
+}
+
+.error-boundary button {
+  margin-top: 8px;
 }

@@ -362,12 +362,13 @@ export function createBetPost(post) {
   return delay(record)
 }
 
-export function updateBetStatus(betId, status) {
+export function updateBetStatus(betId, status, potentialReturnOverride) {
   const db = readDb()
   const post = db.betPosts.find((b) => b.id === betId)
   if (!post) return Promise.reject(new Error('Bet not found.'))
   post.status = status
   post.settledAt = ['won', 'lost', 'void'].includes(status) ? new Date().toISOString() : null
+  if (potentialReturnOverride !== undefined) post.potentialReturn = potentialReturnOverride
   writeDb(db)
   return delay(post)
 }
@@ -375,6 +376,33 @@ export function updateBetStatus(betId, status) {
 export function listBetPostsByUser(userId) {
   const db = readDb()
   return delay(db.betPosts.filter((b) => b.userId === userId))
+}
+
+// Mirrors dataStore.js's Supabase version, including the status === 'open'
+// restriction (enforced there by RLS) - kept here too so the no-backend
+// path behaves the same way, not just whatever the UI happens to allow.
+export function updateBetPost(betId, { stake, stakeHidden, potentialReturn }) {
+  const db = readDb()
+  const post = db.betPosts.find((b) => b.id === betId)
+  if (!post) return Promise.reject(new Error('Bet not found.'))
+  if (post.status !== 'open') return Promise.reject(new Error("Couldn't update this bet - it may already be settled."))
+  post.stake = stake
+  post.stakeHidden = stakeHidden
+  post.potentialReturn = potentialReturn
+  writeDb(db)
+  return delay(post)
+}
+
+export function deleteBetPost(betId) {
+  const db = readDb()
+  const post = db.betPosts.find((b) => b.id === betId)
+  if (!post) return Promise.reject(new Error('Bet not found.'))
+  if (post.status !== 'open') return Promise.reject(new Error("Couldn't delete this bet - it may already be settled."))
+  db.betPosts = db.betPosts.filter((b) => b.id !== betId)
+  db.reactions = db.reactions.filter((r) => r.betId !== betId)
+  db.comments = db.comments.filter((c) => c.betId !== betId)
+  writeDb(db)
+  return delay(true)
 }
 
 // Public timeline: bet_posts with visibility 'public', postable by anyone
@@ -435,6 +463,11 @@ export function recordBetCopy(originalBetId, copyingUserId) {
   return delay(copy)
 }
 
+export function listBetCopies(betId) {
+  const db = readDb()
+  return delay(db.betCopies.filter((c) => c.originalBetId === betId))
+}
+
 // --- Tracker ---------------------------------------------------------------
 
 export function listManualEntries(userId) {
@@ -459,6 +492,27 @@ export function updateManualEntryStatus(entryId, status, potentialReturnOverride
   if (potentialReturnOverride !== undefined) entry.potentialReturn = potentialReturnOverride
   writeDb(db)
   return delay(entry)
+}
+
+export function updateManualEntry(entryId, { stake, potentialReturn }) {
+  const db = readDb()
+  const entry = db.manualEntries.find((e) => e.id === entryId)
+  if (!entry) return Promise.reject(new Error('Entry not found.'))
+  if (entry.status !== 'open') return Promise.reject(new Error("Couldn't update this entry - it may already be settled."))
+  entry.stake = stake
+  entry.potentialReturn = potentialReturn
+  writeDb(db)
+  return delay(entry)
+}
+
+export function deleteManualEntry(entryId) {
+  const db = readDb()
+  const entry = db.manualEntries.find((e) => e.id === entryId)
+  if (!entry) return Promise.reject(new Error('Entry not found.'))
+  if (entry.status !== 'open') return Promise.reject(new Error("Couldn't delete this entry - it may already be settled."))
+  db.manualEntries = db.manualEntries.filter((e) => e.id !== entryId)
+  writeDb(db)
+  return delay(true)
 }
 
 // --- Account -----------------------------------------------------------

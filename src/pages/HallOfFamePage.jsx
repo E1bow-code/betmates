@@ -5,6 +5,7 @@ import { useOddsFormat } from '../context/OddsFormatContext.jsx'
 import { formatOdds } from '../utils/oddsFormat.js'
 import SportHeroBanner from '../components/SportHeroBanner.jsx'
 import EmptyState from '../components/EmptyState.jsx'
+import Avatar from '../components/Avatar.jsx'
 
 // Works fully logged out, same as PublicProfilePage - reachable as a "look
 // what's possible" hook for people who don't have an account yet. Backed
@@ -73,20 +74,22 @@ export default function HallOfFamePage() {
           {rows.map(({ key, icon, title, render }) => {
             const record = data[key]
             return (
-              <div key={key} className="tracker-row">
+              <div key={key} className="tracker-row icon-row">
+                <span className="icon-row-badge">{icon}</span>
                 <div className="tracker-row-main">
-                  <div className="selection-event">
-                    {icon} {title}
-                  </div>
+                  <div className="selection-event">{title}</div>
                   <div className="race-card-meta">{render(record, format)}</div>
                 </div>
-                {record.code ? (
-                  <Link to={`/u/${record.code}`} className="leaderboard-name">
-                    {record.name}
-                  </Link>
-                ) : (
-                  <span className="leaderboard-name">{record.name}</span>
-                )}
+                <div className="hof-holder">
+                  <Avatar name={record.name} size={24} />
+                  {record.code ? (
+                    <Link to={`/u/${record.code}`} className="leaderboard-name">
+                      {record.name}
+                    </Link>
+                  ) : (
+                    <span className="leaderboard-name">{record.name}</span>
+                  )}
+                </div>
               </div>
             )
           })}

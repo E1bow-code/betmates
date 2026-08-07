@@ -12,6 +12,7 @@ import SportHeroBanner from '../components/SportHeroBanner.jsx'
 import LiveBadge from '../components/LiveBadge.jsx'
 import WatchLiveButton from '../components/WatchLiveButton.jsx'
 import FollowButton from '../components/FollowButton.jsx'
+import RunnerForm from '../components/RunnerForm.jsx'
 
 export default function RaceDetailPage() {
   const { id } = useParams()
@@ -97,7 +98,18 @@ export default function RaceDetailPage() {
           const selected = best && isSelected({ event: raceEvent, market: 'Win', selection: runner.name })
           return (
             <div key={runner.id} className={isExpanded ? 'runner-row expanded' : 'runner-row'}>
-              <div className="runner-summary" onClick={() => setExpandedRunner(isExpanded ? null : runner.id)}>
+              <div
+                className="runner-summary"
+                role="button"
+                tabIndex={0}
+                aria-expanded={isExpanded}
+                onClick={() => setExpandedRunner(isExpanded ? null : runner.id)}
+                onKeyDown={(e) => {
+                  if (e.key !== 'Enter' && e.key !== ' ') return
+                  e.preventDefault()
+                  setExpandedRunner(isExpanded ? null : runner.id)
+                }}
+              >
                 <span className="runner-silk" style={{ background: runner.silkColor }}>
                   {runner.number}
                 </span>
@@ -105,6 +117,7 @@ export default function RaceDetailPage() {
                   <div className="runner-name">{runner.name}</div>
                   <div className="runner-connections">
                     {runner.jockey} · {runner.trainer}
+                    {runner.form && <span className="runner-form-inline"> · Form {runner.form}</span>}
                   </div>
                 </div>
                 {best ? (
@@ -124,6 +137,7 @@ export default function RaceDetailPage() {
                   </div>
                 )}
               </div>
+              <RunnerForm runner={runner} />
               <div className="runner-all-odds">
                 {runner.allOdds.map((o) => (
                   <div key={o.bookmaker} className={o.bookmaker === best?.bookmaker ? 'odds-cell is-best' : 'odds-cell'}>

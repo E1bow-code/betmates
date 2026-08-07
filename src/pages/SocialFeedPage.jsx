@@ -185,7 +185,7 @@ export default function SocialFeedPage() {
           {feed && feed.length > 0 && (
             <div className="bet-feed">
               {feed.map((post) => (
-                <BetCard key={post.id} post={post} memberNames={post.memberNames} />
+                <BetCard key={post.id} post={post} memberNames={post.memberNames} onChanged={refreshBets} />
               ))}
             </div>
           )}
@@ -200,8 +200,9 @@ export default function SocialFeedPage() {
             <div className="account-section">
               <h2 className="market-title">🔥 Trending this week</h2>
               <div className="trending-row">
-                {trendingPicks.map((pick) => (
+                {trendingPicks.map((pick, i) => (
                   <div key={pick.key} className="trending-chip">
+                    <span className="trending-chip-rank">{i + 1}</span>
                     <SportIcon sport={pick.sport} size={18} />
                     <div>
                       <div className="trending-chip-pick">{pick.selection}</div>
@@ -223,7 +224,7 @@ export default function SocialFeedPage() {
           {publicFeed && publicFeed.length > 0 && (
             <div className="bet-feed">
               {publicFeed.map((post) => (
-                <BetCard key={post.id} post={post} variant="public" onBlocked={handleBlocked} />
+                <BetCard key={post.id} post={post} variant="public" onBlocked={handleBlocked} onChanged={refreshPublicFeed} />
               ))}
             </div>
           )}

@@ -185,6 +185,7 @@ function reshapeEvent(event) {
   return {
     id: event.id,
     competition: event.sport_title,
+    sportKey: event.sport_key,
     homeTeam: event.home_team,
     awayTeam: event.away_team,
     kickoff: event.commence_time,

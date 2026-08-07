@@ -3,13 +3,16 @@ import { useAuth } from '../context/AuthContext.jsx'
 import { useOddsFormat } from '../context/OddsFormatContext.jsx'
 import * as dataStore from '../lib/dataStore.js'
 import { formatOdds } from '../utils/oddsFormat.js'
+import { computeEachWayReturn } from '../utils/eachWay.js'
 import { notifyBetAuthor } from '../lib/notify.js'
 import CopyBetButton from './CopyBetButton.jsx'
 import BackBetButton from './BackBetButton.jsx'
 import ShareImageButton from './ShareImageButton.jsx'
 import Avatar from './Avatar.jsx'
+import EditBetSheet from './EditBetSheet.jsx'
 
 const REACTION_EMOJIS = ['🔥', '😬', '👍']
+const REACTION_LABEL = { '🔥': 'fire', '😬': 'grimace', '👍': 'thumbs up' }
 const VOTE_OPTIONS = [
   { key: 'lock_in', label: 'Lock in' },
   { key: 'not_sure', label: 'Not sure' },
@@ -29,21 +32,24 @@ const REPORT_REASONS = [
 // report only make sense here too - group posts are already people you
 // chose to be around, not unsolicited exposure.
 
-export default function BetCard({ post, memberNames, variant = 'group', onBlocked }) {
+export default function BetCard({ post, memberNames, variant = 'group', onBlocked, onChanged }) {
   const { user } = useAuth()
   const { format } = useOddsFormat()
   const [reactions, setReactions] = useState([])
   const [comments, setComments] = useState([])
+  const [copyCount, setCopyCount] = useState(0)
   const [showComments, setShowComments] = useState(false)
   const [commentBody, setCommentBody] = useState('')
   const [status, setStatus] = useState(post.status)
   const [following, setFollowing] = useState(false)
   const [showModeration, setShowModeration] = useState(false)
   const [reported, setReported] = useState(false)
+  const [showEdit, setShowEdit] = useState(false)
 
   useEffect(() => {
     dataStore.listReactions(post.id).then(setReactions)
     dataStore.listComments(post.id).then(setComments)
+    dataStore.listBetCopies(post.id).then((copies) => setCopyCount(copies.length))
   }, [post.id])
 
   useEffect(() => {
@@ -60,8 +66,22 @@ export default function BetCard({ post, memberNames, variant = 'group', onBlocke
     setReactions(updated)
   }
 
+  // "placed" isn't a real status column value - it's an each-way result
+  // where the horse placed but didn't win, so it settles as 'won' but with
+  // potentialReturn corrected down to just the place-part payout. Same
+  // handling as TrackerPage.jsx's manual "Placed (not won)" option; without
+  // this a self-report here could only pick Won (overpaying) or Lost
+  // (underpaying) for a bet that actually placed.
   async function handleStatusChange(e) {
     const nextStatus = e.target.value
+    if (nextStatus === 'placed') {
+      const leg = post.selections[0]
+      const terms = { fraction: leg.eachWayFraction, places: leg.eachWayPlaces }
+      const placeReturn = Math.round(computeEachWayReturn(post.stake, leg.odds, terms, 'place') * 100) / 100
+      await dataStore.updateBetStatus(post.id, 'won', placeReturn)
+      setStatus('won')
+      return
+    }
     await dataStore.updateBetStatus(post.id, nextStatus)
     setStatus(nextStatus)
   }
@@ -121,7 +141,12 @@ export default function BetCard({ post, memberNames, variant = 'group', onBlocke
           )}
           <span className={`bet-status-pill status-${status}`}>{STATUS_LABEL[status]}</span>
           {variant === 'public' && !isAuthor && (
-            <button className="moderation-toggle" onClick={() => setShowModeration((v) => !v)} aria-label="More options">
+            <button
+              className="moderation-toggle"
+              onClick={() => setShowModeration((v) => !v)}
+              aria-label="More options"
+              aria-expanded={showModeration}
+            >
               ⋯
             </button>
           )}
@@ -196,7 +221,13 @@ export default function BetCard({ post, memberNames, variant = 'group', onBlocke
               const count = reactions.filter((r) => r.emoji === emoji).length
               const mine = reactions.some((r) => r.emoji === emoji && r.userId === user.id)
               return (
-                <button key={emoji} className={mine ? 'reaction-btn active' : 'reaction-btn'} onClick={() => toggleReaction(emoji)}>
+                <button
+                  key={emoji}
+                  className={mine ? 'reaction-btn active' : 'reaction-btn'}
+                  onClick={() => toggleReaction(emoji)}
+                  aria-label={`${mine ? 'Remove' : 'React with'} ${REACTION_LABEL[emoji]}${count > 0 ? ` · ${count}` : ''}`}
+                  aria-pressed={mine}
+                >
                   {emoji} {count > 0 && count}
                 </button>
               )
@@ -205,22 +236,42 @@ export default function BetCard({ post, memberNames, variant = 'group', onBlocke
         )}
 
         <div className="bet-card-actions">
-          <button className="reaction-btn" onClick={() => setShowComments((v) => !v)}>
+          <button
+            className="reaction-btn"
+            onClick={() => setShowComments((v) => !v)}
+            aria-expanded={showComments}
+            aria-label={`${showComments ? 'Hide' : 'Show'} comments${comments.length > 0 ? ` · ${comments.length}` : ''}`}
+          >
             💬 {comments.length > 0 && comments.length}
           </button>
-          <CopyBetButton post={post} userId={user.id} />
+          <CopyBetButton post={post} userId={user.id} copyCount={copyCount} onCopied={() => setCopyCount((c) => c + 1)} />
           {!isAuthor && <BackBetButton post={post} />}
           <ShareImageButton post={post} />
           {isAuthor && status === 'open' && (
-            <select className="status-select" defaultValue="open" onChange={handleStatusChange}>
-              <option value="open">Mark result</option>
-              <option value="won">Won</option>
-              <option value="lost">Lost</option>
-              <option value="void">Void</option>
-            </select>
+            <>
+              <button className="btn btn-ghost btn-small" type="button" onClick={() => setShowEdit(true)}>
+                Edit
+              </button>
+              <select className="status-select" defaultValue="open" onChange={handleStatusChange}>
+                <option value="open">Mark result</option>
+                <option value="won">Won</option>
+                {selections.length === 1 && selections[0].eachWay && <option value="placed">Placed (not won)</option>}
+                <option value="lost">Lost</option>
+                <option value="void">Void</option>
+              </select>
+            </>
           )}
         </div>
       </div>
+
+      {showEdit && (
+        <EditBetSheet
+          entry={{ ...post, source: 'group' }}
+          onClose={() => setShowEdit(false)}
+          onUpdated={onChanged}
+          onDeleted={onChanged}
+        />
+      )}
 
       {showComments && (
         <div className="comment-thread">
