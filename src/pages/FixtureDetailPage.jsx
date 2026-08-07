@@ -20,6 +20,7 @@ import LiveBadge from '../components/LiveBadge.jsx'
 import WatchLiveButton from '../components/WatchLiveButton.jsx'
 import OddsAlertSheet from '../components/OddsAlertSheet.jsx'
 import FollowButton from '../components/FollowButton.jsx'
+import FixtureChatPanel from '../components/FixtureChatPanel.jsx'
 import FollowParticipantButton from '../components/FollowParticipantButton.jsx'
 import ParticipantProfileSheet from '../components/ParticipantProfileSheet.jsx'
 
@@ -137,6 +138,7 @@ export default function FixtureDetailPage() {
           <span>My bookies only</span>
         </label>
         <p className="hint">Tap more than one price to build an accumulator.</p>
+        <FixtureChatPanel sport="football" eventId={fixture.id} eventLabel={`${fixture.homeTeam} v ${fixture.awayTeam}`} />
       </div>
 
       {fixture.markets.map((market) => {

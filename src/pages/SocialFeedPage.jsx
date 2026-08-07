@@ -12,6 +12,7 @@ import VideoCard from '../components/VideoCard.jsx'
 import VideoRecorder from '../components/VideoRecorder.jsx'
 import ManageSheet from '../components/ManageSheet.jsx'
 import HeadToHeadSheet from '../components/HeadToHeadSheet.jsx'
+import GroupVsGroupSheet from '../components/GroupVsGroupSheet.jsx'
 import EmptyState from '../components/EmptyState.jsx'
 import Avatar from '../components/Avatar.jsx'
 import PullToRefresh from '../components/PullToRefresh.jsx'
@@ -66,6 +67,7 @@ export default function SocialFeedPage() {
   const [showManage, setShowManage] = useState(false)
   const [showRecorder, setShowRecorder] = useState(false)
   const [compareFriend, setCompareFriend] = useState(null)
+  const [showGroupCompare, setShowGroupCompare] = useState(false)
   const [leaderboardWindow, setLeaderboardWindow] = useState('all')
 
   useEffect(() => {
@@ -222,6 +224,14 @@ export default function SocialFeedPage() {
                   {g.name}
                 </Link>
               ))}
+            </div>
+          )}
+
+          {groups && groups.length > 1 && (
+            <div className="group-actions">
+              <button className="btn btn-ghost btn-small" onClick={() => setShowGroupCompare(true)}>
+                ⚔️ Compare groups
+              </button>
             </div>
           )}
 
@@ -449,6 +459,9 @@ export default function SocialFeedPage() {
 
       {showRecorder && <VideoRecorder onClose={() => setShowRecorder(false)} onPosted={refreshTips} />}
       {compareFriend && <HeadToHeadSheet friend={compareFriend} onClose={() => setCompareFriend(null)} />}
+      {showGroupCompare && groups?.length > 1 && (
+        <GroupVsGroupSheet groups={groups} onClose={() => setShowGroupCompare(false)} />
+      )}
     </PullToRefresh>
   )
 }

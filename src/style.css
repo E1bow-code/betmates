@@ -1429,6 +1429,21 @@ h1, h2, .topbar h1, .sheet-title, .auth-title {
 /* Leaderboard - a scoreboard, not stacked cards: one bordered panel, rows
    divided by hairlines, rank + P&L set in tabular monospace. */
 .leaderboard { margin: 12px 0; }
+.fixture-chat { margin: 16px 0; }
+
+.ocr-raw-text { margin: 8px 0 14px; font-size: 0.8rem; color: var(--text-dim); }
+.ocr-raw-text summary { cursor: pointer; }
+.ocr-raw-text pre {
+  white-space: pre-wrap;
+  word-break: break-word;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 8px;
+  margin-top: 6px;
+  font-family: var(--font-mono);
+  font-size: 0.75rem;
+}
 .leaderboard-toggle {
   width: 100%;
   text-align: left;

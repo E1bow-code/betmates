@@ -711,6 +711,33 @@ create policy "user records their own copy" on bet_copies for insert with check 
 -- "update own profile" already covers this column.
 alter table profiles add column if not exists streak_milestone_notified integer not null default 0;
 
+-- --- Fixture (match-day) chat ----------------------------------------------
+-- A chat room scoped to one fixture/fight/event rather than a group -
+-- for mates watching the same game live who aren't necessarily in a group
+-- together. Separate from group_messages (scoped to a group) and
+-- bet_comments (threaded under one bet post). sport/event_id match whatever
+-- the odds provider calls that fixture (see followed_fixtures above for the
+-- same non-FK pattern) - there's no shared fixtures row for every sport, so
+-- this can't be a real foreign key. Open read/write to any signed-in user,
+-- same trade-off as bet_posts' public-feed policy: it's a watch-party, not
+-- something scoped to people you chose to be around. display_name is
+-- denormalized onto the row at send time rather than joined from profiles
+-- at read time - there's no bounded "members" list to build a name map from
+-- the way group chat has, and a chat message showing the name the sender
+-- had at the time they sent it is normal chat-app behaviour anyway.
+create table fixture_chat_messages (
+  id uuid primary key default gen_random_uuid(),
+  sport text not null,
+  event_id text not null,
+  user_id uuid not null references profiles(id) on delete cascade,
+  display_name text not null,
+  body text not null,
+  created_at timestamptz not null default now()
+);
+alter table fixture_chat_messages enable row level security;
+create policy "any signed-in user can read fixture chat" on fixture_chat_messages for select using (auth.role() = 'authenticated');
+create policy "user sends fixture chat as themselves" on fixture_chat_messages for insert with check (auth.uid() = user_id);
+
 -- --- Team news push alerts -------------------------------------------------
 -- netlify/functions/team-news-alerts.js - the push half of the Social tab's
 -- News "My teams" filter (SocialFeedPage.jsx/followed_participants).

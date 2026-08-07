@@ -19,6 +19,7 @@ import LiveBadge from '../components/LiveBadge.jsx'
 import WatchLiveButton from '../components/WatchLiveButton.jsx'
 import OddsAlertSheet from '../components/OddsAlertSheet.jsx'
 import FollowButton from '../components/FollowButton.jsx'
+import FixtureChatPanel from '../components/FixtureChatPanel.jsx'
 import FollowParticipantButton from '../components/FollowParticipantButton.jsx'
 import ParticipantProfileSheet from '../components/ParticipantProfileSheet.jsx'
 
@@ -127,6 +128,7 @@ export default function FightDetailPage() {
           <span>My bookies only</span>
         </label>
         <p className="hint">Tap more than one price to build an accumulator.</p>
+        <FixtureChatPanel sport="ufc" eventId={fight.id} eventLabel={`${fight.fighterA} v ${fight.fighterB}`} />
       </div>
 
       {!fight.markets.length && (

@@ -286,6 +286,38 @@ export async function sendGroupMessage(groupId, userId, body) {
   return mapGroupMessage(data)
 }
 
+// --- Fixture (match-day) chat ---------------------------------------------
+// A chat room scoped to one fixture/fight/event rather than a group - see
+// supabase/schema.sql's fixture_chat_messages for why display_name is
+// denormalized onto the row instead of joined from profiles.
+
+function mapFixtureChatMessage(row) {
+  return { id: row.id, sport: row.sport, eventId: row.event_id, userId: row.user_id, authorName: row.display_name, body: row.body, createdAt: row.created_at }
+}
+
+export async function listFixtureChatMessages(sport, eventId) {
+  if (!isSupabaseConfigured) return local.listFixtureChatMessages(sport, eventId)
+  const { data, error } = await supabase
+    .from('fixture_chat_messages')
+    .select('*')
+    .eq('sport', sport)
+    .eq('event_id', eventId)
+    .order('created_at', { ascending: true })
+  if (error) throw error
+  return data.map(mapFixtureChatMessage)
+}
+
+export async function sendFixtureChatMessage(sport, eventId, userId, displayName, body) {
+  if (!isSupabaseConfigured) return local.sendFixtureChatMessage(sport, eventId, userId, displayName, body)
+  const { data, error } = await supabase
+    .from('fixture_chat_messages')
+    .insert({ sport, event_id: eventId, user_id: userId, display_name: displayName, body })
+    .select()
+    .single()
+  if (error) throw error
+  return mapFixtureChatMessage(data)
+}
+
 // --- Direct messages -----------------------------------------------------
 // 1:1 chat between two friends, separate from group_messages (scoped to a
 // group) and bet_comments (threaded under one bet post).

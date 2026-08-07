@@ -27,7 +27,8 @@ const EMPTY_DB = {
   directMessages: [],
   oddsAlerts: [],
   followedFixtures: [],
-  followedParticipants: []
+  followedParticipants: [],
+  fixtureChatMessages: []
 }
 
 // Merges in any table keys added after a browser's db was first created -
@@ -287,6 +288,25 @@ export function sendGroupMessage(groupId, userId, body) {
   const db = readDb()
   const message = { id: uid('msg'), groupId, userId, body, createdAt: new Date().toISOString() }
   db.groupMessages.push(message)
+  writeDb(db)
+  return delay(message)
+}
+
+// --- Fixture (match-day) chat --------------------------------------------
+
+export function listFixtureChatMessages(sport, eventId) {
+  const db = readDb()
+  return delay(
+    db.fixtureChatMessages
+      .filter((m) => m.sport === sport && m.eventId === eventId)
+      .sort((a, b) => new Date(a.createdAt) - new Date(b.createdAt))
+  )
+}
+
+export function sendFixtureChatMessage(sport, eventId, userId, displayName, body) {
+  const db = readDb()
+  const message = { id: uid('fchat'), sport, eventId, userId, authorName: displayName, body, createdAt: new Date().toISOString() }
+  db.fixtureChatMessages.push(message)
   writeDb(db)
   return delay(message)
 }

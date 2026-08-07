@@ -19,6 +19,7 @@ import {
 import { SPORT_LABEL } from '../lib/sportsConfig.js'
 import EmptyState from '../components/EmptyState.jsx'
 import EditBetSheet from '../components/EditBetSheet.jsx'
+import ManualEntrySheet from '../components/ManualEntrySheet.jsx'
 import PnlChart from '../components/PnlChart.jsx'
 import { trackerEntriesToCsv, downloadCsv } from '../lib/csvExport.js'
 import PullToRefresh from '../components/PullToRefresh.jsx'
@@ -40,6 +41,7 @@ export default function TrackerPage() {
   const [rebetting, setRebetting] = useState(null)
   const [rebetDone, setRebetDone] = useState(null)
   const [editingEntry, setEditingEntry] = useState(null)
+  const [showAddEntry, setShowAddEntry] = useState(false)
   const runAsync = useAsyncAction()
 
   useEffect(() => {
@@ -178,14 +180,17 @@ export default function TrackerPage() {
       <div className="topbar">
         <div className="topbar-row">
           <h1>Tracker</h1>
-          {entries.length > 0 && (
-            <div className="topbar-actions">
-              <ShareRecapButton rows={recapRows} periodLabel="all-time" />
+          <div className="topbar-actions">
+            {entries.length > 0 && <ShareRecapButton rows={recapRows} periodLabel="all-time" />}
+            {entries.length > 0 && (
               <button className="btn btn-ghost btn-small" onClick={handleExport}>
                 Export CSV
               </button>
-            </div>
-          )}
+            )}
+            <button className="btn btn-secondary btn-small" onClick={() => setShowAddEntry(true)}>
+              Log a bet
+            </button>
+          </div>
         </div>
         {checking && <span className="tracker-checking">Checking latest results…</span>}
       </div>
@@ -260,7 +265,7 @@ export default function TrackerPage() {
         <EmptyState
           icon="📊"
           title="Nothing logged yet"
-          subtitle="Post a bet to a group or save one privately from the Odds tab — it'll show up here."
+          subtitle="Post a bet to a group, save one privately from the Odds tab, or log a bet from elsewhere with the button above."
         />
       )}
 
@@ -342,6 +347,10 @@ export default function TrackerPage() {
           onUpdated={refresh}
           onDeleted={refresh}
         />
+      )}
+
+      {showAddEntry && (
+        <ManualEntrySheet userId={user.id} onClose={() => setShowAddEntry(false)} onSaved={refresh} />
       )}
     </PullToRefresh>
   )
