@@ -38,6 +38,12 @@ import { computeTrendingPicks } from '../utils/trending.js'
 //   already scroll elsewhere in the app) as an actual browsable list
 //   instead of another auto-scrolling ticker - team news, injuries, price
 //   moves, the stuff a punter actually wants to see, not just bet activity.
+//   "My teams" filters those headlines against followed_participants (see
+//   dataStore.followParticipant/OddsListPage's "My teams only" filter) by
+//   plain substring match on the title - there's no team/sport tag on an
+//   RSS item to join against, so this is deliberately fuzzy rather than an
+//   exact ID match. The toggle only appears once the user follows anyone,
+//   so it doesn't show a dead control to someone who's followed nothing.
 // - Tips: a Twitter-style feed of talking-to-camera picks from the user
 //   and their friends (see src/components/VideoRecorder.jsx), with a way
 //   to forward a good one into a group or straight to a friend.
@@ -53,6 +59,8 @@ export default function SocialFeedPage() {
   const [videos, setVideos] = useState(null)
   const [publicFeed, setPublicFeed] = useState(null)
   const [news, setNews] = useState(null)
+  const [followedParticipants, setFollowedParticipants] = useState(null)
+  const [newsFilter, setNewsFilter] = useState('all')
   const [showManage, setShowManage] = useState(false)
   const [showRecorder, setShowRecorder] = useState(false)
   const [compareFriend, setCompareFriend] = useState(null)
@@ -89,6 +97,12 @@ export default function SocialFeedPage() {
 
   const trendingPicks = useMemo(() => (publicFeed ? computeTrendingPicks(publicFeed) : []), [publicFeed])
 
+  const filteredNews = useMemo(() => {
+    if (!news || newsFilter !== 'mine' || !followedParticipants?.length) return news
+    const names = followedParticipants.map((p) => p.name.toLowerCase())
+    return news.filter((item) => names.some((name) => item.title.toLowerCase().includes(name)))
+  }, [news, newsFilter, followedParticipants])
+
   function refreshBets() {
     return Promise.all([dataStore.listMyGroups(user.id).then(setGroups), dataStore.listFeedForUser(user.id).then(setFeed)])
   }
@@ -109,9 +123,15 @@ export default function SocialFeedPage() {
   }
 
   function refreshNews() {
-    return fetchSportsNews()
-      .then(setNews)
-      .catch(() => setNews([]))
+    return Promise.all([
+      fetchSportsNews()
+        .then(setNews)
+        .catch(() => setNews([])),
+      dataStore
+        .listFollowedParticipants(user.id)
+        .then(setFollowedParticipants)
+        .catch(() => setFollowedParticipants([]))
+    ])
   }
 
   function handleBlocked(blockedUserId) {
@@ -256,14 +276,32 @@ export default function SocialFeedPage() {
         <>
           <p className="hint">Sport headlines worth knowing before you bet - team news, injuries, price moves.</p>
 
+          {followedParticipants && followedParticipants.length > 0 && (
+            <div className="mode-switcher">
+              <button className={newsFilter === 'all' ? 'mode-tab active' : 'mode-tab'} onClick={() => setNewsFilter('all')}>
+                All
+              </button>
+              <button className={newsFilter === 'mine' ? 'mode-tab active' : 'mode-tab'} onClick={() => setNewsFilter('mine')}>
+                My teams
+              </button>
+            </div>
+          )}
+
           {news === null && <div className="loading">Catching up on the headlines…</div>}
           {news && !news.length && (
             <EmptyState icon="📰" title="No headlines right now" subtitle="The feeds didn't return anything - try again shortly." />
           )}
+          {news && news.length > 0 && filteredNews && !filteredNews.length && (
+            <EmptyState
+              icon="📰"
+              title="Nothing about your teams right now"
+              subtitle="None of the latest headlines mention a team or player you follow - switch to All to see everything."
+            />
+          )}
 
-          {news && news.length > 0 && (
+          {filteredNews && filteredNews.length > 0 && (
             <div className="news-feed-list">
-              {news.map((item, i) => (
+              {filteredNews.map((item, i) => (
                 <a key={i} className="news-feed-item" href={item.link} target="_blank" rel="noreferrer">
                   <div className="news-feed-item-top">
                     <span className="news-feed-source">{item.source}</span>
