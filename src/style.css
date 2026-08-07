@@ -1190,7 +1190,13 @@ h1, h2, .topbar h1, .sheet-title, .auth-title {
   color: var(--text-dim);
 }
 .player-card-born { margin: 2px 0 0; font-size: 0.72rem; color: var(--text-dim); }
-.player-card-stats { margin: 14px 0 0; }
+/* Overrides the base .stat-tiles' fixed 4-column grid - a player card's
+   tile count varies with how much TheSportsDB actually has (2 tiles for a
+   tennis player missing height/weight is common), and a fixed 4-column
+   grid would leave dead space on the right instead of the tiles splitting
+   the row evenly. auto-fit collapses the unused tracks to 0 and lets the
+   real tiles' 1fr claim the freed width. */
+.player-card-stats { margin: 14px 0 0; grid-template-columns: repeat(auto-fit, minmax(70px, 1fr)); }
 
 .profile-sheet-bio { font-size: 0.88rem; line-height: 1.5; color: var(--text-dim); max-height: 30vh; overflow-y: auto; }
 .profile-sheet-socials { display: flex; flex-wrap: wrap; gap: 8px; }
