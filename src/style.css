@@ -1532,14 +1532,18 @@ h1, h2, .topbar h1, .sheet-title, .auth-title {
   padding-top: 8px;
   margin-top: 2px;
 }
-.bet-card-actions { display: flex; align-items: center; gap: 6px; }
+/* flex-wrap here (not just on the parent .bet-card-footer) matters on
+   narrow phones: without it, 4+ buttons squeezed onto one line shrink
+   below their own text's width and the label wraps mid-word ("Copy Bet"
+   over "· 12") instead of the row itself dropping to a second line. */
+.bet-card-actions { display: flex; align-items: center; flex-wrap: wrap; gap: 6px; }
 /* Its own buttons default to .btn-small's app-wide sizing, which is
    noticeably bulkier than the vote/reaction row right above it (that row
    uses ~5px padding, this used 8px) - the mismatch was the main reason a
    post's footer read as two heavy stacked rows instead of one compact
    block. Scoped to .bet-card-actions rather than shrinking .btn-small
    itself, which is used all over the app. */
-.bet-card-actions .btn-small { padding: 5px 10px; font-size: 0.78rem; }
+.bet-card-actions .btn-small { padding: 5px 10px; font-size: 0.78rem; white-space: nowrap; }
 .copy-bet-row { display: flex; gap: 6px; }
 
 .reaction-row { display: flex; gap: 6px; }
