@@ -20,6 +20,8 @@ import SportHeroBanner from '../components/SportHeroBanner.jsx'
 import FplPanel from '../components/FplPanel.jsx'
 import SportIcon from '../components/icons/SportIcons.jsx'
 import { computeTrendingPicks } from '../utils/trending.js'
+import { computeTipsterRankings } from '../utils/tipsters.js'
+import TipsterLeaderboard from '../components/TipsterLeaderboard.jsx'
 
 // Landing view for the Social tab. The feed is the main attraction - group/
 // friend management (create, join, invite codes) lives behind the Manage
@@ -73,7 +75,7 @@ export default function SocialFeedPage() {
 
   useEffect(() => {
     if (segment === 'tips' && videos === null) refreshTips()
-    if ((segment === 'feed' || segment === 'leaderboard') && publicFeed === null) refreshPublicFeed()
+    if ((segment === 'feed' || segment === 'leaderboard' || segment === 'tipsters') && publicFeed === null) refreshPublicFeed()
     if (segment === 'news' && news === null) refreshNews()
   }, [segment])
 
@@ -96,6 +98,8 @@ export default function SocialFeedPage() {
   }, [feed, publicFeed, leaderboardWindow])
 
   const trendingPicks = useMemo(() => (publicFeed ? computeTrendingPicks(publicFeed) : []), [publicFeed])
+
+  const tipsterRankings = useMemo(() => computeTipsterRankings(publicFeed, leaderboardWindow), [publicFeed, leaderboardWindow])
 
   const filteredNews = useMemo(() => {
     if (!news || newsFilter !== 'mine' || !followedParticipants?.length) return news
@@ -175,6 +179,9 @@ export default function SocialFeedPage() {
           </button>
           <button className={segment === 'leaderboard' ? 'sport-pill active' : 'sport-pill'} onClick={() => setSegment('leaderboard')}>
             🏆 Leaderboard
+          </button>
+          <button className={segment === 'tipsters' ? 'sport-pill active' : 'sport-pill'} onClick={() => setSegment('tipsters')}>
+            🎯 Tipsters
           </button>
           <button className={segment === 'feed' ? 'sport-pill active' : 'sport-pill'} onClick={() => setSegment('feed')}>
             Feed
@@ -355,6 +362,15 @@ export default function SocialFeedPage() {
             </div>
           )}
         </>
+      )}
+
+      {segment === 'tipsters' && (
+        <TipsterLeaderboard
+          rows={tipsterRankings}
+          window={leaderboardWindow}
+          onWindowChange={setLeaderboardWindow}
+          currentUserId={user.id}
+        />
       )}
 
       {segment === 'leaderboard' && (

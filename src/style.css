@@ -2622,3 +2622,42 @@ a.race-card:hover, a.race-card:focus-visible { background: rgba(var(--accent-rgb
 .value-row-right { text-align: right; flex-shrink: 0; display: flex; flex-direction: column; gap: 1px; }
 .value-row-price { font-family: var(--font-mono); font-variant-numeric: tabular-nums; font-weight: 700; color: var(--accent); font-size: 1.02rem; }
 .value-row-edge { font-size: 0.68rem; font-weight: 600; color: var(--accent-dim); white-space: nowrap; }
+
+/* Tipster reputation leaderboard (Social -> Tipsters). Ranked cards with the
+   ROI as the hero number and a one-tap follow. */
+.tipster-list { display: flex; flex-direction: column; gap: 8px; margin-top: 8px; }
+.tipster-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 12px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--surface);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.24);
+}
+.tipster-row-top {
+  border-color: var(--accent-dim);
+  background: linear-gradient(180deg, rgba(var(--accent-rgb), 0.08) 0%, transparent 60%), var(--surface);
+}
+.tipster-row .leaderboard-rank { font-family: var(--font-mono); font-weight: 700; color: var(--text-dim); min-width: 24px; }
+.tipster-row-top .leaderboard-rank { color: var(--accent); }
+.tipster-main { flex: 1; min-width: 0; }
+.tipster-name-row { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+.tipster-name { font-weight: 700; font-size: 0.92rem; color: var(--text); text-decoration: none; }
+.tipster-name[href]:hover { color: var(--accent); }
+.tipster-badge {
+  font-size: 0.66rem;
+  font-weight: 600;
+  color: var(--accent);
+  border: 1px solid var(--accent-dim);
+  border-radius: 999px;
+  padding: 1px 7px;
+  white-space: nowrap;
+}
+.tipster-meta { font-size: 0.72rem; color: var(--text-dim); margin-top: 2px; }
+.tipster-numbers { text-align: right; flex-shrink: 0; }
+.tipster-roi { font-family: var(--font-mono); font-variant-numeric: tabular-nums; font-weight: 700; font-size: 1.1rem; }
+.tipster-roi.tone-good { color: var(--accent); }
+.tipster-roi.tone-bad { color: var(--bad); }
+.tipster-roi-label { font-size: 0.6rem; color: var(--text-dim); text-transform: uppercase; letter-spacing: 0.04em; }
