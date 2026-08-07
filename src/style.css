@@ -2684,4 +2684,12 @@ a.race-card:hover, a.race-card:focus-visible { background: rgba(var(--accent-rgb
 .coach-card-badge { font-size: 1.05rem; line-height: 1; }
 .coach-card-title { font-size: 0.98rem; margin: 0; color: var(--text); }
 .coach-card-body { margin: 0; font-size: 0.9rem; line-height: 1.5; color: var(--text); white-space: pre-wrap; }
-.coach-card-foot { margin: 8px 0 0; font-size: 0.68rem; color: var(--text-dim); font-style: italic; }
+.coach-card-foot { margin: 0; font-size: 0.68rem; color: var(--text-dim); font-style: italic; }
+.coach-card-actions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin-top: 10px;
+}
+.coach-card-actions .btn-small { flex-shrink: 0; }
