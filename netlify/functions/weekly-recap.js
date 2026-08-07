@@ -7,11 +7,15 @@
 import { createClient } from '@supabase/supabase-js'
 import webpush from 'web-push'
 import { computeStats } from '../../src/utils/trackerStats.js'
+import { requestCoachTake } from '../../src/lib/coach.js'
 
 const SUPABASE_URL = process.env.VITE_SUPABASE_URL
 const SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY
 const VAPID_PUBLIC_KEY = process.env.VITE_VAPID_PUBLIC_KEY
 const VAPID_PRIVATE_KEY = process.env.VAPID_PRIVATE_KEY
+// Optional: when set, the recap push leads with a one-line Coach's take on the
+// week instead of the bare numbers. Unset -> the numeric body below, unchanged.
+const ANTHROPIC_API_KEY = process.env.ANTHROPIC_API_KEY
 
 export default async (req) => {
   if (!SUPABASE_URL || !SERVICE_ROLE_KEY || !VAPID_PUBLIC_KEY || !VAPID_PRIVATE_KEY) {
@@ -69,11 +73,31 @@ export default async (req) => {
       if (!userSubs.length) continue
 
       const sign = stats.profit >= 0 ? '+' : ''
-      const payload = JSON.stringify({
-        title: '📊 Your week in bets',
-        body: `${sign}£${stats.profit.toFixed(2)} across ${stats.settledCount} settled bets${stats.winRate === null ? '' : ` · ${stats.winRate}% win rate`}`,
-        url: '/#/tracker'
-      })
+      const numericBody = `${sign}£${stats.profit.toFixed(2)} across ${stats.settledCount} settled bets${stats.winRate === null ? '' : ` · ${stats.winRate}% win rate`}`
+
+      // When a Claude key is configured, lead with a one-line Coach's take on
+      // the week (and deep-link to the Insights tab where the full Coach lives)
+      // rather than the bare numbers. Gated the same way the on-demand Coach is
+      // - at least two settled bets - so we don't spend a token on a thin week.
+      // requestCoachTake never throws and returns null on any trouble, so this
+      // silently falls back to the numeric recap.
+      let title = '📊 Your week in bets'
+      let body = numericBody
+      let url = '/#/tracker'
+      if (ANTHROPIC_API_KEY && stats.settledCount >= 2) {
+        const take = await requestCoachTake({
+          summary: { settled: stats.settledCount, winRate: stats.winRate ?? undefined, profit: stats.profit, roi: stats.roi ?? undefined },
+          apiKey: ANTHROPIC_API_KEY,
+          style: 'push'
+        })
+        if (take) {
+          title = '🧠 Your week, from the Coach'
+          body = take
+          url = '/#/insights'
+        }
+      }
+
+      const payload = JSON.stringify({ title, body, url })
       for (const sub of userSubs) {
         sends.push(
           webpush
