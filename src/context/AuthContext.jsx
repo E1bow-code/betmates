@@ -3,10 +3,23 @@ import * as dataStore from '../lib/dataStore.js'
 
 const AuthContext = createContext(null)
 
+// A comment here used to claim a listener "still receives the event
+// regardless of timing" - not actually guaranteed by Supabase's client.
+// PASSWORD_RECOVERY fires once, during the client's own async URL
+// processing; a listener that subscribes after that has already happened
+// (slower JS boot, or - on the recovery path specifically - a slow/flaky
+// mobile connection stalling the network round-trip the client needs to
+// validate the token) never sees it, and nothing else told the user
+// anything went wrong. This was reported as "the reset link just doesn't
+// work on mobile" - the reporter lands back on a normal sign-in screen
+// with zero indication anything was even attempted.
+const RECOVERY_TIMEOUT_MS = 6000
+
 export function AuthProvider({ children }) {
   const [user, setUser] = useState(null)
   const [loading, setLoading] = useState(true)
   const [passwordRecovery, setPasswordRecovery] = useState(false)
+  const [recoveryFailed, setRecoveryFailed] = useState(false)
 
   useEffect(() => {
     dataStore
@@ -15,15 +28,32 @@ export function AuthProvider({ children }) {
       .finally(() => setLoading(false))
   }, [])
 
-  // See dataStore.js's onAuthStateChange comment - this is the only
-  // reliable way to catch a password-recovery link (App.jsx's Shell used to
-  // sniff window.location.hash for it directly, which lost a race against
-  // Supabase's own URL cleanup and silently signed people in instead of
-  // showing the reset form).
+  // See dataStore.js's onAuthStateChange comment for the event itself.
+  // Independently of that, check the URL directly for what a Supabase
+  // recovery redirect actually looks like (a `type=recovery` hash
+  // fragment) - not to act on it ourselves, just to know a recovery
+  // attempt is in flight so a timeout has something to fire against. If
+  // the event hasn't arrived by then, something went wrong client-side
+  // (network, timing, or the token already being spent) and the user gets
+  // told that plainly instead of silently landing back at sign-in.
   useEffect(() => {
-    return dataStore.onAuthStateChange((event) => {
+    const isRecoveryLink = window.location.hash.includes('type=recovery')
+    const unsubscribe = dataStore.onAuthStateChange((event) => {
       if (event === 'PASSWORD_RECOVERY') setPasswordRecovery(true)
     })
+    if (!isRecoveryLink) return unsubscribe
+
+    const timer = setTimeout(() => {
+      setPasswordRecovery((already) => {
+        if (!already) setRecoveryFailed(true)
+        return already
+      })
+    }, RECOVERY_TIMEOUT_MS)
+
+    return () => {
+      unsubscribe()
+      clearTimeout(timer)
+    }
   }, [])
 
   const signUp = useCallback(async (fields) => {
@@ -100,6 +130,7 @@ export function AuthProvider({ children }) {
         user,
         loading,
         passwordRecovery,
+        recoveryFailed,
         signUp,
         signIn,
         signOut,

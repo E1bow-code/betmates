@@ -127,7 +127,7 @@ function HomeRedirect() {
 const ONBOARDED_PREFIX = 'betmates:onboarded:'
 
 function Shell() {
-  const { user, loading, passwordRecovery } = useAuth()
+  const { user, loading, passwordRecovery, recoveryFailed } = useAuth()
   const [showTour, setShowTour] = useState(false)
   const [newsHeadlines, setNewsHeadlines] = useState([])
 
@@ -171,6 +171,31 @@ function Shell() {
       <Suspense fallback={<div className="loading">Loading BetMates…</div>}>
         <ResetPasswordPage />
       </Suspense>
+    )
+  }
+
+  // AuthContext's own timeout firing: a recovery link was clicked (the URL
+  // had the tell-tale hash) but PASSWORD_RECOVERY never arrived - a flaky
+  // connection or slow boot most likely. Previously this fell straight
+  // through to a normal sign-in screen with no indication anything had
+  // even been attempted, which is exactly what got reported as "the reset
+  // link doesn't work on mobile."
+  if (recoveryFailed) {
+    return (
+      <div className="auth-page">
+        <div className="auth-page-scrim" />
+        <div className="auth-card">
+          <h1 className="auth-title">BetMates</h1>
+          <p className="auth-subtitle">That reset link didn't work</p>
+          <p className="hint">
+            This can happen on a slow or unstable connection. Go back and request a fresh link, then open it again
+            once you've got a solid signal.
+          </p>
+          <button className="btn btn-primary" onClick={() => window.location.replace(window.location.origin + '/')}>
+            Back to sign in
+          </button>
+        </div>
+      </div>
     )
   }
 
