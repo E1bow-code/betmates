@@ -1190,13 +1190,7 @@ h1, h2, .topbar h1, .sheet-title, .auth-title {
   color: var(--text-dim);
 }
 .player-card-born { margin: 2px 0 0; font-size: 0.72rem; color: var(--text-dim); }
-/* Overrides the base .stat-tiles' fixed 4-column grid - a player card's
-   tile count varies with how much TheSportsDB actually has (2 tiles for a
-   tennis player missing height/weight is common), and a fixed 4-column
-   grid would leave dead space on the right instead of the tiles splitting
-   the row evenly. auto-fit collapses the unused tracks to 0 and lets the
-   real tiles' 1fr claim the freed width. */
-.player-card-stats { margin: 14px 0 0; grid-template-columns: repeat(auto-fit, minmax(70px, 1fr)); }
+.player-card-stats { margin: 14px 0 0; }
 
 .profile-sheet-bio { font-size: 0.88rem; line-height: 1.5; color: var(--text-dim); max-height: 30vh; overflow-y: auto; }
 .profile-sheet-socials { display: flex; flex-wrap: wrap; gap: 8px; }
@@ -1755,6 +1749,15 @@ h1, h2, .topbar h1, .sheet-title, .auth-title {
 .stat-tile.tone-good .stat-tile-value { color: var(--accent); }
 .stat-tile.tone-bad .stat-tile-value { color: var(--bad); }
 .stat-tile-label { font-size: 0.66rem; color: var(--text-dim); text-transform: uppercase; margin-top: 2px; letter-spacing: 0.03em; }
+
+/* Overrides the base .stat-tiles' fixed 4-column grid above - a player
+   card's tile count varies with how much TheSportsDB actually has (2 tiles
+   for a tennis player missing height/weight is common), and a fixed
+   4-column grid would leave dead space on the right instead of the tiles
+   splitting the row evenly. auto-fit collapses the unused tracks to 0 and
+   lets the real tiles' 1fr claim the freed width. Must come after the base
+   rule above - same specificity, so source order decides the winner. */
+.player-card-stats { grid-template-columns: repeat(auto-fit, minmax(70px, 1fr)); }
 
 /* "This week" group recap card at the top of a group feed. */
 .group-recap-card {
