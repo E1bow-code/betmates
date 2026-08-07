@@ -710,3 +710,15 @@ create policy "user records their own copy" on bet_copies for insert with check 
 -- even after the streak that reached it ends. No new RLS policy needed:
 -- "update own profile" already covers this column.
 alter table profiles add column if not exists streak_milestone_notified integer not null default 0;
+
+-- --- Team news push alerts -------------------------------------------------
+-- netlify/functions/team-news-alerts.js - the push half of the Social tab's
+-- News "My teams" filter (SocialFeedPage.jsx/followed_participants).
+-- team_news_notified_at is a watermark, not a per-headline log: only items
+-- published after this timestamp are eligible next run, so nothing re-fires
+-- for a headline already seen. Left null until the function's first run
+-- after someone opts in or follows their first team, which sets it to "now"
+-- without notifying - avoids blasting every matching headline already
+-- sitting in the feed as if it just broke. No new RLS policy needed:
+-- "update own profile" already covers this column.
+alter table profiles add column if not exists team_news_notified_at timestamptz;

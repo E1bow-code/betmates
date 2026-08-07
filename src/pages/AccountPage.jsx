@@ -354,6 +354,10 @@ export default function AccountPage() {
           />
           <span>Win-streak milestones (3, 5, 10 in a row)</span>
         </label>
+        <label className="field-check">
+          <input type="checkbox" checked={user.notificationPrefs?.teamNews ?? false} onChange={() => toggleNotification('teamNews')} />
+          <span>News about a team or player you follow</span>
+        </label>
         <p className="hint">
           {isPushSupported()
             ? 'Turn on push above to actually receive these on this device, not just store the preference.'
