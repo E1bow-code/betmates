@@ -46,12 +46,16 @@ export default function BetBuilderSheet() {
   // Fetched unconditionally now - both the spend-limit heads-up below and
   // the loss-chasing nudge need the same recent history, and neither is a
   // hard stop (the app never places bets, so it has no way to actually
-  // prevent one either way).
+  // prevent one either way). Keyed on sheetOpen (not just user.id) because
+  // this sheet lives once at the App root for the whole session - without
+  // that, a bet logged and settled earlier in the same session would never
+  // show up here, since the effect would only ever have run once at login.
   useEffect(() => {
+    if (!sheetOpen) return
     Promise.all([dataStore.listBetPostsByUser(user.id), dataStore.listManualEntries(user.id)]).then(([posted, manual]) => {
       setEntries([...posted, ...manual])
     })
-  }, [user.id])
+  }, [user.id, sheetOpen])
 
   const periodSpend = useMemo(() => {
     if (!entries || !user.stakeLimitAmount) return null
