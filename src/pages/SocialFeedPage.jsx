@@ -3,7 +3,9 @@ import { Link, useLocation } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext.jsx'
 import { useActivity } from '../context/ActivityContext.jsx'
 import * as dataStore from '../lib/dataStore.js'
+import { fetchSportsNews } from '../api/newsClient.js'
 import { computeStats } from '../utils/trackerStats.js'
+import { formatRelativeTime } from '../utils/format.js'
 import { LEADERBOARD_WINDOWS, isWithinWindow } from '../utils/dateWindows.js'
 import BetCard from '../components/BetCard.jsx'
 import VideoCard from '../components/VideoCard.jsx'
@@ -21,19 +23,24 @@ import { computeTrendingPicks } from '../utils/trending.js'
 
 // Landing view for the Social tab. The feed is the main attraction - group/
 // friend management (create, join, invite codes) lives behind the Manage
-// sheet instead of sitting above the feed. Four segments:
+// sheet instead of sitting above the feed. Segments:
 // - Bets: one merged timeline across every group the user is in.
-// - Tips: a Twitter-style feed of talking-to-camera picks from the user
-//   and their friends (see src/components/VideoRecorder.jsx), with a way
-//   to forward a good one into a group or straight to a friend.
-// - Feed: public timeline, anyone's posts, regardless of group membership -
-//   confidence votes + follow instead of group-mate reactions (BetCard's
-//   variant="public").
 // - Leaderboard: unlike components/Leaderboard.jsx (scoped to one group's
 //   posts, embedded in GroupFeedPage), this ranks everyone the user can
 //   see a settled bet from at all - their own groups' posts plus the
 //   public feed - since "who's actually good at this" is more interesting
 //   across everything than locked to a single group.
+// - Feed: public timeline, anyone's posts, regardless of group membership -
+//   confidence votes + follow instead of group-mate reactions (BetCard's
+//   variant="public").
+// - News: real sport headlines (netlify/functions/sports-news.js's BBC
+//   Sport/Sky Sports RSS feeds, the same source NewsTickerBar/NewsSidebar
+//   already scroll elsewhere in the app) as an actual browsable list
+//   instead of another auto-scrolling ticker - team news, injuries, price
+//   moves, the stuff a punter actually wants to see, not just bet activity.
+// - Tips: a Twitter-style feed of talking-to-camera picks from the user
+//   and their friends (see src/components/VideoRecorder.jsx), with a way
+//   to forward a good one into a group or straight to a friend.
 
 export default function SocialFeedPage() {
   const { user } = useAuth()
@@ -45,6 +52,7 @@ export default function SocialFeedPage() {
   const [friends, setFriends] = useState(null)
   const [videos, setVideos] = useState(null)
   const [publicFeed, setPublicFeed] = useState(null)
+  const [news, setNews] = useState(null)
   const [showManage, setShowManage] = useState(false)
   const [showRecorder, setShowRecorder] = useState(false)
   const [compareFriend, setCompareFriend] = useState(null)
@@ -58,6 +66,7 @@ export default function SocialFeedPage() {
   useEffect(() => {
     if (segment === 'tips' && videos === null) refreshTips()
     if ((segment === 'feed' || segment === 'leaderboard') && publicFeed === null) refreshPublicFeed()
+    if (segment === 'news' && news === null) refreshNews()
   }, [segment])
 
   const leaderboardRows = useMemo(() => {
@@ -99,6 +108,12 @@ export default function SocialFeedPage() {
     return dataStore.listPublicFeed(user.id).then(setPublicFeed)
   }
 
+  function refreshNews() {
+    return fetchSportsNews()
+      .then(setNews)
+      .catch(() => setNews([]))
+  }
+
   function handleBlocked(blockedUserId) {
     setPublicFeed((pf) => (pf ? pf.filter((p) => p.userId !== blockedUserId) : pf))
   }
@@ -112,6 +127,7 @@ export default function SocialFeedPage() {
     if (segment === 'bets') return refreshBets()
     if (segment === 'tips') return refreshTips()
     if (segment === 'fpl') return Promise.resolve()
+    if (segment === 'news') return refreshNews()
     return refreshPublicFeed()
   }
 
@@ -142,6 +158,9 @@ export default function SocialFeedPage() {
           </button>
           <button className={segment === 'feed' ? 'sport-pill active' : 'sport-pill'} onClick={() => setSegment('feed')}>
             Feed
+          </button>
+          <button className={segment === 'news' ? 'sport-pill active' : 'sport-pill'} onClick={() => setSegment('news')}>
+            📰 News
           </button>
           <button className={segment === 'tips' ? 'sport-pill active' : 'sport-pill'} onClick={() => setSegment('tips')}>
             Tips
@@ -227,6 +246,31 @@ export default function SocialFeedPage() {
             <div className="bet-feed">
               {publicFeed.map((post) => (
                 <BetCard key={post.id} post={post} variant="public" onBlocked={handleBlocked} onChanged={refreshPublicFeed} />
+              ))}
+            </div>
+          )}
+        </>
+      )}
+
+      {segment === 'news' && (
+        <>
+          <p className="hint">Sport headlines worth knowing before you bet - team news, injuries, price moves.</p>
+
+          {news === null && <div className="loading">Catching up on the headlines…</div>}
+          {news && !news.length && (
+            <EmptyState icon="📰" title="No headlines right now" subtitle="The feeds didn't return anything - try again shortly." />
+          )}
+
+          {news && news.length > 0 && (
+            <div className="news-feed-list">
+              {news.map((item, i) => (
+                <a key={i} className="news-feed-item" href={item.link} target="_blank" rel="noreferrer">
+                  <div className="news-feed-item-top">
+                    <span className="news-feed-source">{item.source}</span>
+                    {item.pubDate && <span className="news-feed-time">{formatRelativeTime(item.pubDate)}</span>}
+                  </div>
+                  <div className="news-feed-title">{item.title}</div>
+                </a>
               ))}
             </div>
           )}

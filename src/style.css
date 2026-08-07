@@ -1239,6 +1239,25 @@ h1, h2, .topbar h1, .sheet-title, .auth-title {
 .trending-chip-pick { font-weight: 700; font-size: 0.85rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .trending-chip-meta { font-size: 0.75rem; color: var(--text-dim); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 
+/* Social tab's News segment - a real browsable list of the same BBC Sport/
+   Sky Sports items NewsTickerBar/NewsSidebar scroll elsewhere, not another
+   auto-scrolling ticker. */
+.news-feed-list { display: flex; flex-direction: column; gap: 10px; margin-top: 12px; }
+.news-feed-item {
+  display: block;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 10px 12px;
+  text-decoration: none;
+  color: var(--text);
+}
+.news-feed-item:hover { border-color: var(--accent-dim); }
+.news-feed-item-top { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 4px; }
+.news-feed-source { font-size: 0.7rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.03em; color: var(--accent); }
+.news-feed-time { font-size: 0.72rem; color: var(--text-dim); flex-shrink: 0; }
+.news-feed-title { font-size: 0.9rem; line-height: 1.35; }
+
 .group-chip-row { display: flex; gap: 8px; overflow-x: auto; padding: 4px 0 10px; }
 .group-chip {
   flex-shrink: 0;
