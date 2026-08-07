@@ -1121,26 +1121,77 @@ h1, h2, .topbar h1, .sheet-title, .auth-title {
 .sheet-title { margin: 0; font-size: 1.1rem; }
 .sheet-actions { display: flex; flex-direction: column; gap: 8px; }
 
-/* Participant profile sheet - opened by tapping a name/photo on a detail page */
-.profile-sheet-header { display: flex; gap: 14px; align-items: flex-start; }
-.profile-sheet-photo {
-  width: 72px;
-  height: 72px;
-  border-radius: 50%;
-  object-fit: cover;
-  background: var(--surface-2);
-  flex-shrink: 0;
+/* Participant profile sheet - opened by tapping a name/photo on a detail
+   page. The card-front (.player-card) is a trading-card treatment built
+   entirely from real fields (position, nationality, physical stats, age) -
+   there's no free stats API with FIFA-style attribute ratings, so this
+   deliberately doesn't try to fake a pace/shooting/passing wheel. */
+.player-card {
+  border: 1px solid var(--accent-dim);
+  border-radius: 10px;
+  background: linear-gradient(180deg, var(--surface) 0%, var(--surface-2) 100%);
+  padding: 14px 16px 16px;
+  text-align: center;
 }
-.profile-sheet-photo-fallback {
+.player-card-top { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.player-card-position { margin: 0; }
+.player-card-nation {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 0.72rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  color: var(--text-dim);
+}
+.player-card-flag { font-size: 1.1rem; line-height: 1; }
+.player-card-photo-wrap {
+  height: 176px;
+  margin: 8px auto 4px;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  background: radial-gradient(ellipse at 50% 85%, rgba(var(--accent-rgb), 0.22) 0%, transparent 70%);
+}
+.player-card-photo {
+  max-height: 176px;
+  max-width: 100%;
+  object-fit: contain;
+  filter: drop-shadow(0 8px 10px rgba(var(--bg-rgb), 0.5));
+}
+.player-card-photo-fallback {
+  width: 96px;
+  height: 96px;
+  border-radius: 50%;
+  background: var(--surface-2);
+  border: 1px solid var(--border);
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 1.6rem;
+  font-size: 2rem;
   font-weight: 600;
   color: var(--text-dim);
+  margin-bottom: 8px;
 }
-.profile-sheet-facts { display: flex; flex-wrap: wrap; gap: 6px 12px; margin-top: 6px; font-size: 0.82rem; color: var(--text-dim); }
-.profile-sheet-fact-label { font-weight: 600; color: var(--text); }
+.player-card-name {
+  font-family: Georgia, 'Times New Roman', serif;
+  font-size: 1.3rem;
+  margin: 2px 0 0;
+  letter-spacing: 0.01em;
+}
+.player-card-subtitle {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  margin: 2px 0 0;
+  font-size: 0.82rem;
+  color: var(--text-dim);
+}
+.player-card-born { margin: 2px 0 0; font-size: 0.72rem; color: var(--text-dim); }
+.player-card-stats { margin: 14px 0 0; }
+
 .profile-sheet-bio { font-size: 0.88rem; line-height: 1.5; color: var(--text-dim); max-height: 30vh; overflow-y: auto; }
 .profile-sheet-socials { display: flex; flex-wrap: wrap; gap: 8px; }
 .profile-sheet-socials .btn { flex: none; }

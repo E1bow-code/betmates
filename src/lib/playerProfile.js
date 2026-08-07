@@ -41,6 +41,14 @@ async function fetchProfile(playerName) {
     weight: p.strWeight || null,
     status: p.strStatus || null,
     bio: p.strDescriptionEN || null,
+    // Card-front fields (see ParticipantProfileSheet.jsx) - sport, team, and
+    // position all come back on every lookup regardless of sport. For
+    // combat sports strTeam is a weight class ("UFC Lightweight"), not a
+    // real club, so it's still shown but never sent through TeamBadge.
+    sport: p.strSport || null,
+    team: p.strTeam || null,
+    position: p.strPosition || null,
+    number: p.strNumber || null,
     twitter: normalizeSocialUrl(p.strTwitter),
     instagram: normalizeSocialUrl(p.strInstagram),
     facebook: normalizeSocialUrl(p.strFacebook)
