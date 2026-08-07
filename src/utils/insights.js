@@ -1,4 +1,5 @@
 import { SPORT_LABEL } from '../lib/sportsConfig.js'
+import { moneyLeftOnTable } from './lineValue.js'
 
 const DAY_NAMES = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday']
 
@@ -145,6 +146,21 @@ export function computeInsights(entries) {
     const cv = avgStake ? stdev / avgStake : 0
     const style = cv < 0.8 ? 'Steady' : cv < 1.5 ? 'Balanced' : 'Boom or bust'
     insights.push({ key: 'volatility', icon: '🎢', title: 'Betting style', value: `${style} · £${stdev.toFixed(2)} swing per bet` })
+  }
+
+  // Money left on the table - the £ version of the Tracker's "beat the
+  // line" badge (src/utils/lineValue.js), built from the same device-local
+  // price history. Best-effort and device-only by the same admission that
+  // file already makes, but it's the only figure the app has for "what did
+  // a worse price actually cost you".
+  const leftOnTable = moneyLeftOnTable(entries)
+  if (leftOnTable && leftOnTable.total > 0) {
+    insights.push({
+      key: 'moneyLeftOnTable',
+      icon: '🪙',
+      title: 'Money left on the table',
+      value: `£${leftOnTable.total.toFixed(2)} (${leftOnTable.sample} bet${leftOnTable.sample === 1 ? '' : 's'})`
+    })
   }
 
   return insights

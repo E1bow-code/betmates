@@ -45,3 +45,19 @@ export function beatTheLineRate(entries, minSample = 3) {
   const beat = values.filter((v) => v.beat).length
   return { rate: Math.round((beat / values.length) * 100), sample: values.length }
 }
+
+// Turns the same line-value comparison into a running £ total instead of a
+// rate: across settled WINS where the bet price was worse than the line
+// (didn't beat it), how much extra return the best price this device saw
+// would have paid out. A loss's price doesn't change what it returned
+// (£0 either way), so only wins count - this is about money actually left
+// on the table, not price quality in the abstract.
+export function moneyLeftOnTable(entries, minSample = 3) {
+  const rows = (entries ?? [])
+    .filter((e) => e.status === 'won' && e.stake)
+    .map((e) => ({ stake: Number(e.stake), lv: betLineValue(e) }))
+    .filter((r) => r.lv && !r.lv.beat)
+  if (rows.length < minSample) return null
+  const total = rows.reduce((sum, { stake, lv }) => sum + stake * (lv.line - lv.bet), 0)
+  return { total: Math.round(total * 100) / 100, sample: rows.length }
+}

@@ -54,7 +54,8 @@ function mapBetPost(row) {
     visibility: row.visibility ?? 'group',
     status: row.status,
     createdAt: row.created_at,
-    settledAt: row.settled_at
+    settledAt: row.settled_at,
+    outcomes: row.outcomes ?? null
   }
 }
 
@@ -69,7 +70,8 @@ function mapManualEntry(row) {
     potentialReturn: row.potential_return,
     status: row.status,
     createdAt: row.created_at,
-    settledAt: row.settled_at
+    settledAt: row.settled_at,
+    outcomes: row.outcomes ?? null
   }
 }
 
@@ -427,11 +429,12 @@ export async function createBetPost(post) {
   return mapBetPost(data)
 }
 
-export async function updateBetStatus(betId, status, potentialReturnOverride) {
-  if (!isSupabaseConfigured) return local.updateBetStatus(betId, status, potentialReturnOverride)
+export async function updateBetStatus(betId, status, potentialReturnOverride, outcomes) {
+  if (!isSupabaseConfigured) return local.updateBetStatus(betId, status, potentialReturnOverride, outcomes)
   const settledAt = ['won', 'lost', 'void'].includes(status) ? new Date().toISOString() : null
   const update = { status, settled_at: settledAt }
   if (potentialReturnOverride !== undefined) update.potential_return = potentialReturnOverride
+  if (outcomes !== undefined) update.outcomes = outcomes
   const { data, error } = await supabase
     .from('bet_posts')
     .update(update)
@@ -709,11 +712,12 @@ export async function addManualEntry(entry) {
 // win" result (see TrackerPage) - the amount actually returned there is
 // the place-part payout, not the optimistic full-win figure stored when
 // the bet was logged, so it needs correcting alongside the status.
-export async function updateManualEntryStatus(entryId, status, potentialReturnOverride) {
-  if (!isSupabaseConfigured) return local.updateManualEntryStatus(entryId, status, potentialReturnOverride)
+export async function updateManualEntryStatus(entryId, status, potentialReturnOverride, outcomes) {
+  if (!isSupabaseConfigured) return local.updateManualEntryStatus(entryId, status, potentialReturnOverride, outcomes)
   const settledAt = ['won', 'lost', 'void'].includes(status) ? new Date().toISOString() : null
   const update = { status, settled_at: settledAt }
   if (potentialReturnOverride !== undefined) update.potential_return = potentialReturnOverride
+  if (outcomes !== undefined) update.outcomes = outcomes
   const { data, error } = await supabase
     .from('manual_entries')
     .update(update)

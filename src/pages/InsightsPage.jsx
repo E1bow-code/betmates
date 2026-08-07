@@ -1,15 +1,20 @@
 import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext.jsx'
+import { useOddsFormat } from '../context/OddsFormatContext.jsx'
 import * as dataStore from '../lib/dataStore.js'
 import { computeInsights } from '../utils/insights.js'
+import { findBadBeats } from '../utils/badBeats.js'
+import { formatOdds } from '../utils/oddsFormat.js'
 import SportHeroBanner from '../components/SportHeroBanner.jsx'
 import ShareRecapButton from '../components/ShareRecapButton.jsx'
 import CoachTake from '../components/CoachTake.jsx'
+import CrowdWisdomPanel from '../components/CrowdWisdomPanel.jsx'
 import EmptyState from '../components/EmptyState.jsx'
 
 export default function InsightsPage() {
   const { user } = useAuth()
+  const { format } = useOddsFormat()
   const [entries, setEntries] = useState(null)
 
   useEffect(() => {
@@ -22,6 +27,7 @@ export default function InsightsPage() {
 
   const insights = computeInsights(entries)
   const rows = insights.map((i) => ({ label: i.title, value: i.value }))
+  const badBeats = findBadBeats(entries, 5)
 
   return (
     <div>
@@ -58,6 +64,33 @@ export default function InsightsPage() {
           </div>
         </>
       )}
+
+      {badBeats.length > 0 && (
+        <>
+          <h3 className="market-title">Agony column</h3>
+          <p className="hint">Multis that lost with just one leg wrong - the ones that got away.</p>
+          <div className="tracker-list">
+            {badBeats.map((b) => (
+              <div key={b.id} className="tracker-row icon-row">
+                <span className="icon-row-badge">💔</span>
+                <div className="tracker-row-main">
+                  <div className="selection-event">
+                    {b.legCount - 1} of {b.legCount} legs came in
+                  </div>
+                  <div className="race-card-meta">
+                    Missed: {b.missedLeg.selection} @ {formatOdds(b.missedLeg.odds, format)} ({b.missedLeg.event})
+                  </div>
+                  {b.wouldHaveReturned != null && (
+                    <div className="race-card-meta">Would&apos;ve returned £{b.wouldHaveReturned.toFixed(2)}</div>
+                  )}
+                </div>
+              </div>
+            ))}
+          </div>
+        </>
+      )}
+
+      <CrowdWisdomPanel userId={user.id} />
     </div>
   )
 }

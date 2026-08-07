@@ -78,8 +78,11 @@ export default async (req) => {
 
     const settledEntries = []
     for (const entry of open) {
-      const resolved = resolveSettlement(entry, evaluateEntryDetailed(entry, games, raceResults))
-      if (resolved) settledEntries.push({ ...entry, ...resolved })
+      const detailed = evaluateEntryDetailed(entry, games, raceResults)
+      const resolved = resolveSettlement(entry, detailed)
+      // Only worth recording for a multi - see settlement.js's client-triggered
+      // twin, which applies the same restriction.
+      if (resolved) settledEntries.push({ ...entry, ...resolved, outcomes: (entry.selections?.length ?? 0) > 1 ? detailed.outcomes : undefined })
     }
     if (!settledEntries.length) return new Response(JSON.stringify({ settled: 0 }), { status: 200 })
 
@@ -88,6 +91,7 @@ export default async (req) => {
       settledEntries.map((entry) => {
         const update = { status: entry.status, settled_at: settledAt }
         if (entry.potentialReturnOverride !== undefined) update.potential_return = entry.potentialReturnOverride
+        if (entry.outcomes !== undefined) update.outcomes = entry.outcomes
         return supabase.from(entry.table).update(update).eq('id', entry.id)
       })
     )

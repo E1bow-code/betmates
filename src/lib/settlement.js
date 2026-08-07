@@ -45,10 +45,14 @@ export async function checkAndSettleBets(userId) {
   let settled = 0
   await Promise.all(
     open.map(async (entry) => {
-      const resolved = resolveSettlement(entry, evaluateEntryDetailed(entry, games, raceResults))
+      const detailed = evaluateEntryDetailed(entry, games, raceResults)
+      const resolved = resolveSettlement(entry, detailed)
       if (!resolved) return
-      if (entry.source === 'post') await dataStore.updateBetStatus(entry.id, resolved.status, resolved.potentialReturnOverride)
-      else await dataStore.updateManualEntryStatus(entry.id, resolved.status, resolved.potentialReturnOverride)
+      // Only worth recording for a multi - a single-leg outcome is just the
+      // bet's own status again, and badBeats.js only ever looks at multis.
+      const outcomes = entry.selections.length > 1 ? detailed.outcomes : undefined
+      if (entry.source === 'post') await dataStore.updateBetStatus(entry.id, resolved.status, resolved.potentialReturnOverride, outcomes)
+      else await dataStore.updateManualEntryStatus(entry.id, resolved.status, resolved.potentialReturnOverride, outcomes)
       settled++
     })
   )

@@ -11,7 +11,7 @@ globalThis.localStorage = {
   removeItem: (k) => store.delete(k)
 }
 
-const { legLineValue, betLineValue, beatTheLineRate } = await import('./lineValue.js')
+const { legLineValue, betLineValue, beatTheLineRate, moneyLeftOnTable } = await import('./lineValue.js')
 const { historyKey } = await import('../lib/oddsMemory.js')
 
 const HISTORY_KEY = 'betmates:oddsHistory'
@@ -70,4 +70,27 @@ test('beatTheLineRate needs a minimum sample and reports the hit rate', () => {
   assert.deepEqual(beatTheLineRate(entries), { rate: 67, sample: 3 })
   // Below the minimum sample, a couple of data points aren't a track record.
   assert.equal(beatTheLineRate(entries.slice(0, 2)), null)
+})
+
+test('moneyLeftOnTable sums extra return only on wins that took a worse price than the line', () => {
+  seedHistory([
+    { eventId: 'a', marketKey: 'h2h', outcomeName: 'Home', series: [{ t: 1, p: 2.4 }] }, // took 2.0, line 2.4 -> £10 * (2.4-2.0) = £4 left
+    { eventId: 'b', marketKey: 'h2h', outcomeName: 'Home', series: [{ t: 1, p: 3.0 }] }, // took 2.0, line 3.0 -> £5 * (3.0-2.0) = £5 left
+    { eventId: 'c', marketKey: 'h2h', outcomeName: 'Home', series: [{ t: 1, p: 1.8 }] } // took 2.0, beat the line -> excluded
+  ])
+  const entries = [
+    { status: 'won', stake: 10, selections: [leg({ eventId: 'a', odds: 2.0 })] },
+    { status: 'won', stake: 5, selections: [leg({ eventId: 'b', odds: 2.0 })] },
+    { status: 'won', stake: 20, selections: [leg({ eventId: 'c', odds: 2.0 })] }
+  ]
+  assert.deepEqual(moneyLeftOnTable(entries, 2), { total: 9, sample: 2 })
+})
+
+test('moneyLeftOnTable ignores losses and needs a minimum sample', () => {
+  seedHistory([{ eventId: 'a', marketKey: 'h2h', outcomeName: 'Home', series: [{ t: 1, p: 2.4 }] }])
+  const entries = [
+    { status: 'lost', stake: 10, selections: [leg({ eventId: 'a', odds: 2.0 })] },
+    { status: 'won', stake: 10, selections: [leg({ eventId: 'a', odds: 2.0 })] }
+  ]
+  assert.equal(moneyLeftOnTable(entries, 3), null)
 })

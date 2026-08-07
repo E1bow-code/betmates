@@ -445,13 +445,14 @@ export function createBetPost(post) {
   return delay(record)
 }
 
-export function updateBetStatus(betId, status, potentialReturnOverride) {
+export function updateBetStatus(betId, status, potentialReturnOverride, outcomes) {
   const db = readDb()
   const post = db.betPosts.find((b) => b.id === betId)
   if (!post) return Promise.reject(new Error('Bet not found.'))
   post.status = status
   post.settledAt = ['won', 'lost', 'void'].includes(status) ? new Date().toISOString() : null
   if (potentialReturnOverride !== undefined) post.potentialReturn = potentialReturnOverride
+  if (outcomes !== undefined) post.outcomes = outcomes
   writeDb(db)
   return delay(post)
 }
@@ -567,13 +568,14 @@ export function addManualEntry(entry) {
   return delay(record)
 }
 
-export function updateManualEntryStatus(entryId, status, potentialReturnOverride) {
+export function updateManualEntryStatus(entryId, status, potentialReturnOverride, outcomes) {
   const db = readDb()
   const entry = db.manualEntries.find((e) => e.id === entryId)
   if (!entry) return Promise.reject(new Error('Entry not found.'))
   entry.status = status
   entry.settledAt = ['won', 'lost', 'void'].includes(status) ? new Date().toISOString() : null
   if (potentialReturnOverride !== undefined) entry.potentialReturn = potentialReturnOverride
+  if (outcomes !== undefined) entry.outcomes = outcomes
   writeDb(db)
   return delay(entry)
 }

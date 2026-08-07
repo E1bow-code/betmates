@@ -50,6 +50,7 @@ create table bet_posts (
   status text not null default 'open' check (status in ('open', 'won', 'lost', 'void')),
   created_at timestamptz not null default now(),
   settled_at timestamptz,
+  outcomes jsonb, -- per-leg ['won'|'lost'|'void'|'placed', ...], set on auto-settlement only (see betEvaluation.js) - null for manually-marked results, which have no per-leg breakdown
   check ((visibility = 'group' and group_id is not null) or (visibility = 'public' and group_id is null))
 );
 
@@ -88,7 +89,8 @@ create table manual_entries (
   potential_return numeric,
   status text not null default 'open' check (status in ('open', 'won', 'lost', 'void')),
   created_at timestamptz not null default now(),
-  settled_at timestamptz
+  settled_at timestamptz,
+  outcomes jsonb -- see bet_posts.outcomes
 );
 
 -- Cached fixtures + odds history, normalised across sports/providers.

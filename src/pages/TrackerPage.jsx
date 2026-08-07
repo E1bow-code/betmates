@@ -16,6 +16,7 @@ import {
   computeLongestWinStreak,
   computeBestWin
 } from '../utils/trackerStats.js'
+import { computeDisciplineStreak } from '../utils/discipline.js'
 import { SPORT_LABEL } from '../lib/sportsConfig.js'
 import EmptyState from '../components/EmptyState.jsx'
 import EditBetSheet from '../components/EditBetSheet.jsx'
@@ -160,6 +161,15 @@ export default function TrackerPage() {
     (() => {
       const lv = beatTheLineRate(entries)
       return lv && { icon: '📈', label: `Beat the line ${lv.rate}% (${lv.sample})` }
+    })(),
+    (() => {
+      // The positive twin of the loss-chasing nudge (BetBuilderSheet/
+      // ManualEntrySheet) - only worth showing once there's been an actual
+      // loss to chase, so a brand-new account with zero losses doesn't get
+      // credited for discipline it's never been tested on.
+      const disciplineStreak = computeDisciplineStreak(entries)
+      const hasLoss = entries.some((e) => e.status === 'lost')
+      return hasLoss && disciplineStreak >= 3 && { icon: '🧊', label: `${disciplineStreak} bets without chasing a loss` }
     })()
   ].filter(Boolean)
 
