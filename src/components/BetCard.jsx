@@ -3,6 +3,7 @@ import { useAuth } from '../context/AuthContext.jsx'
 import { useOddsFormat } from '../context/OddsFormatContext.jsx'
 import * as dataStore from '../lib/dataStore.js'
 import { formatOdds } from '../utils/oddsFormat.js'
+import { computeEachWayReturn } from '../utils/eachWay.js'
 import { notifyBetAuthor } from '../lib/notify.js'
 import CopyBetButton from './CopyBetButton.jsx'
 import BackBetButton from './BackBetButton.jsx'
@@ -65,8 +66,22 @@ export default function BetCard({ post, memberNames, variant = 'group', onBlocke
     setReactions(updated)
   }
 
+  // "placed" isn't a real status column value - it's an each-way result
+  // where the horse placed but didn't win, so it settles as 'won' but with
+  // potentialReturn corrected down to just the place-part payout. Same
+  // handling as TrackerPage.jsx's manual "Placed (not won)" option; without
+  // this a self-report here could only pick Won (overpaying) or Lost
+  // (underpaying) for a bet that actually placed.
   async function handleStatusChange(e) {
     const nextStatus = e.target.value
+    if (nextStatus === 'placed') {
+      const leg = post.selections[0]
+      const terms = { fraction: leg.eachWayFraction, places: leg.eachWayPlaces }
+      const placeReturn = Math.round(computeEachWayReturn(post.stake, leg.odds, terms, 'place') * 100) / 100
+      await dataStore.updateBetStatus(post.id, 'won', placeReturn)
+      setStatus('won')
+      return
+    }
     await dataStore.updateBetStatus(post.id, nextStatus)
     setStatus(nextStatus)
   }
@@ -240,6 +255,7 @@ export default function BetCard({ post, memberNames, variant = 'group', onBlocke
               <select className="status-select" defaultValue="open" onChange={handleStatusChange}>
                 <option value="open">Mark result</option>
                 <option value="won">Won</option>
+                {selections.length === 1 && selections[0].eachWay && <option value="placed">Placed (not won)</option>}
                 <option value="lost">Lost</option>
                 <option value="void">Void</option>
               </select>

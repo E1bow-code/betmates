@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { BOOKMAKER_LINKS, buildDeepLink } from '../lib/bookmakers.js'
 import * as dataStore from '../lib/dataStore.js'
 import { useOddsFormat } from '../context/OddsFormatContext.jsx'
+import { useToast } from '../context/ToastContext.jsx'
 import { formatOdds } from '../utils/oddsFormat.js'
 
 // Section 2B's Copy Bet button: clipboard + "open bookmaker" always.
@@ -24,6 +25,7 @@ function formatBetSlip(post, format) {
 export default function CopyBetButton({ post, userId, copyCount = 0, onCopied }) {
   const [copied, setCopied] = useState(false)
   const { format } = useOddsFormat()
+  const { showToast } = useToast()
   const selection = post.selections[0]
   const bookmaker = selection?.bookmaker
   const deepLink = buildDeepLink(bookmaker, selection)
@@ -31,7 +33,16 @@ export default function CopyBetButton({ post, userId, copyCount = 0, onCopied })
   const isBetslipLink = Boolean(selection?.linkIsBetslip) || Boolean(deepLink)
 
   async function handleCopy() {
-    await navigator.clipboard.writeText(formatBetSlip(post, format))
+    // Clipboard writes can reject - permission denied, an unfocused page, a
+    // browser that just doesn't support it - and this used to have no catch
+    // at all, so a rejection silently skipped the copied-state, the count
+    // bump, and the recordBetCopy call with zero feedback to the user.
+    try {
+      await navigator.clipboard.writeText(formatBetSlip(post, format))
+    } catch {
+      showToast("Couldn't copy - try again")
+      return
+    }
     setCopied(true)
     setTimeout(() => setCopied(false), 2000)
     onCopied?.()
