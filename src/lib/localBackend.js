@@ -412,11 +412,12 @@ export function deleteBetPost(betId) {
 export function listPublicFeed(viewerId) {
   const db = readDb()
   const names = Object.fromEntries(db.users.map((u) => [u.id, u.displayName]))
+  const codes = Object.fromEntries(db.users.map((u) => [u.id, u.friendCode ?? null]))
   const blockedIds = viewerId ? db.blocks.filter((b) => b.blockerId === viewerId).map((b) => b.blockedId) : []
   return delay(
     db.betPosts
       .filter((b) => b.visibility === 'public' && !blockedIds.includes(b.userId))
-      .map((b) => ({ ...b, authorName: names[b.userId] ?? 'Someone' }))
+      .map((b) => ({ ...b, authorName: names[b.userId] ?? 'Someone', authorCode: codes[b.userId] ?? null }))
       .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))
   )
 }

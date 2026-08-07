@@ -453,11 +453,15 @@ export async function listPublicFeed(viewerId) {
   if (!isSupabaseConfigured) return local.listPublicFeed(viewerId)
   const { data, error } = await supabase
     .from('bet_posts')
-    .select('*, profiles(display_name)')
+    .select('*, profiles(display_name, friend_code)')
     .eq('visibility', 'public')
     .order('created_at', { ascending: false })
   if (error) throw error
-  const posts = data.map((row) => ({ ...mapBetPost(row), authorName: row.profiles?.display_name ?? 'Someone' }))
+  const posts = data.map((row) => ({
+    ...mapBetPost(row),
+    authorName: row.profiles?.display_name ?? 'Someone',
+    authorCode: row.profiles?.friend_code ?? null
+  }))
   if (!viewerId) return posts
   const blockedIds = await listBlockedUserIds(viewerId)
   return blockedIds.length ? posts.filter((p) => !blockedIds.includes(p.userId)) : posts

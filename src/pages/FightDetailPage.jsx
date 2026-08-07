@@ -74,7 +74,10 @@ export default function FightDetailPage() {
       link: best.link,
       linkIsBetslip: best.isBetslipLink,
       sport: 'ufc',
-      kickoff: fight.kickoff
+      kickoff: fight.kickoff,
+      eventId: fight.id,
+      marketKey: market.key,
+      outcomeName: outcome.name
     })
   }
 

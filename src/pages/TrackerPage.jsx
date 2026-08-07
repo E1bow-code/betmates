@@ -27,6 +27,7 @@ import SportHeroBanner from '../components/SportHeroBanner.jsx'
 import SportIcon from '../components/icons/SportIcons.jsx'
 import LiveBadge from '../components/LiveBadge.jsx'
 import { useLiveScores } from '../lib/liveScores.js'
+import { betLineValue, beatTheLineRate } from '../utils/lineValue.js'
 
 const STATUS_LABEL = { open: 'Pending', won: 'Won', lost: 'Lost', void: 'Void' }
 
@@ -150,7 +151,11 @@ export default function TrackerPage() {
       icon: '💯',
       label: `Perfect week, ${perfectWeek.count}-0 (${new Date(perfectWeek.weekStart).toLocaleDateString([], { month: 'short', day: 'numeric' })})`
     },
-    ...computeMilestoneBadges(entries)
+    ...computeMilestoneBadges(entries),
+    (() => {
+      const lv = beatTheLineRate(entries)
+      return lv && { icon: '📈', label: `Beat the line ${lv.rate}% (${lv.sample})` }
+    })()
   ].filter(Boolean)
 
   const longestStreak = computeLongestWinStreak(entries)
@@ -263,6 +268,7 @@ export default function TrackerPage() {
           {entries.map((entry) => {
             const selections = entry.selections
             const combinedOdds = selections.length > 1 ? selections.reduce((acc, s) => acc * s.odds, 1) : null
+            const lineValue = betLineValue(entry)
             return (
               <div key={entry.id} className={`tracker-row status-${entry.status}`}>
                 <div className="tracker-row-main">
@@ -291,6 +297,7 @@ export default function TrackerPage() {
                       £{entry.stake} staked{entry.potentialReturn ? ` · returns £${Number(entry.potentialReturn).toFixed(2)}` : ''}
                     </div>
                   ) : null}
+                  {lineValue && <LineValueTag lv={lineValue} />}
                 </div>
                 <div className="tracker-row-status">
                   {entry.source === 'manual' && entry.status === 'open' ? (
@@ -340,6 +347,22 @@ export default function TrackerPage() {
 // The in-play score for a leg whose game is live right now. Names the score
 // to each side rather than assuming array order, since betEvaluation reads
 // scores by team name too and a feed needn't return home-first.
+// "You beat the line" indicator for a single-leg bet - your price vs the
+// latest price this device saw for that outcome (see src/utils/lineValue.js).
+function LineValueTag({ lv }) {
+  const pct = Math.abs(lv.deltaPct)
+  if (pct < 0.5) return null // effectively no movement - not worth a badge
+  return (
+    <div className={`line-value ${lv.beat ? 'line-value-good' : 'line-value-bad'}`}>
+      {lv.beat ? '📈 Beat the line' : '📉 Below the line'} by {pct.toFixed(1)}%
+      <span className="line-value-detail">
+        {' '}
+        (you {lv.bet.toFixed(2)} vs {lv.line.toFixed(2)})
+      </span>
+    </div>
+  )
+}
+
 function LiveScoreTag({ game }) {
   const home = game.scores?.find((s) => s.name === game.homeTeam)?.score
   const away = game.scores?.find((s) => s.name === game.awayTeam)?.score

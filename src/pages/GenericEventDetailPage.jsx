@@ -85,7 +85,10 @@ export default function GenericEventDetailPage() {
       link: best.link,
       linkIsBetslip: best.isBetslipLink,
       sport: sportKey,
-      kickoff: event.kickoff
+      kickoff: event.kickoff,
+      eventId: event.id,
+      marketKey: market.key,
+      outcomeName: outcome.name
     })
   }
 

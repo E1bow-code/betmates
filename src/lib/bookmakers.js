@@ -52,6 +52,36 @@ try {
 
 export const BOOKMAKER_LINKS = { ...HOMEPAGE_LINKS, ...AFFILIATE_LINKS }
 
+// Affiliate tracking parameters, appended to WHATEVER link a Copy Bet ends up
+// opening - including the deep event/bet-slip links The Odds API returns
+// (includeLinks, see oddsLinks.js), which are the highest-intent clicks and
+// until now went out untracked because VITE_AFFILIATE_LINKS only swaps the
+// homepage fallback. Most UK programs track by a tag appended to any landing
+// URL on their own domain (btag/affid/etc.), so this captures commission on
+// the click that actually matters. JSON map of bookmaker -> query string,
+// e.g. {"Bet365":"affiliate=12345","Sky Bet":"aff_id=abc"} - only the
+// bookmakers you've signed up with need an entry. Programs that instead use a
+// redirect-wrapper URL keep using VITE_AFFILIATE_LINKS for that.
+let AFFILIATE_PARAMS = {}
+try {
+  AFFILIATE_PARAMS = JSON.parse(import.meta.env.VITE_AFFILIATE_PARAMS || '{}')
+} catch {
+  // Same graceful degradation as the links above - a malformed value just
+  // means links go out with no tracking param, exactly as before.
+}
+
+// Appends the bookmaker's affiliate tracking param to a resolved URL. No-ops
+// when there's no url or no configured param, and won't double-append if the
+// param key is already on the URL (so an affiliate homepage link that already
+// carries its tag isn't corrupted).
+export function withAffiliate(bookmaker, url) {
+  const param = AFFILIATE_PARAMS[bookmaker]
+  if (!url || !param) return url
+  const key = param.split('=')[0]
+  if (key && new RegExp(`[?&]${key}=`).test(url)) return url
+  return url + (url.includes('?') ? '&' : '?') + param
+}
+
 // Section 2B/8 stretch goal: pre-fill a bet slip via deep link instead of
 // just opening the homepage. Deliberately EMPTY - no major UK bookmaker
 // currently publishes a public, unauthenticated URL scheme for pre-filling

@@ -15,6 +15,7 @@ import { useOddsFormat } from '../context/OddsFormatContext.jsx'
 import { useOddsMovement, movementKey } from '../lib/oddsMemory.js'
 import EmptyState from '../components/EmptyState.jsx'
 import OddsMoveIndicator from '../components/OddsMoveIndicator.jsx'
+import ValueFinder from '../components/ValueFinder.jsx'
 import TeamBadge from '../components/TeamBadge.jsx'
 import PlayerPhoto from '../components/PlayerPhoto.jsx'
 import SportHeroBanner from '../components/SportHeroBanner.jsx'
@@ -333,6 +334,8 @@ export default function OddsListPage() {
               {loaded.length} on the board{myBookiesOnly || myTeamsOnly ? ' · filtered' : ''}
             </p>
           )}
+
+          {loaded && loaded.length > 0 && sport !== 'racing' && <ValueFinder items={loaded} sportKey={sport} format={format} />}
 
           {loaded && loaded.length > 0 && sport === 'racing' && (
             <div className="race-list">

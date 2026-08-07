@@ -105,6 +105,13 @@ export function historyKey(eventId, marketKey, outcomeName) {
   return `${eventId}|${marketKey}|${outcomeName}`
 }
 
+// Non-hook reader for the recorded price series of a single outcome, for code
+// outside the detail pages (the Tracker's line-value read). Returns [{ t, p }]
+// or null when this device has never recorded that outcome.
+export function getOddsHistory(key) {
+  return readHistory()[key] ?? null
+}
+
 // Records this view's best price for every outcome (skipping a point when it
 // hasn't moved since the last one, so revisiting without a change doesn't pad
 // the series or fake a flat line) and returns each outcome's series as
