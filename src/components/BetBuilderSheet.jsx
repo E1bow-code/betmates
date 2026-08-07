@@ -10,6 +10,8 @@ import { formatOdds } from '../utils/oddsFormat.js'
 import { periodStart, sumStakesSince } from '../utils/spendLimit.js'
 import { getEachWayTerms, computeEachWayReturn } from '../utils/eachWay.js'
 import { useEscapeKey } from '../lib/useEscapeKey.js'
+import { computeStats } from '../utils/trackerStats.js'
+import { tipsterBadge } from '../utils/tipsterBadge.js'
 
 // The bet slip: reads its legs from BetSlipContext rather than a single
 // `selection` prop, so tapping outcomes across different fixtures builds
@@ -129,11 +131,7 @@ export default function BetBuilderSheet() {
         potentialReturn,
         visibility: 'public'
       })
-      notifyFollowers(user.id, {
-        title: `${user.displayName} posted a new pick`,
-        body: `${legs[0].event} - ${legs[0].market}: ${legs[0].selection}${legs.length > 1 ? ` +${legs.length - 1} more` : ''}`,
-        url: '/#/groups'
-      })
+      notifyPublicFollowers()
       clearSlip()
       showToast('Posted to everyone')
       navigate('/groups', { state: { segment: 'feed' } })
@@ -142,6 +140,26 @@ export default function BetBuilderSheet() {
     } finally {
       setSubmitting(false)
     }
+  }
+
+  // Best-effort, fire-and-forget - never awaited, so a slow badge lookup
+  // can't delay the toast/navigate above. Recomputes the poster's own
+  // tipster badge from their public-feed track record (same thresholds as
+  // tipsterBadge.js/the Tipster Leaderboard) so a Sharp Bettor/Reliable
+  // Tipster's pick reads as one in the push notification itself, not just
+  // another "X posted" - same single notification as before, no new opt-in.
+  function notifyPublicFollowers() {
+    const title = `${user.displayName} posted a new pick`
+    const body = `${legs[0].event} - ${legs[0].market}: ${legs[0].selection}${legs.length > 1 ? ` +${legs.length - 1} more` : ''}`
+    const url = '/#/groups'
+    dataStore
+      .listBetPostsByUser(user.id)
+      .then((posts) => {
+        const stats = computeStats(posts.filter((p) => p.visibility === 'public' && !p.stakeHidden))
+        const badge = tipsterBadge(stats)
+        notifyFollowers(user.id, { title: badge ? `${badge.icon} ${badge.label} ${user.displayName} posted a new pick` : title, body, url })
+      })
+      .catch(() => notifyFollowers(user.id, { title, body, url }))
   }
 
   async function handleSaveToTracker() {
