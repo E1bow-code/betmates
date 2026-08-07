@@ -14,6 +14,7 @@ import { referralRewardState } from '../utils/referralRewards.js'
 import Avatar from '../components/Avatar.jsx'
 import InstallGuide from '../components/InstallGuide.jsx'
 import SportHeroBanner from '../components/SportHeroBanner.jsx'
+import { useAsyncAction } from '../lib/useAsyncAction.js'
 
 export default function AccountPage() {
   const {
@@ -51,6 +52,7 @@ export default function AccountPage() {
   const [limitSaving, setLimitSaving] = useState(false)
   const [limitSaved, setLimitSaved] = useState(false)
   const [periodSpend, setPeriodSpend] = useState(null)
+  const runAsync = useAsyncAction()
 
   function handleThemeChange(next) {
     setTheme(next)
@@ -98,11 +100,15 @@ export default function AccountPage() {
   }
 
   async function handleShareReferral() {
-    const result = await shareOrCopy({
-      title: 'Join me on BetMates',
-      text: `Come compare odds and settle scores with me on BetMates`,
-      url: referralUrl(user.friendCode)
-    })
+    let result
+    const ok = await runAsync(async () => {
+      result = await shareOrCopy({
+        title: 'Join me on BetMates',
+        text: `Come compare odds and settle scores with me on BetMates`,
+        url: referralUrl(user.friendCode)
+      })
+    }, "Couldn't share that - try again")
+    if (!ok) return
     setReferralShareStatus(result === 'copied' ? 'Link copied' : null)
     if (result === 'copied') setTimeout(() => setReferralShareStatus(null), 2000)
   }
@@ -118,38 +124,37 @@ export default function AccountPage() {
     }
   }
 
-  function toggleBookmaker(name) {
+  async function toggleBookmaker(name) {
     const current = user.bookmakerPrefs ?? []
     const next = current.includes(name) ? current.filter((b) => b !== name) : [...current, name]
-    updateBookmakerPrefs(next)
+    await runAsync(() => updateBookmakerPrefs(next), "Couldn't save that - try again")
   }
 
   async function handleSaveLimit(e) {
     e.preventDefault()
     setLimitSaving(true)
-    try {
-      const amount = limitAmountInput === '' ? null : Number(limitAmountInput)
-      await updateStakeLimit(amount, amount ? limitPeriodInput : null)
+    const amount = limitAmountInput === '' ? null : Number(limitAmountInput)
+    const ok = await runAsync(
+      () => updateStakeLimit(amount, amount ? limitPeriodInput : null),
+      "Couldn't save your limit - try again"
+    )
+    setLimitSaving(false)
+    if (ok) {
       setLimitSaved(true)
       setTimeout(() => setLimitSaved(false), 2000)
-    } finally {
-      setLimitSaving(false)
     }
   }
 
   async function handleClearLimit() {
     setLimitAmountInput('')
     setLimitSaving(true)
-    try {
-      await updateStakeLimit(null, null)
-    } finally {
-      setLimitSaving(false)
-    }
+    await runAsync(() => updateStakeLimit(null, null), "Couldn't turn off your limit - try again")
+    setLimitSaving(false)
   }
 
-  function toggleNotification(key) {
+  async function toggleNotification(key) {
     const current = user.notificationPrefs ?? {}
-    updateNotificationPrefs({ ...current, [key]: !current[key] })
+    await runAsync(() => updateNotificationPrefs({ ...current, [key]: !current[key] }), "Couldn't save that - try again")
   }
 
   async function handleSaveName(e) {
@@ -172,11 +177,15 @@ export default function AccountPage() {
   }
 
   async function handleShareProfile() {
-    const result = await shareOrCopy({
-      title: `${user.displayName} on BetMates`,
-      text: `Check out my betting stats on BetMates`,
-      url: publicProfileUrl(user.friendCode)
-    })
+    let result
+    const ok = await runAsync(async () => {
+      result = await shareOrCopy({
+        title: `${user.displayName} on BetMates`,
+        text: `Check out my betting stats on BetMates`,
+        url: publicProfileUrl(user.friendCode)
+      })
+    }, "Couldn't share that - try again")
+    if (!ok) return
     setProfileShareStatus(result === 'copied' ? 'Link copied' : null)
     if (result === 'copied') setTimeout(() => setProfileShareStatus(null), 2000)
   }

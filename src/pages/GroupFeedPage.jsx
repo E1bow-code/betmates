@@ -10,6 +10,7 @@ import PickemLeaderboard from '../components/PickemLeaderboard.jsx'
 import Avatar from '../components/Avatar.jsx'
 import EmptyState from '../components/EmptyState.jsx'
 import { shareOrCopy, groupInviteUrl } from '../lib/share.js'
+import { useAsyncAction } from '../lib/useAsyncAction.js'
 import PullToRefresh from '../components/PullToRefresh.jsx'
 import SportHeroBanner from '../components/SportHeroBanner.jsx'
 
@@ -33,6 +34,7 @@ export default function GroupFeedPage() {
   const [nameInput, setNameInput] = useState('')
   const [savingName, setSavingName] = useState(false)
   const [removingId, setRemovingId] = useState(null)
+  const runAsync = useAsyncAction()
 
   function refresh() {
     return Promise.all([dataStore.getGroup(id), dataStore.listBetPosts(id), dataStore.listGroupMembers(id), dataStore.listSharedInGroup(id)])
@@ -110,11 +112,15 @@ export default function GroupFeedPage() {
   }
 
   async function handleShareInvite() {
-    const result = await shareOrCopy({
-      title: `Join "${group.name}" on BetMates`,
-      text: `Join my group "${group.name}" on BetMates`,
-      url: groupInviteUrl(group.inviteCode)
-    })
+    let result
+    const ok = await runAsync(async () => {
+      result = await shareOrCopy({
+        title: `Join "${group.name}" on BetMates`,
+        text: `Join my group "${group.name}" on BetMates`,
+        url: groupInviteUrl(group.inviteCode)
+      })
+    }, "Couldn't share that - try again")
+    if (!ok) return
     setShareStatus(result === 'copied' ? 'Link copied' : null)
     if (result === 'copied') setTimeout(() => setShareStatus(null), 2000)
   }
@@ -130,13 +136,14 @@ export default function GroupFeedPage() {
     const body = messageBody.trim()
     if (!body) return
     setSending(true)
-    try {
-      const message = await dataStore.sendGroupMessage(id, user.id, body)
-      setMessages((m) => [...(m ?? []), message])
-      setMessageBody('')
-    } finally {
-      setSending(false)
-    }
+    let message
+    const ok = await runAsync(async () => {
+      message = await dataStore.sendGroupMessage(id, user.id, body)
+    }, "Couldn't send that message - try again")
+    setSending(false)
+    if (!ok) return
+    setMessages((m) => [...(m ?? []), message])
+    setMessageBody('')
   }
 
   return (

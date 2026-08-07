@@ -6,6 +6,7 @@ import * as dataStore from '../lib/dataStore.js'
 import { checkAndSettleBets } from '../lib/settlement.js'
 import { formatOdds } from '../utils/oddsFormat.js'
 import { getEachWayTerms, computeEachWayReturn } from '../utils/eachWay.js'
+import { useAsyncAction } from '../lib/useAsyncAction.js'
 import {
   computeStats,
   computeStreak,
@@ -39,6 +40,7 @@ export default function TrackerPage() {
   const [rebetting, setRebetting] = useState(null)
   const [rebetDone, setRebetDone] = useState(null)
   const [editingEntry, setEditingEntry] = useState(null)
+  const runAsync = useAsyncAction()
 
   useEffect(() => {
     let cancelled = false
@@ -75,15 +77,16 @@ export default function TrackerPage() {
   // already handles any potentialReturn < stake correctly as a net loss;
   // only "win streak"-style badges would (rarely) miscount this as a win.
   async function handleStatusChange(entry, status) {
-    if (status === 'placed') {
-      const leg = entry.selections[0]
-      const terms = { fraction: leg.eachWayFraction, places: leg.eachWayPlaces }
-      const placeReturn = Math.round(computeEachWayReturn(entry.stake, leg.odds, terms, 'place') * 100) / 100
-      await dataStore.updateManualEntryStatus(entry.id, 'won', placeReturn)
-    } else {
-      await dataStore.updateManualEntryStatus(entry.id, status)
-    }
-    refresh()
+    const ok = await runAsync(() => {
+      if (status === 'placed') {
+        const leg = entry.selections[0]
+        const terms = { fraction: leg.eachWayFraction, places: leg.eachWayPlaces }
+        const placeReturn = Math.round(computeEachWayReturn(entry.stake, leg.odds, terms, 'place') * 100) / 100
+        return dataStore.updateManualEntryStatus(entry.id, 'won', placeReturn)
+      }
+      return dataStore.updateManualEntryStatus(entry.id, status)
+    }, "Couldn't save that result - try again")
+    if (ok) refresh()
   }
 
   // Repeats a past wager as a fresh open manual entry - the app never

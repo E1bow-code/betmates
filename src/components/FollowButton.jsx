@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import * as dataStore from '../lib/dataStore.js'
 import { useAuth } from '../context/AuthContext.jsx'
+import { useAsyncAction } from '../lib/useAsyncAction.js'
 
 // Kickoff reminder + result notification for a fixture with no bet
 // attached - separate from the odds-target alert bell (that's about a
@@ -10,6 +11,7 @@ export default function FollowButton({ sport, eventId, eventLabel, kickoff }) {
   const { user } = useAuth()
   const [following, setFollowing] = useState(null)
   const [busy, setBusy] = useState(false)
+  const runAsync = useAsyncAction()
 
   useEffect(() => {
     let cancelled = false
@@ -23,17 +25,15 @@ export default function FollowButton({ sport, eventId, eventLabel, kickoff }) {
 
   async function toggle() {
     setBusy(true)
-    try {
-      if (following) {
-        await dataStore.unfollowFixture(user.id, sport, eventId)
-        setFollowing(false)
-      } else {
-        await dataStore.followFixture(user.id, { sport, eventId, eventLabel, kickoff })
-        setFollowing(true)
-      }
-    } finally {
-      setBusy(false)
-    }
+    const ok = await runAsync(
+      () =>
+        following
+          ? dataStore.unfollowFixture(user.id, sport, eventId)
+          : dataStore.followFixture(user.id, { sport, eventId, eventLabel, kickoff }),
+      `Couldn't ${following ? 'unfollow' : 'follow'} - try again`
+    )
+    setBusy(false)
+    if (ok) setFollowing((f) => !f)
   }
 
   if (following === null) return null

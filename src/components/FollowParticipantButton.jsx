@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import * as dataStore from '../lib/dataStore.js'
 import { useAuth } from '../context/AuthContext.jsx'
+import { useAsyncAction } from '../lib/useAsyncAction.js'
 
 // A standing "always show me this team/player" preference - distinct from
 // FollowButton (which follows one specific upcoming fixture). Surfaced as
@@ -11,6 +12,7 @@ export default function FollowParticipantButton({ sport, name }) {
   const { user } = useAuth()
   const [following, setFollowing] = useState(null)
   const [busy, setBusy] = useState(false)
+  const runAsync = useAsyncAction()
 
   useEffect(() => {
     let cancelled = false
@@ -24,17 +26,12 @@ export default function FollowParticipantButton({ sport, name }) {
 
   async function toggle() {
     setBusy(true)
-    try {
-      if (following) {
-        await dataStore.unfollowParticipant(user.id, sport, name)
-        setFollowing(false)
-      } else {
-        await dataStore.followParticipant(user.id, sport, name)
-        setFollowing(true)
-      }
-    } finally {
-      setBusy(false)
-    }
+    const ok = await runAsync(
+      () => (following ? dataStore.unfollowParticipant(user.id, sport, name) : dataStore.followParticipant(user.id, sport, name)),
+      `Couldn't ${following ? 'unfollow' : 'follow'} ${name} - try again`
+    )
+    setBusy(false)
+    if (ok) setFollowing((f) => !f)
   }
 
   if (following === null) return null

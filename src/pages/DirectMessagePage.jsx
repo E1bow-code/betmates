@@ -4,6 +4,7 @@ import { useAuth } from '../context/AuthContext.jsx'
 import { useActivity } from '../context/ActivityContext.jsx'
 import * as dataStore from '../lib/dataStore.js'
 import { notifyFriend } from '../lib/notify.js'
+import { useAsyncAction } from '../lib/useAsyncAction.js'
 import { formatRelativeTime } from '../utils/format.js'
 import Avatar from '../components/Avatar.jsx'
 import EmptyState from '../components/EmptyState.jsx'
@@ -21,6 +22,7 @@ export default function DirectMessagePage() {
   const [messageBody, setMessageBody] = useState('')
   const [sending, setSending] = useState(false)
   const [error, setError] = useState(null)
+  const runAsync = useAsyncAction()
 
   function refresh() {
     return Promise.all([
@@ -40,18 +42,19 @@ export default function DirectMessagePage() {
     const body = messageBody.trim()
     if (!body) return
     setSending(true)
-    try {
-      const message = await dataStore.sendDirectMessage(user.id, friendId, body)
-      setMessages((m) => [...(m ?? []), message])
-      setMessageBody('')
-      notifyFriend(friendId, {
-        title: `${user.displayName} sent you a message`,
-        body,
-        url: `/#/messages/${user.id}`
-      })
-    } finally {
-      setSending(false)
-    }
+    let message
+    const ok = await runAsync(async () => {
+      message = await dataStore.sendDirectMessage(user.id, friendId, body)
+    }, "Couldn't send that message - try again")
+    setSending(false)
+    if (!ok) return
+    setMessages((m) => [...(m ?? []), message])
+    setMessageBody('')
+    notifyFriend(friendId, {
+      title: `${user.displayName} sent you a message`,
+      body,
+      url: `/#/messages/${user.id}`
+    })
   }
 
   return (

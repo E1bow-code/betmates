@@ -5,6 +5,7 @@ import EmptyState from './EmptyState.jsx'
 import * as dataStore from '../lib/dataStore.js'
 import { LEADERBOARD_WINDOWS } from '../utils/dateWindows.js'
 import { MIN_SETTLED_TO_RANK } from '../utils/tipsters.js'
+import { useAsyncAction } from '../lib/useAsyncAction.js'
 
 // Discovery surface for the app's sharpest public tipsters (see
 // src/utils/tipsters.js). Ranked by verified ROI, with a one-tap follow so
@@ -14,6 +15,7 @@ import { MIN_SETTLED_TO_RANK } from '../utils/tipsters.js'
 export default function TipsterLeaderboard({ rows, window, onWindowChange, currentUserId }) {
   const [following, setFollowing] = useState(() => new Set())
   const [busy, setBusy] = useState(null)
+  const runAsync = useAsyncAction()
 
   useEffect(() => {
     let cancelled = false
@@ -29,17 +31,18 @@ export default function TipsterLeaderboard({ rows, window, onWindowChange, curre
   async function toggleFollow(userId) {
     const isFollowing = following.has(userId)
     setBusy(userId)
-    try {
-      if (isFollowing) await dataStore.unfollowUser(currentUserId, userId)
-      else await dataStore.followUser(currentUserId, userId)
+    const ok = await runAsync(
+      () => (isFollowing ? dataStore.unfollowUser(currentUserId, userId) : dataStore.followUser(currentUserId, userId)),
+      `Couldn't ${isFollowing ? 'unfollow' : 'follow'} - try again`
+    )
+    setBusy(null)
+    if (ok) {
       setFollowing((prev) => {
         const next = new Set(prev)
         if (isFollowing) next.delete(userId)
         else next.add(userId)
         return next
       })
-    } finally {
-      setBusy(null)
     }
   }
 

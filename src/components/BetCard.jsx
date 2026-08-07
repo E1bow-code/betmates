@@ -5,6 +5,7 @@ import * as dataStore from '../lib/dataStore.js'
 import { formatOdds } from '../utils/oddsFormat.js'
 import { computeEachWayReturn } from '../utils/eachWay.js'
 import { notifyBetAuthor } from '../lib/notify.js'
+import { useAsyncAction } from '../lib/useAsyncAction.js'
 import CopyBetButton from './CopyBetButton.jsx'
 import BackBetButton from './BackBetButton.jsx'
 import ShareImageButton from './ShareImageButton.jsx'
@@ -35,6 +36,7 @@ const REPORT_REASONS = [
 export default function BetCard({ post, memberNames, variant = 'group', onBlocked, onChanged }) {
   const { user } = useAuth()
   const { format } = useOddsFormat()
+  const runAsync = useAsyncAction()
   const [reactions, setReactions] = useState([])
   const [comments, setComments] = useState([])
   const [copyCount, setCopyCount] = useState(0)
@@ -78,19 +80,23 @@ export default function BetCard({ post, memberNames, variant = 'group', onBlocke
       const leg = post.selections[0]
       const terms = { fraction: leg.eachWayFraction, places: leg.eachWayPlaces }
       const placeReturn = Math.round(computeEachWayReturn(post.stake, leg.odds, terms, 'place') * 100) / 100
-      await dataStore.updateBetStatus(post.id, 'won', placeReturn)
-      setStatus('won')
+      const ok = await runAsync(() => dataStore.updateBetStatus(post.id, 'won', placeReturn), "Couldn't save that result - try again")
+      if (ok) setStatus('won')
       return
     }
-    await dataStore.updateBetStatus(post.id, nextStatus)
-    setStatus(nextStatus)
+    const ok = await runAsync(() => dataStore.updateBetStatus(post.id, nextStatus), "Couldn't save that result - try again")
+    if (ok) setStatus(nextStatus)
   }
 
   async function handleAddComment(e) {
     e.preventDefault()
     if (!commentBody.trim()) return
     const body = commentBody.trim()
-    const comment = await dataStore.addComment(post.id, user.id, body)
+    let comment
+    const ok = await runAsync(async () => {
+      comment = await dataStore.addComment(post.id, user.id, body)
+    }, "Couldn't post that comment - try again")
+    if (!ok) return
     setComments((c) => [...c, comment])
     setCommentBody('')
     if (!isAuthor) {
@@ -100,22 +106,22 @@ export default function BetCard({ post, memberNames, variant = 'group', onBlocke
   }
 
   async function handleFollowToggle() {
-    if (following) {
-      await dataStore.unfollowUser(user.id, post.userId)
-    } else {
-      await dataStore.followUser(user.id, post.userId)
-    }
-    setFollowing((f) => !f)
+    const ok = await runAsync(
+      () => (following ? dataStore.unfollowUser(user.id, post.userId) : dataStore.followUser(user.id, post.userId)),
+      `Couldn't ${following ? 'unfollow' : 'follow'} - try again`
+    )
+    if (ok) setFollowing((f) => !f)
   }
 
   async function handleBlock() {
     if (!window.confirm(`Block ${authorName}? You won't see their posts anymore, and they won't see yours.`)) return
-    await dataStore.blockUser(user.id, post.userId)
-    onBlocked?.(post.userId)
+    const ok = await runAsync(() => dataStore.blockUser(user.id, post.userId), "Couldn't block them - try again")
+    if (ok) onBlocked?.(post.userId)
   }
 
   async function handleReport(reason) {
-    await dataStore.reportPost(post.id, user.id, reason)
+    const ok = await runAsync(() => dataStore.reportPost(post.id, user.id, reason), "Couldn't send that report - try again")
+    if (!ok) return
     setReported(true)
     setShowModeration(false)
   }

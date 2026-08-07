@@ -6,6 +6,7 @@ import Avatar from '../components/Avatar.jsx'
 import SportIcon from '../components/icons/SportIcons.jsx'
 import SportHeroBanner from '../components/SportHeroBanner.jsx'
 import { tipsterBadge } from '../utils/tipsterBadge.js'
+import { useAsyncAction } from '../lib/useAsyncAction.js'
 
 // The one route in this app that works fully logged out - reachable from a
 // "Share my profile" link (see AccountPage) without the visitor needing an
@@ -23,6 +24,7 @@ export default function PublicProfilePage() {
   // to act on it without navigating back there first.
   const [following, setFollowing] = useState(null)
   const [followBusy, setFollowBusy] = useState(false)
+  const runAsync = useAsyncAction()
 
   useEffect(() => {
     fetch(`/api/public-profile?code=${encodeURIComponent(code)}`)
@@ -45,13 +47,12 @@ export default function PublicProfilePage() {
 
   async function toggleFollow() {
     setFollowBusy(true)
-    try {
-      if (following) await dataStore.unfollowUser(user.id, data.id)
-      else await dataStore.followUser(user.id, data.id)
-      setFollowing((f) => !f)
-    } finally {
-      setFollowBusy(false)
-    }
+    const ok = await runAsync(
+      () => (following ? dataStore.unfollowUser(user.id, data.id) : dataStore.followUser(user.id, data.id)),
+      `Couldn't ${following ? 'unfollow' : 'follow'} - try again`
+    )
+    setFollowBusy(false)
+    if (ok) setFollowing((f) => !f)
   }
 
   return (
