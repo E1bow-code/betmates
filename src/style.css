@@ -17,12 +17,12 @@
   --bg-rgb: 21, 18, 15;
   --surface: #201a15;
   --surface-2: #2b231c;
-  --border: #423527;
-  --text: #f2ece2;
-  --text-dim: #a8998a;
-  --accent: #e0a339;
-  --accent-rgb: 224, 163, 57;
-  --accent-dim: #b9822a;
+  --border: #4d4030; /* lifted from #423527 for crisper edge definition on cards/lists */
+  --text: #f4eee4;
+  --text-dim: #bcae9d; /* lifted from #a8998a - clears WCAG AA on --surface and reads sharp, not muddy */
+  --accent: #ecac3c; /* brightened from #e0a339 so prices/CTAs punch harder */
+  --accent-rgb: 236, 172, 60;
+  --accent-dim: #c78c2c;
   --accent-ink: #241a06;
   --bad: #d9694f;
   --bad-rgb: 217, 105, 79;
@@ -63,6 +63,12 @@ html, body {
   color: var(--text);
   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
   -webkit-tap-highlight-color: transparent;
+  /* Crisper glyph rendering on mobile - thinner, cleaner strokes on the
+     warm-dark background instead of the slightly heavy default. */
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
+  line-height: 1.4;
 }
 
 h1, h2, .topbar h1, .sheet-title, .auth-title {
@@ -2510,4 +2516,66 @@ a.race-card:hover, a.race-card:focus-visible { background: rgba(var(--accent-rgb
 
 .error-boundary button {
   margin-top: 8px;
+}
+
+/* ============================================================
+   Mobile sharpening pass
+   Tighter rhythm, crisper edges, subtle depth, punchier numbers -
+   layered on top of the base rules above without changing the
+   pub-chalkboard / betting-slip identity. Scoped to touch defaults,
+   so the desktop breakpoints below still win where they apply.
+   ============================================================ */
+
+/* Depth + crisper edges on the grouped "sheet" surfaces, so lists read
+   as one defined panel lifting off the background rather than a flat
+   block that blends into it. */
+.race-list,
+.outcome-list,
+.stat-tiles,
+.conversation-list {
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.28), 0 6px 18px rgba(0, 0, 0, 0.18);
+}
+
+/* Bottom nav gets a real separation from the content scrolling under it. */
+.bottom-nav {
+  box-shadow: 0 -1px 0 rgba(0, 0, 0, 0.35), 0 -10px 26px rgba(0, 0, 0, 0.22);
+}
+
+/* Tactile press feedback on buttons + the pill/tab controls. */
+.btn,
+.sport-pill,
+.mode-tab {
+  transition: transform 0.06s ease, box-shadow 0.15s ease, background-color 0.15s ease;
+}
+.btn:active,
+.sport-pill:active,
+.mode-tab:active {
+  transform: translateY(1px);
+}
+
+/* Punchier hero numbers - the best price is the thing the eye should land
+   on first, so give it a touch more size and tighten the figures. */
+.best-price {
+  font-size: 1.12rem;
+  letter-spacing: -0.01em;
+}
+.stat-tile-value {
+  font-size: 1.12rem;
+  letter-spacing: -0.01em;
+}
+
+/* Sharper section headings: a hair more weight and tighter leading so
+   titles read as crisp labels, not soft serif prose. */
+.topbar h1,
+.market-title,
+.sheet-title {
+  line-height: 1.15;
+}
+
+/* Crisper form controls to match the lifted borders. */
+.search-input:focus,
+.chat-input-row input:focus {
+  outline: none;
+  border-color: var(--accent-dim);
+  box-shadow: 0 0 0 2px rgba(var(--accent-rgb), 0.18);
 }
