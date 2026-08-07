@@ -317,6 +317,92 @@ export async function renderRecapImage({ rows, periodLabel }) {
   return new Promise((resolve) => canvas.toBlob(resolve, 'image/png'))
 }
 
+// The Coach's take as a shareable card - variable-length body text (like the
+// bet slip) so it's measured on a throwaway canvas first to size the real one.
+// A quotation-card look: big accent quote mark, the take in a readable serif,
+// and the honest "a read on your own record, never a tip" line so the framing
+// travels with the image.
+export async function renderCoachImage({ take, name }) {
+  const padding = 44
+  const contentWidth = WIDTH - padding * 2
+  const bodyLineHeight = 30
+
+  const measure = document.createElement('canvas').getContext('2d')
+  measure.font = '400 22px Georgia, serif'
+  const lines = wrapText(measure, take, contentWidth)
+
+  const height = 150 + lines.length * bodyLineHeight + 96
+
+  const canvas = document.createElement('canvas')
+  const dpr = Math.min(window.devicePixelRatio || 1, 2)
+  canvas.width = WIDTH * dpr
+  canvas.height = height * dpr
+  const ctx = canvas.getContext('2d')
+  ctx.scale(dpr, dpr)
+
+  ctx.fillStyle = COLORS.bg
+  ctx.fillRect(0, 0, WIDTH, height)
+
+  let y = padding
+  ctx.fillStyle = COLORS.accent
+  ctx.font = '700 24px Georgia, serif'
+  ctx.fillText('BetMates', padding, y)
+  ctx.fillStyle = COLORS.textDim
+  ctx.font = '600 13px -apple-system, sans-serif'
+  ctx.textAlign = 'right'
+  ctx.fillText("🧠 COACH'S TAKE", WIDTH - padding, y - 2)
+  ctx.textAlign = 'left'
+  y += 30
+  ctx.strokeStyle = COLORS.border
+  ctx.beginPath()
+  ctx.moveTo(padding, y)
+  ctx.lineTo(WIDTH - padding, y)
+  ctx.stroke()
+  y += 40
+
+  // Oversized opening quote mark as a visual anchor.
+  ctx.fillStyle = COLORS.accent
+  ctx.font = '700 60px Georgia, serif'
+  ctx.fillText('“', padding - 6, y + 30)
+  y += 44
+
+  ctx.fillStyle = COLORS.text
+  ctx.font = '400 22px Georgia, serif'
+  for (const line of lines) {
+    ctx.fillText(line, padding, y)
+    y += bodyLineHeight
+  }
+  y += 20
+
+  ctx.fillStyle = COLORS.textDim
+  ctx.font = 'italic 14px Georgia, serif'
+  ctx.fillText(name ? `— ${name}'s record, read by the Coach` : '— your own record, never a tip', padding, y)
+
+  ctx.fillStyle = COLORS.textDim
+  ctx.font = '12px -apple-system, sans-serif'
+  ctx.fillText('BetMates does not place bets or hold funds. 18+. Gamble responsibly.', padding, height - padding + 20)
+
+  return new Promise((resolve) => canvas.toBlob(resolve, 'image/png'))
+}
+
+export async function shareCoachImage(info) {
+  const blob = await renderCoachImage(info)
+  const file = new File([blob], 'betmates-coach.png', { type: 'image/png' })
+
+  if (navigator.canShare?.({ files: [file] })) {
+    await navigator.share({ files: [file], title: "My BetMates Coach's take" })
+    return 'shared'
+  }
+
+  const url = URL.createObjectURL(blob)
+  const a = document.createElement('a')
+  a.href = url
+  a.download = 'betmates-coach.png'
+  a.click()
+  URL.revokeObjectURL(url)
+  return 'downloaded'
+}
+
 export async function shareRecapImage(recap) {
   const blob = await renderRecapImage(recap)
   const file = new File([blob], 'betmates-recap.png', { type: 'image/png' })
