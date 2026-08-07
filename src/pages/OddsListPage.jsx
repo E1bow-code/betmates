@@ -12,7 +12,9 @@ import { formatOdds } from '../utils/oddsFormat.js'
 import { isLive } from '../utils/liveStatus.js'
 import { useAuth } from '../context/AuthContext.jsx'
 import { useOddsFormat } from '../context/OddsFormatContext.jsx'
+import { useOddsMovement, movementKey } from '../lib/oddsMemory.js'
 import EmptyState from '../components/EmptyState.jsx'
+import OddsMoveIndicator from '../components/OddsMoveIndicator.jsx'
 import TeamBadge from '../components/TeamBadge.jsx'
 import PlayerPhoto from '../components/PlayerPhoto.jsx'
 import SportHeroBanner from '../components/SportHeroBanner.jsx'
@@ -95,6 +97,22 @@ function filterBySearch(list, query) {
     ]
     return haystack.filter(Boolean).some((h) => h.toLowerCase().includes(q))
   })
+}
+
+// Movement arrows for a two-outcome (h2h/moneyline) list card. Tracked in
+// the 'list' namespace so it's independent of the detail page's own arrows
+// (see oddsMemory.js), and always off the UNFILTERED best price so toggling
+// "my bookies only" can't be mistaken for the market itself moving.
+function useH2hMovement(eventId, outcomes) {
+  const movementEvent = useMemo(
+    () => ({
+      id: eventId,
+      markets: [{ key: 'h2h', outcomes: outcomes.filter((o) => o.best).map((o) => ({ name: o.name, bestOdds: o.best })) }]
+    }),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [eventId, outcomes.map((o) => o.best?.decimal).join(',')]
+  )
+  return useOddsMovement(movementEvent, 'list')
 }
 
 export default function OddsListPage() {
@@ -421,6 +439,10 @@ function FixtureCard({ fixture, bookmakerFilter, format }) {
   const away = h2h?.outcomes.find((o) => o.name === 'Away')
   const homeBest = home ? bestWithinFilter(home.allOdds, bookmakerFilter) : null
   const awayBest = away ? bestWithinFilter(away.allOdds, bookmakerFilter) : null
+  const movements = useH2hMovement(fixture.id, [
+    { name: 'Home', best: home ? bestWithinFilter(home.allOdds, null) : null },
+    { name: 'Away', best: away ? bestWithinFilter(away.allOdds, null) : null }
+  ])
 
   return (
     <Link className="race-card" to={`/odds/football/${fixture.id}`}>
@@ -444,8 +466,14 @@ function FixtureCard({ fixture, bookmakerFilter, format }) {
       </div>
       <div className="race-card-fav">
         <div className="fav-label">Best 1X2</div>
-        <div className="fav-price">{homeBest ? formatOdds(homeBest.decimal, format) : '-'}</div>
-        <div className="fav-price-away">{awayBest ? formatOdds(awayBest.decimal, format) : '-'}</div>
+        <div className="fav-price">
+          {homeBest ? formatOdds(homeBest.decimal, format) : '-'}
+          <OddsMoveIndicator direction={movements[movementKey(fixture.id, 'h2h', 'Home', 'list')]} />
+        </div>
+        <div className="fav-price-away">
+          {awayBest ? formatOdds(awayBest.decimal, format) : '-'}
+          <OddsMoveIndicator direction={movements[movementKey(fixture.id, 'h2h', 'Away', 'list')]} />
+        </div>
       </div>
     </Link>
   )
@@ -492,6 +520,10 @@ function FightCard({ fight, bookmakerFilter, format }) {
   const b = h2h?.outcomes.find((o) => o.name === fight.fighterB)
   const aBest = a ? bestWithinFilter(a.allOdds, bookmakerFilter) : null
   const bBest = b ? bestWithinFilter(b.allOdds, bookmakerFilter) : null
+  const movements = useH2hMovement(fight.id, [
+    { name: fight.fighterA, best: a ? bestWithinFilter(a.allOdds, null) : null },
+    { name: fight.fighterB, best: b ? bestWithinFilter(b.allOdds, null) : null }
+  ])
 
   return (
     <Link className="race-card" to={`/odds/ufc/${fight.id}`}>
@@ -515,8 +547,14 @@ function FightCard({ fight, bookmakerFilter, format }) {
       </div>
       <div className="race-card-fav">
         <div className="fav-label">Moneyline</div>
-        <div className="fav-price">{aBest ? formatOdds(aBest.decimal, format) : '-'}</div>
-        <div className="fav-price-away">{bBest ? formatOdds(bBest.decimal, format) : '-'}</div>
+        <div className="fav-price">
+          {aBest ? formatOdds(aBest.decimal, format) : '-'}
+          <OddsMoveIndicator direction={movements[movementKey(fight.id, 'h2h', fight.fighterA, 'list')]} />
+        </div>
+        <div className="fav-price-away">
+          {bBest ? formatOdds(bBest.decimal, format) : '-'}
+          <OddsMoveIndicator direction={movements[movementKey(fight.id, 'h2h', fight.fighterB, 'list')]} />
+        </div>
       </div>
     </Link>
   )
@@ -528,6 +566,10 @@ function EventCard({ event, sportKey, config, bookmakerFilter, format }) {
   const away = h2h?.outcomes.find((o) => o.name === 'Away')
   const homeBest = home ? bestWithinFilter(home.allOdds, bookmakerFilter) : null
   const awayBest = away ? bestWithinFilter(away.allOdds, bookmakerFilter) : null
+  const movements = useH2hMovement(event.id, [
+    { name: 'Home', best: home ? bestWithinFilter(home.allOdds, null) : null },
+    { name: 'Away', best: away ? bestWithinFilter(away.allOdds, null) : null }
+  ])
   const Photo = config.participantType === 'player' ? PlayerPhoto : TeamBadge
   const photoProp = config.participantType === 'player' ? 'name' : 'team'
 
@@ -553,8 +595,14 @@ function EventCard({ event, sportKey, config, bookmakerFilter, format }) {
       </div>
       <div className="race-card-fav">
         <div className="fav-label">Moneyline</div>
-        <div className="fav-price">{homeBest ? formatOdds(homeBest.decimal, format) : '-'}</div>
-        <div className="fav-price-away">{awayBest ? formatOdds(awayBest.decimal, format) : '-'}</div>
+        <div className="fav-price">
+          {homeBest ? formatOdds(homeBest.decimal, format) : '-'}
+          <OddsMoveIndicator direction={movements[movementKey(event.id, 'h2h', 'Home', 'list')]} />
+        </div>
+        <div className="fav-price-away">
+          {awayBest ? formatOdds(awayBest.decimal, format) : '-'}
+          <OddsMoveIndicator direction={movements[movementKey(event.id, 'h2h', 'Away', 'list')]} />
+        </div>
       </div>
     </Link>
   )

@@ -22,8 +22,11 @@ import PnlChart from '../components/PnlChart.jsx'
 import { trackerEntriesToCsv, downloadCsv } from '../lib/csvExport.js'
 import PullToRefresh from '../components/PullToRefresh.jsx'
 import ShareRecapButton from '../components/ShareRecapButton.jsx'
+import ShareImageButton from '../components/ShareImageButton.jsx'
 import SportHeroBanner from '../components/SportHeroBanner.jsx'
 import SportIcon from '../components/icons/SportIcons.jsx'
+import LiveBadge from '../components/LiveBadge.jsx'
+import { useLiveScores } from '../lib/liveScores.js'
 
 const STATUS_LABEL = { open: 'Pending', won: 'Won', lost: 'Lost', void: 'Void' }
 
@@ -123,6 +126,9 @@ export default function TrackerPage() {
       .filter((row) => row.settledCount > 0)
       .sort((a, b) => b.profit - a.profit)
   }, [entries])
+
+  const openEntries = useMemo(() => (entries ?? []).filter((e) => e.status === 'open'), [entries])
+  const liveByEvent = useLiveScores(openEntries)
 
   if (entries === null) return <div className="loading">Tallying up your bets…</div>
 
@@ -261,14 +267,20 @@ export default function TrackerPage() {
               <div key={entry.id} className={`tracker-row status-${entry.status}`}>
                 <div className="tracker-row-main">
                   {selections.length > 1 && <div className="bet-card-leg-count">{selections.length}-leg bet builder</div>}
-                  {selections.map((selection, i) => (
-                    <div key={i}>
-                      <div className="selection-event">{selection.event}</div>
-                      <div className="race-card-meta">
-                        {selection.market}: {selection.selection} @ {formatOdds(selection.odds, format)} ({selection.bookmaker})
+                  {selections.map((selection, i) => {
+                    const live = entry.status === 'open' ? liveByEvent.get(selection.event) : null
+                    return (
+                      <div key={i}>
+                        <div className="selection-event">
+                          {selection.event}
+                          {live && <LiveScoreTag game={live} />}
+                        </div>
+                        <div className="race-card-meta">
+                          {selection.market}: {selection.selection} @ {formatOdds(selection.odds, format)} ({selection.bookmaker})
+                        </div>
                       </div>
-                    </div>
-                  ))}
+                    )
+                  })}
                   {combinedOdds && (
                     <div className="race-card-meta">
                       Combined odds: <strong>{formatOdds(combinedOdds, format)}</strong>
@@ -304,6 +316,7 @@ export default function TrackerPage() {
                   >
                     {rebetDone === entry.id ? 'Logged ✓' : rebetting === entry.id ? 'Adding…' : 'Bet again'}
                   </button>
+                  <ShareImageButton post={entry} />
                 </div>
               </div>
             )
@@ -321,5 +334,22 @@ export default function TrackerPage() {
         />
       )}
     </PullToRefresh>
+  )
+}
+
+// The in-play score for a leg whose game is live right now. Names the score
+// to each side rather than assuming array order, since betEvaluation reads
+// scores by team name too and a feed needn't return home-first.
+function LiveScoreTag({ game }) {
+  const home = game.scores?.find((s) => s.name === game.homeTeam)?.score
+  const away = game.scores?.find((s) => s.name === game.awayTeam)?.score
+  if (!Number.isFinite(home) || !Number.isFinite(away)) return null
+  return (
+    <span className="live-score-tag">
+      <LiveBadge />
+      <span className="live-score">
+        {home}&ndash;{away}
+      </span>
+    </span>
   )
 }

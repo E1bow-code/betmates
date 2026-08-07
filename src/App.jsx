@@ -9,6 +9,7 @@ import ErrorBoundary from './components/ErrorBoundary.jsx'
 import BottomNav from './components/BottomNav.jsx'
 import InstallGuideBanner from './components/InstallGuideBanner.jsx'
 import OnboardingTour from './components/OnboardingTour.jsx'
+import RealityCheck from './components/RealityCheck.jsx'
 import BetSlipBar from './components/BetSlipBar.jsx'
 import BetBuilderSheet from './components/BetBuilderSheet.jsx'
 // AuthPage is the one page kept as a regular (non-lazy) import - it's the
@@ -232,6 +233,7 @@ function Shell() {
           <BottomNav />
           <NewsSidebar headlines={newsHeadlines} />
           {showTour && <OnboardingTour onDone={dismissTour} />}
+          <RealityCheck />
         </div>
       </BetSlipProvider>
     </ActivityProvider>
