@@ -6,11 +6,14 @@ import { useOddsFormat } from '../context/OddsFormatContext.jsx'
 import * as dataStore from '../lib/dataStore.js'
 import { computeStats, computeStreak } from '../utils/trackerStats.js'
 import { computeTrendingPicks } from '../utils/trending.js'
+import { findOnThisDayEntries } from '../utils/onThisDay.js'
 import { formatOdds } from '../utils/oddsFormat.js'
 import { formatRelativeTime } from '../utils/format.js'
 import SportHeroBanner from '../components/SportHeroBanner.jsx'
 import SportIcon from '../components/icons/SportIcons.jsx'
 import EmptyState from '../components/EmptyState.jsx'
+
+const STATUS_LABEL = { open: 'Pending', won: 'Won', lost: 'Lost', void: 'Void' }
 
 // The front door post-login (see App.jsx's HomeRedirect) - everything here
 // is composed from data other pages already fetch (Tracker's stats,
@@ -49,6 +52,7 @@ export default function DashboardPage() {
     [entries]
   )
   const recentNotifications = (notifications ?? []).slice(0, 6)
+  const onThisDay = useMemo(() => (entries ? findOnThisDayEntries(entries) : []), [entries])
 
   const now = new Date()
   const hour = now.getHours()
@@ -123,6 +127,30 @@ export default function DashboardPage() {
           </div>
         )}
       </div>
+
+      {onThisDay.length > 0 && (
+        <div className="account-section">
+          <div className="dashboard-section-header">
+            <h2 className="market-title">📅 On this day</h2>
+          </div>
+          <div className="docket-list">
+            {onThisDay.slice(0, 3).map((entry) => (
+              <div key={entry.id} className="docket">
+                <div className="docket-main">
+                  <div className="docket-event">
+                    <SportIcon sport={entry.sport} /> {entry.selections?.[0]?.event ?? 'Bet'}
+                  </div>
+                  <div className="docket-meta">
+                    {new Date(entry.createdAt).getFullYear()} · {entry.selections?.[0]?.selection} @{' '}
+                    {formatOdds(entry.selections?.[0]?.odds, format)}
+                  </div>
+                </div>
+                <span className={`bet-status-pill status-${entry.status}`}>{STATUS_LABEL[entry.status]}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
 
       <div className="account-section">
         <div className="dashboard-section-header">

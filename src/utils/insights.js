@@ -130,5 +130,22 @@ export function computeInsights(entries) {
     insights.push({ key: 'valuePick', icon: '💎', title: 'Best value pick', value: `${valuePick.odds.toFixed(2)} on ${valuePick.event}` })
   }
 
+  // Betting style - how "swingy" results are, not just what they average
+  // to. Coefficient of variation (stdev of per-bet profit, divided by
+  // average stake) rather than a raw £ stdev, so bettors staking different
+  // amounts are still comparable - a £50 swing means something different
+  // to someone staking £5 a time than someone staking £50. Needs at least
+  // 4 decided bets so a couple of results don't get graded as a "style" yet.
+  if (decided.length >= 4) {
+    const profits = decided.map(profitOf)
+    const avgProfit = profits.reduce((sum, p) => sum + p, 0) / profits.length
+    const variance = profits.reduce((sum, p) => sum + (p - avgProfit) ** 2, 0) / profits.length
+    const stdev = Math.sqrt(variance)
+    const avgStake = decided.reduce((sum, e) => sum + Number(e.stake), 0) / decided.length
+    const cv = avgStake ? stdev / avgStake : 0
+    const style = cv < 0.8 ? 'Steady' : cv < 1.5 ? 'Balanced' : 'Boom or bust'
+    insights.push({ key: 'volatility', icon: '🎢', title: 'Betting style', value: `${style} · £${stdev.toFixed(2)} swing per bet` })
+  }
+
   return insights
 }

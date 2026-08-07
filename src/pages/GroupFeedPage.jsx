@@ -7,6 +7,7 @@ import VideoCard from '../components/VideoCard.jsx'
 import Leaderboard from '../components/Leaderboard.jsx'
 import GroupRecapCard from '../components/GroupRecapCard.jsx'
 import PickemLeaderboard from '../components/PickemLeaderboard.jsx'
+import TablePredictorPanel from '../components/TablePredictorPanel.jsx'
 import Avatar from '../components/Avatar.jsx'
 import EmptyState from '../components/EmptyState.jsx'
 import { shareOrCopy, groupInviteUrl } from '../lib/share.js'
@@ -169,6 +170,9 @@ export default function GroupFeedPage() {
           <button className={tab === 'members' ? 'mode-tab active' : 'mode-tab'} onClick={() => setTab('members')}>
             Members
           </button>
+          <button className={tab === 'predictor' ? 'mode-tab active' : 'mode-tab'} onClick={() => setTab('predictor')}>
+            Predictor
+          </button>
         </div>
       </div>
 
@@ -299,6 +303,8 @@ export default function GroupFeedPage() {
           </button>
         </div>
       )}
+
+      {tab === 'predictor' && <TablePredictorPanel groupId={id} userId={user.id} memberNames={memberNames} />}
     </PullToRefresh>
   )
 }

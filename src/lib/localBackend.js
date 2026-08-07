@@ -28,7 +28,9 @@ const EMPTY_DB = {
   oddsAlerts: [],
   followedFixtures: [],
   followedParticipants: [],
-  fixtureChatMessages: []
+  fixtureChatMessages: [],
+  predictors: [],
+  predictorEntries: []
 }
 
 // Merges in any table keys added after a browser's db was first created -
@@ -128,6 +130,7 @@ export function signUp({ email, displayName, dob, referredByCode }) {
     avatarUrl: null,
     stakeLimitAmount: null,
     stakeLimitPeriod: null,
+    limitBuddyId: null,
     referredBy: referrer?.id ?? null
   }
   db.users.push(user)
@@ -309,6 +312,66 @@ export function sendFixtureChatMessage(sport, eventId, userId, displayName, body
   db.fixtureChatMessages.push(message)
   writeDb(db)
   return delay(message)
+}
+
+// --- Table predictor -----------------------------------------------------
+
+export function getPredictor(groupId) {
+  const db = readDb()
+  const rows = db.predictors
+    .filter((p) => p.groupId === groupId)
+    .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))
+  return delay(rows[0] ?? null)
+}
+
+export function createPredictor(groupId, userId, competition, participants) {
+  const db = readDb()
+  const predictor = {
+    id: uid('predictor'),
+    groupId,
+    competition,
+    participants,
+    createdBy: userId,
+    createdAt: new Date().toISOString(),
+    currentStandings: null,
+    standingsUpdatedBy: null,
+    standingsUpdatedAt: null
+  }
+  db.predictors.push(predictor)
+  writeDb(db)
+  return delay(predictor)
+}
+
+export function updateStandings(predictorId, userId, standings) {
+  const db = readDb()
+  const predictor = db.predictors.find((p) => p.id === predictorId)
+  if (predictor) {
+    predictor.currentStandings = standings
+    predictor.standingsUpdatedBy = userId
+    predictor.standingsUpdatedAt = new Date().toISOString()
+    writeDb(db)
+  }
+  return delay(predictor)
+}
+
+export function listPredictorEntries(predictorId) {
+  const db = readDb()
+  return delay(db.predictorEntries.filter((e) => e.predictorId === predictorId))
+}
+
+export function submitPredictorEntry(predictorId, userId, predictedOrder) {
+  const db = readDb()
+  let entry = db.predictorEntries.find((e) => e.predictorId === predictorId && e.userId === userId)
+  const now = new Date().toISOString()
+  if (entry) {
+    entry.predictedOrder = predictedOrder
+    entry.updatedAt = now
+  } else {
+    entry = { id: uid('predEntry'), predictorId, userId, predictedOrder, createdAt: now, updatedAt: now }
+    db.predictorEntries.push(entry)
+  }
+  writeDb(db)
+  return delay(entry)
 }
 
 // --- Direct messages ---------------------------------------------------
@@ -610,6 +673,24 @@ export function updateStakeLimit(userId, { amount, period }) {
     }
   }
   return delay({ amount, period })
+}
+
+export function updateLimitBuddy(userId, buddyId) {
+  const db = readDb()
+  const user = db.users.find((u) => u.id === userId)
+  if (user) {
+    user.limitBuddyId = buddyId
+    writeDb(db)
+  }
+  const session = localStorage.getItem(SESSION_KEY)
+  if (session) {
+    const sessionUser = JSON.parse(session)
+    if (sessionUser.id === userId) {
+      sessionUser.limitBuddyId = buddyId
+      localStorage.setItem(SESSION_KEY, JSON.stringify(sessionUser))
+    }
+  }
+  return delay(buddyId)
 }
 
 // No real object storage in local mode - reads the file as a data URL and

@@ -1431,6 +1431,9 @@ h1, h2, .topbar h1, .sheet-title, .auth-title {
 .leaderboard { margin: 12px 0; }
 .fixture-chat { margin: 16px 0; }
 
+.predictor-standings-list { padding-left: 1.4em; margin: 8px 0; }
+.predictor-standings-list li { padding: 3px 0; }
+
 .ocr-raw-text { margin: 8px 0 14px; font-size: 0.8rem; color: var(--text-dim); }
 .ocr-raw-text summary { cursor: pointer; }
 .ocr-raw-text pre {

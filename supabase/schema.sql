@@ -738,6 +738,78 @@ alter table fixture_chat_messages enable row level security;
 create policy "any signed-in user can read fixture chat" on fixture_chat_messages for select using (auth.role() = 'authenticated');
 create policy "user sends fixture chat as themselves" on fixture_chat_messages for insert with check (auth.uid() = user_id);
 
+-- --- Peer spend-limit accountability ---------------------------------------
+-- A self-set spend limit (stake_limit_amount/period above) only ever nudges
+-- the person who set it - this adds one trusted mate who gets a push when
+-- the limit's actually been hit, the way a real accountability partner
+-- would. limit_alert_sent_at is a per-period watermark, same idea as
+-- kickoff_reminder_sent_at: netlify/functions/alert-checks.js compares it
+-- against periodStart(period) rather than clearing it explicitly, so it
+-- naturally "resets" the moment a new week/month starts without a separate
+-- cron job to zero it out. No new RLS needed for either column - "update
+-- own profile" already covers them.
+alter table profiles add column if not exists limit_buddy_id uuid references profiles(id) on delete set null;
+alter table profiles add column if not exists limit_alert_sent_at timestamptz;
+
+-- --- Season-long table predictor --------------------------------------------
+-- A slower group game than Pick'em (single match, weekly) - predict a final
+-- order for a whole competition, scored against a snapshot of the real
+-- table. Deliberately freeform rather than hardcoding one league's clubs:
+-- participants is whatever list the group's first predictor was created
+-- with, so it works for any competition without a season-to-season
+-- promotion/relegation list to maintain. One active predictor per group at
+-- a time in this version - no picker UI for switching between competitions
+-- yet, same "ship the honest scope, not a stub of a bigger one" call as
+-- DEEP_LINK_BUILDERS' empty object in bookmakers.js.
+create table predictors (
+  id uuid primary key default gen_random_uuid(),
+  group_id uuid not null references groups(id) on delete cascade,
+  competition text not null,
+  participants jsonb not null,
+  created_by uuid not null references profiles(id),
+  created_at timestamptz not null default now(),
+  current_standings jsonb,
+  standings_updated_by uuid references profiles(id),
+  standings_updated_at timestamptz
+);
+
+-- A member's predicted order for one predictor - upsertable any time before
+-- (or after) standings are entered, trust-based like every other self-
+-- reported result in this app rather than locking at a kickoff time.
+create table predictor_entries (
+  id uuid primary key default gen_random_uuid(),
+  predictor_id uuid not null references predictors(id) on delete cascade,
+  user_id uuid not null references profiles(id) on delete cascade,
+  predicted_order jsonb not null,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now(),
+  unique (predictor_id, user_id)
+);
+
+alter table predictors enable row level security;
+alter table predictor_entries enable row level security;
+
+create policy "members read group predictors" on predictors for select using (is_group_member(group_id, auth.uid()));
+create policy "members create a predictor as themselves" on predictors for insert with check (
+  auth.uid() = created_by and is_group_member(group_id, auth.uid())
+);
+-- Any member can update standings, not just the creator - it's a shared
+-- scoreboard snapshot, same trust model as a group member self-reporting a
+-- bet's result.
+create policy "members update standings on their group's predictor" on predictors for update using (
+  is_group_member(group_id, auth.uid())
+) with check (
+  is_group_member(group_id, auth.uid())
+);
+
+create policy "members read entries for their group's predictors" on predictor_entries for select using (
+  exists (select 1 from predictors p where p.id = predictor_entries.predictor_id and is_group_member(p.group_id, auth.uid()))
+);
+create policy "members submit their own entry" on predictor_entries for insert with check (
+  auth.uid() = user_id and exists (select 1 from predictors p where p.id = predictor_entries.predictor_id and is_group_member(p.group_id, auth.uid()))
+);
+create policy "members update their own entry" on predictor_entries for update using (auth.uid() = user_id) with check (auth.uid() = user_id);
+
 -- --- Team news push alerts -------------------------------------------------
 -- netlify/functions/team-news-alerts.js - the push half of the Social tab's
 -- News "My teams" filter (SocialFeedPage.jsx/followed_participants).

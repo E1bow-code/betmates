@@ -6,10 +6,13 @@
 // same frequency, same behavior, just one invocation instead of three
 // against Netlify's usage credits. Nobody's signed in when a cron job
 // fires, so this runs on the service-role key rather than working within
-// RLS - the one place in this project that does.
+// RLS - the one place in this project that does. A fourth check
+// (runLimitBuddyAlerts, below) joined the same invocation later for the
+// same reason - one more independent check, same cost as zero extra crons.
 import { createClient } from '@supabase/supabase-js'
 import webpush from 'web-push'
 import { apiKeysForSport } from '../../src/lib/sportsConfig.js'
+import { periodStart, sumStakesSince } from '../../src/utils/spendLimit.js'
 
 const SUPABASE_URL = process.env.VITE_SUPABASE_URL
 const SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY
@@ -259,6 +262,50 @@ async function runFollowedResults(supabase) {
   return { checked: ready.length, notified: notifications.length, sent }
 }
 
+// --- Spend-limit buddy alerts -------------------------------------------
+// The push half of AccountPage.jsx's "Notify a mate" picker: once someone
+// with a limit_buddy_id set has actually reached their spend limit for the
+// current period, their buddy gets told. limit_alert_sent_at is a per-
+// period watermark rather than a boolean - comparing it against
+// periodStart(period) means it "resets" the moment a new week/month
+// starts, with no separate job needed to clear it.
+async function runLimitBuddyAlerts(supabase) {
+  const { data: limited } = await supabase
+    .from('profiles')
+    .select('id,display_name,stake_limit_amount,stake_limit_period,limit_buddy_id,limit_alert_sent_at')
+    .not('stake_limit_amount', 'is', null)
+    .not('limit_buddy_id', 'is', null)
+  if (!limited?.length) return { checked: 0 }
+
+  const due = []
+  for (const profile of limited) {
+    const since = periodStart(profile.stake_limit_period)
+    if (profile.limit_alert_sent_at && new Date(profile.limit_alert_sent_at) >= since) continue
+
+    const [{ data: posts }, { data: manual }] = await Promise.all([
+      supabase.from('bet_posts').select('stake,created_at').eq('user_id', profile.id),
+      supabase.from('manual_entries').select('stake,created_at').eq('user_id', profile.id)
+    ])
+    const entries = [...(posts ?? []), ...(manual ?? [])].map((e) => ({ stake: e.stake, createdAt: e.created_at }))
+    const spend = sumStakesSince(entries, since)
+    if (spend >= Number(profile.stake_limit_amount)) due.push({ ...profile, spend })
+  }
+  if (!due.length) return { checked: limited.length, due: 0 }
+
+  await Promise.all(due.map((p) => supabase.from('profiles').update({ limit_alert_sent_at: new Date().toISOString() }).eq('id', p.id)))
+
+  const sent = await sendAll(
+    supabase,
+    due.map((p) => ({ ...p, user_id: p.limit_buddy_id })),
+    (p) => ({
+      title: '👋 Spend-limit check-in',
+      body: `${p.display_name} has hit their ${p.stake_limit_period === 'monthly' ? 'monthly' : 'weekly'} spend limit of £${Number(p.stake_limit_amount).toFixed(2)} - might be worth a quick check-in.`,
+      url: '/#/account'
+    })
+  )
+  return { checked: limited.length, due: due.length, sent }
+}
+
 export default async (req) => {
   if (!SUPABASE_URL || !SERVICE_ROLE_KEY) {
     return new Response(JSON.stringify({ reason: 'not configured' }), { status: 200 })
@@ -270,10 +317,11 @@ export default async (req) => {
   // Independent of each other (different tables, different push copy), so
   // they run concurrently rather than one after another - and one throwing
   // doesn't stop the other two from still doing their job.
-  const [kickoffReminders, oddsAlerts, followedResults] = await Promise.allSettled([
+  const [kickoffReminders, oddsAlerts, followedResults, limitBuddyAlerts] = await Promise.allSettled([
     runKickoffReminders(supabase),
     runOddsAlerts(supabase),
-    runFollowedResults(supabase)
+    runFollowedResults(supabase),
+    runLimitBuddyAlerts(supabase)
   ])
 
   const settle = (r) => (r.status === 'fulfilled' ? r.value : { error: r.reason?.message ?? String(r.reason) })
@@ -281,7 +329,8 @@ export default async (req) => {
     JSON.stringify({
       kickoffReminders: settle(kickoffReminders),
       oddsAlerts: settle(oddsAlerts),
-      followedResults: settle(followedResults)
+      followedResults: settle(followedResults),
+      limitBuddyAlerts: settle(limitBuddyAlerts)
     }),
     { status: 200, headers: { 'content-type': 'application/json' } }
   )

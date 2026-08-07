@@ -86,7 +86,7 @@ Netlify cron, configured per-file via `export const config = { schedule }`:
 | Function | Schedule | Does |
 |---|---|---|
 | `auto-settle.js` | `*/30 * * * *` | settles open bets, pushes "bet settled" |
-| `alert-checks.js` | `*/15 * * * *` | pre-kickoff push, odds alerts, results for followed teams/players (merged - see file header) |
+| `alert-checks.js` | `*/15 * * * *` | pre-kickoff push, odds alerts, results for followed teams/players, spend-limit buddy alerts (merged - see file header) |
 | `weekly-recap.js` | `0 20 * * 0` | Sunday 20:00 recap push |
 | `streak-reminders.js` | `*/30 * * * *` | push on a new 3/5/10 win-streak milestone |
 | `team-news-alerts.js` | `*/30 * * * *` | push when a followed team/player appears in a news headline |

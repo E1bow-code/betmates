@@ -25,7 +25,8 @@ export default function AccountPage() {
     updateBookmakerPrefs,
     updateNotificationPrefs,
     updateAvatar,
-    updateStakeLimit
+    updateStakeLimit,
+    updateLimitBuddy
   } = useAuth()
   const { format: oddsFormat, setFormat: setOddsFormat } = useOddsFormat()
   const [pushEnabled, setPushEnabled] = useState(false)
@@ -52,6 +53,8 @@ export default function AccountPage() {
   const [limitSaving, setLimitSaving] = useState(false)
   const [limitSaved, setLimitSaved] = useState(false)
   const [periodSpend, setPeriodSpend] = useState(null)
+  const [friends, setFriends] = useState(null)
+  const [buddySaving, setBuddySaving] = useState(false)
   const runAsync = useAsyncAction()
 
   function handleThemeChange(next) {
@@ -66,6 +69,13 @@ export default function AccountPage() {
 
   useEffect(() => {
     dataStore.listBlockedUsers(user.id).then(setBlockedUsers)
+  }, [])
+
+  useEffect(() => {
+    dataStore
+      .listFriends(user.id)
+      .then(setFriends)
+      .catch(() => setFriends([]))
   }, [])
 
   useEffect(() => {
@@ -150,6 +160,13 @@ export default function AccountPage() {
     setLimitSaving(true)
     await runAsync(() => updateStakeLimit(null, null), "Couldn't turn off your limit - try again")
     setLimitSaving(false)
+  }
+
+  async function handleBuddyChange(e) {
+    const buddyId = e.target.value || null
+    setBuddySaving(true)
+    await runAsync(() => updateLimitBuddy(buddyId), "Couldn't save that - try again")
+    setBuddySaving(false)
   }
 
   async function toggleNotification(key) {
@@ -422,6 +439,27 @@ export default function AccountPage() {
             <button className="btn btn-ghost btn-small" onClick={handleClearLimit} disabled={limitSaving}>
               Turn off limit
             </button>
+
+            <label className="field">
+              <span>Notify a mate when you hit it</span>
+              <select value={user.limitBuddyId ?? ''} onChange={handleBuddyChange} disabled={buddySaving || !friends?.length}>
+                <option value="">No one</option>
+                {(friends ?? []).map((f) => (
+                  <option key={f.id} value={f.id}>
+                    {f.displayName}
+                  </option>
+                ))}
+              </select>
+            </label>
+            {friends && !friends.length && (
+              <p className="hint">Add a friend first (via your friend code) to pick someone here.</p>
+            )}
+            {user.limitBuddyId && (
+              <p className="hint">
+                They'll get a push once you hit this limit for the {user.stakeLimitPeriod === 'monthly' ? 'month' : 'week'} - a
+                nudge for them to check in, not a block on you.
+              </p>
+            )}
           </>
         ) : (
           <p className="hint">No limit set.</p>

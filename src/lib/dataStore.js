@@ -24,7 +24,8 @@ function mapProfile(row) {
     isAdmin: row.is_admin || false,
     avatarUrl: row.avatar_url || null,
     stakeLimitAmount: row.stake_limit_amount ?? null,
-    stakeLimitPeriod: row.stake_limit_period ?? null
+    stakeLimitPeriod: row.stake_limit_period ?? null,
+    limitBuddyId: row.limit_buddy_id ?? null
   }
 }
 
@@ -781,6 +782,16 @@ export async function updateStakeLimit(userId, { amount, period }) {
   return { amount, period }
 }
 
+// buddyId null clears it (the "off" state) - see supabase/schema.sql's
+// limit_buddy_id for what this actually does (netlify/functions/
+// alert-checks.js pushes to this person once the limit's hit).
+export async function updateLimitBuddy(userId, buddyId) {
+  if (!isSupabaseConfigured) return local.updateLimitBuddy(userId, buddyId)
+  const { error } = await supabase.from('profiles').update({ limit_buddy_id: buddyId }).eq('id', userId)
+  if (error) throw error
+  return buddyId
+}
+
 // Path is prefixed with the uploader's own user id - the storage RLS
 // policies (see schema.sql) check exactly that prefix, so anything else
 // would be rejected before it ever reached here. upsert:true means
@@ -1098,4 +1109,97 @@ export async function listSharedInGroup(groupId) {
     .order('created_at', { ascending: false })
   if (error) throw error
   return data.map(mapSharedVideoRow)
+}
+
+// --- Table predictor -------------------------------------------------------
+// A slower group game than Pick'em (single match, weekly) - predict a whole
+// competition's final order, scored against a member-updated snapshot of
+// the real standings. See supabase/schema.sql's predictors/predictor_entries
+// for why this is one active predictor per group and a freeform
+// participant list rather than a hardcoded league.
+
+function mapPredictor(row) {
+  if (!row) return null
+  return {
+    id: row.id,
+    groupId: row.group_id,
+    competition: row.competition,
+    participants: row.participants,
+    createdBy: row.created_by,
+    createdAt: row.created_at,
+    currentStandings: row.current_standings ?? null,
+    standingsUpdatedBy: row.standings_updated_by ?? null,
+    standingsUpdatedAt: row.standings_updated_at ?? null
+  }
+}
+
+function mapPredictorEntry(row) {
+  return {
+    id: row.id,
+    predictorId: row.predictor_id,
+    userId: row.user_id,
+    predictedOrder: row.predicted_order,
+    createdAt: row.created_at,
+    updatedAt: row.updated_at
+  }
+}
+
+export async function getPredictor(groupId) {
+  if (!isSupabaseConfigured) return local.getPredictor(groupId)
+  const { data, error } = await supabase
+    .from('predictors')
+    .select('*')
+    .eq('group_id', groupId)
+    .order('created_at', { ascending: false })
+    .limit(1)
+    .maybeSingle()
+  if (error) throw error
+  return mapPredictor(data)
+}
+
+export async function createPredictor(groupId, userId, competition, participants) {
+  if (!isSupabaseConfigured) return local.createPredictor(groupId, userId, competition, participants)
+  const { data, error } = await supabase
+    .from('predictors')
+    .insert({ group_id: groupId, competition, participants, created_by: userId })
+    .select()
+    .single()
+  if (error) throw error
+  return mapPredictor(data)
+}
+
+export async function updateStandings(predictorId, userId, standings) {
+  if (!isSupabaseConfigured) return local.updateStandings(predictorId, userId, standings)
+  const { data, error } = await supabase
+    .from('predictors')
+    .update({ current_standings: standings, standings_updated_by: userId, standings_updated_at: new Date().toISOString() })
+    .eq('id', predictorId)
+    .select()
+    .single()
+  if (error) throw error
+  return mapPredictor(data)
+}
+
+export async function listPredictorEntries(predictorId) {
+  if (!isSupabaseConfigured) return local.listPredictorEntries(predictorId)
+  const { data, error } = await supabase.from('predictor_entries').select('*').eq('predictor_id', predictorId)
+  if (error) throw error
+  return data.map(mapPredictorEntry)
+}
+
+// Upsert - resubmitting just overwrites the previous entry, trust-based
+// like every other self-reported thing in this app rather than locking at
+// a kickoff time.
+export async function submitPredictorEntry(predictorId, userId, predictedOrder) {
+  if (!isSupabaseConfigured) return local.submitPredictorEntry(predictorId, userId, predictedOrder)
+  const { data, error } = await supabase
+    .from('predictor_entries')
+    .upsert(
+      { predictor_id: predictorId, user_id: userId, predicted_order: predictedOrder, updated_at: new Date().toISOString() },
+      { onConflict: 'predictor_id,user_id' }
+    )
+    .select()
+    .single()
+  if (error) throw error
+  return mapPredictorEntry(data)
 }

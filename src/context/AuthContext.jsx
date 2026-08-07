@@ -124,6 +124,15 @@ export function AuthProvider({ children }) {
     [user]
   )
 
+  const updateLimitBuddy = useCallback(
+    async (buddyId) => {
+      if (!user) return
+      await dataStore.updateLimitBuddy(user.id, buddyId)
+      setUser((u) => ({ ...u, limitBuddyId: buddyId }))
+    },
+    [user]
+  )
+
   return (
     <AuthContext.Provider
       value={{
@@ -139,7 +148,8 @@ export function AuthProvider({ children }) {
         updateBookmakerPrefs,
         updateNotificationPrefs,
         updateAvatar,
-        updateStakeLimit
+        updateStakeLimit,
+        updateLimitBuddy
       }}
     >
       {children}
