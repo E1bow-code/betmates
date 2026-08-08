@@ -2473,6 +2473,7 @@ h1, h2, .topbar h1, .sheet-title, .auth-title {
 .topbar-row { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
 .topbar-row h1 { margin: 0; }
 .topbar-actions { display: flex; align-items: center; gap: 8px; }
+.group-chat-actions { justify-content: flex-end; }
 
 .group-invite-tag { font-size: 0.78rem; color: var(--text-dim); margin: 2px 0 4px; }
 .group-invite-code {

@@ -14,6 +14,7 @@ import { shareOrCopy, groupInviteUrl } from '../lib/share.js'
 import { useAsyncAction } from '../lib/useAsyncAction.js'
 import PullToRefresh from '../components/PullToRefresh.jsx'
 import SportHeroBanner from '../components/SportHeroBanner.jsx'
+import CoachGptLink from '../components/CoachGptLink.jsx'
 
 export default function GroupFeedPage() {
   const { id } = useParams()
@@ -240,6 +241,9 @@ export default function GroupFeedPage() {
 
       {tab === 'chat' && (
         <div className="group-chat">
+          <div className="topbar-actions group-chat-actions">
+            <CoachGptLink label="🧠 Ask CoachGPT" />
+          </div>
           {messages === null && <div className="loading">Loading chat…</div>}
           {messages && !messages.length && (
             <EmptyState icon="💬" title="No messages yet" subtitle="Say something to get the chat going." />
