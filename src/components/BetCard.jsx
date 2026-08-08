@@ -56,6 +56,14 @@ export default function BetCard({ post, memberNames, variant = 'group', onBlocke
   }, [post.id])
 
   useEffect(() => {
+    return dataStore.subscribeBetActivity(post.id, {
+      onComment: (comment) => setComments((c) => (c.some((x) => x.id === comment.id) ? c : [...c, comment])),
+      onReactionInsert: (reaction) => setReactions((r) => (r.some((x) => x.id === reaction.id) ? r : [...r, reaction])),
+      onReactionDelete: (reaction) => setReactions((r) => r.filter((x) => x.id !== reaction.id))
+    })
+  }, [post.id])
+
+  useEffect(() => {
     if (variant === 'public' && post.userId !== user.id) {
       dataStore.listFollowing(user.id).then((ids) => setFollowing(ids.includes(post.userId)))
     }
@@ -65,8 +73,8 @@ export default function BetCard({ post, memberNames, variant = 'group', onBlocke
   const authorName = memberNames?.[post.userId] ?? post.authorName ?? 'Someone'
 
   async function toggleReaction(key) {
-    const updated = await dataStore.toggleReaction(post.id, user.id, key)
-    setReactions(updated)
+    const { action, reaction } = await dataStore.toggleReaction(post.id, user.id, key)
+    setReactions((r) => (action === 'added' ? [...r, reaction] : r.filter((x) => x.id !== reaction.id)))
   }
 
   // "placed" isn't a real status column value - it's an each-way result

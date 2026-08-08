@@ -908,3 +908,15 @@ alter publication supabase_realtime add table group_messages;
 alter publication supabase_realtime add table bet_posts;
 alter publication supabase_realtime add table direct_messages;
 alter publication supabase_realtime add table fixture_chat_messages;
+
+-- --- Realtime: bet comments & reactions -----------------------------------
+-- Third live-update pass (comments/reactions were cut from the prior
+-- Realtime pass - see that section's comment above). bet_reactions needs
+-- REPLICA IDENTITY FULL because toggleReaction is delete-to-remove (no
+-- UPDATE path - see dataStore.js) and the default replica identity only
+-- puts the primary key in a DELETE's payload.old, which has no bet_id to
+-- route the event by. bet_comments has no delete/update UI, so it stays on
+-- the default identity.
+alter table bet_reactions replica identity full;
+alter publication supabase_realtime add table bet_comments;
+alter publication supabase_realtime add table bet_reactions;

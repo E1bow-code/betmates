@@ -98,6 +98,22 @@ import * as local from './localBackend.js'
  * @property {string} createdAt
  */
 /**
+ * @typedef {object} Reaction
+ * @property {string} id
+ * @property {string} betId
+ * @property {string} userId
+ * @property {string} emoji
+ * @property {string} createdAt
+ */
+/**
+ * @typedef {object} Comment
+ * @property {string} id
+ * @property {string} betId
+ * @property {string} userId
+ * @property {string} body
+ * @property {string} createdAt
+ */
+/**
  * @typedef {object} OddsAlert
  * @property {string} id
  * @property {string} sport
@@ -980,34 +996,50 @@ export async function removePost(postId) {
 
 // --- Reactions & comments ------------------------------------------------
 
-/** @param {string} betId @param {string} userId @param {string} emoji @returns {Promise<any[]>} */
+/** @param {any} row @returns {Reaction} */
+function mapReaction(row) {
+  return { id: row.id, betId: row.bet_id, userId: row.user_id, emoji: row.emoji, createdAt: row.created_at }
+}
+
+/** @param {any} row @returns {Comment} */
+function mapComment(row) {
+  return { id: row.id, betId: row.bet_id, userId: row.user_id, body: row.body, createdAt: row.created_at }
+}
+
+// Returns just the row that changed (rather than a fresh SELECT * of every
+// reaction on this bet) so BetCard.jsx can update its local state
+// incrementally instead of replacing the whole array - a full replace can
+// race with another user's reaction arriving over subscribeBetActivity's
+// shared channel in the gap between this function's own write and its old
+// re-SELECT, clobbering it out of local state until the next event.
+/** @param {string} betId @param {string} userId @param {string} emoji @returns {Promise<{action: 'added'|'removed', reaction: Reaction}>} */
 export async function toggleReaction(betId, userId, emoji) {
   if (!isSupabaseConfigured) return local.toggleReaction(betId, userId, emoji)
   const { data: existing } = await supabase
     .from('bet_reactions')
-    .select('id')
+    .select('*')
     .eq('bet_id', betId)
     .eq('user_id', userId)
     .eq('emoji', emoji)
     .maybeSingle()
   if (existing) {
     await supabase.from('bet_reactions').delete().eq('id', existing.id)
-  } else {
-    await supabase.from('bet_reactions').insert({ bet_id: betId, user_id: userId, emoji })
+    return { action: 'removed', reaction: mapReaction(existing) }
   }
-  const { data } = await supabase.from('bet_reactions').select('*').eq('bet_id', betId)
-  return data
+  const { data, error } = await supabase.from('bet_reactions').insert({ bet_id: betId, user_id: userId, emoji }).select().single()
+  if (error) throw error
+  return { action: 'added', reaction: mapReaction(data) }
 }
 
-/** @param {string} betId @returns {Promise<any[]>} */
+/** @param {string} betId @returns {Promise<Reaction[]>} */
 export async function listReactions(betId) {
   if (!isSupabaseConfigured) return local.listReactions(betId)
   const { data, error } = await supabase.from('bet_reactions').select('*').eq('bet_id', betId)
   if (error) throw error
-  return data
+  return data.map(mapReaction)
 }
 
-/** @param {string} betId @param {string} userId @param {string} body @returns {Promise<any>} */
+/** @param {string} betId @param {string} userId @param {string} body @returns {Promise<Comment>} */
 export async function addComment(betId, userId, body) {
   if (!isSupabaseConfigured) return local.addComment(betId, userId, body)
   const { data, error } = await supabase
@@ -1016,10 +1048,10 @@ export async function addComment(betId, userId, body) {
     .select()
     .single()
   if (error) throw error
-  return data
+  return mapComment(data)
 }
 
-/** @param {string} betId @returns {Promise<any[]>} */
+/** @param {string} betId @returns {Promise<Comment[]>} */
 export async function listComments(betId) {
   if (!isSupabaseConfigured) return local.listComments(betId)
   const { data, error } = await supabase
@@ -1028,7 +1060,66 @@ export async function listComments(betId) {
     .eq('bet_id', betId)
     .order('created_at', { ascending: true })
   if (error) throw error
-  return data
+  return data.map(mapComment)
+}
+
+// Renders non-virtualized in potentially unbounded lists (PublicFeedView.jsx
+// fetches every public post with no .limit()), so unlike every other
+// subscribeX below this can't be one channel per mounted BetCard - that
+// risks dozens of concurrent WebSocket subscriptions on that page alone.
+// Instead this is a single shared channel, created lazily on the first
+// subscriber and torn down when the last unsubscribes, fanning events out
+// to whichever bet_id they're for via a betId -> Set<handlers> registry.
+// Bespoke rather than built on subscribeToInserts above: two source tables
+// feed one fan-out map, and reactions need DELETE (toggleReaction has no
+// UPDATE path - see above) which that helper doesn't support. bet_reactions
+// needs `alter table bet_reactions replica identity full` (see schema.sql)
+// for a DELETE's payload.old to carry bet_id at all - the default replica
+// identity only includes the primary key.
+const betActivityListeners = new Map() // betId -> Set<{onComment?, onReactionInsert?, onReactionDelete?}>
+let betActivityChannel = null
+let betActivityRefCount = 0
+
+function ensureBetActivityChannel() {
+  if (betActivityChannel || !isSupabaseConfigured) return
+  betActivityChannel = supabase
+    .channel(`bet-activity:${Math.random().toString(36).slice(2)}`)
+    .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'bet_comments' }, (payload) => {
+      const comment = mapComment(payload.new)
+      betActivityListeners.get(comment.betId)?.forEach((h) => h.onComment?.(comment))
+    })
+    .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'bet_reactions' }, (payload) => {
+      const reaction = mapReaction(payload.new)
+      betActivityListeners.get(reaction.betId)?.forEach((h) => h.onReactionInsert?.(reaction))
+    })
+    .on('postgres_changes', { event: 'DELETE', schema: 'public', table: 'bet_reactions' }, (payload) => {
+      const reaction = mapReaction(payload.old)
+      betActivityListeners.get(reaction.betId)?.forEach((h) => h.onReactionDelete?.(reaction))
+    })
+    .subscribe()
+}
+
+/**
+ * @param {string} betId
+ * @param {{onComment?: (c: Comment) => void, onReactionInsert?: (r: Reaction) => void, onReactionDelete?: (r: Reaction) => void}} handlers
+ * @returns {() => void}
+ */
+export function subscribeBetActivity(betId, handlers) {
+  if (!isSupabaseConfigured) return () => {}
+  if (!betActivityListeners.has(betId)) betActivityListeners.set(betId, new Set())
+  betActivityListeners.get(betId).add(handlers)
+  betActivityRefCount++
+  ensureBetActivityChannel()
+  return () => {
+    const set = betActivityListeners.get(betId)
+    set?.delete(handlers)
+    if (set && set.size === 0) betActivityListeners.delete(betId)
+    betActivityRefCount--
+    if (betActivityRefCount === 0 && betActivityChannel) {
+      supabase.removeChannel(betActivityChannel)
+      betActivityChannel = null
+    }
+  }
 }
 
 // --- Bet copies (engagement tracking) -------------------------------------

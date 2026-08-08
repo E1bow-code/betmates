@@ -674,17 +674,22 @@ export function listPublicFeed(viewerId) {
 
 // --- Reactions & comments ------------------------------------------------
 
-/** @param {string} betId @param {string} userId @param {string} emoji @returns {Promise<any[]>} */
+/**
+ * @param {string} betId @param {string} userId @param {string} emoji
+ * @returns {Promise<{action: 'added'|'removed', reaction: import('./dataStore.js').Reaction}>}
+ */
 export function toggleReaction(betId, userId, emoji) {
   const db = readDb()
   const idx = db.reactions.findIndex((r) => r.betId === betId && r.userId === userId && r.emoji === emoji)
   if (idx >= 0) {
-    db.reactions.splice(idx, 1)
-  } else {
-    db.reactions.push({ id: uid('reaction'), betId, userId, emoji, createdAt: new Date().toISOString() })
+    const [reaction] = db.reactions.splice(idx, 1)
+    writeDb(db)
+    return delay({ action: 'removed', reaction })
   }
+  const reaction = { id: uid('reaction'), betId, userId, emoji, createdAt: new Date().toISOString() }
+  db.reactions.push(reaction)
   writeDb(db)
-  return delay(db.reactions.filter((r) => r.betId === betId))
+  return delay({ action: 'added', reaction })
 }
 
 /** @param {string} betId @returns {Promise<any[]>} */
