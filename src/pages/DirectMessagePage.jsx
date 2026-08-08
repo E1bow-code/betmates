@@ -9,6 +9,7 @@ import { formatRelativeTime } from '../utils/format.js'
 import Avatar from '../components/Avatar.jsx'
 import EmptyState from '../components/EmptyState.jsx'
 import PullToRefresh from '../components/PullToRefresh.jsx'
+import CoachGptLink from '../components/CoachGptLink.jsx'
 
 // 1:1 chat with a friend - same free-text shape as GroupFeedPage's Chat
 // tab, just between two people instead of a group's members. Reached from
@@ -69,9 +70,12 @@ export default function DirectMessagePage() {
         <Link to="/groups" state={{ segment: 'tips' }} className="back">
           &larr; Friends
         </Link>
-        <div className="dm-header-row">
-          {friend && <Avatar name={friend.displayName} photoUrl={friend.avatarUrl} size={30} />}
-          <h1>{friend?.displayName ?? 'Message'}</h1>
+        <div className="topbar-row">
+          <div className="dm-header-row">
+            {friend && <Avatar name={friend.displayName} photoUrl={friend.avatarUrl} size={30} />}
+            <h1>{friend?.displayName ?? 'Message'}</h1>
+          </div>
+          <CoachGptLink label="🧠" />
         </div>
       </div>
 
