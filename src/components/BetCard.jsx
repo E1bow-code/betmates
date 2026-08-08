@@ -276,6 +276,17 @@ export default function BetCard({ post, memberNames, variant = 'group', onBlocke
           </div>
         )}
 
+        {variant === 'group' && reactions.length > 0 && (
+          <p className="hint reaction-names">
+            {REACTION_EMOJIS.filter((emoji) => reactions.some((r) => r.emoji === emoji))
+              .map((emoji) => {
+                const names = reactions.filter((r) => r.emoji === emoji).map((r) => memberNames?.[r.userId] ?? 'Someone')
+                return `${emoji} ${names.join(', ')}`
+              })
+              .join('   ')}
+          </p>
+        )}
+
         <div className="bet-card-actions">
           <button
             className="reaction-btn"
