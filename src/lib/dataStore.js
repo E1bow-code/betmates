@@ -594,15 +594,16 @@ export async function sendFixtureChatMessage(sport, eventId, userId, displayName
   return mapFixtureChatMessage(data)
 }
 
-// Unfiltered - fixture_chat_messages' RLS ("any signed-in user can read
-// fixture chat", schema.sql) doesn't scope by sport/event, so every open
-// fixture-chat panel's channel receives every fixture's chat traffic
-// app-wide and has to discard non-matching rows itself. A future generated
-// room_id column would let this use a real server-side filter instead.
+// Filtered by sport server-side - Realtime's postgres_changes filter only
+// supports a single column, and there's no generated room_id column to
+// filter on the exact (sport, eventId) pair (that'd be the fuller fix), but
+// filtering on sport alone still cuts an open fixture-chat panel's traffic
+// down from "every fixture's chat, app-wide" to "every fixture chat within
+// this one sport" - eventId still has to be checked client-side.
 /** @param {string} sport @param {string} eventId @param {(message: FixtureChatMessage) => void} onInsert @returns {() => void} */
 export function subscribeFixtureChatMessages(sport, eventId, onInsert) {
-  return subscribeToInserts('fixture_chat_messages', undefined, mapFixtureChatMessage, (message) => {
-    if (message.sport === sport && message.eventId === eventId) onInsert(message)
+  return subscribeToInserts('fixture_chat_messages', `sport=eq.${sport}`, mapFixtureChatMessage, (message) => {
+    if (message.eventId === eventId) onInsert(message)
   })
 }
 
