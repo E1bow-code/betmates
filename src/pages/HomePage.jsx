@@ -2,8 +2,10 @@ import { useEffect, useMemo, useState } from 'react'
 import { useAuth } from '../context/AuthContext.jsx'
 import * as dataStore from '../lib/dataStore.js'
 import { computeStreak } from '../utils/trackerStats.js'
+import { computeGroupLeaderboard } from '../utils/groupLeaderboard.js'
 import SportHeroBanner from '../components/SportHeroBanner.jsx'
 import PublicFeedView from '../components/PublicFeedView.jsx'
+import RankTeaser from '../components/RankTeaser.jsx'
 
 // The front door post-login (see App.jsx's HomeRedirect) - the public feed
 // is the main attraction, everything else the old DashboardPage duplicated
@@ -14,12 +16,44 @@ import PublicFeedView from '../components/PublicFeedView.jsx'
 export default function HomePage() {
   const { user } = useAuth()
   const [entries, setEntries] = useState(null)
+  const [rankTeaser, setRankTeaser] = useState(null)
 
   useEffect(() => {
     Promise.all([dataStore.listBetPostsByUser(user.id), dataStore.listManualEntries(user.id)])
       .then(([posted, manual]) => setEntries([...posted, ...manual]))
       .catch(() => setEntries([]))
   }, [user.id])
+
+  // Headlines whichever group the user most recently had a rankable
+  // (settled, staked, visible) result in - found by filtering posts already
+  // fetched above, so this costs zero extra calls for users with no
+  // rankable activity, and a flat 3 (regardless of how many groups they're
+  // in) for users who have some. All-time window: this is a passive glance,
+  // not the full interactive board (that's Leaderboard.jsx, one tap away).
+  useEffect(() => {
+    if (!entries) return
+    const headline = entries
+      .filter((e) => e.groupId && e.stake && !e.stakeHidden && e.settledAt && ['won', 'lost', 'void'].includes(e.status))
+      .sort((a, b) => new Date(b.settledAt) - new Date(a.settledAt))[0]
+    if (!headline) {
+      setRankTeaser(null)
+      return
+    }
+    Promise.all([
+      dataStore.getGroup(headline.groupId),
+      dataStore.listBetPosts(headline.groupId),
+      dataStore.listGroupMembers(headline.groupId)
+    ])
+      .then(([group, posts, members]) => {
+        const memberNames = Object.fromEntries(members.map((m) => [m.id, m.displayName]))
+        const rows = computeGroupLeaderboard(posts, memberNames, 'all')
+        const mine = rows.find((r) => r.userId === user.id)
+        setRankTeaser(
+          mine && group ? { groupId: group.id, groupName: group.name, rank: mine.rank, totalRanked: rows.length } : null
+        )
+      })
+      .catch(() => setRankTeaser(null))
+  }, [entries, user.id])
 
   const streak = useMemo(() => (entries ? computeStreak(entries) : { type: null, count: 0 }), [entries])
 
@@ -44,6 +78,8 @@ export default function HomePage() {
           </div>
         )}
       </div>
+
+      {rankTeaser && <RankTeaser {...rankTeaser} />}
 
       <PublicFeedView />
     </div>

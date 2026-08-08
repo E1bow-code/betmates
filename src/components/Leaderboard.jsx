@@ -1,6 +1,6 @@
 import { useState } from 'react'
-import { computeStats } from '../utils/trackerStats.js'
-import { LEADERBOARD_WINDOWS, isWithinWindow } from '../utils/dateWindows.js'
+import { computeGroupLeaderboard } from '../utils/groupLeaderboard.js'
+import { LEADERBOARD_WINDOWS } from '../utils/dateWindows.js'
 import Avatar from './Avatar.jsx'
 import ShareLeaderboardButton from './ShareLeaderboardButton.jsx'
 
@@ -16,18 +16,7 @@ export default function Leaderboard({ posts, memberNames, currentUserId }) {
   const hasAnySettled = posts.some((p) => !p.stakeHidden && p.stake && ['won', 'lost', 'void'].includes(p.status))
   if (!hasAnySettled) return null
 
-  const byUser = new Map()
-  for (const post of posts) {
-    if (post.stakeHidden) continue
-    if (post.settledAt && !isWithinWindow(post.settledAt, timeWindow)) continue
-    if (!byUser.has(post.userId)) byUser.set(post.userId, [])
-    byUser.get(post.userId).push(post)
-  }
-
-  const rows = [...byUser.entries()]
-    .map(([userId, userPosts]) => ({ userId, name: memberNames[userId] ?? 'Someone', ...computeStats(userPosts) }))
-    .filter((row) => row.settledCount > 0)
-    .sort((a, b) => b.profit - a.profit)
+  const rows = computeGroupLeaderboard(posts, memberNames, timeWindow)
 
   return (
     <div className="leaderboard">
@@ -50,9 +39,9 @@ export default function Leaderboard({ posts, memberNames, currentUserId }) {
           {!rows.length && <p className="hint">Nothing settled in this window.</p>}
           {rows.length > 0 && (
             <div className="leaderboard-list">
-              {rows.map((row, i) => (
-                <div key={row.userId} className={i === 0 ? 'leaderboard-row leaderboard-row-top' : 'leaderboard-row'}>
-                  <span className="leaderboard-rank">#{i + 1}</span>
+              {rows.map((row) => (
+                <div key={row.userId} className={row.rank === 1 ? 'leaderboard-row leaderboard-row-top' : 'leaderboard-row'}>
+                  <span className="leaderboard-rank">#{row.rank}</span>
                   <Avatar name={row.name} size={24} />
                   <span className="leaderboard-name">{row.name}</span>
                   <span className={`leaderboard-pnl ${row.profit >= 0 ? 'tone-good' : 'tone-bad'}`}>
@@ -65,7 +54,7 @@ export default function Leaderboard({ posts, memberNames, currentUserId }) {
                   {row.userId === currentUserId && (
                     <ShareLeaderboardButton
                       name={row.name}
-                      rank={i + 1}
+                      rank={row.rank}
                       profit={row.profit}
                       winRate={row.winRate}
                       roi={row.roi}

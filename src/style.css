@@ -2124,6 +2124,38 @@ h1, h2, .topbar h1, .sheet-title, .auth-title {
   color: var(--accent);
 }
 
+/* Home page's glance-able social-standing signal - a tappable row (card
+   language, like .scoreboard-panel), not another edge-to-edge hero. */
+.rank-teaser {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  background: var(--surface);
+  padding: 12px 14px;
+  margin: 0 0 20px;
+  text-decoration: none;
+  color: inherit;
+}
+.rank-teaser-rank {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+  font-weight: 700;
+  font-size: 1.4rem;
+  color: var(--accent);
+  flex-shrink: 0;
+}
+.rank-teaser-body {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+}
+.rank-teaser-group { font-weight: 600; font-size: 0.85rem; }
+.rank-teaser-context { font-size: 0.72rem; color: var(--text-dim); margin-top: 2px; }
+.rank-teaser-chevron { color: var(--text-dim); flex-shrink: 0; }
+
 .scoreboard-panel {
   border: 1px solid var(--border);
   border-radius: 4px;
