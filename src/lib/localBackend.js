@@ -933,6 +933,16 @@ export function countReferrals(userId) {
   return delay(db.users.filter((u) => u.referredBy === userId).length)
 }
 
+// Local mode has no odds-snapshot job (that runs server-side on a schedule -
+// netlify/functions/odds-snapshot.js), so there are no closing lines to compare
+// against: real Closing Line Value just isn't available offline and the Tracker
+// falls back to device-local line value. Empty map, shaped like the Supabase
+// twin in dataStore.js.
+/** @returns {Promise<Record<string, number>>} */
+export function getClosingLines() {
+  return delay({})
+}
+
 // --- Push subscriptions -------------------------------------------------
 // No server to send a push from in local mode - the real subscribe/permission
 // flow in src/lib/push.js still runs, this just has nowhere to persist it.

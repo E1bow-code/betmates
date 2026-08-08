@@ -32,6 +32,7 @@ import SportIcon from '../components/icons/SportIcons.jsx'
 import LiveBadge from '../components/LiveBadge.jsx'
 import { useLiveScores } from '../lib/liveScores.js'
 import { betLineValue, beatTheLineRate } from '../utils/lineValue.js'
+import { betClv, clvSummary } from '../utils/clv.js'
 
 const STATUS_LABEL = { open: 'Pending', won: 'Won', lost: 'Lost', void: 'Void' }
 
@@ -39,6 +40,10 @@ export default function TrackerPage() {
   const { user } = useAuth()
   const { format } = useOddsFormat()
   const [entries, setEntries] = useState(null)
+  // Server-recorded closing lines for the outcomes these bets reference, keyed
+  // {eventId|marketKey|outcomeName} (see dataStore.getClosingLines). Feeds real
+  // CLV; stays empty in local mode, where the Tracker falls back to line value.
+  const [closes, setCloses] = useState({})
   const [checking, setChecking] = useState(false)
   const [rebetting, setRebetting] = useState(null)
   const [rebetDone, setRebetDone] = useState(null)
@@ -71,6 +76,10 @@ export default function TrackerPage() {
         ...manual.map((m) => ({ ...m, source: 'manual' }))
       ].sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))
       setEntries(combined)
+      // Pull the closing lines for every fixture these bets touch so single-leg
+      // rows can show real CLV. Best-effort - a failure just leaves CLV absent.
+      const fixtureIds = combined.flatMap((entry) => (entry.selections ?? []).map((s) => s.eventId)).filter(Boolean)
+      dataStore.getClosingLines(fixtureIds).then(setCloses).catch(() => {})
     })
   }
 
@@ -161,6 +170,10 @@ export default function TrackerPage() {
     },
     ...computeMilestoneBadges(entries),
     (() => {
+      // Prefer real Closing Line Value once snapshots exist; otherwise fall back
+      // to the device-local "beat the line" rate.
+      const clv = clvSummary(entries, closes)
+      if (clv) return { icon: '🎯', label: `Closing line value ${clv.avgPct >= 0 ? '+' : ''}${clv.avgPct}% (${clv.sample})` }
       const lv = beatTheLineRate(entries)
       return lv && { icon: '📈', label: `Beat the line ${lv.rate}% (${lv.sample})` }
     })(),
@@ -311,6 +324,7 @@ export default function TrackerPage() {
             const selections = entry.selections
             const combinedOdds = selections.length > 1 ? selections.reduce((acc, s) => acc * s.odds, 1) : null
             const lineValue = betLineValue(entry)
+            const clv = betClv(entry, closes)
             return (
               <div key={entry.id} className={`tracker-row status-${entry.status}`}>
                 <div className="tracker-row-main">
@@ -339,7 +353,7 @@ export default function TrackerPage() {
                       £{entry.stake} staked{entry.potentialReturn ? ` · returns £${Number(entry.potentialReturn).toFixed(2)}` : ''}
                     </div>
                   ) : null}
-                  {lineValue && <LineValueTag lv={lineValue} />}
+                  {clv ? <ClvTag clv={clv} /> : lineValue ? <LineValueTag lv={lineValue} /> : null}
                 </div>
                 <div className="tracker-row-status">
                   {entry.source === 'manual' && entry.status === 'open' ? (
@@ -404,6 +418,24 @@ function LineValueTag({ lv }) {
       <span className="line-value-detail">
         {' '}
         (you {lv.bet.toFixed(2)} vs {lv.line.toFixed(2)})
+      </span>
+    </div>
+  )
+}
+
+// Real Closing Line Value for a single-leg bet - the struck price vs the
+// market's server-recorded closing line (src/utils/clv.js). Shown in place of
+// LineValueTag's device-local approximation whenever a true close was recorded,
+// so it reuses the same .line-value styling.
+function ClvTag({ clv }) {
+  const pct = Math.abs(clv.deltaPct)
+  if (pct < 0.5) return null // effectively the close - not worth a badge
+  return (
+    <div className={`line-value ${clv.beat ? 'line-value-good' : 'line-value-bad'}`}>
+      {clv.beat ? '🎯 Beat the close' : '🎯 Below the close'} by {pct.toFixed(1)}%
+      <span className="line-value-detail">
+        {' '}
+        (you {clv.bet.toFixed(2)} vs close {clv.close.toFixed(2)})
       </span>
     </div>
   )

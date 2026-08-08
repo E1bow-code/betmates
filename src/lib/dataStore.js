@@ -1221,6 +1221,41 @@ export async function updateManualEntryStatus(entryId, status, potentialReturnOv
   return data
 }
 
+// The closing line for each outcome an open or settled bet references - the
+// latest price netlify/functions/odds-snapshot.js recorded at or before
+// kickoff, keyed the way src/utils/clv.js looks it up
+// ({eventId|marketKey|outcomeName}). This is what turns the Tracker's
+// device-local "line value" into true, cross-device Closing Line Value. Local
+// mode has no snapshot job, so its twin returns nothing and the UI degrades to
+// line value.
+/** @param {string[]} fixtureIds @returns {Promise<Record<string, number>>} */
+export async function getClosingLines(fixtureIds) {
+  if (!isSupabaseConfigured) return local.getClosingLines(fixtureIds)
+  const ids = [...new Set((fixtureIds ?? []).filter(Boolean))]
+  if (!ids.length) return {}
+  const [{ data: snaps }, { data: fx }] = await Promise.all([
+    supabase.from('odds_snapshots').select('fixture_id,market,selection,odds,fetched_at').in('fixture_id', ids),
+    supabase.from('fixtures').select('id,kickoff').in('id', ids)
+  ])
+  const kickoff = new Map((fx ?? []).map((f) => [f.id, f.kickoff]))
+  // Per outcome, keep the latest price struck at or before kickoff - that's the
+  // close. A snapshot after kickoff (a late in-play sample) is not a closing line.
+  /** @type {Map<string, {at: number, odds: number}>} */
+  const best = new Map()
+  for (const snap of snaps ?? []) {
+    const ko = kickoff.get(snap.fixture_id)
+    const at = new Date(snap.fetched_at).getTime()
+    if (ko && at > new Date(ko).getTime()) continue
+    const key = `${snap.fixture_id}|${snap.market}|${snap.selection}`
+    const prev = best.get(key)
+    if (!prev || at > prev.at) best.set(key, { at, odds: Number(snap.odds) })
+  }
+  /** @type {Record<string, number>} */
+  const out = {}
+  for (const [key, value] of best) out[key] = value.odds
+  return out
+}
+
 // Corrects a mis-typed stake on a private entry that's still open - same
 // status = 'open' restriction as updateBetPost above, enforced by RLS too.
 /** @param {string} entryId @param {{stake: number|null, potentialReturn: number|null}} params @returns {Promise<ManualEntry>} */
