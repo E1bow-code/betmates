@@ -11,9 +11,9 @@ import Avatar from './Avatar.jsx'
 // same reasoning as Leaderboard.jsx's toggle - detail pages are already
 // busy, and most visitors aren't here to chat. Messages aren't purged after
 // the match - same permanence as group chat.
-export default function FixtureChatPanel({ sport, eventId, eventLabel }) {
+export default function FixtureChatPanel({ sport, eventId, eventLabel, defaultOpen = false }) {
   const { user } = useAuth()
-  const [open, setOpen] = useState(false)
+  const [open, setOpen] = useState(defaultOpen)
   const [messages, setMessages] = useState(null)
   const [body, setBody] = useState('')
   const [sending, setSending] = useState(false)

@@ -2532,6 +2532,23 @@ a.race-card:hover, a.race-card:focus-visible { background: rgba(var(--accent-rgb
   letter-spacing: 0.04em;
   color: var(--bad);
 }
+/* Wraps LiveBadge on BetCard when it's a tap-through to the fixture's
+   match chat (see BetCard.jsx) - reset to invisible button chrome so it
+   reads identically to the plain, non-interactive badge elsewhere. */
+.live-badge-link {
+  display: inline-flex;
+  background: none;
+  border: none;
+  padding: 0;
+  margin: 0;
+  font: inherit;
+  cursor: pointer;
+  border-radius: 3px;
+}
+.live-badge-link:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
 .live-badge-dot {
   width: 6px;
   height: 6px;

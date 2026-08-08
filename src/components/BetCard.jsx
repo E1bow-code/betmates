@@ -13,6 +13,7 @@ import ShareImageButton from './ShareImageButton.jsx'
 import Avatar from './Avatar.jsx'
 import EditBetSheet from './EditBetSheet.jsx'
 import LiveBadge from './LiveBadge.jsx'
+import FixtureChatSheet from './FixtureChatSheet.jsx'
 
 const REACTION_EMOJIS = ['🔥', '😬', '👍']
 const REACTION_LABEL = { '🔥': 'fire', '😬': 'grimace', '👍': 'thumbs up' }
@@ -50,6 +51,7 @@ export default function BetCard({ post, memberNames, variant = 'group', onBlocke
   const [reported, setReported] = useState(false)
   const [showEdit, setShowEdit] = useState(false)
   const [showMoreActions, setShowMoreActions] = useState(false)
+  const [chatTarget, setChatTarget] = useState(null)
 
   useEffect(() => {
     dataStore.listReactions(post.id).then(setReactions)
@@ -146,6 +148,7 @@ export default function BetCard({ post, memberNames, variant = 'group', onBlocke
   const selections = post.selections
   const combinedOdds = selections.length > 1 ? selections.reduce((acc, s) => acc * s.odds, 1) : null
   const live = status === 'open' && selections.some((s) => isLive(s.kickoff, s.sport ?? post.sport))
+  const liveChatLeg = live && selections.find((s) => s.eventId && isLive(s.kickoff, s.sport ?? post.sport))
 
   return (
     <div className={`bet-card status-${status}`}>
@@ -164,7 +167,20 @@ export default function BetCard({ post, memberNames, variant = 'group', onBlocke
             </button>
           )}
           <span className={`bet-status-pill status-${status}`}>{STATUS_LABEL[status]}</span>
-          {live && <LiveBadge />}
+          {liveChatLeg ? (
+            <button
+              className="live-badge-link"
+              type="button"
+              onClick={() =>
+                setChatTarget({ sport: liveChatLeg.sport ?? post.sport, eventId: liveChatLeg.eventId, eventLabel: liveChatLeg.event })
+              }
+              aria-label={`Open match chat for ${liveChatLeg.event}`}
+            >
+              <LiveBadge />
+            </button>
+          ) : (
+            live && <LiveBadge />
+          )}
           {variant === 'public' && !isAuthor && (
             <button
               className="moderation-toggle"
@@ -309,6 +325,8 @@ export default function BetCard({ post, memberNames, variant = 'group', onBlocke
           onDeleted={onChanged}
         />
       )}
+
+      {chatTarget && <FixtureChatSheet {...chatTarget} onClose={() => setChatTarget(null)} />}
 
       {showComments && (
         <div className="comment-thread">
