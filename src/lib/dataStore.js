@@ -996,9 +996,24 @@ export async function removePost(postId) {
 
 // --- Reactions & comments ------------------------------------------------
 
+// Seeded here (the one place every full reaction row passes through -
+// listReactions, toggleReaction, and the live INSERT handler below) so a
+// later DELETE can look up which bet a reaction belonged to even though
+// Supabase's postgres_changes DELETE payload only reliably includes the
+// primary key in practice (payload.old), regardless of REPLICA IDENTITY -
+// see subscribeBetActivity's DELETE handler. Capped like apiCache.js's
+// MAX_ENTRIES so a long session's worth of reactions can't grow this
+// unbounded; oldest-inserted entries are evicted first (Map preserves
+// insertion order).
+const reactionBetIndex = new Map() // reactionId -> betId
+const REACTION_INDEX_CAP = 500
+
 /** @param {any} row @returns {Reaction} */
 function mapReaction(row) {
-  return { id: row.id, betId: row.bet_id, userId: row.user_id, emoji: row.emoji, createdAt: row.created_at }
+  const reaction = { id: row.id, betId: row.bet_id, userId: row.user_id, emoji: row.emoji, createdAt: row.created_at }
+  reactionBetIndex.set(reaction.id, reaction.betId)
+  if (reactionBetIndex.size > REACTION_INDEX_CAP) reactionBetIndex.delete(reactionBetIndex.keys().next().value)
+  return reaction
 }
 
 /** @param {any} row @returns {Comment} */
@@ -1072,10 +1087,13 @@ export async function listComments(betId) {
 // to whichever bet_id they're for via a betId -> Set<handlers> registry.
 // Bespoke rather than built on subscribeToInserts above: two source tables
 // feed one fan-out map, and reactions need DELETE (toggleReaction has no
-// UPDATE path - see above) which that helper doesn't support. bet_reactions
-// needs `alter table bet_reactions replica identity full` (see schema.sql)
-// for a DELETE's payload.old to carry bet_id at all - the default replica
-// identity only includes the primary key.
+// UPDATE path - see above) which that helper doesn't support. In principle
+// `alter table bet_reactions replica identity full` (see schema.sql) should
+// make a DELETE's payload.old carry the full row instead of just the
+// primary key - in practice Supabase's Realtime broadcast has been
+// observed still sending only {id} regardless, so the DELETE handler below
+// falls back to reactionBetIndex (populated by mapReaction above) rather
+// than trusting payload.old.bet_id to be present.
 const betActivityListeners = new Map() // betId -> Set<{onComment?, onReactionInsert?, onReactionDelete?}>
 let betActivityChannel = null
 let betActivityRefCount = 0
@@ -1093,8 +1111,12 @@ function ensureBetActivityChannel() {
       betActivityListeners.get(reaction.betId)?.forEach((h) => h.onReactionInsert?.(reaction))
     })
     .on('postgres_changes', { event: 'DELETE', schema: 'public', table: 'bet_reactions' }, (payload) => {
-      const reaction = mapReaction(payload.old)
-      betActivityListeners.get(reaction.betId)?.forEach((h) => h.onReactionDelete?.(reaction))
+      const reactionId = payload.old.id
+      const betId = payload.old.bet_id ?? reactionBetIndex.get(reactionId)
+      if (!betId) return
+      reactionBetIndex.delete(reactionId)
+      const reaction = { id: reactionId, betId, userId: payload.old.user_id, emoji: payload.old.emoji, createdAt: payload.old.created_at }
+      betActivityListeners.get(betId)?.forEach((h) => h.onReactionDelete?.(reaction))
     })
     .subscribe()
 }
