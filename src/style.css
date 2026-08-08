@@ -2224,6 +2224,9 @@ h1, h2, .topbar h1, .sheet-title, .auth-title {
   margin: 0 0 20px;
   padding-bottom: 2px;
   scrollbar-width: none;
+  -webkit-overflow-scrolling: touch;
+  scroll-snap-type: x proximity;
+  overscroll-behavior-x: contain;
 }
 .home-highlights::-webkit-scrollbar { display: none; }
 .home-highlight-card {
@@ -2239,6 +2242,7 @@ h1, h2, .topbar h1, .sheet-title, .auth-title {
   padding: 12px 14px;
   text-decoration: none;
   color: inherit;
+  scroll-snap-align: start;
 }
 .home-highlight-icon { font-size: 1.2rem; }
 .home-highlight-title { font-size: 0.72rem; color: var(--text-dim); }
