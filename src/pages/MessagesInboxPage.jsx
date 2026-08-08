@@ -4,7 +4,6 @@ import { useAuth } from '../context/AuthContext.jsx'
 import { useActivity } from '../context/ActivityContext.jsx'
 import * as dataStore from '../lib/dataStore.js'
 import Avatar from '../components/Avatar.jsx'
-import EmptyState from '../components/EmptyState.jsx'
 import PullToRefresh from '../components/PullToRefresh.jsx'
 
 // All of a user's DM threads in one place, sorted by most recent message -
@@ -48,14 +47,24 @@ export default function MessagesInboxPage() {
       </div>
 
       {error && <div className="error">Couldn't load your messages: {error}</div>}
-      {!error && conversations === null && <div className="loading">Loading conversations…</div>}
-      {conversations && !conversations.length && (
-        <EmptyState icon="💬" title="No conversations yet" subtitle="Message a friend from the Friends list to start one." />
-      )}
 
-      {conversations && conversations.length > 0 && (
-        <div className="conversation-list">
-          {conversations.map((c) => (
+      {/* CoachGPT pinned above friend DMs - it's always there (no "did they
+          reply yet" to check, unlike a friend), so it doesn't wait on
+          conversations to load and isn't affected by the DM empty state
+          below. Same conversation-row shell as a friend thread, just with
+          a badge instead of an Avatar photo/initials. */}
+      <div className="conversation-list">
+        <Link to="/coach" className="conversation-row">
+          <span className="avatar conversation-row-coach-avatar" style={{ width: 40, height: 40, fontSize: 18 }}>
+            🧠
+          </span>
+          <div className="conversation-row-main">
+            <div className="conversation-row-name">CoachGPT</div>
+            <div className="conversation-row-preview">Ask about a fixture or a player</div>
+          </div>
+        </Link>
+        {conversations &&
+          conversations.map((c) => (
             <Link key={c.friendId} to={`/messages/${c.friendId}`} className="conversation-row">
               <Avatar name={c.friendName} photoUrl={c.friendAvatarUrl} size={40} />
               <div className="conversation-row-main">
@@ -64,7 +73,11 @@ export default function MessagesInboxPage() {
               </div>
             </Link>
           ))}
-        </div>
+      </div>
+
+      {!error && conversations === null && <div className="loading">Loading conversations…</div>}
+      {conversations && !conversations.length && (
+        <p className="hint">No conversations with friends yet - message someone from the Friends list to start one.</p>
       )}
     </PullToRefresh>
   )

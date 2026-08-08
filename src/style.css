@@ -722,6 +722,7 @@ h1, h2, .topbar h1, .sheet-title, .auth-title {
 }
 .conversation-row:hover, .conversation-row:focus-visible { background: rgba(var(--accent-rgb), 0.06); }
 .conversation-list .conversation-row:last-child { border-bottom: none; }
+.conversation-row-coach-avatar { background: var(--accent); color: var(--accent-ink); }
 .conversation-row-main { flex: 1; min-width: 0; }
 .conversation-row-name { font-weight: 600; font-size: 0.92rem; }
 .conversation-row-preview {
