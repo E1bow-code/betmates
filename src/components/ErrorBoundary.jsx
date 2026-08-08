@@ -1,4 +1,5 @@
 import { Component } from 'react'
+import * as dataStore from '../lib/dataStore.js'
 
 // Every route is lazy-loaded (see App.jsx) and the service worker updates
 // itself on a new deploy (registerType: 'autoUpdate'), which makes one
@@ -36,10 +37,14 @@ export default class ErrorBoundary extends Component {
       window.location.reload()
       return
     }
-    // Nothing is wired up to collect these yet; the console is still better
-    // than swallowing it, since the boundary has already stopped it
-    // reaching devtools as an uncaught error.
+    // Still log to console - devtools remains the fastest path when a
+    // developer is actually looking. The dataStore call is best-effort:
+    // logging a crash must never itself throw and mask the original error,
+    // and a network/RLS failure here shouldn't matter to the user at all.
     console.error('Unhandled error:', error)
+    dataStore
+      .logClientError({ message: String(error?.message ?? error), stack: error?.stack ?? null, route: window.location.hash || null })
+      .catch(() => {})
   }
 
   handleReload = () => {

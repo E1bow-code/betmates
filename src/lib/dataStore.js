@@ -129,6 +129,16 @@ import * as local from './localBackend.js'
  * @property {string} createdAt
  * @property {string} updatedAt
  */
+/**
+ * @typedef {object} ErrorLog
+ * @property {string} id
+ * @property {string} message
+ * @property {string|null} stack
+ * @property {string|null} route
+ * @property {string|null} userId
+ * @property {string|null} userAgent
+ * @property {string} createdAt
+ */
 
 /** @param {any} row @returns {Profile|null} */
 function mapProfile(row) {
@@ -1503,4 +1513,53 @@ export async function submitPredictorEntry(predictorId, userId, predictedOrder) 
     .single()
   if (error) throw error
   return mapPredictorEntry(data)
+}
+
+// --- Error logs --------------------------------------------------------
+// src/components/ErrorBoundary.jsx's only backend call - without this a
+// caught crash was only ever visible in whoever's own devtools console.
+// Insert works for a signed-out visitor too (a crash on AuthPage itself has
+// nobody to attribute it to), so this reads the current session directly
+// rather than taking a userId param the caller would often not have.
+// AdminReportsPage-style single-operator gating (see supabase/schema.sql)
+// controls who can read the list back.
+
+/** @param {any} row @returns {ErrorLog} */
+function mapErrorLog(row) {
+  return {
+    id: row.id,
+    message: row.message,
+    stack: row.stack ?? null,
+    route: row.route ?? null,
+    userId: row.user_id ?? null,
+    userAgent: row.user_agent ?? null,
+    createdAt: row.created_at
+  }
+}
+
+/** @param {{message: string, stack?: string|null, route?: string|null}} entry @returns {Promise<void>} */
+export async function logClientError(entry) {
+  if (!isSupabaseConfigured) return local.logClientError(entry)
+  const { data } = await supabase.auth.getSession()
+  await supabase.from('error_logs').insert({
+    message: entry.message.slice(0, 2000),
+    stack: entry.stack ? entry.stack.slice(0, 4000) : null,
+    route: entry.route ?? null,
+    user_id: data.session?.user?.id ?? null,
+    user_agent: typeof navigator === 'undefined' ? null : navigator.userAgent
+  })
+}
+
+/** @returns {Promise<ErrorLog[]>} */
+export async function listErrorLogs() {
+  if (!isSupabaseConfigured) return local.listErrorLogs()
+  const { data, error } = await supabase.from('error_logs').select('*').order('created_at', { ascending: false }).limit(200)
+  if (error) throw error
+  return data.map(mapErrorLog)
+}
+
+/** @param {string} id @returns {Promise<void>} */
+export async function deleteErrorLog(id) {
+  if (!isSupabaseConfigured) return local.deleteErrorLog(id)
+  await supabase.from('error_logs').delete().eq('id', id)
 }

@@ -823,3 +823,31 @@ create policy "members update their own entry" on predictor_entries for update u
 -- sitting in the feed as if it just broke. No new RLS policy needed:
 -- "update own profile" already covers this column.
 alter table profiles add column if not exists team_news_notified_at timestamptz;
+
+-- --- Client error logs ------------------------------------------------------
+-- src/components/ErrorBoundary.jsx posts here through dataStore.js's
+-- logClientError() whenever a page throws and the boundary catches it -
+-- before this, a crash was only ever visible in whoever's own devtools
+-- console. Insert is open to anyone, signed in or not (a crash on AuthPage
+-- itself is exactly the case with nobody to attribute it to), but only an
+-- admin can read the list back - same single-operator is_admin gating as
+-- post_reports above, surfaced on AdminReportsPage's "Error logs" tab.
+create table error_logs (
+  id uuid primary key default gen_random_uuid(),
+  message text not null,
+  stack text,
+  route text,
+  user_id uuid references profiles(id) on delete set null,
+  user_agent text,
+  created_at timestamptz not null default now()
+);
+
+alter table error_logs enable row level security;
+
+create policy "anyone can log a client error" on error_logs for insert with check (true);
+create policy "admins read error logs" on error_logs for select using (
+  exists (select 1 from profiles p where p.id = auth.uid() and p.is_admin)
+);
+create policy "admins delete error logs" on error_logs for delete using (
+  exists (select 1 from profiles p where p.id = auth.uid() and p.is_admin)
+);

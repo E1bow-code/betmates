@@ -61,7 +61,17 @@ export default function MoreMenu() {
   }
 
   const groups = user.isAdmin
-    ? [...GROUPS, { key: 'admin', label: 'Admin', items: [{ to: '/admin/reports', label: 'Reported posts' }] }]
+    ? [
+        ...GROUPS,
+        {
+          key: 'admin',
+          label: 'Admin',
+          items: [
+            { to: '/admin/reports', label: 'Reported posts' },
+            { to: '/admin/errors', label: 'Error logs' }
+          ]
+        }
+      ]
     : GROUPS
 
   return (

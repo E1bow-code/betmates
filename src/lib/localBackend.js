@@ -20,6 +20,7 @@
 /** @typedef {import('./dataStore.js').OddsAlert} OddsAlert */
 /** @typedef {import('./dataStore.js').Predictor} Predictor */
 /** @typedef {import('./dataStore.js').PredictorEntry} PredictorEntry */
+/** @typedef {import('./dataStore.js').ErrorLog} ErrorLog */
 /**
  * @typedef {object} Db
  * @property {(Profile & {referredBy: string|null})[]} users
@@ -44,6 +45,7 @@
  * @property {FixtureChatMessage[]} fixtureChatMessages
  * @property {Predictor[]} predictors
  * @property {PredictorEntry[]} predictorEntries
+ * @property {ErrorLog[]} errorLogs
  */
 
 const DB_KEY = 'betmates.db'
@@ -71,7 +73,8 @@ const EMPTY_DB = {
   followedParticipants: [],
   fixtureChatMessages: [],
   predictors: [],
-  predictorEntries: []
+  predictorEntries: [],
+  errorLogs: []
 }
 
 // Merges in any table keys added after a browser's db was first created -
@@ -1211,4 +1214,38 @@ export function removePost(postId) {
   db.postReports = db.postReports.filter((r) => r.postId !== postId)
   writeDb(db)
   return delay(true)
+}
+
+// --- Error logs --------------------------------------------------------
+
+/** @param {{message: string, stack?: string|null, route?: string|null}} entry @returns {Promise<void>} */
+export function logClientError(entry) {
+  const db = readDb()
+  const sessionRaw = localStorage.getItem(SESSION_KEY)
+  const userId = sessionRaw ? JSON.parse(sessionRaw).id : null
+  db.errorLogs.push({
+    id: uid('err'),
+    message: entry.message.slice(0, 2000),
+    stack: entry.stack ? entry.stack.slice(0, 4000) : null,
+    route: entry.route ?? null,
+    userId,
+    userAgent: typeof navigator === 'undefined' ? null : navigator.userAgent,
+    createdAt: new Date().toISOString()
+  })
+  writeDb(db)
+  return delay(undefined)
+}
+
+/** @returns {Promise<ErrorLog[]>} */
+export function listErrorLogs() {
+  const db = readDb()
+  return delay([...db.errorLogs].sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()).slice(0, 200))
+}
+
+/** @param {string} id @returns {Promise<void>} */
+export function deleteErrorLog(id) {
+  const db = readDb()
+  db.errorLogs = db.errorLogs.filter((e) => e.id !== id)
+  writeDb(db)
+  return delay(undefined)
 }
