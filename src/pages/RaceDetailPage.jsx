@@ -13,6 +13,7 @@ import LiveBadge from '../components/LiveBadge.jsx'
 import WatchLiveButton from '../components/WatchLiveButton.jsx'
 import FollowButton from '../components/FollowButton.jsx'
 import RunnerForm from '../components/RunnerForm.jsx'
+import CoachGptLink from '../components/CoachGptLink.jsx'
 
 export default function RaceDetailPage() {
   const { id } = useParams()
@@ -73,6 +74,7 @@ export default function RaceDetailPage() {
           {formatKickoff(race.offTime)} ({formatCountdown(race.offTime)}) · {race.raceClass} · {race.distance} · {race.going}
         </div>
         <FollowButton sport="racing" eventId={race.id} eventLabel={`${race.course} · ${race.raceName}`} kickoff={race.offTime} />
+        <CoachGptLink question={`What's the best value in the ${race.raceName} at ${race.course}?`} />
         {isLive(race.offTime, 'racing') && (
           <div className="race-header-live">
             <LiveBadge />

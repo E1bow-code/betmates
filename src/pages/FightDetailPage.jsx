@@ -22,6 +22,7 @@ import FollowButton from '../components/FollowButton.jsx'
 import FixtureChatPanel from '../components/FixtureChatPanel.jsx'
 import FollowParticipantButton from '../components/FollowParticipantButton.jsx'
 import ParticipantProfileSheet from '../components/ParticipantProfileSheet.jsx'
+import CoachGptLink from '../components/CoachGptLink.jsx'
 
 export default function FightDetailPage() {
   const { id } = useParams()
@@ -112,6 +113,7 @@ export default function FightDetailPage() {
           {formatDateTime(fight.kickoff)} ({formatCountdown(fight.kickoff)}) · {fight.competition}
         </div>
         <FollowButton sport="ufc" eventId={fight.id} eventLabel={`${fight.fighterA} v ${fight.fighterB}`} kickoff={fight.kickoff} />
+        <CoachGptLink question={`What's the best bet for ${fight.fighterA} v ${fight.fighterB}?`} />
         {isLive(fight.kickoff, 'ufc') && (
           <div className="race-header-live">
             <LiveBadge />
