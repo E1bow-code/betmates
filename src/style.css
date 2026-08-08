@@ -2212,6 +2212,39 @@ h1, h2, .topbar h1, .sheet-title, .auth-title {
 .rank-teaser-context { font-size: 0.72rem; color: var(--text-dim); margin-top: 2px; }
 .rank-teaser-chevron { color: var(--text-dim); flex-shrink: 0; }
 
+/* Home page's "wrapped"-style stat teasers (src/utils/homeHighlights.js) -
+   1-3 cards, so a horizontal scroller rather than a grid keeps the row from
+   ever looking stretched or lopsided. Neutral card language, not the accent
+   tint .rank-teaser/.limit-warning use - several accent cards side by side
+   would fight each other and the rank teaser above them for attention. */
+.home-highlights {
+  display: flex;
+  gap: 10px;
+  overflow-x: auto;
+  margin: 0 0 20px;
+  padding-bottom: 2px;
+  scrollbar-width: none;
+}
+.home-highlights::-webkit-scrollbar { display: none; }
+.home-highlight-card {
+  flex: 0 0 auto;
+  min-width: 150px;
+  max-width: 190px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  background: var(--surface);
+  padding: 12px 14px;
+  text-decoration: none;
+  color: inherit;
+}
+.home-highlight-icon { font-size: 1.2rem; }
+.home-highlight-title { font-size: 0.72rem; color: var(--text-dim); }
+.home-highlight-value { font-size: 0.85rem; font-weight: 600; }
+.home-highlight-card:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
 .scoreboard-panel {
   border: 1px solid var(--border);
   border-radius: 4px;

@@ -3,6 +3,29 @@ import { moneyLeftOnTable } from './lineValue.js'
 
 const DAY_NAMES = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday']
 
+// How "swingy" results are, not just what they average to. Coefficient of
+// variation (stdev of per-bet profit, divided by average stake) rather than
+// a raw £ stdev, so bettors staking different amounts are still comparable -
+// a £50 swing means something different to someone staking £5 a time than
+// someone staking £50. Needs at least 4 decided bets so a couple of results
+// don't get graded as a "style" yet. Exported (not just used by
+// computeInsights below) so the Home highlights strip can show the same
+// figure without re-deriving the maths - see src/utils/homeHighlights.js.
+export function computeBettingStyle(entries) {
+  const decided = entries.filter((e) => e.stake && e.settledAt && (e.status === 'won' || e.status === 'lost'))
+  if (decided.length < 4) return null
+
+  const profitOf = (e) => (e.status === 'won' ? Number(e.potentialReturn) - Number(e.stake) : -Number(e.stake))
+  const profits = decided.map(profitOf)
+  const avgProfit = profits.reduce((sum, p) => sum + p, 0) / profits.length
+  const variance = profits.reduce((sum, p) => sum + (p - avgProfit) ** 2, 0) / profits.length
+  const stdev = Math.sqrt(variance)
+  const avgStake = decided.reduce((sum, e) => sum + Number(e.stake), 0) / decided.length
+  const cv = avgStake ? stdev / avgStake : 0
+  const style = cv < 0.8 ? 'Steady' : cv < 1.5 ? 'Balanced' : 'Boom or bust'
+  return { style, stdev }
+}
+
 // Six "Wrapped"-style cards built entirely from data the Tracker already
 // has (bet_posts + manual_entries) - no new tables, same source as
 // trackerStats.js. Each insight is omitted rather than shown empty/zeroed
@@ -132,20 +155,16 @@ export function computeInsights(entries) {
   }
 
   // Betting style - how "swingy" results are, not just what they average
-  // to. Coefficient of variation (stdev of per-bet profit, divided by
-  // average stake) rather than a raw £ stdev, so bettors staking different
-  // amounts are still comparable - a £50 swing means something different
-  // to someone staking £5 a time than someone staking £50. Needs at least
-  // 4 decided bets so a couple of results don't get graded as a "style" yet.
-  if (decided.length >= 4) {
-    const profits = decided.map(profitOf)
-    const avgProfit = profits.reduce((sum, p) => sum + p, 0) / profits.length
-    const variance = profits.reduce((sum, p) => sum + (p - avgProfit) ** 2, 0) / profits.length
-    const stdev = Math.sqrt(variance)
-    const avgStake = decided.reduce((sum, e) => sum + Number(e.stake), 0) / decided.length
-    const cv = avgStake ? stdev / avgStake : 0
-    const style = cv < 0.8 ? 'Steady' : cv < 1.5 ? 'Balanced' : 'Boom or bust'
-    insights.push({ key: 'volatility', icon: '🎢', title: 'Betting style', value: `${style} · £${stdev.toFixed(2)} swing per bet` })
+  // to. See computeBettingStyle below for the maths (shared with the Home
+  // highlights strip).
+  const bettingStyle = computeBettingStyle(entries)
+  if (bettingStyle) {
+    insights.push({
+      key: 'volatility',
+      icon: '🎢',
+      title: 'Betting style',
+      value: `${bettingStyle.style} · £${bettingStyle.stdev.toFixed(2)} swing per bet`
+    })
   }
 
   // Money left on the table - the £ version of the Tracker's "beat the

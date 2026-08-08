@@ -3,16 +3,18 @@ import { useAuth } from '../context/AuthContext.jsx'
 import * as dataStore from '../lib/dataStore.js'
 import { computeStreak } from '../utils/trackerStats.js'
 import { computeGroupLeaderboard } from '../utils/groupLeaderboard.js'
+import { computeHomeHighlights } from '../utils/homeHighlights.js'
 import SportHeroBanner from '../components/SportHeroBanner.jsx'
 import PublicFeedView from '../components/PublicFeedView.jsx'
 import RankTeaser from '../components/RankTeaser.jsx'
+import HomeHighlights from '../components/HomeHighlights.jsx'
 
 // The front door post-login (see App.jsx's HomeRedirect) - the public feed
-// is the main attraction, everything else the old DashboardPage duplicated
-// (P&L, open bets, recent activity) already lives one tap away on Tracker/
-// Alerts, so it isn't repeated here. Just a greeting hero (with the streak
-// badge, the one bit of personal state worth surfacing before you even
-// scroll) + the same PublicFeedView SocialFeedPage's Feed segment renders.
+// is still the main attraction, and raw P&L/open-bets/recent-activity still
+// aren't repeated here (they already live one tap away on Tracker/Alerts).
+// What *is* worth surfacing is a different class of signal: glanceable
+// patterns-of-behaviour (streak, rank, and now the highlights strip below)
+// rather than raw numbers - a nudge to look deeper, not a second Tracker.
 export default function HomePage() {
   const { user } = useAuth()
   const [entries, setEntries] = useState(null)
@@ -56,6 +58,7 @@ export default function HomePage() {
   }, [entries, user.id])
 
   const streak = useMemo(() => (entries ? computeStreak(entries) : { type: null, count: 0 }), [entries])
+  const highlights = useMemo(() => (entries ? computeHomeHighlights(entries) : []), [entries])
 
   const now = new Date()
   const hour = now.getHours()
@@ -80,6 +83,8 @@ export default function HomePage() {
       </div>
 
       {rankTeaser && <RankTeaser {...rankTeaser} />}
+
+      <HomeHighlights highlights={highlights} />
 
       <PublicFeedView />
     </div>
