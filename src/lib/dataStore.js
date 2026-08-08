@@ -328,6 +328,32 @@ export function onAuthStateChange(callback) {
   return () => subscription.unsubscribe()
 }
 
+// Shared by every subscribeX below (group/fixture chat, direct messages,
+// bet posts) - all Realtime access is INSERT-only postgres_changes for now,
+// no UPDATE/DELETE. filter is a single `column=eq.value` string, or
+// undefined for an unfiltered subscription that relies on the table's RLS
+// SELECT policy to scope which rows actually arrive (postgres_changes can't
+// express a compound filter like "sender OR recipient" in one string - see
+// subscribeDirectMessages/subscribeFixtureChatMessages for why that's
+// sometimes the more correct choice, not just a fallback). No local-mode
+// counterpart, same as onAuthStateChange above - callers get a no-op
+// unsubscribe when Supabase isn't configured.
+/**
+ * @param {string} table @param {string|undefined} filter
+ * @param {(row: any) => any} mapRow @param {(row: any) => void} onInsert
+ * @returns {() => void}
+ */
+function subscribeToInserts(table, filter, mapRow, onInsert) {
+  if (!isSupabaseConfigured) return () => {}
+  const channel = supabase
+    .channel(`${table}:${filter ?? 'all'}:${Math.random().toString(36).slice(2)}`)
+    .on('postgres_changes', { event: 'INSERT', schema: 'public', table, filter }, (payload) => {
+      onInsert(mapRow(payload.new))
+    })
+    .subscribe()
+  return () => supabase.removeChannel(channel)
+}
+
 // Permanently deletes the account (see netlify/functions/delete-account.js
 // for what actually gets removed/reassigned). Signs the session out
 // locally on success since the user row it belonged to no longer exists.
@@ -508,6 +534,11 @@ export async function sendGroupMessage(groupId, userId, body) {
   return mapGroupMessage(data)
 }
 
+/** @param {string} groupId @param {(message: GroupMessage) => void} onInsert @returns {() => void} */
+export function subscribeGroupMessages(groupId, onInsert) {
+  return subscribeToInserts('group_messages', `group_id=eq.${groupId}`, mapGroupMessage, onInsert)
+}
+
 // --- Fixture (match-day) chat ---------------------------------------------
 // A chat room scoped to one fixture/fight/event rather than a group - see
 // supabase/schema.sql's fixture_chat_messages for why display_name is
@@ -545,6 +576,18 @@ export async function sendFixtureChatMessage(sport, eventId, userId, displayName
     .single()
   if (error) throw error
   return mapFixtureChatMessage(data)
+}
+
+// Unfiltered - fixture_chat_messages' RLS ("any signed-in user can read
+// fixture chat", schema.sql) doesn't scope by sport/event, so every open
+// fixture-chat panel's channel receives every fixture's chat traffic
+// app-wide and has to discard non-matching rows itself. A future generated
+// room_id column would let this use a real server-side filter instead.
+/** @param {string} sport @param {string} eventId @param {(message: FixtureChatMessage) => void} onInsert @returns {() => void} */
+export function subscribeFixtureChatMessages(sport, eventId, onInsert) {
+  return subscribeToInserts('fixture_chat_messages', undefined, mapFixtureChatMessage, (message) => {
+    if (message.sport === sport && message.eventId === eventId) onInsert(message)
+  })
 }
 
 // --- Direct messages -----------------------------------------------------
@@ -586,6 +629,30 @@ export async function sendDirectMessage(userId, friendId, body) {
     .single()
   if (error) throw error
   return mapDirectMessage(data)
+}
+
+// Unfiltered - direct_messages' RLS ("auth.uid() = sender_id or recipient_id")
+// already scopes delivery to exactly "my own sent+received messages", which
+// is the actual security boundary here, not a convenience shortcut. The
+// friendId narrowing below is pure UI logic (which open thread to append
+// to) - it also means a message the same account sends from a second
+// device arrives here correctly, unlike a sender-only filter would.
+/** @param {string} userId @param {string} friendId @param {(message: DirectMessage) => void} onInsert @returns {() => void} */
+export function subscribeDirectMessages(userId, friendId, onInsert) {
+  return subscribeToInserts('direct_messages', undefined, mapDirectMessage, (message) => {
+    const isThisThread =
+      (message.senderId === friendId && message.recipientId === userId) ||
+      (message.senderId === userId && message.recipientId === friendId)
+    if (isThisThread) onInsert(message)
+  })
+}
+
+// Same channel shape as subscribeDirectMessages but without friend
+// narrowing - "something arrived for me", used to drive a live inbox/unread
+// badge rather than render one specific thread.
+/** @param {string} userId @param {(message: DirectMessage) => void} onInsert @returns {() => void} */
+export function subscribeInboxMessages(userId, onInsert) {
+  return subscribeToInserts('direct_messages', undefined, mapDirectMessage, onInsert)
 }
 
 // One row per conversation (the latest message with each person you've
@@ -641,6 +708,11 @@ export async function listBetPosts(groupId) {
     .order('created_at', { ascending: false })
   if (error) throw error
   return data.map(mapBetPost)
+}
+
+/** @param {string} groupId @param {(post: BetPost) => void} onInsert @returns {() => void} */
+export function subscribeGroupFeed(groupId, onInsert) {
+  return subscribeToInserts('bet_posts', `group_id=eq.${groupId}`, mapBetPost, onInsert)
 }
 
 /**
@@ -754,6 +826,15 @@ export async function listPublicFeed(viewerId) {
   if (!viewerId) return posts
   const blockedIds = await listBlockedUserIds(viewerId)
   return blockedIds.length ? posts.filter((p) => !blockedIds.includes(p.userId)) : posts
+}
+
+// Unfiltered - bet_posts' RLS (member-of-group OR visibility='public') is
+// exactly the set ActivityContext already unions from listFeedForUser +
+// listPublicFeed, so one channel covers "a post I can now see just
+// appeared" with no per-group channel enumeration.
+/** @param {(post: BetPost) => void} onInsert @returns {() => void} */
+export function subscribeFeedActivity(onInsert) {
+  return subscribeToInserts('bet_posts', undefined, mapBetPost, onInsert)
 }
 
 /** @param {string} userId @param {string} targetId @returns {Promise<true>} */

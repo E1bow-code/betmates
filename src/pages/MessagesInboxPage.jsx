@@ -33,6 +33,11 @@ export default function MessagesInboxPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
+  useEffect(() => {
+    return dataStore.subscribeInboxMessages(user.id, () => refresh())
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user.id])
+
   return (
     <PullToRefresh onRefresh={refresh}>
       <div className="topbar">

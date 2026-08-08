@@ -25,6 +25,13 @@ export default function FixtureChatPanel({ sport, eventId, eventLabel }) {
     }
   }, [open, sport, eventId])
 
+  useEffect(() => {
+    if (!open) return
+    return dataStore.subscribeFixtureChatMessages(sport, eventId, (message) => {
+      setMessages((m) => (m && m.some((x) => x.id === message.id) ? m : [...(m ?? []), message]))
+    })
+  }, [open, sport, eventId])
+
   async function handleSend(e) {
     e.preventDefault()
     const trimmed = body.trim()

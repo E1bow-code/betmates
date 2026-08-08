@@ -896,3 +896,15 @@ create policy "admins read error logs" on error_logs for select using (
 create policy "admins delete error logs" on error_logs for delete using (
   exists (select 1 from profiles p where p.id = auth.uid() and p.is_admin)
 );
+
+-- --- Realtime ----------------------------------------------------------
+-- Live updates for chat/feed/unread-badges (src/lib/dataStore.js's
+-- subscribeX functions) - postgres_changes only fires for tables in this
+-- publication. Existing RLS SELECT policies already scope who receives
+-- what per-subscriber; no new policies needed. INSERT-only for now (see
+-- dataStore.js's subscribeToInserts) - no UPDATE/DELETE requires no
+-- replica identity change from the default.
+alter publication supabase_realtime add table group_messages;
+alter publication supabase_realtime add table bet_posts;
+alter publication supabase_realtime add table direct_messages;
+alter publication supabase_realtime add table fixture_chat_messages;

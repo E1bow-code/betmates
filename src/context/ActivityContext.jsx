@@ -3,14 +3,17 @@ import * as dataStore from '../lib/dataStore.js'
 import { computeStreak } from '../utils/trackerStats.js'
 
 // Powers three things off one shared fetch: the little dot on the Social tab
-// (unchanged from before - newest post vs. a per-device "last looked"
-// timestamp), the in-app notification centre (Alerts tab, a merged feed of
-// "someone posted a bet" + "your bet got settled"), and a win-streak badge
-// on the nav's Social icon (see BottomNav.jsx) - all built entirely from
-// data the app already fetches here, no new table, no push infrastructure,
-// just composing what's already there. No push/realtime either way - one
-// check on load, cleared on visit (streak just reflects current state, no
-// "seen" concept).
+// (newest post vs. a per-device "last looked" timestamp), the in-app
+// notification centre (Alerts tab, a merged feed of "someone posted a bet"
+// + "your bet got settled"), and a win-streak badge on the nav's Social
+// icon (see BottomNav.jsx) - all built entirely from data the app already
+// fetches here, no new table. The notification centre and streak are still
+// one check on load, cleared on visit (streak just reflects current state,
+// no "seen" concept) - but hasNewActivity and hasUnseenMessages are now
+// ALSO pushed live via Supabase Realtime (dataStore.subscribeFeedActivity /
+// subscribeInboxMessages, both INSERT-only postgres_changes subscriptions -
+// see src/lib/dataStore.js), so those two flags can flip true while the app
+// is open, not just on the next mount.
 
 const ActivityContext = createContext(null)
 const SOCIAL_SEEN_PREFIX = 'betmates:lastSeenSocial:'
@@ -99,6 +102,18 @@ export function ActivityProvider({ userId, children }) {
     return () => {
       cancelled = true
     }
+  }, [userId])
+
+  useEffect(() => {
+    if (!userId) return
+    return dataStore.subscribeFeedActivity(() => setHasNewActivity(true))
+  }, [userId])
+
+  useEffect(() => {
+    if (!userId) return
+    return dataStore.subscribeInboxMessages(userId, (message) => {
+      if (message.senderId !== userId) setHasUnseenMessages(true)
+    })
   }, [userId])
 
   const markSeen = useCallback(() => {

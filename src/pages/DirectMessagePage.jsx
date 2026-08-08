@@ -37,6 +37,12 @@ export default function DirectMessagePage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [friendId])
 
+  useEffect(() => {
+    return dataStore.subscribeDirectMessages(user.id, friendId, (message) => {
+      setMessages((m) => (m && m.some((x) => x.id === message.id) ? m : [...(m ?? []), message]))
+    })
+  }, [user.id, friendId])
+
   async function handleSend(e) {
     e.preventDefault()
     const body = messageBody.trim()

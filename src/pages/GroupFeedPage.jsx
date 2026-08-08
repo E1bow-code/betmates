@@ -145,6 +145,26 @@ export default function GroupFeedPage() {
     }
   }, [tab, id])
 
+  useEffect(() => {
+    if (tab !== 'chat') return
+    return dataStore.subscribeGroupMessages(id, (message) => {
+      setMessages((m) => (m && m.some((x) => x.id === message.id) ? m : [...(m ?? []), message]))
+    })
+  }, [tab, id])
+
+  // Feed tab has no per-item live-merge path (Leaderboard/GroupRecapCard/
+  // PickemLeaderboard all need a full recompute anyway) - a new bet post
+  // just re-runs the same refresh() pull-to-refresh already uses, which
+  // also means the poster's own echoed INSERT is a no-op re-render rather
+  // than something that needs deduping.
+  useEffect(() => {
+    if (tab !== 'feed') return
+    return dataStore.subscribeGroupFeed(id, () => {
+      refresh()
+    })
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [tab, id])
+
   async function handleSend(e) {
     e.preventDefault()
     const body = messageBody.trim()
