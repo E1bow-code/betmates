@@ -24,7 +24,9 @@ create table groups (
   name text not null,
   invite_code text not null unique,
   created_by uuid not null references profiles(id),
-  created_at timestamptz not null default now()
+  created_at timestamptz not null default now(),
+  is_discoverable boolean not null default false,
+  member_count integer not null default 0
 );
 
 create table group_members (
@@ -161,6 +163,36 @@ stable
 as $$
   select exists (select 1 from group_members where group_id = _group_id and user_id = _user_id);
 $$;
+
+-- Keeps groups.member_count in sync for src/pages/SocialFeedPage.jsx's
+-- Discover segment (a non-member browsing Discover can't read
+-- group_members/bet_posts rows at all under the RLS above, so a live count
+-- has to come from somewhere denormalized rather than a real-time query).
+-- security definer for the same reason as is_group_member() above: a
+-- joining non-creator's own group_members INSERT needs to update a groups
+-- row, which the creator-only "creator renames their group" UPDATE policy
+-- would otherwise block.
+create or replace function sync_group_member_count()
+returns trigger
+language plpgsql
+security definer
+as $$
+begin
+  if (tg_op = 'INSERT') then
+    update groups set member_count = member_count + 1 where id = new.group_id;
+    return new;
+  elsif (tg_op = 'DELETE') then
+    update groups set member_count = member_count - 1 where id = old.group_id;
+    return old;
+  end if;
+  return null;
+end;
+$$;
+
+drop trigger if exists group_members_sync_count on group_members;
+create trigger group_members_sync_count
+after insert or delete on group_members
+for each row execute function sync_group_member_count();
 
 -- auth.uid() = user_id (no subquery) covers reading back your own just-
 -- inserted row when joining a group - same read-after-insert RLS gotcha as

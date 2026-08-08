@@ -709,6 +709,30 @@ h1, h2, .topbar h1, .sheet-title, .auth-title {
   text-overflow: ellipsis;
 }
 
+/* Discover-groups row - .conversation-row's spacing/border, but a <div>
+   with a Join button rather than a <Link>: a non-member navigating
+   straight to /groups/:id pre-join would hit an empty/broken feed under
+   the member-gated RLS on bet_posts/group_members. */
+.discover-group-list {
+  display: flex;
+  flex-direction: column;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  overflow: hidden;
+  background: linear-gradient(180deg, var(--surface) 0%, var(--surface-2) 100%);
+}
+.discover-group-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 12px;
+  border-bottom: 1px solid var(--border);
+}
+.discover-group-list .discover-group-row:last-child { border-bottom: none; }
+.discover-group-row-main { flex: 1; min-width: 0; }
+.discover-group-row-name { font-weight: 600; font-size: 0.92rem; }
+.discover-group-row-meta { font-size: 0.8rem; color: var(--text-dim); }
+
 .report-list { display: flex; flex-direction: column; gap: 10px; }
 .report-card { border: 1px solid var(--border); border-radius: 4px; padding: 12px; background: var(--surface); }
 .report-card-meta { font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.03em; color: var(--bad); font-weight: 700; margin-bottom: 4px; }

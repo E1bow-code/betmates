@@ -271,33 +271,51 @@ function ageFromDob(dob) {
 
 // --- Groups -------------------------------------------------------------
 
+// Computed live from groupMembers rather than stored/incremented like the
+// Supabase side's member_count trigger - local mode has no RLS problem
+// forcing a stored counter (that's specifically why the trigger needs
+// security definer over there), so a live count here can't drift.
+/** @param {Db} db @param {string} groupId @returns {number} */
+function memberCountFor(db, groupId) {
+  return db.groupMembers.filter((m) => m.groupId === groupId).length
+}
+
+/** @param {Db} db @param {Group} group @returns {Group} */
+function withMemberCount(db, group) {
+  return { ...group, memberCount: memberCountFor(db, group.id) }
+}
+
 /** @param {string} userId @returns {Promise<Group[]>} */
 export function listMyGroups(userId) {
   const db = readDb()
   const groupIds = db.groupMembers.filter((m) => m.userId === userId).map((m) => m.groupId)
-  return delay(db.groups.filter((g) => groupIds.includes(g.id)))
+  return delay(db.groups.filter((g) => groupIds.includes(g.id)).map((g) => withMemberCount(db, g)))
 }
 
 /** @param {string} groupId @returns {Promise<Group|null>} */
 export function getGroup(groupId) {
   const db = readDb()
-  return delay(db.groups.find((g) => g.id === groupId) || null)
+  const group = db.groups.find((g) => g.id === groupId)
+  return delay(group ? withMemberCount(db, group) : null)
 }
 
 /** @param {string} name @param {string} userId @returns {Promise<Group>} */
 export function createGroup(name, userId) {
   const db = readDb()
+  /** @type {Group} */
   const group = {
     id: uid('group'),
     name,
     inviteCode: Math.random().toString(36).slice(2, 8).toUpperCase(),
     createdBy: userId,
-    createdAt: new Date().toISOString()
+    createdAt: new Date().toISOString(),
+    isDiscoverable: false,
+    memberCount: 0
   }
   db.groups.push(group)
   db.groupMembers.push({ groupId: group.id, userId, joinedAt: group.createdAt })
   writeDb(db)
-  return delay(group)
+  return delay(withMemberCount(db, group))
 }
 
 /** @param {string} code @param {string} userId @returns {Promise<Group>} */
@@ -310,7 +328,27 @@ export function joinGroupByCode(code, userId) {
     db.groupMembers.push({ groupId: group.id, userId, joinedAt: new Date().toISOString() })
     writeDb(db)
   }
-  return delay(group)
+  return delay(withMemberCount(db, group))
+}
+
+/** @param {string} userId @returns {Promise<Group[]>} */
+export function listDiscoverableGroups(userId) {
+  const db = readDb()
+  const joinedIds = new Set(db.groupMembers.filter((m) => m.userId === userId).map((m) => m.groupId))
+  return delay(db.groups.filter((g) => g.isDiscoverable && !joinedIds.has(g.id)).map((g) => withMemberCount(db, g)))
+}
+
+/** @param {string} groupId @param {string} userId @returns {Promise<Group>} */
+export function joinGroupById(groupId, userId) {
+  const db = readDb()
+  const group = db.groups.find((g) => g.id === groupId)
+  if (!group) return Promise.reject(new Error('Group not found.'))
+  const already = db.groupMembers.some((m) => m.groupId === groupId && m.userId === userId)
+  if (!already) {
+    db.groupMembers.push({ groupId, userId, joinedAt: new Date().toISOString() })
+    writeDb(db)
+  }
+  return delay(withMemberCount(db, group))
 }
 
 /** @param {string} groupId @returns {Promise<{id: string, displayName: string}[]>} */
@@ -338,7 +376,18 @@ export function renameGroup(groupId, name) {
     group.name = name
     writeDb(db)
   }
-  return delay(group || null)
+  return delay(group ? withMemberCount(db, group) : null)
+}
+
+/** @param {string} groupId @param {boolean} isDiscoverable @returns {Promise<Group|null>} */
+export function setGroupDiscoverable(groupId, isDiscoverable) {
+  const db = readDb()
+  const group = db.groups.find((g) => g.id === groupId)
+  if (group) {
+    group.isDiscoverable = isDiscoverable
+    writeDb(db)
+  }
+  return delay(group ? withMemberCount(db, group) : null)
 }
 
 /** @param {string} groupId @param {string} memberId @param {string} requesterId @returns {Promise<true>} */

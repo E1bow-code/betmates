@@ -1,7 +1,8 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { Link, useLocation } from 'react-router-dom'
+import { Link, useLocation, useNavigate } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext.jsx'
 import { useActivity } from '../context/ActivityContext.jsx'
+import { useToast } from '../context/ToastContext.jsx'
 import * as dataStore from '../lib/dataStore.js'
 import { fetchSportsNews } from '../api/newsClient.js'
 import { computeStats } from '../utils/trackerStats.js'
@@ -61,9 +62,14 @@ import { computeBookmakerScoreboard } from '../utils/bookmakerScoreboard.js'
 export default function SocialFeedPage() {
   const { user } = useAuth()
   const { markSeen, hasUnseenMessages } = useActivity()
+  const { showToast } = useToast()
   const location = useLocation()
+  const navigate = useNavigate()
   const [segment, setSegment] = useState(location.state?.segment ?? 'bets')
   const [groups, setGroups] = useState(null)
+  const [discoverGroups, setDiscoverGroups] = useState(null)
+  const [discoverSearch, setDiscoverSearch] = useState('')
+  const [joiningId, setJoiningId] = useState(null)
   const [feed, setFeed] = useState(null)
   const [friends, setFriends] = useState(null)
   const [videos, setVideos] = useState(null)
@@ -87,6 +93,7 @@ export default function SocialFeedPage() {
     if (segment === 'tips' && videos === null) refreshTips()
     if ((segment === 'leaderboard' || segment === 'tipsters' || segment === 'bookmakers') && publicFeed === null) refreshPublicFeed()
     if (segment === 'news' && news === null) refreshNews()
+    if (segment === 'discover' && discoverGroups === null) refreshDiscover()
   }, [segment])
 
   const leaderboardRows = useMemo(() => {
@@ -156,12 +163,29 @@ export default function SocialFeedPage() {
     refreshTips()
   }
 
+  function refreshDiscover() {
+    return dataStore.listDiscoverableGroups(user.id).then(setDiscoverGroups)
+  }
+
+  async function handleJoinDiscoverable(group) {
+    setJoiningId(group.id)
+    try {
+      const joined = await dataStore.joinGroupById(group.id, user.id)
+      showToast(`Joined ${joined.name}`)
+      navigate(`/groups/${joined.id}`)
+    } catch (err) {
+      showToast(err.message)
+      setJoiningId(null)
+    }
+  }
+
   function refreshCurrentSegment() {
     if (segment === 'bets') return refreshBets()
     if (segment === 'tips') return refreshTips()
     if (segment === 'fpl') return Promise.resolve()
     if (segment === 'news') return refreshNews()
     if (segment === 'feed') return publicFeedViewRef.current?.refresh() ?? Promise.resolve()
+    if (segment === 'discover') return refreshDiscover()
     return refreshPublicFeed()
   }
 
@@ -176,7 +200,7 @@ export default function SocialFeedPage() {
               💬
               {hasUnseenMessages && <span className="pill-dot" />}
             </Link>
-            {segment !== 'feed' && segment !== 'fpl' && (
+            {segment !== 'feed' && segment !== 'fpl' && segment !== 'discover' && (
               <button className="btn btn-ghost btn-small" onClick={() => setShowManage(true)}>
                 {segment === 'bets' ? 'Groups' : 'Friends'}
               </button>
@@ -198,6 +222,9 @@ export default function SocialFeedPage() {
           </button>
           <button className={segment === 'feed' ? 'sport-pill active' : 'sport-pill'} onClick={() => setSegment('feed')}>
             Feed
+          </button>
+          <button className={segment === 'discover' ? 'sport-pill active' : 'sport-pill'} onClick={() => setSegment('discover')}>
+            🔎 Discover
           </button>
           <button className={segment === 'news' ? 'sport-pill active' : 'sport-pill'} onClick={() => setSegment('news')}>
             📰 News
@@ -262,6 +289,58 @@ export default function SocialFeedPage() {
       )}
 
       {segment === 'feed' && <PublicFeedView ref={publicFeedViewRef} />}
+
+      {segment === 'discover' && (
+        <>
+          <p className="hint">Find a public group to join - no invite code needed.</p>
+          <input
+            className="search-input"
+            type="search"
+            placeholder="Search groups by name…"
+            value={discoverSearch}
+            onChange={(e) => setDiscoverSearch(e.target.value)}
+          />
+
+          {discoverGroups === null && <div className="loading">Finding public groups…</div>}
+
+          {discoverGroups && !discoverGroups.length && (
+            <EmptyState
+              icon="🔎"
+              title="No public groups yet"
+              subtitle="Nobody's made a group discoverable yet - check back later, or start your own."
+            />
+          )}
+
+          {discoverGroups && discoverGroups.length > 0 && (() => {
+            const q = discoverSearch.trim().toLowerCase()
+            const filtered = q ? discoverGroups.filter((g) => g.name.toLowerCase().includes(q)) : discoverGroups
+            if (!filtered.length) {
+              return <EmptyState icon="🔎" title="No matches" subtitle={`Nothing found for "${discoverSearch.trim()}".`} />
+            }
+            return (
+              <div className="discover-group-list">
+                {filtered.map((g) => (
+                  <div key={g.id} className="discover-group-row">
+                    <div className="discover-group-row-main">
+                      <div className="discover-group-row-name">{g.name}</div>
+                      <div className="discover-group-row-meta">
+                        {g.memberCount} member{g.memberCount === 1 ? '' : 's'}
+                      </div>
+                    </div>
+                    <button
+                      className="btn btn-primary btn-small"
+                      onClick={() => handleJoinDiscoverable(g)}
+                      disabled={joiningId === g.id}
+                    >
+                      {joiningId === g.id ? 'Joining…' : 'Join'}
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )
+          })()}
+        </>
+      )}
 
       {segment === 'news' && (
         <>

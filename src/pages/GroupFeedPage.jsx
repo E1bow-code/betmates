@@ -34,6 +34,7 @@ export default function GroupFeedPage() {
   const [renaming, setRenaming] = useState(false)
   const [nameInput, setNameInput] = useState('')
   const [savingName, setSavingName] = useState(false)
+  const [savingDiscoverable, setSavingDiscoverable] = useState(false)
   const [removingId, setRemovingId] = useState(null)
   const runAsync = useAsyncAction()
 
@@ -96,6 +97,18 @@ export default function GroupFeedPage() {
       setError(err.message)
     } finally {
       setSavingName(false)
+    }
+  }
+
+  async function handleToggleDiscoverable(e) {
+    const nextValue = e.target.checked
+    setSavingDiscoverable(true)
+    try {
+      setGroup(await dataStore.setGroupDiscoverable(id, nextValue))
+    } catch (err) {
+      setError(err.message)
+    } finally {
+      setSavingDiscoverable(false)
     }
   }
 
@@ -266,6 +279,18 @@ export default function GroupFeedPage() {
                 </button>
               )}
             </div>
+          )}
+
+          {isCreator && (
+            <label className="filter-toggle">
+              <input
+                type="checkbox"
+                checked={group?.isDiscoverable ?? false}
+                onChange={handleToggleDiscoverable}
+                disabled={savingDiscoverable}
+              />
+              <span>List this group publicly in Discover</span>
+            </label>
           )}
 
           <div className="manage-list">

@@ -37,6 +37,8 @@ import * as local from './localBackend.js'
  * @property {string} inviteCode
  * @property {string} createdBy
  * @property {string} createdAt
+ * @property {boolean} isDiscoverable
+ * @property {number} memberCount
  */
 /**
  * @typedef {object} BetPost
@@ -179,7 +181,9 @@ function mapGroup(row) {
     name: row.name,
     inviteCode: row.invite_code,
     createdBy: row.created_by,
-    createdAt: row.created_at
+    createdAt: row.created_at,
+    isDiscoverable: row.is_discoverable ?? false,
+    memberCount: row.member_count ?? 0
   }
 }
 
@@ -396,6 +400,38 @@ export async function joinGroupByCode(code, userId) {
   return mapGroup(group)
 }
 
+// Two separate queries rather than one filtered join - PostgREST has no
+// clean "not in a subquery" - fetch every discoverable group plus the
+// caller's own membership rows, then subtract client-side. Fine at this
+// app's scale (nothing in the data layer paginates).
+/** @param {string} userId @returns {Promise<Group[]>} */
+export async function listDiscoverableGroups(userId) {
+  if (!isSupabaseConfigured) return local.listDiscoverableGroups(userId)
+  const [{ data: groups, error: groupsError }, { data: memberships, error: membershipError }] = await Promise.all([
+    supabase.from('groups').select('*').eq('is_discoverable', true).order('name'),
+    supabase.from('group_members').select('group_id').eq('user_id', userId)
+  ])
+  if (groupsError) throw groupsError
+  if (membershipError) throw membershipError
+  const joinedIds = new Set((memberships ?? []).map((m) => m.group_id))
+  return (groups ?? []).filter((g) => !joinedIds.has(g.id)).map((g) => /** @type {Group} */ (mapGroup(g)))
+}
+
+// No invite-code lookup, unlike joinGroupByCode above - the group_members
+// insert policy has no invite-code/eligibility check at all ("user joins a
+// group as themselves" is just auth.uid() = user_id), the same
+// permissiveness joinGroupByCode already relies on. The UI only ever calls
+// this with ids surfaced through listDiscoverableGroups.
+/** @param {string} groupId @param {string} userId @returns {Promise<Group|null>} */
+export async function joinGroupById(groupId, userId) {
+  if (!isSupabaseConfigured) return local.joinGroupById(groupId, userId)
+  const { data: group, error } = await supabase.from('groups').select('*').eq('id', groupId).single()
+  if (error || !group) throw new Error('Group not found.')
+  const { error: memberError } = await supabase.from('group_members').upsert({ group_id: groupId, user_id: userId })
+  if (memberError) throw memberError
+  return mapGroup(group)
+}
+
 /** @param {string} groupId @returns {Promise<{id: string, displayName: string}[]>} */
 export async function listGroupMembers(groupId) {
   if (!isSupabaseConfigured) return local.listGroupMembers(groupId)
@@ -426,6 +462,14 @@ export async function leaveGroup(groupId, userId) {
 export async function renameGroup(groupId, name) {
   if (!isSupabaseConfigured) return local.renameGroup(groupId, name)
   const { data, error } = await supabase.from('groups').update({ name }).eq('id', groupId).select().single()
+  if (error) throw error
+  return mapGroup(data)
+}
+
+/** @param {string} groupId @param {boolean} isDiscoverable @returns {Promise<Group|null>} */
+export async function setGroupDiscoverable(groupId, isDiscoverable) {
+  if (!isSupabaseConfigured) return local.setGroupDiscoverable(groupId, isDiscoverable)
+  const { data, error } = await supabase.from('groups').update({ is_discoverable: isDiscoverable }).eq('id', groupId).select().single()
   if (error) throw error
   return mapGroup(data)
 }
