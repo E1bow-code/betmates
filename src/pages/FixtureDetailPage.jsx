@@ -214,21 +214,31 @@ export default function FixtureDetailPage() {
                         <span className="outcome-odds outcome-odds-empty">No price for your bookies</span>
                       )}
                     </button>
-                    {outcome.allOdds.length > 1 && (
+                    {best && (
                       <button
-                        className="outcome-expand-btn"
+                        className="outcome-more-btn"
                         type="button"
-                        aria-label="Compare all bookmakers"
+                        aria-label={isExpanded ? 'Hide bookmaker comparison' : 'Compare bookmakers, set a price alert'}
+                        aria-expanded={isExpanded}
                         onClick={() => setExpandedOutcome(isExpanded ? null : outcomeKey)}
                       >
                         {outcome.allOdds.length} {isExpanded ? '▴' : '▾'}
                       </button>
                     )}
-                    {best && (
+                  </div>
+                  {isExpanded && (
+                    <div className="outcome-panel">
+                      <div className="outcome-all-odds">
+                        {outcome.allOdds.map((o) => (
+                          <div key={o.bookmaker} className={o.bookmaker === best?.bookmaker ? 'odds-cell is-best' : 'odds-cell'}>
+                            <span className="odds-bookmaker">{o.bookmaker}</span>
+                            <span className="odds-price">{formatOdds(o.decimal, format)}</span>
+                          </div>
+                        ))}
+                      </div>
                       <button
-                        className="outcome-alert-btn"
+                        className="btn btn-ghost btn-small outcome-alert-link"
                         type="button"
-                        aria-label="Set a price alert"
                         onClick={() =>
                           setAlertTarget({
                             sport: 'football',
@@ -243,18 +253,8 @@ export default function FixtureDetailPage() {
                           })
                         }
                       >
-                        🔔
+                        🔔 Set a price alert
                       </button>
-                    )}
-                  </div>
-                  {isExpanded && (
-                    <div className="outcome-all-odds">
-                      {outcome.allOdds.map((o) => (
-                        <div key={o.bookmaker} className={o.bookmaker === best?.bookmaker ? 'odds-cell is-best' : 'odds-cell'}>
-                          <span className="odds-bookmaker">{o.bookmaker}</span>
-                          <span className="odds-price">{formatOdds(o.decimal, format)}</span>
-                        </div>
-                      ))}
                     </div>
                   )}
                 </div>
