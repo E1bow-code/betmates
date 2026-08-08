@@ -1775,6 +1775,16 @@ h1, h2, .topbar h1, .sheet-title, .auth-title {
 }
 
 .reaction-row { display: flex; gap: 6px; }
+/* Quiet highlight while the bet's fixture is live (see LiveBadge next to
+   the status pill) - same --bad tone as the badge's pulse, but no motion
+   of its own; the dot already carries the "happening now" cue. */
+.reaction-row-live {
+  padding: 4px 6px;
+  margin: -4px -6px;
+  border-radius: 4px;
+  background: color-mix(in srgb, var(--bad) 10%, transparent);
+  border: 1px solid color-mix(in srgb, var(--bad) 30%, transparent);
+}
 .reaction-btn {
   background: none;
   border: 1px solid var(--border);
@@ -1822,6 +1832,13 @@ h1, h2, .topbar h1, .sheet-title, .auth-title {
 }
 
 .vote-row { display: flex; gap: 6px; flex-wrap: wrap; }
+.vote-row-live {
+  padding: 4px 6px;
+  margin: -4px -6px;
+  border-radius: 4px;
+  background: color-mix(in srgb, var(--bad) 10%, transparent);
+  border: 1px solid color-mix(in srgb, var(--bad) 30%, transparent);
+}
 .vote-btn {
   background: none;
   border: 1px solid var(--border);

@@ -4,6 +4,7 @@ import { useOddsFormat } from '../context/OddsFormatContext.jsx'
 import * as dataStore from '../lib/dataStore.js'
 import { formatOdds } from '../utils/oddsFormat.js'
 import { computeEachWayReturn } from '../utils/eachWay.js'
+import { isLive } from '../utils/liveStatus.js'
 import { notifyBetAuthor } from '../lib/notify.js'
 import { useAsyncAction } from '../lib/useAsyncAction.js'
 import CopyBetButton from './CopyBetButton.jsx'
@@ -11,6 +12,7 @@ import BackBetButton from './BackBetButton.jsx'
 import ShareImageButton from './ShareImageButton.jsx'
 import Avatar from './Avatar.jsx'
 import EditBetSheet from './EditBetSheet.jsx'
+import LiveBadge from './LiveBadge.jsx'
 
 const REACTION_EMOJIS = ['🔥', '😬', '👍']
 const REACTION_LABEL = { '🔥': 'fire', '😬': 'grimace', '👍': 'thumbs up' }
@@ -75,6 +77,12 @@ export default function BetCard({ post, memberNames, variant = 'group', onBlocke
   async function toggleReaction(key) {
     const { action, reaction } = await dataStore.toggleReaction(post.id, user.id, key)
     setReactions((r) => (action === 'added' ? [...r, reaction] : r.filter((x) => x.id !== reaction.id)))
+    if (action === 'added' && !isAuthor && live) {
+      const reactorName = memberNames?.[user.id] ?? user.displayName ?? 'Someone'
+      const icon = REACTION_EMOJIS.includes(key) ? key : '🎯'
+      const verb = REACTION_EMOJIS.includes(key) ? 'reacted' : `voted "${VOTE_OPTIONS.find((o) => o.key === key)?.label}"`
+      notifyBetAuthor(post.userId, { title: `${icon} ${reactorName} ${verb} while your bet's live`, body: '', url: '/#/groups' })
+    }
   }
 
   // "placed" isn't a real status column value - it's an each-way result
@@ -137,6 +145,7 @@ export default function BetCard({ post, memberNames, variant = 'group', onBlocke
 
   const selections = post.selections
   const combinedOdds = selections.length > 1 ? selections.reduce((acc, s) => acc * s.odds, 1) : null
+  const live = status === 'open' && selections.some((s) => isLive(s.kickoff, s.sport ?? post.sport))
 
   return (
     <div className={`bet-card status-${status}`}>
@@ -155,6 +164,7 @@ export default function BetCard({ post, memberNames, variant = 'group', onBlocke
             </button>
           )}
           <span className={`bet-status-pill status-${status}`}>{STATUS_LABEL[status]}</span>
+          {live && <LiveBadge />}
           {variant === 'public' && !isAuthor && (
             <button
               className="moderation-toggle"
@@ -219,7 +229,7 @@ export default function BetCard({ post, memberNames, variant = 'group', onBlocke
 
       <div className="bet-card-footer">
         {variant === 'public' ? (
-          <div className="vote-row">
+          <div className={live ? 'vote-row vote-row-live' : 'vote-row'}>
             {VOTE_OPTIONS.map((opt) => {
               const count = reactions.filter((r) => r.emoji === opt.key).length
               const mine = reactions.some((r) => r.emoji === opt.key && r.userId === user.id)
@@ -231,7 +241,7 @@ export default function BetCard({ post, memberNames, variant = 'group', onBlocke
             })}
           </div>
         ) : (
-          <div className="reaction-row">
+          <div className={live ? 'reaction-row reaction-row-live' : 'reaction-row'}>
             {REACTION_EMOJIS.map((emoji) => {
               const count = reactions.filter((r) => r.emoji === emoji).length
               const mine = reactions.some((r) => r.emoji === emoji && r.userId === user.id)
