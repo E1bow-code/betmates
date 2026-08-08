@@ -16,6 +16,35 @@ import InstallGuide from '../components/InstallGuide.jsx'
 import SportHeroBanner from '../components/SportHeroBanner.jsx'
 import { useAsyncAction } from '../lib/useAsyncAction.js'
 
+const EXPANDED_KEY = 'betmates:accountExpanded'
+
+function loadExpandedGroups() {
+  try {
+    return new Set(JSON.parse(localStorage.getItem(EXPANDED_KEY) ?? '[]'))
+  } catch {
+    return new Set()
+  }
+}
+
+// The bookmaker grid, notification checkboxes, and gambling-safety content
+// are the three genuinely long stretches on this page - grouped behind a
+// collapsed-by-default toggle (same idea as MoreMenu.jsx's groups) so the
+// page opens short and each is still one tap away. Short sections (share
+// profile, invite, danger zone) stay plain - collapsing a two-line block
+// just adds a click for no real space saved.
+function AccountGroup({ id, title, expanded, onToggle, children }) {
+  const open = expanded.has(id)
+  return (
+    <div className="account-group">
+      <button className="account-group-toggle" type="button" onClick={() => onToggle(id)} aria-expanded={open}>
+        <span>{title}</span>
+        <span className="market-header-meta">{open ? '▴' : '▾'}</span>
+      </button>
+      {open && <div className="account-group-body">{children}</div>}
+    </div>
+  )
+}
+
 export default function AccountPage() {
   const {
     user,
@@ -55,7 +84,18 @@ export default function AccountPage() {
   const [periodSpend, setPeriodSpend] = useState(null)
   const [friends, setFriends] = useState(null)
   const [buddySaving, setBuddySaving] = useState(false)
+  const [expandedGroups, setExpandedGroups] = useState(loadExpandedGroups)
   const runAsync = useAsyncAction()
+
+  function toggleGroup(id) {
+    setExpandedGroups((prev) => {
+      const next = new Set(prev)
+      if (next.has(id)) next.delete(id)
+      else next.add(id)
+      localStorage.setItem(EXPANDED_KEY, JSON.stringify([...next]))
+      return next
+    })
+  }
 
   function handleThemeChange(next) {
     setTheme(next)
@@ -293,215 +333,219 @@ export default function AccountPage() {
         Tap your avatar to upload a photo, or leave it - initials and colour come from your name automatically.
       </p>
 
-      <div className="account-section">
-        <h2 className="market-title">Appearance</h2>
-        <div className="mode-switcher">
-          <button className={theme === 'dark' ? 'mode-tab active' : 'mode-tab'} onClick={() => handleThemeChange('dark')}>
-            Dark
-          </button>
-          <button className={theme === 'light' ? 'mode-tab active' : 'mode-tab'} onClick={() => handleThemeChange('light')}>
-            Light
-          </button>
+      <AccountGroup id="preferences" title="Preferences" expanded={expandedGroups} onToggle={toggleGroup}>
+        <div className="account-section">
+          <h2 className="market-title">Appearance</h2>
+          <div className="mode-switcher">
+            <button className={theme === 'dark' ? 'mode-tab active' : 'mode-tab'} onClick={() => handleThemeChange('dark')}>
+              Dark
+            </button>
+            <button className={theme === 'light' ? 'mode-tab active' : 'mode-tab'} onClick={() => handleThemeChange('light')}>
+              Light
+            </button>
+          </div>
         </div>
-      </div>
 
-      <div className="account-section">
-        <h2 className="market-title">Odds format</h2>
-        <p className="hint">Applies everywhere prices are shown - Odds, bet slips, Tracker, and Hall of Fame.</p>
-        <div className="mode-switcher">
-          <button className={oddsFormat === 'decimal' ? 'mode-tab active' : 'mode-tab'} onClick={() => setOddsFormat('decimal')}>
-            Decimal (<span className="account-mono">2.05</span>)
-          </button>
-          <button className={oddsFormat === 'fractional' ? 'mode-tab active' : 'mode-tab'} onClick={() => setOddsFormat('fractional')}>
-            Fractional (<span className="account-mono">21/20</span>)
-          </button>
+        <div className="account-section">
+          <h2 className="market-title">Odds format</h2>
+          <p className="hint">Applies everywhere prices are shown - Odds, bet slips, Tracker, and Hall of Fame.</p>
+          <div className="mode-switcher">
+            <button className={oddsFormat === 'decimal' ? 'mode-tab active' : 'mode-tab'} onClick={() => setOddsFormat('decimal')}>
+              Decimal (<span className="account-mono">2.05</span>)
+            </button>
+            <button className={oddsFormat === 'fractional' ? 'mode-tab active' : 'mode-tab'} onClick={() => setOddsFormat('fractional')}>
+              Fractional (<span className="account-mono">21/20</span>)
+            </button>
+          </div>
         </div>
-      </div>
 
-      <div className="account-section">
-        <h2 className="market-title">My bookmakers</h2>
-        <p className="hint">Used to filter odds and prioritise Copy Bet suggestions to accounts you actually hold.</p>
-        <div className="bookmaker-grid">
-          {BOOKMAKERS.map((b) => (
-            <label key={b} className="bookmaker-chip">
-              <input type="checkbox" checked={(user.bookmakerPrefs ?? []).includes(b)} onChange={() => toggleBookmaker(b)} />
-              <span>{b}</span>
+        <div className="account-section">
+          <h2 className="market-title">My bookmakers</h2>
+          <p className="hint">Used to filter odds and prioritise Copy Bet suggestions to accounts you actually hold.</p>
+          <div className="bookmaker-grid">
+            {BOOKMAKERS.map((b) => (
+              <label key={b} className="bookmaker-chip">
+                <input type="checkbox" checked={(user.bookmakerPrefs ?? []).includes(b)} onChange={() => toggleBookmaker(b)} />
+                <span>{b}</span>
+              </label>
+            ))}
+          </div>
+        </div>
+      </AccountGroup>
+
+      <AccountGroup id="notifications" title="Notifications" expanded={expandedGroups} onToggle={toggleGroup}>
+        <div className="account-section">
+          {isPushSupported() ? (
+            <label className="field-check">
+              <input type="checkbox" checked={pushEnabled} disabled={pushBusy} onChange={handleTogglePush} />
+              <span>Push notifications on this device</span>
             </label>
-          ))}
-        </div>
-      </div>
+          ) : (
+            <p className="hint">This browser doesn't support push notifications.</p>
+          )}
+          {pushError && <div className="auth-error">{pushError}</div>}
 
-      <div className="account-section">
-        <h2 className="market-title">Notifications</h2>
-
-        {isPushSupported() ? (
           <label className="field-check">
-            <input type="checkbox" checked={pushEnabled} disabled={pushBusy} onChange={handleTogglePush} />
-            <span>Push notifications on this device</span>
+            <input type="checkbox" checked={user.notificationPrefs?.betPosted ?? false} onChange={() => toggleNotification('betPosted')} />
+            <span>Bet posted in a group</span>
           </label>
-        ) : (
-          <p className="hint">This browser doesn't support push notifications.</p>
-        )}
-        {pushError && <div className="auth-error">{pushError}</div>}
-
-        <label className="field-check">
-          <input type="checkbox" checked={user.notificationPrefs?.betPosted ?? false} onChange={() => toggleNotification('betPosted')} />
-          <span>Bet posted in a group</span>
-        </label>
-        <label className="field-check">
-          <input type="checkbox" checked={user.notificationPrefs?.betSettled ?? false} onChange={() => toggleNotification('betSettled')} />
-          <span>Bet settled</span>
-        </label>
-        <label className="field-check">
-          <input type="checkbox" checked={user.notificationPrefs?.oddsMoved ?? false} onChange={() => toggleNotification('oddsMoved')} />
-          <span>Odds moved on a pending bet</span>
-        </label>
-        <label className="field-check">
-          <input
-            type="checkbox"
-            checked={user.notificationPrefs?.kickoffReminders ?? false}
-            onChange={() => toggleNotification('kickoffReminders')}
-          />
-          <span>Reminder shortly before kickoff</span>
-        </label>
-        <label className="field-check">
-          <input
-            type="checkbox"
-            checked={user.notificationPrefs?.weeklyRecap ?? false}
-            onChange={() => toggleNotification('weeklyRecap')}
-          />
-          <span>Weekly recap (Sunday evening)</span>
-        </label>
-        <label className="field-check">
-          <input
-            type="checkbox"
-            checked={user.notificationPrefs?.streakReminders ?? false}
-            onChange={() => toggleNotification('streakReminders')}
-          />
-          <span>Win-streak milestones (3, 5, 10 in a row)</span>
-        </label>
-        <label className="field-check">
-          <input type="checkbox" checked={user.notificationPrefs?.teamNews ?? false} onChange={() => toggleNotification('teamNews')} />
-          <span>News about a team or player you follow</span>
-        </label>
-        <p className="hint">
-          {isPushSupported()
-            ? 'Turn on push above to actually receive these on this device, not just store the preference.'
-            : "These are stored for when you're on a browser that supports push."}
-        </p>
-      </div>
-
-      <div className="account-section">
-        <h2 className="market-title">Spending limit</h2>
-        <p className="hint">
-          A self-set cap on how much you log as staked in a week or month - a gentle check-in, not a hard block. BetMates never
-          places bets or holds funds, so this can't stop you betting elsewhere; it's here for your own awareness.
-        </p>
-        <form className="inline-form" onSubmit={handleSaveLimit}>
-          <input
-            type="number"
-            min="0"
-            step="5"
-            placeholder="No limit"
-            value={limitAmountInput}
-            onChange={(e) => setLimitAmountInput(e.target.value)}
-          />
-          <select value={limitPeriodInput} onChange={(e) => setLimitPeriodInput(e.target.value)}>
-            <option value="weekly">per week</option>
-            <option value="monthly">per month</option>
-          </select>
-          <button className="btn btn-primary btn-small" type="submit" disabled={limitSaving}>
-            {limitSaving ? 'Saving…' : limitSaved ? 'Saved ✓' : 'Save'}
-          </button>
-        </form>
-        {user.stakeLimitAmount ? (
-          <>
-            <div
-              className="limit-progress-track"
-              role="progressbar"
-              aria-label="Spending toward limit"
-              aria-valuenow={periodSpend === null ? 0 : Math.min(periodSpend, user.stakeLimitAmount)}
-              aria-valuemin={0}
-              aria-valuemax={user.stakeLimitAmount}
-            >
-              <div
-                className={`limit-progress-fill ${
-                  periodSpend >= user.stakeLimitAmount ? 'tone-bad' : periodSpend >= user.stakeLimitAmount * 0.8 ? 'tone-warn' : ''
-                }`}
-                style={{ width: `${periodSpend === null ? 0 : Math.min(100, (periodSpend / user.stakeLimitAmount) * 100)}%` }}
-              />
-            </div>
-            <p className="hint">
-              {periodSpend === null
-                ? 'Loading…'
-                : `£${periodSpend.toFixed(2)} of £${Number(user.stakeLimitAmount).toFixed(2)} logged this ${user.stakeLimitPeriod === 'monthly' ? 'month' : 'week'}${periodSpend >= user.stakeLimitAmount ? ' - limit reached' : ''}.`}
-            </p>
-            <button className="btn btn-ghost btn-small" onClick={handleClearLimit} disabled={limitSaving}>
-              Turn off limit
-            </button>
-
-            <label className="field">
-              <span>Notify a mate when you hit it</span>
-              <select value={user.limitBuddyId ?? ''} onChange={handleBuddyChange} disabled={buddySaving || !friends?.length}>
-                <option value="">No one</option>
-                {(friends ?? []).map((f) => (
-                  <option key={f.id} value={f.id}>
-                    {f.displayName}
-                  </option>
-                ))}
-              </select>
-            </label>
-            {friends && !friends.length && (
-              <p className="hint">Add a friend first (via your friend code) to pick someone here.</p>
-            )}
-            {user.limitBuddyId && (
-              <p className="hint">
-                They'll get a push once you hit this limit for the {user.stakeLimitPeriod === 'monthly' ? 'month' : 'week'} - a
-                nudge for them to check in, not a block on you.
-              </p>
-            )}
-          </>
-        ) : (
-          <p className="hint">No limit set.</p>
-        )}
-      </div>
-
-      <div className="account-section">
-        <h2 className="market-title">Safer gambling</h2>
-        <p className="hint">
-          A reality check pops up every so often to show how long you’ve been in the app - a nudge to take a break. Off by default.
-        </p>
-        <div className="mode-switcher">
-          {REALITY_CHECK_OPTIONS.map((opt) => (
-            <button
-              key={opt.value}
-              className={realityCheckMins === opt.value ? 'mode-tab active' : 'mode-tab'}
-              onClick={() => {
-                setRealityCheckMins(opt.value)
-                setRealityCheckMinsState(opt.value)
-              }}
-            >
-              {opt.label}
-            </button>
-          ))}
+          <label className="field-check">
+            <input type="checkbox" checked={user.notificationPrefs?.betSettled ?? false} onChange={() => toggleNotification('betSettled')} />
+            <span>Bet settled</span>
+          </label>
+          <label className="field-check">
+            <input type="checkbox" checked={user.notificationPrefs?.oddsMoved ?? false} onChange={() => toggleNotification('oddsMoved')} />
+            <span>Odds moved on a pending bet</span>
+          </label>
+          <label className="field-check">
+            <input
+              type="checkbox"
+              checked={user.notificationPrefs?.kickoffReminders ?? false}
+              onChange={() => toggleNotification('kickoffReminders')}
+            />
+            <span>Reminder shortly before kickoff</span>
+          </label>
+          <label className="field-check">
+            <input
+              type="checkbox"
+              checked={user.notificationPrefs?.weeklyRecap ?? false}
+              onChange={() => toggleNotification('weeklyRecap')}
+            />
+            <span>Weekly recap (Sunday evening)</span>
+          </label>
+          <label className="field-check">
+            <input
+              type="checkbox"
+              checked={user.notificationPrefs?.streakReminders ?? false}
+              onChange={() => toggleNotification('streakReminders')}
+            />
+            <span>Win-streak milestones (3, 5, 10 in a row)</span>
+          </label>
+          <label className="field-check">
+            <input type="checkbox" checked={user.notificationPrefs?.teamNews ?? false} onChange={() => toggleNotification('teamNews')} />
+            <span>News about a team or player you follow</span>
+          </label>
+          <p className="hint">
+            {isPushSupported()
+              ? 'Turn on push above to actually receive these on this device, not just store the preference.'
+              : "These are stored for when you're on a browser that supports push."}
+          </p>
         </div>
-        <p className="hint">
-          If gambling has stopped being fun, help is free and confidential. Call the National Gambling Helpline on{' '}
-          <a href="tel:08088020133">0808 8020 133</a>, or visit{' '}
-          <a href="https://www.begambleaware.org" target="_blank" rel="noreferrer">
-            BeGambleAware
-          </a>{' '}
-          and{' '}
-          <a href="https://www.gamcare.org.uk" target="_blank" rel="noreferrer">
-            GamCare
-          </a>
-          . To block yourself from UK gambling sites, register with{' '}
-          <a href="https://www.gamstop.co.uk" target="_blank" rel="noreferrer">
-            GAMSTOP
-          </a>
-          .
-        </p>
-      </div>
+      </AccountGroup>
+
+      <AccountGroup id="gambling" title="Responsible gambling" expanded={expandedGroups} onToggle={toggleGroup}>
+        <div className="account-section">
+          <h2 className="market-title">Spending limit</h2>
+          <p className="hint">
+            A self-set cap on how much you log as staked in a week or month - a gentle check-in, not a hard block. BetMates never
+            places bets or holds funds, so this can't stop you betting elsewhere; it's here for your own awareness.
+          </p>
+          <form className="inline-form" onSubmit={handleSaveLimit}>
+            <input
+              type="number"
+              min="0"
+              step="5"
+              placeholder="No limit"
+              value={limitAmountInput}
+              onChange={(e) => setLimitAmountInput(e.target.value)}
+            />
+            <select value={limitPeriodInput} onChange={(e) => setLimitPeriodInput(e.target.value)}>
+              <option value="weekly">per week</option>
+              <option value="monthly">per month</option>
+            </select>
+            <button className="btn btn-primary btn-small" type="submit" disabled={limitSaving}>
+              {limitSaving ? 'Saving…' : limitSaved ? 'Saved ✓' : 'Save'}
+            </button>
+          </form>
+          {user.stakeLimitAmount ? (
+            <>
+              <div
+                className="limit-progress-track"
+                role="progressbar"
+                aria-label="Spending toward limit"
+                aria-valuenow={periodSpend === null ? 0 : Math.min(periodSpend, user.stakeLimitAmount)}
+                aria-valuemin={0}
+                aria-valuemax={user.stakeLimitAmount}
+              >
+                <div
+                  className={`limit-progress-fill ${
+                    periodSpend >= user.stakeLimitAmount ? 'tone-bad' : periodSpend >= user.stakeLimitAmount * 0.8 ? 'tone-warn' : ''
+                  }`}
+                  style={{ width: `${periodSpend === null ? 0 : Math.min(100, (periodSpend / user.stakeLimitAmount) * 100)}%` }}
+                />
+              </div>
+              <p className="hint">
+                {periodSpend === null
+                  ? 'Loading…'
+                  : `£${periodSpend.toFixed(2)} of £${Number(user.stakeLimitAmount).toFixed(2)} logged this ${user.stakeLimitPeriod === 'monthly' ? 'month' : 'week'}${periodSpend >= user.stakeLimitAmount ? ' - limit reached' : ''}.`}
+              </p>
+              <button className="btn btn-ghost btn-small" onClick={handleClearLimit} disabled={limitSaving}>
+                Turn off limit
+              </button>
+
+              <label className="field">
+                <span>Notify a mate when you hit it</span>
+                <select value={user.limitBuddyId ?? ''} onChange={handleBuddyChange} disabled={buddySaving || !friends?.length}>
+                  <option value="">No one</option>
+                  {(friends ?? []).map((f) => (
+                    <option key={f.id} value={f.id}>
+                      {f.displayName}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              {friends && !friends.length && (
+                <p className="hint">Add a friend first (via your friend code) to pick someone here.</p>
+              )}
+              {user.limitBuddyId && (
+                <p className="hint">
+                  They'll get a push once you hit this limit for the {user.stakeLimitPeriod === 'monthly' ? 'month' : 'week'} - a
+                  nudge for them to check in, not a block on you.
+                </p>
+              )}
+            </>
+          ) : (
+            <p className="hint">No limit set.</p>
+          )}
+        </div>
+
+        <div className="account-section">
+          <h2 className="market-title">Safer gambling</h2>
+          <p className="hint">
+            A reality check pops up every so often to show how long you’ve been in the app - a nudge to take a break. Off by default.
+          </p>
+          <div className="mode-switcher">
+            {REALITY_CHECK_OPTIONS.map((opt) => (
+              <button
+                key={opt.value}
+                className={realityCheckMins === opt.value ? 'mode-tab active' : 'mode-tab'}
+                onClick={() => {
+                  setRealityCheckMins(opt.value)
+                  setRealityCheckMinsState(opt.value)
+                }}
+              >
+                {opt.label}
+              </button>
+            ))}
+          </div>
+          <p className="hint">
+            If gambling has stopped being fun, help is free and confidential. Call the National Gambling Helpline on{' '}
+            <a href="tel:08088020133">0808 8020 133</a>, or visit{' '}
+            <a href="https://www.begambleaware.org" target="_blank" rel="noreferrer">
+              BeGambleAware
+            </a>{' '}
+            and{' '}
+            <a href="https://www.gamcare.org.uk" target="_blank" rel="noreferrer">
+              GamCare
+            </a>
+            . To block yourself from UK gambling sites, register with{' '}
+            <a href="https://www.gamstop.co.uk" target="_blank" rel="noreferrer">
+              GAMSTOP
+            </a>
+            .
+          </p>
+        </div>
+      </AccountGroup>
 
       <div className="account-section">
         <h2 className="market-title">Public profile</h2>
@@ -579,21 +623,6 @@ export default function AccountPage() {
             automatically) to add BetMates as an app.
           </p>
         )}
-      </div>
-
-      {user.isAdmin && (
-        <div className="account-section">
-          <h2 className="market-title">Admin</h2>
-          <Link className="btn btn-secondary btn-small" to="/admin/reports">
-            Reported posts
-          </Link>
-        </div>
-      )}
-
-      <div className="account-section">
-        <Link to="/help" className="back">
-          Help &amp; FAQ
-        </Link>
       </div>
 
       <div className="account-section">

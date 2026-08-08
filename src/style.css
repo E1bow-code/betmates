@@ -2164,6 +2164,33 @@ h1, h2, .topbar h1, .sheet-title, .auth-title {
 .trending-chip-rank { font-family: var(--font-mono); font-weight: 700; color: var(--accent); font-size: 0.95rem; flex-shrink: 0; }
 
 .account-section { margin-bottom: 18px; }
+
+/* Collapsed-by-default category wrapper for Account's three longest
+   stretches (Preferences/bookmakers, Notifications, Responsible gambling)
+   - see AccountPage.jsx's AccountGroup. Reuses .market-header-meta's caret
+   styling; the toggle itself is a distinct uppercase category label so it
+   doesn't read as just another .market-title sub-heading once expanded. */
+.account-group { margin-bottom: 18px; }
+.account-group-toggle {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  width: 100%;
+  background: none;
+  border: none;
+  border-bottom: 1px solid var(--border);
+  padding: 8px 2px;
+  margin-bottom: 4px;
+  cursor: pointer;
+  text-align: left;
+  color: var(--text);
+  font-size: 0.78rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+.account-group-toggle:hover { color: var(--accent); }
+.account-group-body .account-section:first-child { margin-top: 4px; }
 .dashboard-quick-links { display: flex; gap: 10px; margin-bottom: 24px; }
 .dashboard-quick-links .btn { flex: 1; text-align: center; }
 .dashboard-section-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 4px; }
