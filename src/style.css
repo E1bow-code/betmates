@@ -1736,6 +1736,20 @@ h1, h2, .topbar h1, .sheet-title, .auth-title {
 .bet-card-actions .btn-small { padding: 5px 10px; font-size: 0.78rem; white-space: nowrap; }
 .copy-bet-row { display: flex; gap: 6px; }
 
+/* Revealed by the actions row's "More" toggle - the two least-reached-for
+   actions (back a friend's pick, share an image) tucked out of the way so
+   the always-visible row stays to comment/copy/[edit+settle], instead of
+   every post showing every action whether or not it applies. Same inline-
+   reveal treatment as .moderation-menu, kept separate since this is an
+   actions menu, not a moderation one. */
+.bet-card-more-menu {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 6px;
+  padding-top: 8px;
+}
+
 .reaction-row { display: flex; gap: 6px; }
 .reaction-btn {
   background: none;

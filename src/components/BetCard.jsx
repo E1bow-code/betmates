@@ -47,6 +47,7 @@ export default function BetCard({ post, memberNames, variant = 'group', onBlocke
   const [showModeration, setShowModeration] = useState(false)
   const [reported, setReported] = useState(false)
   const [showEdit, setShowEdit] = useState(false)
+  const [showMoreActions, setShowMoreActions] = useState(false)
 
   useEffect(() => {
     dataStore.listReactions(post.id).then(setReactions)
@@ -251,8 +252,6 @@ export default function BetCard({ post, memberNames, variant = 'group', onBlocke
             💬 {comments.length > 0 && comments.length}
           </button>
           <CopyBetButton post={post} userId={user.id} copyCount={copyCount} onCopied={() => setCopyCount((c) => c + 1)} />
-          {!isAuthor && <BackBetButton post={post} />}
-          <ShareImageButton post={post} />
           {isAuthor && status === 'open' && (
             <>
               <button className="btn btn-ghost btn-small" type="button" onClick={() => setShowEdit(true)}>
@@ -267,7 +266,21 @@ export default function BetCard({ post, memberNames, variant = 'group', onBlocke
               </select>
             </>
           )}
+          <button
+            className="btn btn-ghost btn-small"
+            type="button"
+            onClick={() => setShowMoreActions((v) => !v)}
+            aria-expanded={showMoreActions}
+          >
+            {showMoreActions ? 'Less ▴' : 'More ▾'}
+          </button>
         </div>
+        {showMoreActions && (
+          <div className="bet-card-more-menu">
+            {!isAuthor && <BackBetButton post={post} />}
+            <ShareImageButton post={post} />
+          </div>
+        )}
       </div>
 
       {showEdit && (
