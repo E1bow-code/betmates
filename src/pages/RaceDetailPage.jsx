@@ -54,7 +54,16 @@ export default function RaceDetailPage() {
       kickoff: race.offTime,
       runnerCount: race.runners.length,
       raceId: race.id,
-      horseId: runner.id
+      horseId: runner.id,
+      // Same identity-key convention FixtureDetailPage.jsx/FightDetailPage.jsx/
+      // GenericEventDetailPage.jsx already stamp, so netlify/functions/
+      // odds-snapshot.js can record a real closing line for racing bets too
+      // (see that file's collectRacingSnapshots) - without these, racing
+      // legs silently never qualified for Closing Line Value, only the
+      // device-local line-value fallback.
+      eventId: race.id,
+      marketKey: 'win',
+      outcomeName: runner.name
     })
   }
 

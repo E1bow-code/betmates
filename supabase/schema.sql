@@ -299,8 +299,8 @@ create policy "user deletes own open tracker entry" on manual_entries for delete
 );
 
 -- fixtures / odds_snapshots are public reference data cached by the
--- Netlify Function (netlify/functions/odds.js) using the service role key,
--- so no RLS write policy is needed for anon clients; reads are open.
+-- Netlify Function (netlify/functions/odds-snapshot.js) using the service
+-- role key, so no RLS write policy is needed for anon clients; reads are open.
 alter table fixtures enable row level security;
 alter table odds_snapshots enable row level security;
 create policy "anyone can read fixtures" on fixtures for select using (true);
@@ -979,3 +979,13 @@ create table value_edge_alerts_sent (
 -- with zero policies means anon/authenticated can't touch this table at all,
 -- which is correct: there's no client-side reason to read or write it.
 alter table value_edge_alerts_sent enable row level security;
+
+-- --- Closing Line Value for racing --------------------------------------
+-- netlify/functions/odds-snapshot.js now snapshots racing alongside every
+-- other sport - a race is fixtures' "fixture" row, but a race has no home/
+-- away side the way a two-team fixture does, so home_team/away_team can no
+-- longer be required for every row. Nothing reads either column today
+-- (dataStore.getClosingLines only selects id/kickoff), so this is a pure
+-- constraint relaxation, not a data-shape change for existing rows.
+alter table fixtures alter column home_team drop not null;
+alter table fixtures alter column away_team drop not null;

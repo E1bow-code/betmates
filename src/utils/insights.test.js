@@ -44,3 +44,24 @@ test('computeInsights labels a low-variance record as steady', () => {
   const volatility = insights.find((i) => i.key === 'volatility')
   assert.equal(volatility.value, 'Steady · £0.00 swing per bet')
 })
+
+test('computeInsights reports CLV once there are enough single-leg bets with a real close', () => {
+  const leg = (odds) => ({ event: 'e', market: 'm', selection: 's', odds, bookmaker: 'Bet365', eventId: 'fx1', marketKey: 'h2h', outcomeName: 'Home' })
+  const entries = [entry({ selections: [leg(2.2)] }), entry({ selections: [leg(2.1)] }), entry({ selections: [leg(1.9)] })]
+  const closes = { 'fx1|h2h|Home': 2.0 }
+  const insights = computeInsights(entries, closes)
+  const clv = insights.find((i) => i.key === 'clv')
+  assert.ok(clv)
+  assert.equal(clv.title, 'Beating the market')
+  assert.match(clv.value, /vs\. closing line/)
+})
+
+test('computeInsights omits CLV without a closes map', () => {
+  const leg = { event: 'e', market: 'm', selection: 's', odds: 2.2, bookmaker: 'Bet365', eventId: 'fx1', marketKey: 'h2h', outcomeName: 'Home' }
+  const entries = [entry({ selections: [leg] }), entry({ selections: [leg] }), entry({ selections: [leg] })]
+  const insights = computeInsights(entries)
+  assert.equal(
+    insights.find((i) => i.key === 'clv'),
+    undefined
+  )
+})

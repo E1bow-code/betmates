@@ -1,5 +1,6 @@
 import { SPORT_LABEL } from '../lib/sportsConfig.js'
 import { moneyLeftOnTable } from './lineValue.js'
+import { clvSummary } from './clv.js'
 
 const DAY_NAMES = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday']
 
@@ -26,12 +27,17 @@ export function computeBettingStyle(entries) {
   return { style, stdev }
 }
 
-// Six "Wrapped"-style cards built entirely from data the Tracker already
-// has (bet_posts + manual_entries) - no new tables, same source as
+// "Wrapped"-style cards built entirely from data the Tracker already has
+// (bet_posts + manual_entries) - no new tables, same source as
 // trackerStats.js. Each insight is omitted rather than shown empty/zeroed
 // when there isn't enough history to say anything meaningful, mirroring
 // Hall of Fame's `data[r.key]` filtering.
-export function computeInsights(entries) {
+//
+// closes (optional): the same { eventId|marketKey|outcomeName: decimal }
+// map dataStore.getClosingLines returns, feeding the CLV card below -
+// defaults to {} so every other insight still works for a caller that
+// doesn't have it (or in local mode, where it's always empty anyway).
+export function computeInsights(entries, closes = {}) {
   const insights = []
 
   const settled = entries.filter((e) => e.stake && e.settledAt && ['won', 'lost', 'void'].includes(e.status))
@@ -179,6 +185,22 @@ export function computeInsights(entries) {
       icon: '🪙',
       title: 'Money left on the table',
       value: `£${leftOnTable.total.toFixed(2)} (${leftOnTable.sample} bet${leftOnTable.sample === 1 ? '' : 's'})`
+    })
+  }
+
+  // Are you beating the market - the honest, sharp-bettor number: average
+  // Closing Line Value across every single-leg bet with a real server-
+  // recorded close (src/utils/clv.js), not just whether bets won. Omitted
+  // (not shown as 0%) below the minimum sample, same guard clvSummary
+  // already applies, and naturally absent whenever `closes` is empty (local
+  // mode, or before odds-snapshot.js has recorded a close for anything).
+  const clv = clvSummary(entries, closes)
+  if (clv) {
+    insights.push({
+      key: 'clv',
+      icon: '📉',
+      title: 'Beating the market',
+      value: `${clv.avgPct >= 0 ? '+' : ''}${clv.avgPct}% vs. closing line · beat it ${clv.beatRate}% of the time (${clv.sample})`
     })
   }
 

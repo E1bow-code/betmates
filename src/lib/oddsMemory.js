@@ -1,11 +1,14 @@
 // Client-side "has this price moved since I last looked" tracking - no
-// backend involved. supabase/schema.sql has an odds_snapshots table from
-// the original brief for a real server-side price-history feed, but
-// nothing writes to it yet (it'd need a service-role key and a snapshot
-// job); this is the cheap version that actually ships: a localStorage
-// cache of the last price seen per outcome, per device. Loses history and
-// cross-device consistency, but delivers the actual user-visible feature
-// (an arrow when a price has shortened or drifted) without new infra.
+// backend involved. supabase/schema.sql's odds_snapshots table now DOES get
+// written to (see netlify/functions/odds-snapshot.js, a service-role
+// scheduled job) - this file predates that and is now the fallback rather
+// than the only option: a localStorage cache of the last price seen per
+// outcome, per device, used by src/utils/lineValue.js whenever a real
+// server-recorded close isn't available (offline/local mode, or a sport
+// odds-snapshot.js hasn't seen this outcome for yet). Loses history and
+// cross-device consistency, but still delivers the same user-visible
+// feature (an arrow when a price has shortened or drifted) with no infra
+// dependency.
 import { useEffect, useState } from 'react'
 
 const CACHE_KEY = 'betmates:oddsCache'

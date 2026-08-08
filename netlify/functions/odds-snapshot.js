@@ -1,10 +1,9 @@
 // Scheduled function (see `config.schedule` below) - records the current best
 // price of every outcome an OPEN bet references into the odds_snapshots table,
-// building the price history that table was always meant to hold (nothing wrote
-// to it before this - see the note in src/lib/oddsMemory.js). The last snapshot
-// taken at or before a fixture's kickoff is that outcome's *closing line* - the
-// number src/utils/clv.js compares a struck price against to compute real
-// Closing Line Value, upgrading the device-local approximation in
+// building the price history that table was always meant to hold. The last
+// snapshot taken at or before a fixture's kickoff is that outcome's *closing
+// line* - the number src/utils/clv.js compares a struck price against to
+// compute real Closing Line Value, upgrading the device-local approximation in
 // src/utils/lineValue.js to a true, cross-device close.
 //
 // Runs on the service-role key like every other scheduled function - nobody's
@@ -13,17 +12,111 @@
 //
 // Free-tier budget: this shares the same 500-request/month Odds API as the rest
 // of the app (see src/lib/apiCache.js), so it does NOT hit the provider
-// directly. It reads this project's own /api/odds, which is already cached
-// (LIST_TTL) and falls back to mock when no key is set - so a run landing near a
-// user's own odds view shares that quota instead of spending it twice, and it
-// only fetches at all when there is an open bet to snapshot. Mock odds are
-// skipped via the x-data-source header, so a dev/no-key run never records a fake
-// "closing" price as if it were real.
+// directly. It reads this project's own /api/* routes, already cached
+// (LIST_TTL) - so a run landing near a user's own odds view shares that quota
+// instead of spending it twice - and only fetches a SPORT'S list at all when an
+// open bet actually references that sport, the same "only fetch what's in
+// play" rule alert-checks.js's runValueEdgeAlerts follows. Mock odds are
+// skipped via the x-data-source header, so a dev/no-key run never records a
+// fake "closing" price as if it were real.
+//
+// Covers every sport that stamps leg-identity keys at bet time
+// (FixtureDetailPage.jsx/FightDetailPage.jsx/GenericEventDetailPage.jsx/
+// RaceDetailPage.jsx all set eventId/marketKey/outcomeName on toggleLeg).
+// Racing's "fixture" is the RACE, not a runner, and a race has no home/away
+// side - fixtures.home_team/away_team are nullable (see schema.sql) and left
+// null for racing rows; nothing reads those two columns today, only
+// fixtures.kickoff and odds_snapshots' own columns feed CLV.
 import { createClient } from '@supabase/supabase-js'
 
 const SUPABASE_URL = process.env.VITE_SUPABASE_URL
 const SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY
 const SITE_URL = process.env.URL || 'https://betmates.org'
+
+function sportListPath(sport) {
+  if (sport === 'football') return '/api/odds'
+  if (sport === 'ufc') return '/api/ufc'
+  if (sport === 'racing') return '/api/racing'
+  return `/api/sport?sport=${encodeURIComponent(sport)}`
+}
+
+/** @param {string} sport @returns {Promise<any[]>} */
+async function fetchSportList(sport) {
+  try {
+    const res = await fetch(`${SITE_URL}${sportListPath(sport)}`)
+    if (!res.ok) return []
+    // Never record a mock price as if it were a real close - skip just this
+    // sport's list rather than bailing the whole run, so one mock-configured
+    // sport (or a dev/no-key environment) can't block real closes for others.
+    if (res.headers.get('x-data-source') === 'mock') return []
+    return await res.json()
+  } catch {
+    return []
+  }
+}
+
+// Two-participant sports (football, ufc, every GENERIC_SPORTS entry) share one
+// shape: markets[].outcomes[] on each item, keyed id|market.key|outcome.name -
+// exactly what odds.js/ufc.js/sport.js already return.
+/** @param {any[]} items @param {string} sport @param {Set<string>} wanted @param {Map<string, any>} fixtureRows @param {any[]} snapshots @param {string} now */
+function collectFixtureSnapshots(items, sport, wanted, fixtureRows, snapshots, now) {
+  for (const item of items ?? []) {
+    for (const market of item.markets ?? []) {
+      for (const outcome of market.outcomes ?? []) {
+        if (!wanted.has(`${item.id}|${market.key}|${outcome.name}`)) continue
+        const decimal = outcome.bestOdds?.decimal
+        if (!Number.isFinite(decimal)) continue
+        fixtureRows.set(item.id, {
+          id: item.id,
+          sport,
+          competition: item.competition ?? null,
+          home_team: item.homeTeam ?? item.participantA ?? item.fighterA ?? null,
+          away_team: item.awayTeam ?? item.participantB ?? item.fighterB ?? null,
+          kickoff: item.kickoff,
+          status: 'scheduled'
+        })
+        snapshots.push({
+          fixture_id: item.id,
+          bookmaker: outcome.bestOdds?.bookmaker ?? 'best',
+          market: market.key,
+          selection: outcome.name,
+          odds: decimal,
+          fetched_at: now
+        })
+      }
+    }
+  }
+}
+
+// Racing has no head-to-head market - each runner in the field is its own
+// outcome, keyed race.id|win|runner.name (see RaceDetailPage.jsx's pick()).
+/** @param {any[]} races @param {Set<string>} wanted @param {Map<string, any>} fixtureRows @param {any[]} snapshots @param {string} now */
+function collectRacingSnapshots(races, wanted, fixtureRows, snapshots, now) {
+  for (const race of races ?? []) {
+    for (const runner of race.runners ?? []) {
+      if (!wanted.has(`${race.id}|win|${runner.name}`)) continue
+      const decimal = runner.bestOdds?.decimal
+      if (!Number.isFinite(decimal)) continue
+      fixtureRows.set(race.id, {
+        id: race.id,
+        sport: 'racing',
+        competition: `${race.course} - ${race.raceName}`,
+        home_team: null,
+        away_team: null,
+        kickoff: race.offTime,
+        status: 'scheduled'
+      })
+      snapshots.push({
+        fixture_id: race.id,
+        bookmaker: runner.bestOdds?.bookmaker ?? 'best',
+        market: 'win',
+        selection: runner.name,
+        odds: decimal,
+        fetched_at: now
+      })
+    }
+  }
+}
 
 export default async () => {
   if (!SUPABASE_URL || !SERVICE_ROLE_KEY) {
@@ -41,60 +134,35 @@ export default async () => {
       supabase.from('manual_entries').select('selections').eq('status', 'open')
     ])
 
-    // Keyed exactly how src/utils/clv.js looks a closing price up.
+    // Keyed exactly how src/utils/clv.js looks a closing price up. Also track
+    // which sports are actually represented so only those lists get fetched.
     const wanted = new Set()
+    const sportsInPlay = new Set()
     for (const row of [...(posts ?? []), ...(manual ?? [])]) {
       for (const leg of row.selections ?? []) {
         if (!leg?.eventId || !leg?.marketKey || !leg?.outcomeName) continue
         wanted.add(`${leg.eventId}|${leg.marketKey}|${leg.outcomeName}`)
+        sportsInPlay.add(leg.sport ?? 'football')
       }
     }
     if (!wanted.size) {
       return new Response(JSON.stringify({ snapshotted: 0, reason: 'no open bets' }), { status: 200 })
     }
 
-    // Piggyback on the app's own cached odds feed rather than the provider.
-    const res = await fetch(`${SITE_URL}/api/odds`)
-    if (!res.ok) {
-      return new Response(JSON.stringify({ snapshotted: 0, reason: `odds ${res.status}` }), { status: 200 })
-    }
-    // Never record mock prices as if they were a real close.
-    if (res.headers.get('x-data-source') === 'mock') {
-      return new Response(JSON.stringify({ snapshotted: 0, reason: 'mock odds' }), { status: 200 })
-    }
-    const fixtures = await res.json()
-
     const now = new Date().toISOString()
     // odds_snapshots.fixture_id references fixtures(id), so any fixture we
     // snapshot has to exist there first - collect the rows to upsert alongside.
     const fixtureRows = new Map()
     const snapshots = []
-    for (const fixture of fixtures ?? []) {
-      for (const market of fixture.markets ?? []) {
-        for (const outcome of market.outcomes ?? []) {
-          if (!wanted.has(`${fixture.id}|${market.key}|${outcome.name}`)) continue
-          const decimal = outcome.bestOdds?.decimal
-          if (!Number.isFinite(decimal)) continue
-          fixtureRows.set(fixture.id, {
-            id: fixture.id,
-            sport: 'football',
-            competition: fixture.competition ?? null,
-            home_team: fixture.homeTeam,
-            away_team: fixture.awayTeam,
-            kickoff: fixture.kickoff,
-            status: 'scheduled'
-          })
-          snapshots.push({
-            fixture_id: fixture.id,
-            bookmaker: outcome.bestOdds?.bookmaker ?? 'best',
-            market: market.key,
-            selection: outcome.name,
-            odds: decimal,
-            fetched_at: now
-          })
-        }
-      }
-    }
+
+    await Promise.all(
+      [...sportsInPlay].map(async (sport) => {
+        const items = await fetchSportList(sport)
+        if (sport === 'racing') collectRacingSnapshots(items, wanted, fixtureRows, snapshots, now)
+        else collectFixtureSnapshots(items, sport, wanted, fixtureRows, snapshots, now)
+      })
+    )
+
     if (!snapshots.length) {
       return new Response(JSON.stringify({ snapshotted: 0, reason: 'no matching prices' }), { status: 200 })
     }
@@ -102,10 +170,10 @@ export default async () => {
     await supabase.from('fixtures').upsert([...fixtureRows.values()], { onConflict: 'id' })
     await supabase.from('odds_snapshots').insert(snapshots)
 
-    return new Response(JSON.stringify({ snapshotted: snapshots.length, fixtures: fixtureRows.size }), {
-      status: 200,
-      headers: { 'content-type': 'application/json' }
-    })
+    return new Response(
+      JSON.stringify({ snapshotted: snapshots.length, fixtures: fixtureRows.size, sports: [...sportsInPlay] }),
+      { status: 200, headers: { 'content-type': 'application/json' } }
+    )
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err)
     return new Response(JSON.stringify({ snapshotted: 0, error: message }), { status: 200 })

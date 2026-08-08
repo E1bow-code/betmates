@@ -16,16 +16,24 @@ export default function InsightsPage() {
   const { user } = useAuth()
   const { format } = useOddsFormat()
   const [entries, setEntries] = useState(null)
+  // Server-recorded closing lines, keyed {eventId|marketKey|outcomeName}
+  // (see dataStore.getClosingLines) - feeds the "beating the market" CLV
+  // card; stays empty in local mode or before odds-snapshot.js has a close
+  // for anything, same as TrackerPage.jsx's own fetch of this.
+  const [closes, setCloses] = useState({})
 
   useEffect(() => {
     Promise.all([dataStore.listBetPostsByUser(user.id), dataStore.listManualEntries(user.id)]).then(([posted, manual]) => {
-      setEntries([...posted, ...manual])
+      const combined = [...posted, ...manual]
+      setEntries(combined)
+      const fixtureIds = combined.flatMap((entry) => (entry.selections ?? []).map((s) => s.eventId)).filter(Boolean)
+      dataStore.getClosingLines(fixtureIds).then(setCloses).catch(() => {})
     })
   }, [user.id])
 
   if (entries === null) return <div className="loading">Digging through your betting history…</div>
 
-  const insights = computeInsights(entries)
+  const insights = computeInsights(entries, closes)
   const rows = insights.map((i) => ({ label: i.title, value: i.value }))
   const badBeats = findBadBeats(entries, 5)
 
