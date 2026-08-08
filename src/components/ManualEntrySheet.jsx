@@ -46,10 +46,7 @@ export default function ManualEntrySheet({ userId, onClose, onSaved }) {
   const potentialReturn = stakeNum && odds ? Math.round(stakeNum * odds * 100) / 100 : null
   const lossChasing = detectLossChasing(entries, stakeNum)
 
-  async function handleScan(e) {
-    const file = e.target.files?.[0]
-    e.target.value = '' // lets picking the same file again re-fire onChange
-    if (!file) return
+  async function scanImage(file) {
     setScanning(true)
     await runAsync(async () => {
       const text = await recognizeSlipText(file)
@@ -60,6 +57,33 @@ export default function ManualEntrySheet({ userId, onClose, onSaved }) {
     }, "Couldn't read that photo - fill the details in below instead")
     setScanning(false)
   }
+
+  async function handleScan(e) {
+    const file = e.target.files?.[0]
+    e.target.value = '' // lets picking the same file again re-fire onChange
+    if (!file) return
+    await scanImage(file)
+  }
+
+  // Lets a bookmaker-app screenshot go straight in with Ctrl+V/Cmd+V rather
+  // than needing to be saved to a file first - a document-level listener
+  // (same shape as useEscapeKey.js) rather than an onPaste prop, since paste
+  // won't reliably bubble through one element if nothing in the sheet has
+  // focus yet. Ignores anything without an image item, so pasting text into
+  // Event/Market/Selection is unaffected.
+  useEffect(() => {
+    function handlePaste(e) {
+      if (scanning) return
+      const items = e.clipboardData?.items
+      if (!items) return
+      const imageItem = [...items].find((item) => item.type.startsWith('image/'))
+      if (!imageItem) return
+      e.preventDefault()
+      scanImage(imageItem.getAsFile())
+    }
+    document.addEventListener('paste', handlePaste)
+    return () => document.removeEventListener('paste', handlePaste)
+  }, [scanning])
 
   async function handleSave(e) {
     e.preventDefault()
@@ -102,6 +126,7 @@ export default function ManualEntrySheet({ userId, onClose, onSaved }) {
           <span>📷 Scan a bet slip photo (optional)</span>
           <input type="file" accept="image/*" capture="environment" onChange={handleScan} disabled={scanning} />
         </label>
+        <p className="hint">or paste a screenshot - Ctrl+V / ⌘V</p>
         {scanning && <p className="hint">Reading your slip…</p>}
         {rawText && (
           <details className="ocr-raw-text">
