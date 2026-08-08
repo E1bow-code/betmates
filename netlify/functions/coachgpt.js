@@ -9,7 +9,7 @@
 // Missing ANTHROPIC_API_KEY degrades like every other proxy here:
 // { configured: false } at HTTP 200, never a crash.
 import { runCoachGptTurn } from '../../src/lib/coachgpt.js'
-import { matchFixtureQuery } from '../../src/utils/matchFixtureQuery.js'
+import { matchFixtureQuery, matchRaceQuery } from '../../src/utils/matchFixtureQuery.js'
 import { computeBestValue } from '../../src/utils/bestValue.js'
 import { getPlayerProfile } from '../../src/lib/playerProfile.js'
 import { GENERIC_SPORTS } from '../../src/lib/sportsConfig.js'
@@ -35,16 +35,40 @@ function summariseFixture(fixture) {
   return {
     id: fixture.id,
     competition: fixture.competition,
-    homeTeam: fixture.homeTeam ?? fixture.participantA,
-    awayTeam: fixture.awayTeam ?? fixture.participantB,
+    homeTeam: fixture.homeTeam ?? fixture.participantA ?? fixture.fighterA,
+    awayTeam: fixture.awayTeam ?? fixture.participantB ?? fixture.fighterB,
     kickoff: fixture.kickoff,
     h2hPrices: (h2h?.outcomes ?? []).map((o) => ({ selection: o.name, bestPrice: o.bestOdds?.decimal, bookmaker: o.bestOdds?.bookmaker })),
     valueEdges
   }
 }
 
-async function fetchFixtureList(siteUrl, sport) {
-  const path = sport && sport !== 'football' && GENERIC_SPORTS[sport] ? `/api/sport?sport=${sport}` : '/api/odds'
+// A matched runner, trimmed the same way summariseFixture trims a fixture -
+// the value edge is computed here (reusing the exact same computeBestValue
+// the Odds tab's own "value on the board" flag uses) rather than handing
+// the model a raw allOdds array to reason about itself.
+function summariseRunner(race, runner) {
+  return {
+    course: race.course,
+    raceName: race.raceName,
+    offTime: race.offTime,
+    horse: runner.name,
+    jockey: runner.jockey,
+    trainer: runner.trainer,
+    bestPrice: runner.bestOdds?.decimal,
+    bestBookmaker: runner.bestOdds?.bookmaker,
+    valueEdge: computeBestValue(runner.allOdds)
+  }
+}
+
+// Every sport this tool knows how to search, in the order a "no sport
+// given" search tries them - football first since it's this app's primary
+// sport, UFC/racing next since a fighter or horse name is unambiguous
+// (unlike a one-word team query it'd be wasteful to try every generic
+// sport for), then everything else GENERIC_SPORTS covers.
+const SPORT_ORDER = ['football', 'ufc', 'racing', ...Object.keys(GENERIC_SPORTS)]
+
+async function fetchJson(siteUrl, path) {
   try {
     const res = await fetch(`${siteUrl}${path}`)
     if (!res.ok) return []
@@ -54,22 +78,59 @@ async function fetchFixtureList(siteUrl, sport) {
   }
 }
 
+function fetchListFor(siteUrl, sport) {
+  if (sport === 'football') return fetchJson(siteUrl, '/api/odds')
+  if (sport === 'ufc') return fetchJson(siteUrl, '/api/ufc')
+  if (sport === 'racing') return fetchJson(siteUrl, '/api/racing')
+  if (GENERIC_SPORTS[sport]) return fetchJson(siteUrl, `/api/sport?sport=${sport}`)
+  return fetchJson(siteUrl, '/api/odds')
+}
+
+async function searchSport(siteUrl, sport, query) {
+  if (sport === 'racing') {
+    const races = await fetchListFor(siteUrl, sport)
+    const matches = matchRaceQuery(races, query)
+    return matches.length ? { kind: 'racing', matches } : null
+  }
+  const fixtures = await fetchListFor(siteUrl, sport)
+  const matches = matchFixtureQuery(fixtures, query)
+  return matches.length ? { kind: 'fixture', matches } : null
+}
+
 async function toolFindFixture(siteUrl, { query, sport }) {
-  let fixtures = await fetchFixtureList(siteUrl, sport)
-  let matches = matchFixtureQuery(fixtures, query)
-  // No sport specified and nothing found in football (the default search)
-  // - try each generic sport in turn rather than guessing wrong silently.
-  if (!matches.length && !sport) {
-    for (const key of Object.keys(GENERIC_SPORTS)) {
-      fixtures = await fetchFixtureList(siteUrl, key)
-      matches = matchFixtureQuery(fixtures, query)
-      if (matches.length) break
+  const normalisedSport = sport && SPORT_ORDER.includes(sport) ? sport : null
+  let result = normalisedSport ? await searchSport(siteUrl, normalisedSport, query) : null
+
+  // No sport specified (or nothing found in the one given) - try every
+  // sport this tool covers in turn, stopping at the first with a hit,
+  // rather than assuming football and coming back empty for anything else.
+  if (!result) {
+    for (const key of SPORT_ORDER) {
+      if (key === normalisedSport) continue
+      result = await searchSport(siteUrl, key, query)
+      if (result) break
     }
   }
-  if (!matches.length) return { found: false }
+  if (!result) return { found: false }
 
-  const topScore = matches[0].score
-  const leaders = matches.filter((m) => m.score === topScore)
+  if (result.kind === 'racing') {
+    const topScore = result.matches[0].score
+    const leaders = result.matches.filter((m) => m.score === topScore)
+    return {
+      found: true,
+      sport: 'racing',
+      // A single race naturally returns every runner tied on a course/
+      // race-name match (see matchRaceQuery) - that's not ambiguity the
+      // way two different fixtures matching equally is, it's "here's the
+      // field", so only flag ambiguous when the leaders are from
+      // different races entirely.
+      ambiguous: new Set(leaders.map((m) => m.race.id)).size > 1,
+      matches: leaders.map((m) => summariseRunner(m.race, m.runner))
+    }
+  }
+
+  const topScore = result.matches[0].score
+  const leaders = result.matches.filter((m) => m.score === topScore)
   return {
     found: true,
     ambiguous: leaders.length > 1,

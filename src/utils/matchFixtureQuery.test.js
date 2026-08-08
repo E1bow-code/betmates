@@ -1,6 +1,6 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { matchFixtureQuery } from './matchFixtureQuery.js'
+import { matchFixtureQuery, matchRaceQuery } from './matchFixtureQuery.js'
 
 const fixture = (over) => ({ id: 'x', homeTeam: 'Home', awayTeam: 'Away', ...over })
 
@@ -66,4 +66,49 @@ test('matchFixtureQuery honours the limit', () => {
   const fixtures = Array.from({ length: 10 }, (_, i) => fixture({ id: String(i), homeTeam: 'Arsenal', awayTeam: `Team${i}` }))
   const result = matchFixtureQuery(fixtures, 'Arsenal', 3)
   assert.equal(result.length, 3)
+})
+
+test('matchFixtureQuery resolves a fan nickname to the official team name', () => {
+  const fixtures = [
+    fixture({ id: 'spurs', homeTeam: 'Tottenham Hotspur', awayTeam: 'Fulham' }),
+    fixture({ id: 'other', homeTeam: 'Everton', awayTeam: 'Norwich' })
+  ]
+  const result = matchFixtureQuery(fixtures, 'Spurs')
+  assert.equal(result.length, 1)
+  assert.equal(result[0].fixture.id, 'spurs')
+})
+
+test('matchFixtureQuery does not let "card" spuriously match "Cardiff"', () => {
+  const fixtures = [fixture({ id: '1', homeTeam: 'Cardiff City', awayTeam: 'Wrexham' })]
+  const result = matchFixtureQuery(fixtures, 'best value fight card this weekend')
+  assert.deepEqual(result, [])
+})
+
+test('matchFixtureQuery matches UFC fighterA/fighterB fields', () => {
+  const fixtures = [{ id: '1', fighterA: 'Jon Jones', fighterB: 'Stipe Miocic' }]
+  const result = matchFixtureQuery(fixtures, 'Jon Jones')
+  assert.equal(result.length, 1)
+  assert.equal(result[0].fixture.id, '1')
+})
+
+test('matchRaceQuery matches a specific runner by name', () => {
+  const races = [
+    { id: 'r1', course: 'Ascot', raceName: '3:15 Handicap', runners: [{ name: 'Frankel' }, { name: 'Sea Biscuit' }] },
+    { id: 'r2', course: 'Newmarket', raceName: '2:00 Maiden', runners: [{ name: 'Red Rum' }] }
+  ]
+  const result = matchRaceQuery(races, 'Frankel')
+  assert.equal(result.length, 1)
+  assert.equal(result[0].race.id, 'r1')
+  assert.equal(result[0].runner.name, 'Frankel')
+})
+
+test('matchRaceQuery matches by course name and returns every runner in that race', () => {
+  const races = [{ id: 'r1', course: 'Ascot', raceName: '3:15 Handicap', runners: [{ name: 'Frankel' }, { name: 'Sea Biscuit' }] }]
+  const result = matchRaceQuery(races, 'Ascot')
+  assert.equal(result.length, 2)
+})
+
+test('matchRaceQuery returns nothing for an empty query or no runners', () => {
+  assert.deepEqual(matchRaceQuery([{ id: 'r1', course: 'Ascot', runners: [] }], 'Ascot'), [])
+  assert.deepEqual(matchRaceQuery([{ id: 'r1', course: 'Ascot', runners: [{ name: 'Frankel' }] }], ''), [])
 })
