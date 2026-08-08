@@ -43,7 +43,7 @@ import { bucketByDay, distinctUsersSince } from '../utils/adminAnalyticsAgg.js'
  * @property {{id: string, blockerId: string, blockedId: string, createdAt: string}[]} blocks
  * @property {{id: string, postId: string, reporterId: string, reason: string, createdAt: string}[]} postReports
  * @property {DirectMessage[]} directMessages
- * @property {{id: string, userId: string, role: 'user'|'assistant', body: string, createdAt: string}[]} coachMessages
+ * @property {{id: string, userId: string, role: 'user'|'assistant', body: string, grounding: object|null, createdAt: string}[]} coachMessages
  * @property {(OddsAlert & {userId: string})[]} oddsAlerts
  * @property {{id: string, userId: string, sport: string, eventId: string, eventLabel: string, kickoff: string, createdAt: string}[]} followedFixtures
  * @property {{id: string, userId: string, sport: string, name: string, createdAt: string}[]} followedParticipants
@@ -540,7 +540,7 @@ export function sendDirectMessage(userId, friendId, body) {
   return delay(message)
 }
 
-/** @param {string} userId @returns {Promise<{id: string, userId: string, role: 'user'|'assistant', body: string, createdAt: string}[]>} */
+/** @param {string} userId @returns {Promise<{id: string, userId: string, role: 'user'|'assistant', body: string, grounding: object|null, createdAt: string}[]>} */
 export function listCoachMessages(userId) {
   const db = readDb()
   return delay(
@@ -550,10 +550,10 @@ export function listCoachMessages(userId) {
   )
 }
 
-/** @param {{userId: string, role: 'user'|'assistant', body: string}} entry */
-export function addCoachMessage({ userId, role, body }) {
+/** @param {{userId: string, role: 'user'|'assistant', body: string, grounding?: object|null}} entry */
+export function addCoachMessage({ userId, role, body, grounding = null }) {
   const db = readDb()
-  const message = { id: uid('coach'), userId, role, body, createdAt: new Date().toISOString() }
+  const message = { id: uid('coach'), userId, role, body, grounding, createdAt: new Date().toISOString() }
   db.coachMessages.push(message)
   writeDb(db)
   return delay(message)

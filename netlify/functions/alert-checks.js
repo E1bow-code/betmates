@@ -7,13 +7,15 @@
 // against Netlify's usage credits. Nobody's signed in when a cron job
 // fires, so this runs on the service-role key rather than working within
 // RLS - the one place in this project that does. A fourth check
-// (runLimitBuddyAlerts, below) joined the same invocation later for the
+// (runLimitBuddyAlerts) and a fifth (runValueEdgeAlerts, CoachGPT's
+// proactive value-alert push) joined the same invocation later for the
 // same reason - one more independent check, same cost as zero extra crons.
 // @ts-check
 import { createClient } from '@supabase/supabase-js'
 import webpush from 'web-push'
-import { apiKeysForSport } from '../../src/lib/sportsConfig.js'
+import { apiKeysForSport, GENERIC_SPORTS } from '../../src/lib/sportsConfig.js'
 import { periodStart, sumStakesSince } from '../../src/utils/spendLimit.js'
+import { findBoardValue } from '../../src/utils/valueFinder.js'
 
 // No Database generic (see dataStore.js's own comment on this) - typing this
 // as the real ReturnType<typeof createClient> makes .update()'s argument
@@ -410,6 +412,102 @@ async function runLimitBuddyAlerts(supabase) {
   return { checked: limited.length, due: due.length, sent }
 }
 
+// --- Value-edge alerts (CoachGPT round 2) -------------------------------
+// Proactive half of CoachGPT: pushes when a followed team/fighter has a
+// real price edge on the board, rather than only answering when asked in
+// chat. findBoardValue is the exact same "meaningful edge" bar the Odds
+// tab's own value flag already uses (via computeBestValue), scanned
+// against each represented sport's bulk list ONCE per run - not once per
+// followed participant - so this piggybacks on apiCache.js's existing
+// LIST_TTL cache the same way odds-snapshot.js already does rather than
+// spending extra Odds-API provider quota.
+const VALUE_EDGE_SPORTS = ['football', 'ufc', ...Object.keys(GENERIC_SPORTS)]
+
+/** @param {string} sport */
+function sportListPath(sport) {
+  if (sport === 'football') return '/api/odds'
+  if (sport === 'ufc') return '/api/ufc'
+  return `/api/sport?sport=${encodeURIComponent(sport)}`
+}
+
+/**
+ * @param {string} sport
+ * @returns {Promise<any[]>}
+ */
+async function fetchSportList(sport) {
+  const res = await fetch(`${SITE_URL}${sportListPath(sport)}`)
+  if (!res.ok) return []
+  return res.json()
+}
+
+/** @param {Supabase} supabase */
+async function runValueEdgeAlerts(supabase) {
+  const { data: optedIn } = await supabase.from('profiles').select('id').eq('notification_prefs->>valueEdgeAlerts', 'true')
+  if (!optedIn?.length) return { checked: 0 }
+
+  const userIds = optedIn.map((p) => p.id)
+  const { data: follows } = await supabase.from('followed_participants').select('user_id,sport,participant_name').in('user_id', userIds)
+  if (!follows?.length) return { checked: 0 }
+
+  /** @type {Map<string, {userId: string, name: string}[]>} */
+  const followersBySport = new Map()
+  for (const row of follows) {
+    if (!VALUE_EDGE_SPORTS.includes(row.sport)) continue
+    if (!followersBySport.has(row.sport)) followersBySport.set(row.sport, [])
+    followersBySport.get(row.sport)?.push({ userId: row.user_id, name: row.participant_name })
+  }
+  if (!followersBySport.size) return { checked: userIds.length, found: 0 }
+
+  // Keyed by user+fixture so the same edge matching two of a user's
+  // followed names (e.g. following both sides of the same fixture) can't
+  // produce two rows and collide with value_edge_alerts_sent's unique
+  // constraint - edges within a sport are already richest-first, so the
+  // first candidate found for a key is the best one.
+  /** @type {Map<string, {user_id: string, fixture_id: string, sport: string, matchup: string, selection: string, best: number, bookmaker: string|null, pct: number}>} */
+  const candidateMap = new Map()
+  for (const [sport, followers] of followersBySport) {
+    const items = await fetchSportList(sport)
+    const edges = findBoardValue(items, sport, { limit: 50 })
+    for (const edge of edges) {
+      const haystack = edge.matchup.toLowerCase()
+      for (const follower of followers) {
+        if (!haystack.includes(follower.name.toLowerCase())) continue
+        const key = `${follower.userId}|${edge.id}`
+        if (candidateMap.has(key)) continue
+        candidateMap.set(key, {
+          user_id: follower.userId,
+          fixture_id: String(edge.id),
+          sport,
+          matchup: edge.matchup,
+          selection: edge.selection,
+          best: edge.best,
+          bookmaker: edge.bookmaker,
+          pct: edge.pct
+        })
+      }
+    }
+  }
+  const candidates = [...candidateMap.values()]
+  if (!candidates.length) return { checked: userIds.length, found: 0 }
+
+  const { data: alreadySent } = await supabase
+    .from('value_edge_alerts_sent')
+    .select('user_id,fixture_id')
+    .in('user_id', [...new Set(candidates.map((c) => c.user_id))])
+  const sentKeys = new Set((alreadySent ?? []).map((r) => `${r.user_id}|${r.fixture_id}`))
+  const fresh = candidates.filter((c) => !sentKeys.has(`${c.user_id}|${c.fixture_id}`))
+  if (!fresh.length) return { checked: userIds.length, found: candidates.length, sent: 0 }
+
+  await supabase.from('value_edge_alerts_sent').insert(fresh.map((c) => ({ user_id: c.user_id, fixture_id: c.fixture_id, sport: c.sport })))
+
+  const sent = await sendAll(supabase, fresh, (c) => ({
+    title: '🧠 CoachGPT spotted value',
+    body: `${c.selection} in ${c.matchup} at ${c.best.toFixed(2)}${c.bookmaker ? ` (${c.bookmaker})` : ''} - ${c.pct.toFixed(0)}% above the market.`,
+    url: '/#/odds'
+  }))
+  return { checked: userIds.length, found: candidates.length, sent }
+}
+
 /**
  * @param {Request} req
  * @returns {Promise<Response>}
@@ -424,12 +522,13 @@ export default async (req) => {
 
   // Independent of each other (different tables, different push copy), so
   // they run concurrently rather than one after another - and one throwing
-  // doesn't stop the other two from still doing their job.
-  const [kickoffReminders, oddsAlerts, followedResults, limitBuddyAlerts] = await Promise.allSettled([
+  // doesn't stop the others from still doing their job.
+  const [kickoffReminders, oddsAlerts, followedResults, limitBuddyAlerts, valueEdgeAlerts] = await Promise.allSettled([
     runKickoffReminders(supabase),
     runOddsAlerts(supabase),
     runFollowedResults(supabase),
-    runLimitBuddyAlerts(supabase)
+    runLimitBuddyAlerts(supabase),
+    runValueEdgeAlerts(supabase)
   ])
 
   /** @param {PromiseSettledResult<any>} r */
@@ -439,7 +538,8 @@ export default async (req) => {
       kickoffReminders: settle(kickoffReminders),
       oddsAlerts: settle(oddsAlerts),
       followedResults: settle(followedResults),
-      limitBuddyAlerts: settle(limitBuddyAlerts)
+      limitBuddyAlerts: settle(limitBuddyAlerts),
+      valueEdgeAlerts: settle(valueEdgeAlerts)
     }),
     { status: 200, headers: { 'content-type': 'application/json' } }
   )

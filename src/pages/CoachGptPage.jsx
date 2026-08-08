@@ -1,11 +1,35 @@
 import { useEffect, useRef, useState } from 'react'
 import { Link, useLocation, useNavigate } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext.jsx'
+import { useBetSlip } from '../context/BetSlipContext.jsx'
 import * as dataStore from '../lib/dataStore.js'
 import { sendCoachGptMessage } from '../api/coachGptClient.js'
 import { useAsyncAction } from '../lib/useAsyncAction.js'
 import { formatRelativeTime } from '../utils/format.js'
 import EmptyState from '../components/EmptyState.jsx'
+
+// "Log this" - a message's `grounding` (see netlify/functions/coachgpt.js's
+// groundFixtureOutcomes/groundRunner) is real BetSlip legs, not a parse of
+// CoachGPT's prose reply. Rather than guess which one it actually leaned on
+// from free text, every priced option from the fixture/race it looked up
+// is offered so the user picks the one it was talking about - same number
+// of taps as picking a price on the Odds tab, just without retyping it.
+function LogThisRow({ legs, onPick }) {
+  if (!legs?.length) return null
+  return (
+    <div className="topbar-actions" style={{ flexWrap: 'wrap', marginTop: 6 }}>
+      {legs.map((leg) => (
+        <button
+          key={`${leg.selection}-${leg.eventId ?? leg.horseId ?? leg.event}`}
+          className="btn btn-secondary btn-small"
+          onClick={() => onPick(leg)}
+        >
+          📝 {leg.selection} @ {leg.odds.toFixed(2)}
+        </button>
+      ))}
+    </div>
+  )
+}
 
 // A different voice from the Insights page's "Coach's take" (CoachTake.jsx) -
 // that one only ever reflects a user's own record and never tips. This is a
@@ -18,6 +42,7 @@ const EXAMPLE_PROMPTS = ['What’s the value bet for Arsenal tonight?', 'Tell me
 
 export default function CoachGptPage() {
   const { user } = useAuth()
+  const { loadLegs } = useBetSlip()
   const location = useLocation()
   const navigate = useNavigate()
   const [messages, setMessages] = useState(null)
@@ -68,9 +93,13 @@ export default function CoachGptPage() {
       // res.reply can still come back empty on a genuine Anthropic failure
       // (bad key, network blip) even though the request itself succeeded -
       // that must never just vanish silently, or it reads exactly like the
-      // "coach isn't replying" bug this file used to have.
-      const body = res.reply || "Couldn't get a straight answer that time - mind trying again, maybe with a bit more detail?"
-      const assistantMessage = await dataStore.addCoachMessage({ userId: user.id, role: 'assistant', body })
+      // "coach isn't replying" bug this file used to have. Named replyBody,
+      // not body - shadowing the outer `body` param here throws a real
+      // "Cannot access before initialization" TDZ error the moment this
+      // block's first `body` reference (a few lines up) runs, since a
+      // const anywhere in a scope claims that name for the WHOLE scope.
+      const replyBody = res.reply || "Couldn't get a straight answer that time - mind trying again, maybe with a bit more detail?"
+      const assistantMessage = await dataStore.addCoachMessage({ userId: user.id, role: 'assistant', body: replyBody, grounding: res.grounding ?? null })
       setMessages((m) => [...(m ?? []), assistantMessage])
     }, "Couldn't reach the Coach - try again")
     setSending(false)
@@ -120,6 +149,7 @@ export default function CoachGptPage() {
                     <div className={mine ? 'chat-bubble' : 'chat-bubble coach-chat-bubble'}>
                       <div>{m.body}</div>
                     </div>
+                    {!mine && <LogThisRow legs={m.grounding} onPick={(leg) => loadLegs([leg])} />}
                     <div className="chat-message-time">{formatRelativeTime(m.createdAt)}</div>
                   </div>
                 </div>

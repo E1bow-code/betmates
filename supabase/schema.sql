@@ -946,3 +946,36 @@ create policy "user reads own coach messages" on coach_messages for select using
 create policy "user inserts own coach messages" on coach_messages for insert with check (
   auth.uid() = user_id
 );
+
+-- grounding: real BetSlip legs for the "Log this" quick action on an
+-- assistant message (netlify/functions/coachgpt.js's
+-- groundFixtureOutcomes/groundRunner) - null on a user message, and null
+-- on an assistant message that wasn't grounded in exactly one fixture/
+-- race. No new RLS policy needed: the two policies above already cover
+-- every column on this table.
+alter table coach_messages add column if not exists grounding jsonb;
+
+-- --- Value-edge push alerts -------------------------------------------------
+-- netlify/functions/alert-checks.js's runValueEdgeAlerts - the proactive
+-- half of CoachGPT: pushes when a followed team/fighter (followed_participants)
+-- has a real price edge (src/utils/valueFinder.js's findBoardValue, the same
+-- "meaningful edge" bar the Odds tab's own value flag uses), rather than only
+-- answering when asked in chat.
+--
+-- Dedup is per (user, fixture) rather than a single watermark timestamp like
+-- team_news_notified_at - a fixture has no publish-date-style ordering to
+-- compare a watermark against, so "have we already told this user about this
+-- fixture" has to be tracked per row instead.
+create table value_edge_alerts_sent (
+  id uuid primary key default gen_random_uuid(),
+  user_id uuid not null references profiles(id) on delete cascade,
+  fixture_id text not null,
+  sport text not null,
+  sent_at timestamptz not null default now(),
+  unique (user_id, fixture_id)
+);
+
+-- Service-role only (a scheduled function, nobody signed in) - RLS enabled
+-- with zero policies means anon/authenticated can't touch this table at all,
+-- which is correct: there's no client-side reason to read or write it.
+alter table value_edge_alerts_sent enable row level security;

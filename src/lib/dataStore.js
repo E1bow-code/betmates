@@ -617,10 +617,10 @@ function mapDirectMessage(row) {
 }
 
 function mapCoachMessage(row) {
-  return { id: row.id, userId: row.user_id, role: row.role, body: row.body, createdAt: row.created_at }
+  return { id: row.id, userId: row.user_id, role: row.role, body: row.body, grounding: row.grounding ?? null, createdAt: row.created_at }
 }
 
-/** @param {string} userId @returns {Promise<{id: string, userId: string, role: 'user'|'assistant', body: string, createdAt: string}[]>} */
+/** @param {string} userId @returns {Promise<{id: string, userId: string, role: 'user'|'assistant', body: string, grounding: object|null, createdAt: string}[]>} */
 export async function listCoachMessages(userId) {
   if (!isSupabaseConfigured) return local.listCoachMessages(userId)
   const { data, error } = await supabase
@@ -633,10 +633,13 @@ export async function listCoachMessages(userId) {
   return data.map(mapCoachMessage)
 }
 
-/** @param {{userId: string, role: 'user'|'assistant', body: string}} entry */
-export async function addCoachMessage({ userId, role, body }) {
-  if (!isSupabaseConfigured) return local.addCoachMessage({ userId, role, body })
-  const { data, error } = await supabase.from('coach_messages').insert({ user_id: userId, role, body }).select().single()
+// grounding: real BetSlip legs a "Log this" affordance can pre-fill from -
+// see netlify/functions/coachgpt.js's groundFixtureOutcomes/groundRunner.
+// Only ever set on an assistant message; always null on a user message.
+/** @param {{userId: string, role: 'user'|'assistant', body: string, grounding?: object|null}} entry */
+export async function addCoachMessage({ userId, role, body, grounding = null }) {
+  if (!isSupabaseConfigured) return local.addCoachMessage({ userId, role, body, grounding })
+  const { data, error } = await supabase.from('coach_messages').insert({ user_id: userId, role, body, grounding }).select().single()
   if (error) throw error
   return mapCoachMessage(data)
 }

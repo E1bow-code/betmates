@@ -425,6 +425,14 @@ export default function AccountPage() {
             <input type="checkbox" checked={user.notificationPrefs?.teamNews ?? false} onChange={() => toggleNotification('teamNews')} />
             <span>News about a team or player you follow</span>
           </label>
+          <label className="field-check">
+            <input
+              type="checkbox"
+              checked={user.notificationPrefs?.valueEdgeAlerts ?? false}
+              onChange={() => toggleNotification('valueEdgeAlerts')}
+            />
+            <span>🧠 CoachGPT spots real value on a team or fighter you follow</span>
+          </label>
           <p className="hint">
             {isPushSupported()
               ? 'Turn on push above to actually receive these on this device, not just store the preference.'

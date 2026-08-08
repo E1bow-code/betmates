@@ -61,6 +61,56 @@ function summariseRunner(race, runner) {
   }
 }
 
+// Builds real BetSlip legs (the shape FixtureDetailPage.jsx's own `pick()`
+// builds) from the RAW fixture/runner objects - not the trimmed summaries
+// above, which drop fields (bookmaker deep link, race/runner id) the model
+// doesn't need but the client does to pre-fill "Log this". Kept separate
+// from summariseFixture/summariseRunner so what Claude sees never grows
+// just because the client needs more; this never reaches Claude at all.
+function groundFixtureOutcomes(fixture, sportKey) {
+  const h2h = fixture.markets?.find((m) => m.key === 'h2h')
+  if (!h2h) return null
+  const homeTeam = fixture.homeTeam ?? fixture.participantA ?? fixture.fighterA
+  const awayTeam = fixture.awayTeam ?? fixture.participantB ?? fixture.fighterB
+  const legs = (h2h.outcomes ?? [])
+    .map((outcome) => {
+      const best = outcome.bestOdds
+      if (!best) return null
+      return {
+        event: `${homeTeam} v ${awayTeam}`,
+        market: h2h.label,
+        selection: outcome.name === 'Home' ? homeTeam : outcome.name === 'Away' ? awayTeam : outcome.name,
+        odds: best.decimal,
+        bookmaker: best.bookmaker,
+        link: best.link,
+        linkIsBetslip: best.isBetslipLink,
+        sport: sportKey,
+        kickoff: fixture.kickoff,
+        eventId: fixture.id,
+        marketKey: 'h2h',
+        outcomeName: outcome.name
+      }
+    })
+    .filter(Boolean)
+  return legs.length ? legs : null
+}
+
+function groundRunner(race, runner) {
+  if (!runner.bestOdds) return null
+  return {
+    event: `${race.course} - ${race.raceName}`,
+    market: 'Win',
+    selection: runner.name,
+    odds: runner.bestOdds.decimal,
+    bookmaker: runner.bestOdds.bookmaker,
+    sport: 'racing',
+    kickoff: race.offTime,
+    runnerCount: race.runners.length,
+    raceId: race.id,
+    horseId: runner.id
+  }
+}
+
 // Every sport this tool knows how to search, in the order a "no sport
 // given" search tries them - football first since it's this app's primary
 // sport, UFC/racing next since a fighter or horse name is unambiguous
@@ -97,8 +147,16 @@ async function searchSport(siteUrl, sport, query) {
   return matches.length ? { kind: 'fixture', matches } : null
 }
 
-async function toolFindFixture(siteUrl, { query, sport }) {
+// groundingOut, if passed, gets a `.value` set to real BetSlip-ready legs
+// for the match(es) this call resolved to - but only when unambiguous
+// (nothing safe to pre-fill for "which Arsenal game"). Left untouched
+// (not even set to null) on an ambiguous/not-found result, so the caller
+// decides what "no grounding this call" means - see the handler below,
+// which always overwrites on every find_fixture call so only the LAST
+// call's result can ever be offered as "Log this".
+async function toolFindFixture(siteUrl, { query, sport }, groundingOut) {
   const normalisedSport = sport && SPORT_ORDER.includes(sport) ? sport : null
+  let matchedSport = normalisedSport
   let result = normalisedSport ? await searchSport(siteUrl, normalisedSport, query) : null
 
   // No sport specified (or nothing found in the one given) - try every
@@ -108,7 +166,10 @@ async function toolFindFixture(siteUrl, { query, sport }) {
     for (const key of SPORT_ORDER) {
       if (key === normalisedSport) continue
       result = await searchSport(siteUrl, key, query)
-      if (result) break
+      if (result) {
+        matchedSport = key
+        break
+      }
     }
   }
   if (!result) return { found: false }
@@ -116,24 +177,29 @@ async function toolFindFixture(siteUrl, { query, sport }) {
   if (result.kind === 'racing') {
     const topScore = result.matches[0].score
     const leaders = result.matches.filter((m) => m.score === topScore)
+    // A single race naturally returns every runner tied on a course/
+    // race-name match (see matchRaceQuery) - that's not ambiguity the
+    // way two different fixtures matching equally is, it's "here's the
+    // field", so only flag ambiguous when the leaders are from
+    // different races entirely.
+    const ambiguous = new Set(leaders.map((m) => m.race.id)).size > 1
+    if (!ambiguous && groundingOut) groundingOut.value = leaders.map((m) => groundRunner(m.race, m.runner)).filter(Boolean)
     return {
       found: true,
       sport: 'racing',
-      // A single race naturally returns every runner tied on a course/
-      // race-name match (see matchRaceQuery) - that's not ambiguity the
-      // way two different fixtures matching equally is, it's "here's the
-      // field", so only flag ambiguous when the leaders are from
-      // different races entirely.
-      ambiguous: new Set(leaders.map((m) => m.race.id)).size > 1,
+      ambiguous,
       matches: leaders.map((m) => summariseRunner(m.race, m.runner))
     }
   }
 
   const topScore = result.matches[0].score
   const leaders = result.matches.filter((m) => m.score === topScore)
+  const ambiguous = leaders.length > 1
+  if (!ambiguous && groundingOut) groundingOut.value = groundFixtureOutcomes(leaders[0].fixture, matchedSport ?? 'football')
   return {
     found: true,
-    ambiguous: leaders.length > 1,
+    sport: matchedSport,
+    ambiguous,
     matches: leaders.map((m) => summariseFixture(m.fixture))
   }
 }
@@ -161,12 +227,21 @@ export default async (req) => {
 
   const siteUrl = process.env.URL || new URL(req.url).origin
 
+  // Last find_fixture call's grounding wins - if the model calls it again
+  // later in the same turn (a clarifying re-search, say) that's a better
+  // signal of what the final reply is actually about than an earlier call.
+  let lastGrounding = null
   const callTool = async (name, input) => {
-    if (name === 'find_fixture') return toolFindFixture(siteUrl, input)
+    if (name === 'find_fixture') {
+      const groundingOut = {}
+      const result = await toolFindFixture(siteUrl, input, groundingOut)
+      lastGrounding = groundingOut.value ?? null
+      return result
+    }
     if (name === 'get_player_profile') return toolGetPlayerProfile(input.name)
     return { error: `Unknown tool: ${name}` }
   }
 
   const reply = await runCoachGptTurn({ apiKey, history: body?.history, message, callTool })
-  return json({ configured: true, reply })
+  return json({ configured: true, reply, grounding: reply ? lastGrounding : null })
 }
