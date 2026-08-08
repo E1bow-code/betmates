@@ -1610,6 +1610,40 @@ h1, h2, .topbar h1, .sheet-title, .auth-title {
 .predictor-standings-list { padding-left: 1.4em; margin: 8px 0; }
 .predictor-standings-list li { padding: 3px 0; }
 
+/* The headline action on ManualEntrySheet ("Log a bet") - a bordered,
+   accent-tinted card rather than a form row, so scanning reads as the fast
+   path it is instead of a buried optional field. Same tint language as
+   .limit-warning, as a standalone card rather than an inline banner. */
+.scan-cta {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  text-align: center;
+  padding: 18px 16px;
+  margin-bottom: 4px;
+  border: 1px solid var(--accent);
+  border-radius: 10px;
+  background: color-mix(in srgb, var(--accent) 10%, transparent);
+}
+.scan-cta-title { margin: 0; font-size: 1rem; font-weight: 700; }
+.scan-cta-body { margin: 0; font-size: 0.85rem; color: var(--text-dim); max-width: 320px; }
+.scan-cta-button { position: relative; margin-top: 6px; cursor: pointer; }
+/* Standard clip-based visually-hidden pattern - keeps the real <input>
+   keyboard/screen-reader operable (unlike display:none), while the
+   surrounding <label> carries the actual button styling. */
+.scan-cta-input {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
 .ocr-raw-text { margin: 8px 0 14px; font-size: 0.8rem; color: var(--text-dim); }
 .ocr-raw-text summary { cursor: pointer; }
 .ocr-raw-text pre {

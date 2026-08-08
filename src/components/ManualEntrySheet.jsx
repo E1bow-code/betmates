@@ -122,18 +122,23 @@ export default function ManualEntrySheet({ userId, onClose, onSaved }) {
         <h2 className="sheet-title">Log a bet</h2>
         <p className="hint">For anything that didn't come off the Odds tab - a real slip, an old bet, anything from elsewhere.</p>
 
-        <label className="field">
-          <span>📷 Scan a bet slip photo (optional)</span>
-          <input type="file" accept="image/*" capture="environment" onChange={handleScan} disabled={scanning} />
-        </label>
-        <p className="hint">or paste a screenshot - Ctrl+V / ⌘V</p>
-        {scanning && <p className="hint">Reading your slip…</p>}
-        {rawText && (
-          <details className="ocr-raw-text">
-            <summary>Recognised text - odds/stake below are a guess, copy the rest in yourself</summary>
-            <pre>{rawText}</pre>
-          </details>
-        )}
+        <div className="scan-cta">
+          <p className="scan-cta-title">📷 Scan your bet slip</p>
+          <p className="scan-cta-body">
+            Screenshot it and paste - Ctrl+V / ⌘V - or choose a photo. We'll read off the odds and stake for you.
+          </p>
+          <label className="btn btn-primary scan-cta-button">
+            {scanning ? 'Reading your slip…' : 'Choose a photo'}
+            <input type="file" accept="image/*" onChange={handleScan} disabled={scanning} className="scan-cta-input" />
+          </label>
+          {rawText && (
+            <details className="ocr-raw-text">
+              <summary>Recognised text - odds/stake below are a guess, copy the rest in yourself</summary>
+              <pre>{rawText}</pre>
+            </details>
+          )}
+        </div>
+        <p className="hint">Still need the event, market and selection below - scanning can't reliably read those off every slip.</p>
 
         <form onSubmit={handleSave}>
           <label className="field">
