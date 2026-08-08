@@ -920,3 +920,29 @@ alter publication supabase_realtime add table fixture_chat_messages;
 alter table bet_reactions replica identity full;
 alter publication supabase_realtime add table bet_comments;
 alter publication supabase_realtime add table bet_reactions;
+
+-- --- CoachGPT chat history --------------------------------------------
+-- One row per turn (role 'user'|'assistant') in a user's private chat
+-- with CoachGPT (src/pages/CoachGptPage.jsx) - same shape as
+-- direct_messages above, but single-user (no recipient) since this is a
+-- conversation with the AI, not between two people. No realtime
+-- publication entry: unlike the chat surfaces above, this is a single-
+-- device request/response flow (see netlify/functions/coachgpt.js,
+-- which is stateless and has no Supabase access at all), not a shared
+-- thread another party needs to see arrive live.
+create table coach_messages (
+  id uuid primary key default gen_random_uuid(),
+  user_id uuid not null references profiles(id) on delete cascade,
+  role text not null check (role in ('user', 'assistant')),
+  body text not null,
+  created_at timestamptz not null default now()
+);
+
+alter table coach_messages enable row level security;
+
+create policy "user reads own coach messages" on coach_messages for select using (
+  auth.uid() = user_id
+);
+create policy "user inserts own coach messages" on coach_messages for insert with check (
+  auth.uid() = user_id
+);

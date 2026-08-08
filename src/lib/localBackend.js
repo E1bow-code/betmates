@@ -43,6 +43,7 @@ import { bucketByDay, distinctUsersSince } from '../utils/adminAnalyticsAgg.js'
  * @property {{id: string, blockerId: string, blockedId: string, createdAt: string}[]} blocks
  * @property {{id: string, postId: string, reporterId: string, reason: string, createdAt: string}[]} postReports
  * @property {DirectMessage[]} directMessages
+ * @property {{id: string, userId: string, role: 'user'|'assistant', body: string, createdAt: string}[]} coachMessages
  * @property {(OddsAlert & {userId: string})[]} oddsAlerts
  * @property {{id: string, userId: string, sport: string, eventId: string, eventLabel: string, kickoff: string, createdAt: string}[]} followedFixtures
  * @property {{id: string, userId: string, sport: string, name: string, createdAt: string}[]} followedParticipants
@@ -72,6 +73,7 @@ const EMPTY_DB = {
   blocks: [],
   postReports: [],
   directMessages: [],
+  coachMessages: [],
   oddsAlerts: [],
   followedFixtures: [],
   followedParticipants: [],
@@ -534,6 +536,25 @@ export function sendDirectMessage(userId, friendId, body) {
   const db = readDb()
   const message = { id: uid('dm'), senderId: userId, recipientId: friendId, body, createdAt: new Date().toISOString() }
   db.directMessages.push(message)
+  writeDb(db)
+  return delay(message)
+}
+
+/** @param {string} userId @returns {Promise<{id: string, userId: string, role: 'user'|'assistant', body: string, createdAt: string}[]>} */
+export function listCoachMessages(userId) {
+  const db = readDb()
+  return delay(
+    db.coachMessages
+      .filter((m) => m.userId === userId)
+      .sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime())
+  )
+}
+
+/** @param {{userId: string, role: 'user'|'assistant', body: string}} entry */
+export function addCoachMessage({ userId, role, body }) {
+  const db = readDb()
+  const message = { id: uid('coach'), userId, role, body, createdAt: new Date().toISOString() }
+  db.coachMessages.push(message)
   writeDb(db)
   return delay(message)
 }

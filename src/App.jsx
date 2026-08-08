@@ -13,6 +13,7 @@ import OnboardingTour from './components/OnboardingTour.jsx'
 import RealityCheck from './components/RealityCheck.jsx'
 import BetSlipBar from './components/BetSlipBar.jsx'
 import BetBuilderSheet from './components/BetBuilderSheet.jsx'
+import CoachLauncher from './components/CoachLauncher.jsx'
 // AuthPage is the one page kept as a regular (non-lazy) import - it's the
 // very first thing a logged-out visitor sees, so splitting it would add a
 // network round-trip to the app's most common cold-start path instead of
@@ -45,6 +46,7 @@ const AdminErrorLogsPage = lazy(() => import('./pages/AdminErrorLogsPage.jsx'))
 const AdminAnalyticsPage = lazy(() => import('./pages/AdminAnalyticsPage.jsx'))
 const DirectMessagePage = lazy(() => import('./pages/DirectMessagePage.jsx'))
 const MessagesInboxPage = lazy(() => import('./pages/MessagesInboxPage.jsx'))
+const CoachGptPage = lazy(() => import('./pages/CoachGptPage.jsx'))
 import NewsTickerBar from './components/NewsTickerBar.jsx'
 import ScatteredSportPhotos from './components/ScatteredSportPhotos.jsx'
 import NewsSidebar from './components/NewsSidebar.jsx'
@@ -245,6 +247,7 @@ function Shell() {
                 <Route path="/tracker" element={<TrackerPage />} />
                 <Route path="/achievements" element={<AchievementsPage />} />
                 <Route path="/insights" element={<InsightsPage />} />
+                <Route path="/coach" element={<CoachGptPage />} />
                 <Route path="/alerts" element={<NotificationsPage />} />
                 <Route path="/account" element={<AccountPage />} />
                 <Route path="/admin/reports" element={<AdminReportsPage />} />
@@ -267,6 +270,7 @@ function Shell() {
           <NewsSidebar headlines={newsHeadlines} />
           {showTour && <OnboardingTour onDone={dismissTour} />}
           <RealityCheck />
+          <CoachLauncher />
         </div>
       </BetSlipProvider>
     </ActivityProvider>

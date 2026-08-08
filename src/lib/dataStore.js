@@ -616,6 +616,31 @@ function mapDirectMessage(row) {
   return { id: row.id, senderId: row.sender_id, recipientId: row.recipient_id, body: row.body, createdAt: row.created_at }
 }
 
+function mapCoachMessage(row) {
+  return { id: row.id, userId: row.user_id, role: row.role, body: row.body, createdAt: row.created_at }
+}
+
+/** @param {string} userId @returns {Promise<{id: string, userId: string, role: 'user'|'assistant', body: string, createdAt: string}[]>} */
+export async function listCoachMessages(userId) {
+  if (!isSupabaseConfigured) return local.listCoachMessages(userId)
+  const { data, error } = await supabase
+    .from('coach_messages')
+    .select('*')
+    .eq('user_id', userId)
+    .order('created_at', { ascending: true })
+    .limit(200)
+  if (error) throw error
+  return data.map(mapCoachMessage)
+}
+
+/** @param {{userId: string, role: 'user'|'assistant', body: string}} entry */
+export async function addCoachMessage({ userId, role, body }) {
+  if (!isSupabaseConfigured) return local.addCoachMessage({ userId, role, body })
+  const { data, error } = await supabase.from('coach_messages').insert({ user_id: userId, role, body }).select().single()
+  if (error) throw error
+  return mapCoachMessage(data)
+}
+
 /** @param {string} userId @returns {Promise<{id: string, displayName: string, avatarUrl: string|null}|null>} */
 export async function getProfileById(userId) {
   if (!isSupabaseConfigured) return local.getProfileById(userId)

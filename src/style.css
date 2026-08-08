@@ -216,6 +216,29 @@ h1, h2, .topbar h1, .sheet-title, .auth-title {
   box-shadow: 0 2px 10px rgba(0, 0, 0, 0.35);
 }
 
+/* CoachGPT's floating entry point (src/components/CoachLauncher.jsx) -
+   same fixed-floating treatment as .more-menu-trigger above, mirrored to
+   the left side so the two triggers never overlap. */
+.coach-fab {
+  position: fixed;
+  left: 14px;
+  bottom: calc(126px + env(safe-area-inset-bottom, 0));
+  z-index: 21;
+  width: 44px;
+  height: 44px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--accent);
+  color: var(--accent-ink);
+  border: 1px solid var(--accent-dim);
+  border-radius: 999px;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.35);
+  font-size: 1.2rem;
+  text-decoration: none;
+}
+.coach-fab:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
 .more-menu-badge {
   position: absolute;
   top: -3px;
@@ -3104,4 +3127,10 @@ a.race-card:hover, a.race-card:focus-visible { background: rgba(var(--accent-rgb
   gap: 10px;
   margin-top: 10px;
 }
+
+/* CoachGPT's assistant bubble (src/pages/CoachGptPage.jsx) - reuses the
+   Coach card's accent tint on top of the ordinary .chat-bubble shape, so
+   it reads as "the Coach talking" even though it's a different backend
+   persona from CoachTake.jsx's reflective card. */
+.coach-chat-bubble { background: linear-gradient(180deg, rgba(var(--accent-rgb), 0.1) 0%, transparent 70%), var(--surface-2); }
 .coach-card-actions .btn-small { flex-shrink: 0; }
