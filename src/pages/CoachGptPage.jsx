@@ -65,10 +65,13 @@ export default function CoachGptPage() {
         setUnavailable(true)
         return
       }
-      if (res.reply) {
-        const assistantMessage = await dataStore.addCoachMessage({ userId: user.id, role: 'assistant', body: res.reply })
-        setMessages((m) => [...(m ?? []), assistantMessage])
-      }
+      // res.reply can still come back empty on a genuine Anthropic failure
+      // (bad key, network blip) even though the request itself succeeded -
+      // that must never just vanish silently, or it reads exactly like the
+      // "coach isn't replying" bug this file used to have.
+      const body = res.reply || "Couldn't get a straight answer that time - mind trying again, maybe with a bit more detail?"
+      const assistantMessage = await dataStore.addCoachMessage({ userId: user.id, role: 'assistant', body })
+      setMessages((m) => [...(m ?? []), assistantMessage])
     }, "Couldn't reach the Coach - try again")
     setSending(false)
     if (!ok) setMessages((m) => (m ?? []).filter((x) => x.id !== userMessage.id))

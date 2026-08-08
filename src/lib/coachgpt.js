@@ -110,43 +110,49 @@ export const COACHGPT_TOOLS = [
   }
 ]
 
+async function callClaude(apiKey, messages, allowTools) {
+  try {
+    const res = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json', 'x-api-key': apiKey, 'anthropic-version': ANTHROPIC_VERSION },
+      body: JSON.stringify({
+        model: COACHGPT_MODEL,
+        max_tokens: 500,
+        system: COACHGPT_SYSTEM,
+        ...(allowTools ? { tools: COACHGPT_TOOLS } : {}),
+        messages
+      })
+    })
+    if (!res.ok) {
+      const detail = await res.text().catch(() => '')
+      console.error(`coachgpt: Anthropic ${res.status}: ${detail.slice(0, 300)}`)
+      return null
+    }
+    return await res.json()
+  } catch (err) {
+    console.error('coachgpt: request failed:', err.message)
+    return null
+  }
+}
+
 // history: [{ role: 'user'|'assistant', content: string }] - prior turns
 // of this conversation, oldest first. message: the new user message.
 // callTool: async (name, input) => JSON-serialisable result.
-// Returns the final assistant text, or null if Claude never produced one
-// (e.g. every attempt was a tool call and the round budget ran out).
+// Returns the final assistant text, or null only if the Anthropic request
+// itself failed outright (bad key, network error, etc) - a vague/broad
+// question that eats the whole tool-round budget still gets a real answer,
+// see the forced no-tools call below.
 export async function runCoachGptTurn({ apiKey, history, message, callTool }) {
   if (!apiKey) return null
 
   const messages = [...(history ?? []).map((m) => ({ role: m.role, content: m.content })), { role: 'user', content: message }]
 
   for (let round = 0; round < MAX_TOOL_ROUNDS; round++) {
-    let data
-    try {
-      const res = await fetch('https://api.anthropic.com/v1/messages', {
-        method: 'POST',
-        headers: { 'content-type': 'application/json', 'x-api-key': apiKey, 'anthropic-version': ANTHROPIC_VERSION },
-        body: JSON.stringify({
-          model: COACHGPT_MODEL,
-          max_tokens: 500,
-          system: COACHGPT_SYSTEM,
-          tools: COACHGPT_TOOLS,
-          messages
-        })
-      })
-      if (!res.ok) {
-        const detail = await res.text().catch(() => '')
-        console.error(`coachgpt: Anthropic ${res.status}: ${detail.slice(0, 300)}`)
-        return null
-      }
-      data = await res.json()
-    } catch (err) {
-      console.error('coachgpt: request failed:', err.message)
-      return null
-    }
+    const data = await callClaude(apiKey, messages, true)
+    if (!data) return null
 
-    const content = data?.content ?? []
-    if (data?.stop_reason !== 'tool_use') {
+    const content = data.content ?? []
+    if (data.stop_reason !== 'tool_use') {
       return content.find((b) => b.type === 'text')?.text?.trim() ?? null
     }
 
@@ -166,5 +172,12 @@ export async function runCoachGptTurn({ apiKey, history, message, callTool }) {
     messages.push({ role: 'user', content: toolResults })
   }
 
-  return null
+  // Round budget ran out while Claude was still reaching for tools - this
+  // is what used to surface as "the coach just doesn't reply" for broad
+  // questions ("best value bet this weekend") with no single team/fighter/
+  // horse to anchor a lookup on. Strip the tools and force one last call
+  // so it has to answer in text from whatever it's already gathered,
+  // rather than leaving the user with nothing.
+  const finalData = await callClaude(apiKey, messages, false)
+  return finalData?.content?.find((b) => b.type === 'text')?.text?.trim() ?? null
 }
