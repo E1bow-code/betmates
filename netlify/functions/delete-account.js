@@ -68,6 +68,13 @@ export default async (req) => {
 
     return new Response(JSON.stringify({ success: true }), { status: 200, headers: { 'content-type': 'application/json' } })
   } catch (err) {
-    return new Response(JSON.stringify({ error: err.message }), { status: 500 })
+    // err isn't guaranteed to be a plain Error with a useful .message (a
+    // Supabase AuthRetryableFetchError's .message can itself be an opaque
+    // "{}" when the underlying fetch fails at the network level rather
+    // than returning a structured API error) - fall back through name/
+    // status rather than risk JSON.stringify silently dropping an
+    // undefined .message down to a bare, useless "{}" response body.
+    const message = (err instanceof Error && err.message) || err?.name || 'Failed to delete account.'
+    return new Response(JSON.stringify({ error: message }), { status: 500 })
   }
 }
