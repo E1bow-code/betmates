@@ -1,3 +1,4 @@
+// @ts-check
 // Client-triggered instant check, called from TrackerPage on load - gives
 // whoever's actually looking an up-to-the-minute result instead of waiting
 // for the next scheduled run. netlify/functions/auto-settle.js covers the

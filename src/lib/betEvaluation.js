@@ -1,3 +1,4 @@
+// @ts-check
 import { computeEachWayReturn } from '../utils/eachWay.js'
 
 // Pure score-vs-selection evaluation, no I/O - shared by src/lib/settlement.js

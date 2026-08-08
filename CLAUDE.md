@@ -13,11 +13,12 @@ anything needing a secret. Installable PWA with Web Push.
 ## Commands
 
 ```bash
-npm run dev      # vite on :5173 - API calls proxy to :8888 (see vite.config.js)
-netlify dev      # :8888, runs vite AND the functions - needed for anything hitting /api
-npm test         # node:test, no framework installed
-npm run build    # vite build + service worker
-npm run preview  # serve dist/
+npm run dev       # vite on :5173 - API calls proxy to :8888 (see vite.config.js)
+netlify dev       # :8888, runs vite AND the functions - needed for anything hitting /api
+npm test          # node:test, no framework installed
+npm run typecheck # tsc --noEmit over files opted into checking (see Conventions)
+npm run build     # vite build + service worker
+npm run preview   # serve dist/
 ```
 
 `npm run dev` alone gives you the UI but every `/api/*` call fails - use
@@ -102,7 +103,17 @@ every 15 minutes down to one, same frequency and behavior either way.
 
 ## Conventions
 
-- Plain JS, no TypeScript. ESM everywhere (`"type": "module"`).
+- Plain JS/JSX source (no `.ts`/`.tsx`), ESM everywhere (`"type": "module"`).
+  TypeScript is present as a dev-only checking tool, not a source language -
+  `tsconfig.json` has `checkJs` off by default, so a file is only
+  type-checked if it opts in with a `// @ts-check` comment at the top. Only
+  add that pragma to a file once it's actually clean; a handful of files on
+  the settlement path (`betEvaluation.js`, `settlement.js`, `eachWay.js`)
+  are opted in today. Run `npm run typecheck` before adding the pragma
+  elsewhere - most untyped JS throws inference noise (arithmetic on
+  loosely-typed values, component prop shapes) that isn't a real bug, so
+  opting in file-by-file keeps the tool actually green rather than
+  permanently red.
 - No CSS framework - one hand-written `src/style.css`, CSS custom properties
   for theming, `@media (prefers-color-scheme)` plus a stored override.
 - No state library. Context for cross-cutting state (auth, bet slip, toasts,

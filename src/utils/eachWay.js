@@ -1,3 +1,4 @@
+// @ts-check
 // Standard UK bookmaker each-way terms by field size - the actual terms a
 // given race pays vary by bookmaker and by handicap/non-handicap, but this
 // is the common default most books fall back to, and close enough for an
