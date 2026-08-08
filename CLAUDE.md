@@ -107,9 +107,9 @@ every 15 minutes down to one, same frequency and behavior either way.
   TypeScript is present as a dev-only checking tool, not a source language -
   `tsconfig.json` has `checkJs` off by default, so a file is only
   type-checked if it opts in with a `// @ts-check` comment at the top. Only
-  add that pragma to a file once it's actually clean; a handful of files on
-  the settlement path (`betEvaluation.js`, `settlement.js`, `eachWay.js`)
-  are opted in today. Run `npm run typecheck` before adding the pragma
+  add that pragma to a file once it's actually clean; the settlement path
+  (`betEvaluation.js`, `settlement.js`, `eachWay.js`) and the whole data
+  layer (`dataStore.js`) are opted in today. Run `npm run typecheck` before adding the pragma
   elsewhere - most untyped JS throws inference noise (arithmetic on
   loosely-typed values, component prop shapes) that isn't a real bug, so
   opting in file-by-file keeps the tool actually green rather than

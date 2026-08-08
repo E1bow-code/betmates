@@ -734,11 +734,11 @@ export function countReferrals(userId) {
 // No server to send a push from in local mode - the real subscribe/permission
 // flow in src/lib/push.js still runs, this just has nowhere to persist it.
 
-export function savePushSubscription() {
+export function savePushSubscription(_userId, _subscription) {
   return delay(null)
 }
 
-export function deletePushSubscription() {
+export function deletePushSubscription(_endpoint) {
   return delay(null)
 }
 

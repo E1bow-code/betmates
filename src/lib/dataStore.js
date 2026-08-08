@@ -1,3 +1,4 @@
+// @ts-check
 // Single seam between the UI and wherever group/bet/tracker data lives.
 // Same swappable-adapter idea as src/api/oddsClient.js: every function
 // here has a Supabase-backed implementation (used once VITE_SUPABASE_URL /
@@ -9,6 +10,127 @@
 import { supabase, isSupabaseConfigured } from './supabaseClient.js'
 import * as local from './localBackend.js'
 
+// Raw Postgrest rows are untyped (no generated Database types - see
+// supabase/schema.sql) - these describe the shape each map* function below
+// hands back to the UI, which is what every caller actually relies on.
+/**
+ * @typedef {object} Profile
+ * @property {string} id
+ * @property {string} email
+ * @property {string} displayName
+ * @property {string} dob
+ * @property {string} friendCode
+ * @property {string[]} bookmakerPrefs
+ * @property {{betPosted: boolean, betSettled: boolean, oddsMoved: boolean, [key: string]: boolean}} notificationPrefs
+ * @property {string} acceptedTermsAt
+ * @property {string} createdAt
+ * @property {boolean} isAdmin
+ * @property {string|null} avatarUrl
+ * @property {number|null} stakeLimitAmount
+ * @property {string|null} stakeLimitPeriod
+ * @property {string|null} limitBuddyId
+ */
+/**
+ * @typedef {object} Group
+ * @property {string} id
+ * @property {string} name
+ * @property {string} inviteCode
+ * @property {string} createdBy
+ * @property {string} createdAt
+ */
+/**
+ * @typedef {object} BetPost
+ * @property {string} id
+ * @property {string|null} groupId
+ * @property {string} userId
+ * @property {string} sport
+ * @property {string} marketType
+ * @property {any[]} selections
+ * @property {number|null} stake
+ * @property {boolean} stakeHidden
+ * @property {number|null} potentialReturn
+ * @property {'group'|'public'} visibility
+ * @property {'open'|'won'|'lost'|'void'} status
+ * @property {string} createdAt
+ * @property {string|null} settledAt
+ * @property {any[]|null} outcomes
+ */
+/**
+ * @typedef {object} ManualEntry
+ * @property {string} id
+ * @property {string} userId
+ * @property {string} sport
+ * @property {string} marketType
+ * @property {any[]} selections
+ * @property {number|null} stake
+ * @property {number|null} potentialReturn
+ * @property {'open'|'won'|'lost'|'void'} status
+ * @property {string} createdAt
+ * @property {string|null} settledAt
+ * @property {any[]|null} outcomes
+ */
+/**
+ * @typedef {object} GroupMessage
+ * @property {string} id
+ * @property {string} groupId
+ * @property {string} userId
+ * @property {string} body
+ * @property {string} createdAt
+ */
+/**
+ * @typedef {object} FixtureChatMessage
+ * @property {string} id
+ * @property {string} sport
+ * @property {string} eventId
+ * @property {string} userId
+ * @property {string} authorName
+ * @property {string} body
+ * @property {string} createdAt
+ */
+/**
+ * @typedef {object} DirectMessage
+ * @property {string} id
+ * @property {string} senderId
+ * @property {string} recipientId
+ * @property {string} body
+ * @property {string} createdAt
+ */
+/**
+ * @typedef {object} OddsAlert
+ * @property {string} id
+ * @property {string} sport
+ * @property {string} eventId
+ * @property {string} eventLabel
+ * @property {string} kickoff
+ * @property {string} marketLabel
+ * @property {string} selectionLabel
+ * @property {number} targetDecimal
+ * @property {string} createdAt
+ * @property {string|null} triggeredAt
+ */
+/**
+ * @typedef {object} Predictor
+ * @property {string} id
+ * @property {string} groupId
+ * @property {string} competition
+ * @property {string[]} participants
+ * @property {string} createdBy
+ * @property {string} createdAt
+ * @property {string[]|null} currentStandings
+ * @property {string|null} standingsUpdatedBy
+ * @property {string|null} standingsUpdatedAt
+ */
+/**
+ * @typedef {object} PredictorEntry
+ * @property {string} id
+ * @property {string} predictorId
+ * @property {string} userId
+ * @property {string[]} predictedOrder
+ * @property {string} createdAt
+ * @property {string} updatedAt
+ */
+
+/** @param {any} row @returns {Profile|null} */
 function mapProfile(row) {
   if (!row) return null
   return {
@@ -29,6 +151,7 @@ function mapProfile(row) {
   }
 }
 
+/** @param {any} row @returns {Group|null} */
 function mapGroup(row) {
   if (!row) return null
   return {
@@ -40,6 +163,7 @@ function mapGroup(row) {
   }
 }
 
+/** @param {any} row @returns {BetPost} */
 function mapBetPost(row) {
   return {
     id: row.id,
@@ -59,6 +183,7 @@ function mapBetPost(row) {
   }
 }
 
+/** @param {any} row @returns {ManualEntry} */
 function mapManualEntry(row) {
   return {
     id: row.id,
@@ -77,6 +202,7 @@ function mapManualEntry(row) {
 
 // --- Auth -------------------------------------------------------------
 
+/** @returns {Promise<Profile|null>} */
 export async function getSession() {
   if (!isSupabaseConfigured) return local.getSession()
   const { data } = await supabase.auth.getSession()
@@ -86,6 +212,10 @@ export async function getSession() {
   return mapProfile(profile)
 }
 
+/**
+ * @param {{email: string, password: string, displayName: string, dob: string, referredByCode?: string|null}} params
+ * @returns {Promise<Profile|null>}
+ */
 export async function signUp({ email, password, displayName, dob, referredByCode }) {
   if (!isSupabaseConfigured) return local.signUp({ email, displayName, dob, referredByCode })
 
@@ -125,6 +255,10 @@ export async function signUp({ email, password, displayName, dob, referredByCode
   return mapProfile(profile)
 }
 
+/**
+ * @param {{email: string, password: string}} params
+ * @returns {Promise<Profile|null>}
+ */
 export async function signIn({ email, password }) {
   if (!isSupabaseConfigured) return local.signIn({ email })
   const { data, error } = await supabase.auth.signInWithPassword({ email, password })
@@ -141,12 +275,14 @@ export async function signOut() {
 // Local (no-Supabase) mode has no real email delivery to send a reset link
 // through, so this is Supabase-only - callers should check
 // isSupabaseConfigured themselves if they want a different message there.
+/** @param {string} email */
 export async function requestPasswordReset(email) {
   if (!isSupabaseConfigured) throw new Error('Password reset needs a connected Supabase project.')
   const { error } = await supabase.auth.resetPasswordForEmail(email, { redirectTo: window.location.origin + '/' })
   if (error) throw error
 }
 
+/** @param {string} newPassword */
 export async function updatePassword(newPassword) {
   if (!isSupabaseConfigured) throw new Error('Password reset needs a connected Supabase project.')
   const { error } = await supabase.auth.updateUser({ password: newPassword })
@@ -159,6 +295,7 @@ export async function updatePassword(newPassword) {
 // init, which can happen before the app's first render ever sees it, but
 // listeners registered here still receive the event regardless of that
 // timing. No-op in local mode, matching requestPasswordReset's own guard.
+/** @param {(event: string) => void} callback @returns {() => void} */
 export function onAuthStateChange(callback) {
   if (!isSupabaseConfigured) return () => {}
   const {
@@ -170,6 +307,7 @@ export function onAuthStateChange(callback) {
 // Permanently deletes the account (see netlify/functions/delete-account.js
 // for what actually gets removed/reassigned). Signs the session out
 // locally on success since the user row it belonged to no longer exists.
+/** @param {string} userId */
 export async function deleteAccount(userId) {
   if (!isSupabaseConfigured) return local.deleteAccount(userId)
   const { data } = await supabase.auth.getSession()
@@ -188,6 +326,10 @@ export async function deleteAccount(userId) {
 
 // --- Groups ---------------------------------------------------------------
 
+// group_members.group_id is a NOT NULL FK, so the joined group always
+// resolves - mapGroup's `Group|null` return only covers a missing row,
+// which can't happen through this join.
+/** @param {string} userId @returns {Promise<Group[]>} */
 export async function listMyGroups(userId) {
   if (!isSupabaseConfigured) return local.listMyGroups(userId)
   const { data, error } = await supabase
@@ -195,9 +337,10 @@ export async function listMyGroups(userId) {
     .select('groups(*)')
     .eq('user_id', userId)
   if (error) throw error
-  return data.map((row) => mapGroup(row.groups))
+  return data.map((row) => /** @type {Group} */ (mapGroup(row.groups)))
 }
 
+/** @param {string} groupId @returns {Promise<Group|null>} */
 export async function getGroup(groupId) {
   if (!isSupabaseConfigured) return local.getGroup(groupId)
   const { data, error } = await supabase.from('groups').select('*').eq('id', groupId).single()
@@ -205,6 +348,7 @@ export async function getGroup(groupId) {
   return mapGroup(data)
 }
 
+/** @param {string} name @param {string} userId @returns {Promise<Group|null>} */
 export async function createGroup(name, userId) {
   if (!isSupabaseConfigured) return local.createGroup(name, userId)
   const inviteCode = Math.random().toString(36).slice(2, 8).toUpperCase()
@@ -219,6 +363,7 @@ export async function createGroup(name, userId) {
   return mapGroup(group)
 }
 
+/** @param {string} code @param {string} userId @returns {Promise<Group|null>} */
 export async function joinGroupByCode(code, userId) {
   if (!isSupabaseConfigured) return local.joinGroupByCode(code, userId)
   const { data: group, error } = await supabase
@@ -231,6 +376,7 @@ export async function joinGroupByCode(code, userId) {
   return mapGroup(group)
 }
 
+/** @param {string} groupId @returns {Promise<{id: string, displayName: string}[]>} */
 export async function listGroupMembers(groupId) {
   if (!isSupabaseConfigured) return local.listGroupMembers(groupId)
   const { data, error } = await supabase
@@ -238,9 +384,13 @@ export async function listGroupMembers(groupId) {
     .select('profiles(id, display_name)')
     .eq('group_id', groupId)
   if (error) throw error
-  return data.map((row) => ({ id: row.profiles.id, displayName: row.profiles.display_name }))
+  return data.map((row) => {
+    const profile = /** @type {{id: string, display_name: string}} */ (/** @type {unknown} */ (row.profiles))
+    return { id: profile.id, displayName: profile.display_name }
+  })
 }
 
+/** @param {string} groupId @param {string} userId @returns {Promise<true>} */
 export async function leaveGroup(groupId, userId) {
   if (!isSupabaseConfigured) return local.leaveGroup(groupId, userId)
   const { error } = await supabase.from('group_members').delete().eq('group_id', groupId).eq('user_id', userId)
@@ -252,6 +402,7 @@ export async function leaveGroup(groupId, userId) {
 // side (see "creator renames their group" / "creator removes a member" in
 // schema.sql) - the local backend has no RLS, so it re-checks createdBy
 // itself to match that behavior.
+/** @param {string} groupId @param {string} name @returns {Promise<Group|null>} */
 export async function renameGroup(groupId, name) {
   if (!isSupabaseConfigured) return local.renameGroup(groupId, name)
   const { data, error } = await supabase.from('groups').update({ name }).eq('id', groupId).select().single()
@@ -259,6 +410,7 @@ export async function renameGroup(groupId, name) {
   return mapGroup(data)
 }
 
+/** @param {string} groupId @param {string} memberId @param {string} requesterId @returns {Promise<true>} */
 export async function removeGroupMember(groupId, memberId, requesterId) {
   if (!isSupabaseConfigured) return local.removeGroupMember(groupId, memberId, requesterId)
   const { error } = await supabase.from('group_members').delete().eq('group_id', groupId).eq('user_id', memberId)
@@ -271,10 +423,12 @@ export async function removeGroupMember(groupId, memberId, requesterId) {
 // are threaded under one specific bet post). Names aren't embedded here -
 // callers already have a memberNames lookup from listGroupMembers.
 
+/** @param {any} row @returns {GroupMessage} */
 function mapGroupMessage(row) {
   return { id: row.id, groupId: row.group_id, userId: row.user_id, body: row.body, createdAt: row.created_at }
 }
 
+/** @param {string} groupId @returns {Promise<GroupMessage[]>} */
 export async function listGroupMessages(groupId) {
   if (!isSupabaseConfigured) return local.listGroupMessages(groupId)
   const { data, error } = await supabase.from('group_messages').select('*').eq('group_id', groupId).order('created_at', { ascending: true })
@@ -282,6 +436,7 @@ export async function listGroupMessages(groupId) {
   return data.map(mapGroupMessage)
 }
 
+/** @param {string} groupId @param {string} userId @param {string} body @returns {Promise<GroupMessage>} */
 export async function sendGroupMessage(groupId, userId, body) {
   if (!isSupabaseConfigured) return local.sendGroupMessage(groupId, userId, body)
   const { data, error } = await supabase.from('group_messages').insert({ group_id: groupId, user_id: userId, body }).select().single()
@@ -294,10 +449,12 @@ export async function sendGroupMessage(groupId, userId, body) {
 // supabase/schema.sql's fixture_chat_messages for why display_name is
 // denormalized onto the row instead of joined from profiles.
 
+/** @param {any} row @returns {FixtureChatMessage} */
 function mapFixtureChatMessage(row) {
   return { id: row.id, sport: row.sport, eventId: row.event_id, userId: row.user_id, authorName: row.display_name, body: row.body, createdAt: row.created_at }
 }
 
+/** @param {string} sport @param {string} eventId @returns {Promise<FixtureChatMessage[]>} */
 export async function listFixtureChatMessages(sport, eventId) {
   if (!isSupabaseConfigured) return local.listFixtureChatMessages(sport, eventId)
   const { data, error } = await supabase
@@ -310,6 +467,11 @@ export async function listFixtureChatMessages(sport, eventId) {
   return data.map(mapFixtureChatMessage)
 }
 
+/**
+ * @param {string} sport @param {string} eventId @param {string} userId
+ * @param {string} displayName @param {string} body
+ * @returns {Promise<FixtureChatMessage>}
+ */
 export async function sendFixtureChatMessage(sport, eventId, userId, displayName, body) {
   if (!isSupabaseConfigured) return local.sendFixtureChatMessage(sport, eventId, userId, displayName, body)
   const { data, error } = await supabase
@@ -325,10 +487,12 @@ export async function sendFixtureChatMessage(sport, eventId, userId, displayName
 // 1:1 chat between two friends, separate from group_messages (scoped to a
 // group) and bet_comments (threaded under one bet post).
 
+/** @param {any} row @returns {DirectMessage} */
 function mapDirectMessage(row) {
   return { id: row.id, senderId: row.sender_id, recipientId: row.recipient_id, body: row.body, createdAt: row.created_at }
 }
 
+/** @param {string} userId @returns {Promise<{id: string, displayName: string, avatarUrl: string|null}|null>} */
 export async function getProfileById(userId) {
   if (!isSupabaseConfigured) return local.getProfileById(userId)
   const { data, error } = await supabase.from('profiles').select('id, display_name, avatar_url').eq('id', userId).maybeSingle()
@@ -336,6 +500,7 @@ export async function getProfileById(userId) {
   return data ? { id: data.id, displayName: data.display_name, avatarUrl: data.avatar_url } : null
 }
 
+/** @param {string} userId @param {string} friendId @returns {Promise<DirectMessage[]>} */
 export async function listDirectMessages(userId, friendId) {
   if (!isSupabaseConfigured) return local.listDirectMessages(userId, friendId)
   const { data, error } = await supabase
@@ -347,6 +512,7 @@ export async function listDirectMessages(userId, friendId) {
   return data.map(mapDirectMessage)
 }
 
+/** @param {string} userId @param {string} friendId @param {string} body @returns {Promise<DirectMessage>} */
 export async function sendDirectMessage(userId, friendId, body) {
   if (!isSupabaseConfigured) return local.sendDirectMessage(userId, friendId, body)
   const { data, error } = await supabase
@@ -363,6 +529,10 @@ export async function sendDirectMessage(userId, friendId, body) {
 // threads, not a merged timeline. Rows come back newest-message-first, and
 // since a Map keeps only the first entry per friendId, that's automatically
 // each conversation's most recent message.
+/**
+ * @param {string} userId
+ * @returns {Promise<{friendId: string, lastBody: string, lastAt: string, lastFromFriend: boolean, friendName: string, friendAvatarUrl: string|null}[]>}
+ */
 export async function listConversations(userId) {
   if (!isSupabaseConfigured) return local.listConversations(userId)
   const { data, error } = await supabase
@@ -392,11 +562,12 @@ export async function listConversations(userId) {
       friendName: byId[id]?.display_name ?? 'Someone',
       friendAvatarUrl: byId[id]?.avatar_url ?? null
     }))
-    .sort((a, b) => new Date(b.lastAt) - new Date(a.lastAt))
+    .sort((a, b) => new Date(b.lastAt).getTime() - new Date(a.lastAt).getTime())
 }
 
 // --- Bet posts --------------------------------------------------------
 
+/** @param {string} groupId @returns {Promise<BetPost[]>} */
 export async function listBetPosts(groupId) {
   if (!isSupabaseConfigured) return local.listBetPosts(groupId)
   const { data, error } = await supabase
@@ -408,6 +579,10 @@ export async function listBetPosts(groupId) {
   return data.map(mapBetPost)
 }
 
+/**
+ * @param {{groupId: string|null, userId: string, sport: string, marketType: string, selections: any[], stake: number|null, stakeHidden?: boolean, potentialReturn: number|null, visibility?: 'group'|'public'}} post
+ * @returns {Promise<BetPost>}
+ */
 export async function createBetPost(post) {
   if (!isSupabaseConfigured) return local.createBetPost(post)
   const { data, error } = await supabase
@@ -429,9 +604,15 @@ export async function createBetPost(post) {
   return mapBetPost(data)
 }
 
+/**
+ * @param {string} betId @param {'open'|'won'|'lost'|'void'} status
+ * @param {number} [potentialReturnOverride] @param {any[]} [outcomes]
+ * @returns {Promise<BetPost>}
+ */
 export async function updateBetStatus(betId, status, potentialReturnOverride, outcomes) {
   if (!isSupabaseConfigured) return local.updateBetStatus(betId, status, potentialReturnOverride, outcomes)
   const settledAt = ['won', 'lost', 'void'].includes(status) ? new Date().toISOString() : null
+  /** @type {{status: string, settled_at: string|null, potential_return?: number, outcomes?: any[]}} */
   const update = { status, settled_at: settledAt }
   if (potentialReturnOverride !== undefined) update.potential_return = potentialReturnOverride
   if (outcomes !== undefined) update.outcomes = outcomes
@@ -449,6 +630,11 @@ export async function updateBetStatus(betId, status, potentialReturnOverride, ou
 // settled yet - RLS additionally enforces status = 'open' server-side (see
 // supabase/schema.sql), this check is the client-side half so the button
 // simply isn't offered once a bet is settled.
+/**
+ * @param {string} betId
+ * @param {{stake: number|null, stakeHidden?: boolean, potentialReturn: number|null}} params
+ * @returns {Promise<BetPost>}
+ */
 export async function updateBetPost(betId, { stake, stakeHidden, potentialReturn }) {
   if (!isSupabaseConfigured) return local.updateBetPost(betId, { stake, stakeHidden, potentialReturn })
   const { data, error } = await supabase
@@ -464,6 +650,7 @@ export async function updateBetPost(betId, { stake, stakeHidden, potentialReturn
 // RLS only allows this while the bet is still open (see schema.sql) - a
 // blocked delete returns zero rows rather than an error, so this checks
 // for that explicitly instead of reporting success on a no-op.
+/** @param {string} betId @returns {Promise<true>} */
 export async function deleteBetPost(betId) {
   if (!isSupabaseConfigured) return local.deleteBetPost(betId)
   const { data, error } = await supabase.from('bet_posts').delete().eq('id', betId).select()
@@ -472,6 +659,7 @@ export async function deleteBetPost(betId) {
   return true
 }
 
+/** @param {string} userId @returns {Promise<BetPost[]>} */
 export async function listBetPostsByUser(userId) {
   if (!isSupabaseConfigured) return local.listBetPostsByUser(userId)
   const { data, error } = await supabase.from('bet_posts').select('*').eq('user_id', userId)
@@ -485,6 +673,7 @@ export async function listBetPostsByUser(userId) {
 // but when it's there, anyone the viewer has blocked is filtered out
 // client-side - simpler than a subquery in the select, and this list is
 // small enough per-user that it's not worth the query complexity.
+/** @param {string} [viewerId] @returns {Promise<(BetPost & {authorName: string, authorCode: string|null})[]>} */
 export async function listPublicFeed(viewerId) {
   if (!isSupabaseConfigured) return local.listPublicFeed(viewerId)
   const { data, error } = await supabase
@@ -503,6 +692,7 @@ export async function listPublicFeed(viewerId) {
   return blockedIds.length ? posts.filter((p) => !blockedIds.includes(p.userId)) : posts
 }
 
+/** @param {string} userId @param {string} targetId @returns {Promise<true>} */
 export async function followUser(userId, targetId) {
   if (!isSupabaseConfigured) return local.followUser(userId, targetId)
   const { error } = await supabase.from('follows').insert({ follower_id: userId, following_id: targetId })
@@ -510,6 +700,7 @@ export async function followUser(userId, targetId) {
   return true
 }
 
+/** @param {string} userId @param {string} targetId @returns {Promise<true>} */
 export async function unfollowUser(userId, targetId) {
   if (!isSupabaseConfigured) return local.unfollowUser(userId, targetId)
   const { error } = await supabase.from('follows').delete().eq('follower_id', userId).eq('following_id', targetId)
@@ -517,6 +708,7 @@ export async function unfollowUser(userId, targetId) {
   return true
 }
 
+/** @param {string} userId @returns {Promise<string[]>} */
 export async function listFollowing(userId) {
   if (!isSupabaseConfigured) return local.listFollowing(userId)
   const { data, error } = await supabase.from('follows').select('following_id').eq('follower_id', userId)
@@ -528,6 +720,7 @@ export async function listFollowing(userId) {
 // Public-feed-only (see BetCard.jsx variant='public') - group posts aren't
 // blockable since a group is already people you chose to be around.
 
+/** @param {string} userId @param {string} blockedId @returns {Promise<true>} */
 export async function blockUser(userId, blockedId) {
   if (!isSupabaseConfigured) return local.blockUser(userId, blockedId)
   const { error } = await supabase.from('blocks').insert({ blocker_id: userId, blocked_id: blockedId })
@@ -535,6 +728,7 @@ export async function blockUser(userId, blockedId) {
   return true
 }
 
+/** @param {string} userId @param {string} blockedId @returns {Promise<true>} */
 export async function unblockUser(userId, blockedId) {
   if (!isSupabaseConfigured) return local.unblockUser(userId, blockedId)
   const { error } = await supabase.from('blocks').delete().eq('blocker_id', userId).eq('blocked_id', blockedId)
@@ -542,6 +736,7 @@ export async function unblockUser(userId, blockedId) {
   return true
 }
 
+/** @param {string} userId @returns {Promise<string[]>} */
 async function listBlockedUserIds(userId) {
   if (!isSupabaseConfigured) return local.listBlockedUserIds(userId)
   const { data, error } = await supabase.from('blocks').select('blocked_id').eq('blocker_id', userId)
@@ -549,6 +744,7 @@ async function listBlockedUserIds(userId) {
   return data.map((row) => row.blocked_id)
 }
 
+/** @param {string} userId @returns {Promise<{id: string, displayName: string}[]>} */
 export async function listBlockedUsers(userId) {
   if (!isSupabaseConfigured) return local.listBlockedUsers(userId)
   // blocks has two FKs into profiles (blocker_id, blocked_id) - the join
@@ -559,9 +755,13 @@ export async function listBlockedUsers(userId) {
     .select('blocked_id, profiles!blocks_blocked_id_fkey(display_name)')
     .eq('blocker_id', userId)
   if (error) throw error
-  return data.map((row) => ({ id: row.blocked_id, displayName: row.profiles?.display_name ?? 'Someone' }))
+  return data.map((row) => {
+    const profile = /** @type {{display_name: string}|null} */ (/** @type {unknown} */ (row.profiles))
+    return { id: row.blocked_id, displayName: profile?.display_name ?? 'Someone' }
+  })
 }
 
+/** @param {string} postId @param {string} reporterId @param {string} reason @returns {Promise<true>} */
 export async function reportPost(postId, reporterId, reason) {
   if (!isSupabaseConfigured) return local.reportPost(postId, reporterId, reason)
   const { error } = await supabase.from('post_reports').insert({ post_id: postId, reporter_id: reporterId, reason })
@@ -574,6 +774,16 @@ export async function reportPost(postId, reporterId, reason) {
 // route redirects a non-admin away) and by the "admins read/dismiss/remove"
 // RLS policies in schema.sql, which is the real gate.
 
+/**
+ * @typedef {object} PostReport
+ * @property {string} id
+ * @property {string} reason
+ * @property {string} createdAt
+ * @property {string} reporterName
+ * @property {string} postId
+ * @property {{id: string, authorName: string, event: string, stake: number|null, status: string}} post
+ */
+/** @returns {Promise<PostReport[]>} */
 export async function listAllReports() {
   if (!isSupabaseConfigured) return local.listAllReports()
   const { data, error } = await supabase
@@ -585,22 +795,29 @@ export async function listAllReports() {
   if (error) throw error
   return data
     .filter((row) => row.post) // the post's own delete policy cascades its reports away too, but guard anyway
-    .map((row) => ({
-      id: row.id,
-      reason: row.reason,
-      createdAt: row.created_at,
-      reporterName: row.reporter?.display_name ?? 'Someone',
-      postId: row.post_id,
-      post: {
-        id: row.post.id,
-        authorName: row.post.author?.display_name ?? 'Someone',
-        event: row.post.selections?.[0]?.event ?? 'Bet',
-        stake: row.post.stake,
-        status: row.post.status
+    .map((row) => {
+      const reporter = /** @type {{display_name: string}|null} */ (/** @type {unknown} */ (row.reporter))
+      const post = /** @type {{id: string, selections: any[], stake: number|null, status: string, author: {display_name: string}|null}} */ (
+        /** @type {unknown} */ (row.post)
+      )
+      return {
+        id: row.id,
+        reason: row.reason,
+        createdAt: row.created_at,
+        reporterName: reporter?.display_name ?? 'Someone',
+        postId: row.post_id,
+        post: {
+          id: post.id,
+          authorName: post.author?.display_name ?? 'Someone',
+          event: post.selections?.[0]?.event ?? 'Bet',
+          stake: post.stake,
+          status: post.status
+        }
       }
-    }))
+    })
 }
 
+/** @param {string} postId @returns {Promise<true>} */
 export async function dismissReportsForPost(postId) {
   if (!isSupabaseConfigured) return local.dismissReportsForPost(postId)
   const { error } = await supabase.from('post_reports').delete().eq('post_id', postId)
@@ -608,6 +825,7 @@ export async function dismissReportsForPost(postId) {
   return true
 }
 
+/** @param {string} postId @returns {Promise<true>} */
 export async function removePost(postId) {
   if (!isSupabaseConfigured) return local.removePost(postId)
   const { error } = await supabase.from('bet_posts').delete().eq('id', postId)
@@ -617,6 +835,7 @@ export async function removePost(postId) {
 
 // --- Reactions & comments ------------------------------------------------
 
+/** @param {string} betId @param {string} userId @param {string} emoji @returns {Promise<any[]>} */
 export async function toggleReaction(betId, userId, emoji) {
   if (!isSupabaseConfigured) return local.toggleReaction(betId, userId, emoji)
   const { data: existing } = await supabase
@@ -635,6 +854,7 @@ export async function toggleReaction(betId, userId, emoji) {
   return data
 }
 
+/** @param {string} betId @returns {Promise<any[]>} */
 export async function listReactions(betId) {
   if (!isSupabaseConfigured) return local.listReactions(betId)
   const { data, error } = await supabase.from('bet_reactions').select('*').eq('bet_id', betId)
@@ -642,6 +862,7 @@ export async function listReactions(betId) {
   return data
 }
 
+/** @param {string} betId @param {string} userId @param {string} body @returns {Promise<any>} */
 export async function addComment(betId, userId, body) {
   if (!isSupabaseConfigured) return local.addComment(betId, userId, body)
   const { data, error } = await supabase
@@ -653,6 +874,7 @@ export async function addComment(betId, userId, body) {
   return data
 }
 
+/** @param {string} betId @returns {Promise<any[]>} */
 export async function listComments(betId) {
   if (!isSupabaseConfigured) return local.listComments(betId)
   const { data, error } = await supabase
@@ -666,6 +888,7 @@ export async function listComments(betId) {
 
 // --- Bet copies (engagement tracking) -------------------------------------
 
+/** @param {string} originalBetId @param {string} copyingUserId */
 export async function recordBetCopy(originalBetId, copyingUserId) {
   if (!isSupabaseConfigured) return local.recordBetCopy(originalBetId, copyingUserId)
   const { error } = await supabase
@@ -674,6 +897,7 @@ export async function recordBetCopy(originalBetId, copyingUserId) {
   if (error) throw error
 }
 
+/** @param {string} betId @returns {Promise<any[]>} */
 export async function listBetCopies(betId) {
   if (!isSupabaseConfigured) return local.listBetCopies(betId)
   const { data, error } = await supabase.from('bet_copies').select('*').eq('original_bet_id', betId)
@@ -683,6 +907,7 @@ export async function listBetCopies(betId) {
 
 // --- Tracker (manual entries, separate from group bet_posts) --------------
 
+/** @param {string} userId @returns {Promise<ManualEntry[]>} */
 export async function listManualEntries(userId) {
   if (!isSupabaseConfigured) return local.listManualEntries(userId)
   const { data, error } = await supabase.from('manual_entries').select('*').eq('user_id', userId)
@@ -690,6 +915,10 @@ export async function listManualEntries(userId) {
   return data.map(mapManualEntry)
 }
 
+/**
+ * @param {{userId: string, sport: string, marketType: string, selections: any[], stake: number|null, potentialReturn: number|null}} entry
+ * @returns {Promise<ManualEntry>}
+ */
 export async function addManualEntry(entry) {
   if (!isSupabaseConfigured) return local.addManualEntry(entry)
   const { data, error } = await supabase
@@ -712,9 +941,15 @@ export async function addManualEntry(entry) {
 // win" result (see TrackerPage) - the amount actually returned there is
 // the place-part payout, not the optimistic full-win figure stored when
 // the bet was logged, so it needs correcting alongside the status.
+/**
+ * @param {string} entryId @param {'open'|'won'|'lost'|'void'} status
+ * @param {number} [potentialReturnOverride] @param {any[]} [outcomes]
+ * @returns {Promise<any>}
+ */
 export async function updateManualEntryStatus(entryId, status, potentialReturnOverride, outcomes) {
   if (!isSupabaseConfigured) return local.updateManualEntryStatus(entryId, status, potentialReturnOverride, outcomes)
   const settledAt = ['won', 'lost', 'void'].includes(status) ? new Date().toISOString() : null
+  /** @type {{status: string, settled_at: string|null, potential_return?: number, outcomes?: any[]}} */
   const update = { status, settled_at: settledAt }
   if (potentialReturnOverride !== undefined) update.potential_return = potentialReturnOverride
   if (outcomes !== undefined) update.outcomes = outcomes
@@ -730,6 +965,7 @@ export async function updateManualEntryStatus(entryId, status, potentialReturnOv
 
 // Corrects a mis-typed stake on a private entry that's still open - same
 // status = 'open' restriction as updateBetPost above, enforced by RLS too.
+/** @param {string} entryId @param {{stake: number|null, potentialReturn: number|null}} params @returns {Promise<ManualEntry>} */
 export async function updateManualEntry(entryId, { stake, potentialReturn }) {
   if (!isSupabaseConfigured) return local.updateManualEntry(entryId, { stake, potentialReturn })
   const { data, error } = await supabase
@@ -744,6 +980,7 @@ export async function updateManualEntry(entryId, { stake, potentialReturn }) {
 
 // See deleteBetPost's comment - a blocked delete returns zero rows, not an
 // error, so that's checked for explicitly here too.
+/** @param {string} entryId @returns {Promise<true>} */
 export async function deleteManualEntry(entryId) {
   if (!isSupabaseConfigured) return local.deleteManualEntry(entryId)
   const { data, error } = await supabase.from('manual_entries').delete().eq('id', entryId).select()
@@ -754,6 +991,7 @@ export async function deleteManualEntry(entryId) {
 
 // --- Account -----------------------------------------------------------
 
+/** @param {string} userId @param {string} displayName @returns {Promise<string>} */
 export async function updateDisplayName(userId, displayName) {
   if (!isSupabaseConfigured) return local.updateDisplayName(userId, displayName)
   const { error } = await supabase.from('profiles').update({ display_name: displayName }).eq('id', userId)
@@ -761,6 +999,7 @@ export async function updateDisplayName(userId, displayName) {
   return displayName
 }
 
+/** @param {string} userId @param {string[]} prefs @returns {Promise<string[]>} */
 export async function updateBookmakerPrefs(userId, prefs) {
   if (!isSupabaseConfigured) return local.updateBookmakerPrefs(userId, prefs)
   const { error } = await supabase.from('profiles').update({ bookmaker_prefs: prefs }).eq('id', userId)
@@ -768,6 +1007,7 @@ export async function updateBookmakerPrefs(userId, prefs) {
   return prefs
 }
 
+/** @param {string} userId @param {Profile['notificationPrefs']} prefs @returns {Promise<Profile['notificationPrefs']>} */
 export async function updateNotificationPrefs(userId, prefs) {
   if (!isSupabaseConfigured) return local.updateNotificationPrefs(userId, prefs)
   const { error } = await supabase.from('profiles').update({ notification_prefs: prefs }).eq('id', userId)
@@ -776,6 +1016,10 @@ export async function updateNotificationPrefs(userId, prefs) {
 }
 
 // amount/period both null clears the limit (the "off" state).
+/**
+ * @param {string} userId @param {{amount: number|null, period: string|null}} params
+ * @returns {Promise<{amount: number|null, period: string|null}>}
+ */
 export async function updateStakeLimit(userId, { amount, period }) {
   if (!isSupabaseConfigured) return local.updateStakeLimit(userId, { amount, period })
   const { error } = await supabase
@@ -789,6 +1033,7 @@ export async function updateStakeLimit(userId, { amount, period }) {
 // buddyId null clears it (the "off" state) - see supabase/schema.sql's
 // limit_buddy_id for what this actually does (netlify/functions/
 // alert-checks.js pushes to this person once the limit's hit).
+/** @param {string} userId @param {string|null} buddyId @returns {Promise<string|null>} */
 export async function updateLimitBuddy(userId, buddyId) {
   if (!isSupabaseConfigured) return local.updateLimitBuddy(userId, buddyId)
   const { error } = await supabase.from('profiles').update({ limit_buddy_id: buddyId }).eq('id', userId)
@@ -801,6 +1046,7 @@ export async function updateLimitBuddy(userId, buddyId) {
 // would be rejected before it ever reached here. upsert:true means
 // re-uploading (changing your photo) overwrites the same object instead of
 // accumulating orphaned files.
+/** @param {string} userId @param {File} file @returns {Promise<string>} */
 export async function uploadAvatar(userId, file) {
   if (!isSupabaseConfigured) return local.uploadAvatar(userId, file)
   const ext = file.name.split('.').pop() || 'jpg'
@@ -814,6 +1060,7 @@ export async function uploadAvatar(userId, file) {
   return url
 }
 
+/** @param {string} userId @returns {Promise<number>} */
 export async function countReferrals(userId) {
   if (!isSupabaseConfigured) return local.countReferrals(userId)
   const { count, error } = await supabase.from('profiles').select('id', { count: 'exact', head: true }).eq('referred_by', userId)
@@ -827,15 +1074,20 @@ export async function countReferrals(userId) {
 // there - src/lib/push.js still runs the real browser subscribe/permission
 // flow either way, this just skips persisting it.
 
+/** @param {string} userId @param {PushSubscription} subscription */
 export async function savePushSubscription(userId, subscription) {
   if (!isSupabaseConfigured) return local.savePushSubscription(userId, subscription)
   const json = subscription.toJSON()
   const { error } = await supabase
     .from('push_subscriptions')
-    .upsert({ user_id: userId, endpoint: json.endpoint, p256dh: json.keys.p256dh, auth_key: json.keys.auth }, { onConflict: 'endpoint' })
+    .upsert(
+      { user_id: userId, endpoint: json.endpoint, p256dh: json.keys?.p256dh, auth_key: json.keys?.auth },
+      { onConflict: 'endpoint' }
+    )
   if (error) throw error
 }
 
+/** @param {string} endpoint */
 export async function deletePushSubscription(endpoint) {
   if (!isSupabaseConfigured) return local.deletePushSubscription(endpoint)
   const { error } = await supabase.from('push_subscriptions').delete().eq('endpoint', endpoint)
@@ -848,6 +1100,7 @@ export async function deletePushSubscription(endpoint) {
 // localStorage) - alerts still save/list/delete locally so the flow stays
 // fully clickable, they just never actually fire there.
 
+/** @param {any} row @returns {OddsAlert} */
 function mapOddsAlert(row) {
   return {
     id: row.id,
@@ -863,6 +1116,11 @@ function mapOddsAlert(row) {
   }
 }
 
+/**
+ * @param {string} userId
+ * @param {{sport: string, eventId: string, eventLabel: string, kickoff: string, marketKey: string, marketLabel: string, outcomeName: string, selectionLabel: string, targetDecimal: number}} alert
+ * @returns {Promise<OddsAlert>}
+ */
 export async function createOddsAlert(userId, alert) {
   if (!isSupabaseConfigured) return local.createOddsAlert(userId, alert)
   const { data, error } = await supabase
@@ -885,6 +1143,7 @@ export async function createOddsAlert(userId, alert) {
   return mapOddsAlert(data)
 }
 
+/** @param {string} userId @returns {Promise<OddsAlert[]>} */
 export async function listMyOddsAlerts(userId) {
   if (!isSupabaseConfigured) return local.listMyOddsAlerts(userId)
   const { data, error } = await supabase
@@ -896,6 +1155,7 @@ export async function listMyOddsAlerts(userId) {
   return data.map(mapOddsAlert)
 }
 
+/** @param {string} alertId */
 export async function deleteOddsAlert(alertId) {
   if (!isSupabaseConfigured) return local.deleteOddsAlert(alertId)
   const { error } = await supabase.from('odds_alerts').delete().eq('id', alertId)
@@ -909,6 +1169,7 @@ export async function deleteOddsAlert(alertId) {
 // there but never
 // actually notify (same limitation as odds alerts in local mode).
 
+/** @param {string} userId @param {{sport: string, eventId: string, eventLabel: string, kickoff: string}} follow */
 export async function followFixture(userId, follow) {
   if (!isSupabaseConfigured) return local.followFixture(userId, follow)
   const { error } = await supabase.from('followed_fixtures').upsert(
@@ -924,12 +1185,14 @@ export async function followFixture(userId, follow) {
   if (error) throw error
 }
 
+/** @param {string} userId @param {string} sport @param {string} eventId */
 export async function unfollowFixture(userId, sport, eventId) {
   if (!isSupabaseConfigured) return local.unfollowFixture(userId, sport, eventId)
   const { error } = await supabase.from('followed_fixtures').delete().eq('user_id', userId).eq('sport', sport).eq('event_id', eventId)
   if (error) throw error
 }
 
+/** @param {string} userId @param {string} sport @param {string} eventId @returns {Promise<boolean>} */
 export async function isFollowingFixture(userId, sport, eventId) {
   if (!isSupabaseConfigured) return local.isFollowingFixture(userId, sport, eventId)
   const { data, error } = await supabase
@@ -947,6 +1210,7 @@ export async function isFollowingFixture(userId, sport, eventId) {
 // Distinct from followFixture above: that's "notify me about this ONE
 // upcoming game", this is "always show me this team/player wherever they
 // show up" - surfaced as the "My teams only" filter on OddsListPage.
+/** @param {string} userId @param {string} sport @param {string} name */
 export async function followParticipant(userId, sport, name) {
   if (!isSupabaseConfigured) return local.followParticipant(userId, sport, name)
   const { error } = await supabase
@@ -955,6 +1219,7 @@ export async function followParticipant(userId, sport, name) {
   if (error) throw error
 }
 
+/** @param {string} userId @param {string} sport @param {string} name */
 export async function unfollowParticipant(userId, sport, name) {
   if (!isSupabaseConfigured) return local.unfollowParticipant(userId, sport, name)
   const { error } = await supabase
@@ -966,6 +1231,7 @@ export async function unfollowParticipant(userId, sport, name) {
   if (error) throw error
 }
 
+/** @param {string} userId @returns {Promise<{sport: string, name: string}[]>} */
 export async function listFollowedParticipants(userId) {
   if (!isSupabaseConfigured) return local.listFollowedParticipants(userId)
   const { data, error } = await supabase.from('followed_participants').select('sport,participant_name').eq('user_id', userId)
@@ -979,6 +1245,7 @@ export async function listFollowedParticipants(userId) {
 // user is in, merges each group's bet posts into one timeline tagged with
 // the group name and a userId->displayName lookup for rendering.
 
+/** @param {string} userId @returns {Promise<(BetPost & {groupName: string, memberNames: Record<string, string>})[]>} */
 export async function listFeedForUser(userId) {
   const groups = await listMyGroups(userId)
   const perGroup = await Promise.all(
@@ -988,7 +1255,7 @@ export async function listFeedForUser(userId) {
       return posts.map((post) => ({ ...post, groupName: group.name, memberNames }))
     })
   )
-  return perGroup.flat().sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))
+  return perGroup.flat().sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
 }
 
 // --- Friends & video tips ---------------------------------------------------
@@ -999,6 +1266,7 @@ export async function listFeedForUser(userId) {
 // note in supabase/schema.sql). Swapping that in later means changing
 // videoStore.js's save/get/delete trio to hit Supabase Storage instead.
 
+/** @param {string} code @param {string} userId @returns {Promise<{id: string, displayName: string}>} */
 export async function addFriendByCode(code, userId) {
   if (!isSupabaseConfigured) return local.addFriendByCode(code, userId)
   const { data: target, error: lookupError } = await supabase
@@ -1022,6 +1290,7 @@ export async function addFriendByCode(code, userId) {
   return { id: target.id, displayName: target.display_name }
 }
 
+/** @param {string} userId @returns {Promise<{id: string, displayName: string}[]>} */
 export async function listFriends(userId) {
   if (!isSupabaseConfigured) return local.listFriends(userId)
   const { data, error } = await supabase
@@ -1030,11 +1299,17 @@ export async function listFriends(userId) {
     .or(`user_a.eq.${userId},user_b.eq.${userId}`)
   if (error) throw error
   return data.map((row) => {
-    const other = row.user_a === userId ? row.b : row.a
+    const other = /** @type {{id: string, display_name: string}} */ (
+      /** @type {unknown} */ (row.user_a === userId ? row.b : row.a)
+    )
     return { id: other.id, displayName: other.display_name }
   })
 }
 
+/**
+ * @param {{authorId: string, videoKey: string, durationSec: number, caption: string, tag: string}} params
+ * @returns {Promise<{id: string, authorId: string, videoKey: string, durationSec: number, caption: string, tag: string, createdAt: string}>}
+ */
 export async function createVideoPost({ authorId, videoKey, durationSec, caption, tag }) {
   if (!isSupabaseConfigured) return local.createVideoPost({ authorId, videoKey, durationSec, caption, tag })
   const { data, error } = await supabase
@@ -1046,6 +1321,10 @@ export async function createVideoPost({ authorId, videoKey, durationSec, caption
   return { id: data.id, authorId: data.author_id, videoKey: data.storage_key, durationSec: data.duration_sec, caption: data.caption, tag: data.tag, createdAt: data.created_at }
 }
 
+/**
+ * @param {string} userId
+ * @returns {Promise<{id: string, authorId: string, videoKey: string, durationSec: number, caption: string, tag: string, createdAt: string, authorName: string}[]>}
+ */
 export async function listFriendsFeed(userId) {
   if (!isSupabaseConfigured) return local.listFriendsFeed(userId)
   const friends = await listFriends(userId)
@@ -1068,6 +1347,7 @@ export async function listFriendsFeed(userId) {
   }))
 }
 
+/** @param {string} videoId @param {string} sharedByUserId @param {{type: string, id: string}} target */
 export async function shareVideo(videoId, sharedByUserId, target) {
   if (!isSupabaseConfigured) return local.shareVideo(videoId, sharedByUserId, target)
   const { error } = await supabase
@@ -1076,21 +1356,27 @@ export async function shareVideo(videoId, sharedByUserId, target) {
   if (error) throw error
 }
 
+/** @param {any} row */
 function mapSharedVideoRow(row) {
+  const post = /** @type {{id: string, author_id: string, storage_key: string, duration_sec: number, caption: string, tag: string, created_at: string, profiles: {display_name: string}|null}} */ (
+    /** @type {unknown} */ (row.video_posts)
+  )
+  const sharer = /** @type {{display_name: string}|null} */ (/** @type {unknown} */ (row.sharer))
   return {
-    id: row.video_posts.id,
-    authorId: row.video_posts.author_id,
-    videoKey: row.video_posts.storage_key,
-    durationSec: row.video_posts.duration_sec,
-    caption: row.video_posts.caption,
-    tag: row.video_posts.tag,
-    createdAt: row.video_posts.created_at,
-    authorName: row.video_posts.profiles?.display_name ?? 'Someone',
-    sharedByName: row.sharer?.display_name ?? 'Someone',
+    id: post.id,
+    authorId: post.author_id,
+    videoKey: post.storage_key,
+    durationSec: post.duration_sec,
+    caption: post.caption,
+    tag: post.tag,
+    createdAt: post.created_at,
+    authorName: post.profiles?.display_name ?? 'Someone',
+    sharedByName: sharer?.display_name ?? 'Someone',
     sharedAt: row.created_at
   }
 }
 
+/** @param {string} userId @returns {Promise<ReturnType<typeof mapSharedVideoRow>[]>} */
 export async function listSharedWithMe(userId) {
   if (!isSupabaseConfigured) return local.listSharedWithMe(userId)
   const { data, error } = await supabase
@@ -1103,6 +1389,7 @@ export async function listSharedWithMe(userId) {
   return data.map(mapSharedVideoRow)
 }
 
+/** @param {string} groupId @returns {Promise<ReturnType<typeof mapSharedVideoRow>[]>} */
 export async function listSharedInGroup(groupId) {
   if (!isSupabaseConfigured) return local.listSharedInGroup(groupId)
   const { data, error } = await supabase
@@ -1122,6 +1409,7 @@ export async function listSharedInGroup(groupId) {
 // for why this is one active predictor per group and a freeform
 // participant list rather than a hardcoded league.
 
+/** @param {any} row @returns {Predictor|null} */
 function mapPredictor(row) {
   if (!row) return null
   return {
@@ -1137,6 +1425,7 @@ function mapPredictor(row) {
   }
 }
 
+/** @param {any} row @returns {PredictorEntry} */
 function mapPredictorEntry(row) {
   return {
     id: row.id,
@@ -1148,6 +1437,7 @@ function mapPredictorEntry(row) {
   }
 }
 
+/** @param {string} groupId @returns {Promise<Predictor|null>} */
 export async function getPredictor(groupId) {
   if (!isSupabaseConfigured) return local.getPredictor(groupId)
   const { data, error } = await supabase
@@ -1161,6 +1451,10 @@ export async function getPredictor(groupId) {
   return mapPredictor(data)
 }
 
+/**
+ * @param {string} groupId @param {string} userId @param {string} competition @param {string[]} participants
+ * @returns {Promise<Predictor|null>}
+ */
 export async function createPredictor(groupId, userId, competition, participants) {
   if (!isSupabaseConfigured) return local.createPredictor(groupId, userId, competition, participants)
   const { data, error } = await supabase
@@ -1172,6 +1466,7 @@ export async function createPredictor(groupId, userId, competition, participants
   return mapPredictor(data)
 }
 
+/** @param {string} predictorId @param {string} userId @param {string[]} standings @returns {Promise<Predictor|null>} */
 export async function updateStandings(predictorId, userId, standings) {
   if (!isSupabaseConfigured) return local.updateStandings(predictorId, userId, standings)
   const { data, error } = await supabase
@@ -1184,6 +1479,7 @@ export async function updateStandings(predictorId, userId, standings) {
   return mapPredictor(data)
 }
 
+/** @param {string} predictorId @returns {Promise<PredictorEntry[]>} */
 export async function listPredictorEntries(predictorId) {
   if (!isSupabaseConfigured) return local.listPredictorEntries(predictorId)
   const { data, error } = await supabase.from('predictor_entries').select('*').eq('predictor_id', predictorId)
@@ -1194,6 +1490,7 @@ export async function listPredictorEntries(predictorId) {
 // Upsert - resubmitting just overwrites the previous entry, trust-based
 // like every other self-reported thing in this app rather than locking at
 // a kickoff time.
+/** @param {string} predictorId @param {string} userId @param {string[]} predictedOrder @returns {Promise<PredictorEntry>} */
 export async function submitPredictorEntry(predictorId, userId, predictedOrder) {
   if (!isSupabaseConfigured) return local.submitPredictorEntry(predictorId, userId, predictedOrder)
   const { data, error } = await supabase
