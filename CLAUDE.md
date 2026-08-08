@@ -108,8 +108,11 @@ every 15 minutes down to one, same frequency and behavior either way.
   `tsconfig.json` has `checkJs` off by default, so a file is only
   type-checked if it opts in with a `// @ts-check` comment at the top. Only
   add that pragma to a file once it's actually clean; the settlement path
-  (`betEvaluation.js`, `settlement.js`, `eachWay.js`) and the whole data
-  layer (`dataStore.js`) are opted in today. Run `npm run typecheck` before adding the pragma
+  (`betEvaluation.js`, `settlement.js`, `eachWay.js`) and both halves of
+  the data layer (`dataStore.js`, `localBackend.js`) are opted in today -
+  the latter reuses the former's typedefs via `@typedef {import(...)}`
+  rather than redeclaring them, since local mode's records use the same
+  camelCase shape the UI expects. Run `npm run typecheck` before adding the pragma
   elsewhere - most untyped JS throws inference noise (arithmetic on
   loosely-typed values, component prop shapes) that isn't a real bug, so
   opting in file-by-file keeps the tool actually green rather than

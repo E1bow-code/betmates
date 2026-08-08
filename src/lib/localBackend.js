@@ -1,9 +1,50 @@
+// @ts-check
 // localStorage-backed mock backend. Used when Supabase isn't configured
 // (no VITE_SUPABASE_URL/VITE_SUPABASE_ANON_KEY) so the app is fully
 // clickable in dev before a real project exists. Mirrors the async shape
 // of the Supabase-backed functions in dataStore.js - swapping one for the
 // other requires no UI changes. NOT for production use: "auth" here is
 // unhashed and purely local to the browser.
+
+// Records stored here use the same camelCase field names dataStore.js's
+// map* functions produce (this file *is* the shape the UI expects, not a
+// raw row to be mapped) - so its typedefs are reused directly rather than
+// redeclaring near-identical ones here.
+/** @typedef {import('./dataStore.js').Profile} Profile */
+/** @typedef {import('./dataStore.js').Group} Group */
+/** @typedef {import('./dataStore.js').BetPost} BetPost */
+/** @typedef {import('./dataStore.js').ManualEntry} ManualEntry */
+/** @typedef {import('./dataStore.js').GroupMessage} GroupMessage */
+/** @typedef {import('./dataStore.js').FixtureChatMessage} FixtureChatMessage */
+/** @typedef {import('./dataStore.js').DirectMessage} DirectMessage */
+/** @typedef {import('./dataStore.js').OddsAlert} OddsAlert */
+/** @typedef {import('./dataStore.js').Predictor} Predictor */
+/** @typedef {import('./dataStore.js').PredictorEntry} PredictorEntry */
+/**
+ * @typedef {object} Db
+ * @property {(Profile & {referredBy: string|null})[]} users
+ * @property {Group[]} groups
+ * @property {{groupId: string, userId: string, joinedAt: string}[]} groupMembers
+ * @property {BetPost[]} betPosts
+ * @property {{id: string, originalBetId: string, copyingUserId: string, createdAt: string}[]} betCopies
+ * @property {{id: string, betId: string, userId: string, emoji: string, createdAt: string}[]} reactions
+ * @property {{id: string, betId: string, userId: string, body: string, createdAt: string}[]} comments
+ * @property {ManualEntry[]} manualEntries
+ * @property {{id: string, userA: string, userB: string, createdAt: string}[]} friendships
+ * @property {{id: string, authorId: string, videoKey: string, durationSec: number, caption: string, tag: string|null, createdAt: string}[]} videoPosts
+ * @property {{id: string, videoId: string, sharedByUserId: string, targetType: string, targetId: string, createdAt: string}[]} videoShares
+ * @property {{id: string, followerId: string, followingId: string, createdAt: string}[]} follows
+ * @property {GroupMessage[]} groupMessages
+ * @property {{id: string, blockerId: string, blockedId: string, createdAt: string}[]} blocks
+ * @property {{id: string, postId: string, reporterId: string, reason: string, createdAt: string}[]} postReports
+ * @property {DirectMessage[]} directMessages
+ * @property {(OddsAlert & {userId: string})[]} oddsAlerts
+ * @property {{id: string, userId: string, sport: string, eventId: string, eventLabel: string, kickoff: string, createdAt: string}[]} followedFixtures
+ * @property {{id: string, userId: string, sport: string, name: string, createdAt: string}[]} followedParticipants
+ * @property {FixtureChatMessage[]} fixtureChatMessages
+ * @property {Predictor[]} predictors
+ * @property {PredictorEntry[]} predictorEntries
+ */
 
 const DB_KEY = 'betmates.db'
 const SESSION_KEY = 'betmates.session'
@@ -36,25 +77,30 @@ const EMPTY_DB = {
 // Merges in any table keys added after a browser's db was first created -
 // otherwise an older stored db missing e.g. `friendships` would crash the
 // first time a newer function tries to read it.
+/** @returns {Db} */
 function readDb() {
   const raw = localStorage.getItem(DB_KEY)
   return raw ? { ...EMPTY_DB, ...JSON.parse(raw) } : { ...EMPTY_DB }
 }
 
+/** @param {Db} db */
 function writeDb(db) {
   localStorage.setItem(DB_KEY, JSON.stringify(db))
 }
 
+/** @param {string} prefix @returns {string} */
 function uid(prefix) {
   return `${prefix}_${Date.now().toString(36)}${Math.random().toString(36).slice(2, 8)}`
 }
 
+/** @template T @param {T} value @returns {Promise<T>} */
 function delay(value) {
   return Promise.resolve(value)
 }
 
 // --- Auth -------------------------------------------------------------
 
+/** @returns {Promise<Profile|null>} */
 export function getSession() {
   const raw = localStorage.getItem(SESSION_KEY)
   if (!raw) return delay(null)
@@ -66,6 +112,7 @@ export function getSession() {
 // "Alex" seed content (see removeDemoContent) now that it's been removed -
 // existing accounts that already got seeded need this cleanup, not just
 // new sign-ups skipping it.
+/** @param {Profile} user @returns {Profile} */
 function syncSessionOnLoad(user) {
   const db = readDb()
   let changed = removeDemoContent(db)
@@ -89,6 +136,7 @@ function syncSessionOnLoad(user) {
 // reactions/comments, and the bot_jamie/bot_alex accounts + friendships.
 // Idempotent and cheap to call on every load - the bot-id check below
 // short-circuits once a browser has already been cleaned.
+/** @param {Db} db @returns {boolean} */
 function removeDemoContent(db) {
   const botIds = ['bot_jamie', 'bot_alex']
   if (!db.users.some((u) => botIds.includes(u.id))) return false
@@ -107,6 +155,10 @@ function removeDemoContent(db) {
   return true
 }
 
+/**
+ * @param {{email: string, displayName: string, dob: string, referredByCode?: string|null}} params
+ * @returns {Promise<Profile>}
+ */
 export function signUp({ email, displayName, dob, referredByCode }) {
   const age = ageFromDob(dob)
   if (age < 18) return Promise.reject(new Error('You must be 18 or older to use BetMates.'))
@@ -139,6 +191,7 @@ export function signUp({ email, displayName, dob, referredByCode }) {
   return delay(user)
 }
 
+/** @param {{email: string}} params @returns {Promise<Profile>} */
 export function signIn({ email }) {
   const db = readDb()
   const user = db.users.find((u) => u.email === email)
@@ -147,6 +200,7 @@ export function signIn({ email }) {
   return delay(user)
 }
 
+/** @returns {Promise<null>} */
 export function signOut() {
   localStorage.removeItem(SESSION_KEY)
   return delay(null)
@@ -155,13 +209,14 @@ export function signOut() {
 // Mirrors netlify/functions/delete-account.js: groups this user created
 // get handed to their longest-standing other member, or deleted outright
 // if they were the only one in it, before the user's own rows are removed.
+/** @param {string} userId @returns {Promise<true>} */
 export function deleteAccount(userId) {
   const db = readDb()
 
   for (const group of db.groups.filter((g) => g.createdBy === userId)) {
     const others = db.groupMembers
       .filter((m) => m.groupId === group.id && m.userId !== userId)
-      .sort((a, b) => new Date(a.joinedAt) - new Date(b.joinedAt))
+      .sort((a, b) => new Date(a.joinedAt).getTime() - new Date(b.joinedAt).getTime())
     if (others.length) {
       group.createdBy = others[0].userId
     } else {
@@ -196,6 +251,7 @@ export function deleteAccount(userId) {
   return delay(true)
 }
 
+/** @param {string} dob @returns {number} */
 function ageFromDob(dob) {
   const birth = new Date(dob)
   if (Number.isNaN(birth.getTime())) return 0
@@ -208,17 +264,20 @@ function ageFromDob(dob) {
 
 // --- Groups -------------------------------------------------------------
 
+/** @param {string} userId @returns {Promise<Group[]>} */
 export function listMyGroups(userId) {
   const db = readDb()
   const groupIds = db.groupMembers.filter((m) => m.userId === userId).map((m) => m.groupId)
   return delay(db.groups.filter((g) => groupIds.includes(g.id)))
 }
 
+/** @param {string} groupId @returns {Promise<Group|null>} */
 export function getGroup(groupId) {
   const db = readDb()
   return delay(db.groups.find((g) => g.id === groupId) || null)
 }
 
+/** @param {string} name @param {string} userId @returns {Promise<Group>} */
 export function createGroup(name, userId) {
   const db = readDb()
   const group = {
@@ -234,6 +293,7 @@ export function createGroup(name, userId) {
   return delay(group)
 }
 
+/** @param {string} code @param {string} userId @returns {Promise<Group>} */
 export function joinGroupByCode(code, userId) {
   const db = readDb()
   const group = db.groups.find((g) => g.inviteCode.toUpperCase() === code.trim().toUpperCase())
@@ -246,6 +306,7 @@ export function joinGroupByCode(code, userId) {
   return delay(group)
 }
 
+/** @param {string} groupId @returns {Promise<{id: string, displayName: string}[]>} */
 export function listGroupMembers(groupId) {
   const db = readDb()
   const memberIds = db.groupMembers.filter((m) => m.groupId === groupId).map((m) => m.userId)
@@ -254,6 +315,7 @@ export function listGroupMembers(groupId) {
   )
 }
 
+/** @param {string} groupId @param {string} userId @returns {Promise<true>} */
 export function leaveGroup(groupId, userId) {
   const db = readDb()
   db.groupMembers = db.groupMembers.filter((m) => !(m.groupId === groupId && m.userId === userId))
@@ -261,6 +323,7 @@ export function leaveGroup(groupId, userId) {
   return delay(true)
 }
 
+/** @param {string} groupId @param {string} name @returns {Promise<Group|null>} */
 export function renameGroup(groupId, name) {
   const db = readDb()
   const group = db.groups.find((g) => g.id === groupId)
@@ -271,6 +334,7 @@ export function renameGroup(groupId, name) {
   return delay(group || null)
 }
 
+/** @param {string} groupId @param {string} memberId @param {string} requesterId @returns {Promise<true>} */
 export function removeGroupMember(groupId, memberId, requesterId) {
   const db = readDb()
   const group = db.groups.find((g) => g.id === groupId)
@@ -282,11 +346,13 @@ export function removeGroupMember(groupId, memberId, requesterId) {
 
 // --- Group chat -------------------------------------------------------
 
+/** @param {string} groupId @returns {Promise<GroupMessage[]>} */
 export function listGroupMessages(groupId) {
   const db = readDb()
-  return delay(db.groupMessages.filter((m) => m.groupId === groupId).sort((a, b) => new Date(a.createdAt) - new Date(b.createdAt)))
+  return delay(db.groupMessages.filter((m) => m.groupId === groupId).sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()))
 }
 
+/** @param {string} groupId @param {string} userId @param {string} body @returns {Promise<GroupMessage>} */
 export function sendGroupMessage(groupId, userId, body) {
   const db = readDb()
   const message = { id: uid('msg'), groupId, userId, body, createdAt: new Date().toISOString() }
@@ -297,15 +363,21 @@ export function sendGroupMessage(groupId, userId, body) {
 
 // --- Fixture (match-day) chat --------------------------------------------
 
+/** @param {string} sport @param {string} eventId @returns {Promise<FixtureChatMessage[]>} */
 export function listFixtureChatMessages(sport, eventId) {
   const db = readDb()
   return delay(
     db.fixtureChatMessages
       .filter((m) => m.sport === sport && m.eventId === eventId)
-      .sort((a, b) => new Date(a.createdAt) - new Date(b.createdAt))
+      .sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime())
   )
 }
 
+/**
+ * @param {string} sport @param {string} eventId @param {string} userId
+ * @param {string} displayName @param {string} body
+ * @returns {Promise<FixtureChatMessage>}
+ */
 export function sendFixtureChatMessage(sport, eventId, userId, displayName, body) {
   const db = readDb()
   const message = { id: uid('fchat'), sport, eventId, userId, authorName: displayName, body, createdAt: new Date().toISOString() }
@@ -316,14 +388,19 @@ export function sendFixtureChatMessage(sport, eventId, userId, displayName, body
 
 // --- Table predictor -----------------------------------------------------
 
+/** @param {string} groupId @returns {Promise<Predictor|null>} */
 export function getPredictor(groupId) {
   const db = readDb()
   const rows = db.predictors
     .filter((p) => p.groupId === groupId)
-    .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))
+    .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
   return delay(rows[0] ?? null)
 }
 
+/**
+ * @param {string} groupId @param {string} userId @param {string} competition @param {string[]} participants
+ * @returns {Promise<Predictor>}
+ */
 export function createPredictor(groupId, userId, competition, participants) {
   const db = readDb()
   const predictor = {
@@ -342,6 +419,7 @@ export function createPredictor(groupId, userId, competition, participants) {
   return delay(predictor)
 }
 
+/** @param {string} predictorId @param {string} userId @param {string[]} standings @returns {Promise<Predictor|null>} */
 export function updateStandings(predictorId, userId, standings) {
   const db = readDb()
   const predictor = db.predictors.find((p) => p.id === predictorId)
@@ -354,11 +432,13 @@ export function updateStandings(predictorId, userId, standings) {
   return delay(predictor)
 }
 
+/** @param {string} predictorId @returns {Promise<PredictorEntry[]>} */
 export function listPredictorEntries(predictorId) {
   const db = readDb()
   return delay(db.predictorEntries.filter((e) => e.predictorId === predictorId))
 }
 
+/** @param {string} predictorId @param {string} userId @param {string[]} predictedOrder @returns {Promise<PredictorEntry>} */
 export function submitPredictorEntry(predictorId, userId, predictedOrder) {
   const db = readDb()
   let entry = db.predictorEntries.find((e) => e.predictorId === predictorId && e.userId === userId)
@@ -376,21 +456,24 @@ export function submitPredictorEntry(predictorId, userId, predictedOrder) {
 
 // --- Direct messages ---------------------------------------------------
 
+/** @param {string} userId @returns {Promise<{id: string, displayName: string, avatarUrl: string|null}|null>} */
 export function getProfileById(userId) {
   const db = readDb()
   const user = db.users.find((u) => u.id === userId)
   return delay(user ? { id: user.id, displayName: user.displayName, avatarUrl: user.avatarUrl ?? null } : null)
 }
 
+/** @param {string} userId @param {string} friendId @returns {Promise<DirectMessage[]>} */
 export function listDirectMessages(userId, friendId) {
   const db = readDb()
   return delay(
     db.directMessages
       .filter((m) => (m.senderId === userId && m.recipientId === friendId) || (m.senderId === friendId && m.recipientId === userId))
-      .sort((a, b) => new Date(a.createdAt) - new Date(b.createdAt))
+      .sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime())
   )
 }
 
+/** @param {string} userId @param {string} friendId @param {string} body @returns {Promise<DirectMessage>} */
 export function sendDirectMessage(userId, friendId, body) {
   const db = readDb()
   const message = { id: uid('dm'), senderId: userId, recipientId: friendId, body, createdAt: new Date().toISOString() }
@@ -399,13 +482,18 @@ export function sendDirectMessage(userId, friendId, body) {
   return delay(message)
 }
 
+/**
+ * @param {string} userId
+ * @returns {Promise<{friendId: string, lastBody: string, lastAt: string, lastFromFriend: boolean, friendName: string, friendAvatarUrl: string|null}[]>}
+ */
 export function listConversations(userId) {
   const db = readDb()
   const names = Object.fromEntries(db.users.map((u) => [u.id, { displayName: u.displayName, avatarUrl: u.avatarUrl ?? null }]))
   const sorted = [...db.directMessages]
     .filter((m) => m.senderId === userId || m.recipientId === userId)
-    .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))
+    .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
 
+  /** @type {Map<string, {friendId: string, lastBody: string, lastAt: string, lastFromFriend: boolean}>} */
   const byFriend = new Map()
   for (const m of sorted) {
     const friendId = m.senderId === userId ? m.recipientId : m.senderId
@@ -416,28 +504,37 @@ export function listConversations(userId) {
   return delay(
     [...byFriend.values()]
       .map((c) => ({ ...c, friendName: names[c.friendId]?.displayName ?? 'Someone', friendAvatarUrl: names[c.friendId]?.avatarUrl ?? null }))
-      .sort((a, b) => new Date(b.lastAt) - new Date(a.lastAt))
+      .sort((a, b) => new Date(b.lastAt).getTime() - new Date(a.lastAt).getTime())
   )
 }
 
 // --- Bet posts ------------------------------------------------------------
 
+/** @param {string} groupId @returns {Promise<BetPost[]>} */
 export function listBetPosts(groupId) {
   const db = readDb()
   return delay(
     db.betPosts
       .filter((b) => b.groupId === groupId)
-      .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))
+      .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
   )
 }
 
+/**
+ * @param {{groupId: string|null, userId: string, sport: string, marketType: string, selections: any[], stake: number|null, stakeHidden?: boolean, potentialReturn: number|null, visibility?: 'group'|'public'}} post
+ * @returns {Promise<BetPost>}
+ */
 export function createBetPost(post) {
   const db = readDb()
+  /** @type {BetPost} */
   const record = {
     id: uid('bet'),
     status: 'open',
     createdAt: new Date().toISOString(),
     settledAt: null,
+    outcomes: null,
+    stakeHidden: false,
+    visibility: 'group',
     ...post
   }
   db.betPosts.push(record)
@@ -445,6 +542,11 @@ export function createBetPost(post) {
   return delay(record)
 }
 
+/**
+ * @param {string} betId @param {'open'|'won'|'lost'|'void'} status
+ * @param {number} [potentialReturnOverride] @param {any[]} [outcomes]
+ * @returns {Promise<BetPost>}
+ */
 export function updateBetStatus(betId, status, potentialReturnOverride, outcomes) {
   const db = readDb()
   const post = db.betPosts.find((b) => b.id === betId)
@@ -457,6 +559,7 @@ export function updateBetStatus(betId, status, potentialReturnOverride, outcomes
   return delay(post)
 }
 
+/** @param {string} userId @returns {Promise<BetPost[]>} */
 export function listBetPostsByUser(userId) {
   const db = readDb()
   return delay(db.betPosts.filter((b) => b.userId === userId))
@@ -465,6 +568,11 @@ export function listBetPostsByUser(userId) {
 // Mirrors dataStore.js's Supabase version, including the status === 'open'
 // restriction (enforced there by RLS) - kept here too so the no-backend
 // path behaves the same way, not just whatever the UI happens to allow.
+/**
+ * @param {string} betId
+ * @param {{stake: number|null, stakeHidden?: boolean, potentialReturn: number|null}} params
+ * @returns {Promise<BetPost>}
+ */
 export function updateBetPost(betId, { stake, stakeHidden, potentialReturn }) {
   const db = readDb()
   const post = db.betPosts.find((b) => b.id === betId)
@@ -477,6 +585,7 @@ export function updateBetPost(betId, { stake, stakeHidden, potentialReturn }) {
   return delay(post)
 }
 
+/** @param {string} betId @returns {Promise<true>} */
 export function deleteBetPost(betId) {
   const db = readDb()
   const post = db.betPosts.find((b) => b.id === betId)
@@ -493,6 +602,7 @@ export function deleteBetPost(betId) {
 // regardless of group membership (see BetBuilderSheet's "Post publicly").
 // Author names are resolved against every user, not just group members,
 // since a public post can come from - and be seen by - anyone.
+/** @param {string} [viewerId] @returns {Promise<(BetPost & {authorName: string, authorCode: string|null})[]>} */
 export function listPublicFeed(viewerId) {
   const db = readDb()
   const names = Object.fromEntries(db.users.map((u) => [u.id, u.displayName]))
@@ -502,12 +612,13 @@ export function listPublicFeed(viewerId) {
     db.betPosts
       .filter((b) => b.visibility === 'public' && !blockedIds.includes(b.userId))
       .map((b) => ({ ...b, authorName: names[b.userId] ?? 'Someone', authorCode: codes[b.userId] ?? null }))
-      .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))
+      .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
   )
 }
 
 // --- Reactions & comments ------------------------------------------------
 
+/** @param {string} betId @param {string} userId @param {string} emoji @returns {Promise<any[]>} */
 export function toggleReaction(betId, userId, emoji) {
   const db = readDb()
   const idx = db.reactions.findIndex((r) => r.betId === betId && r.userId === userId && r.emoji === emoji)
@@ -520,11 +631,13 @@ export function toggleReaction(betId, userId, emoji) {
   return delay(db.reactions.filter((r) => r.betId === betId))
 }
 
+/** @param {string} betId @returns {Promise<any[]>} */
 export function listReactions(betId) {
   const db = readDb()
   return delay(db.reactions.filter((r) => r.betId === betId))
 }
 
+/** @param {string} betId @param {string} userId @param {string} body @returns {Promise<any>} */
 export function addComment(betId, userId, body) {
   const db = readDb()
   const comment = { id: uid('comment'), betId, userId, body, createdAt: new Date().toISOString() }
@@ -533,13 +646,15 @@ export function addComment(betId, userId, body) {
   return delay(comment)
 }
 
+/** @param {string} betId @returns {Promise<any[]>} */
 export function listComments(betId) {
   const db = readDb()
-  return delay(db.comments.filter((c) => c.betId === betId).sort((a, b) => new Date(a.createdAt) - new Date(b.createdAt)))
+  return delay(db.comments.filter((c) => c.betId === betId).sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()))
 }
 
 // --- Bet copies (engagement tracking) -------------------------------------
 
+/** @param {string} originalBetId @param {string} copyingUserId @returns {Promise<any>} */
 export function recordBetCopy(originalBetId, copyingUserId) {
   const db = readDb()
   const copy = { id: uid('copy'), originalBetId, copyingUserId, createdAt: new Date().toISOString() }
@@ -548,6 +663,7 @@ export function recordBetCopy(originalBetId, copyingUserId) {
   return delay(copy)
 }
 
+/** @param {string} betId @returns {Promise<any[]>} */
 export function listBetCopies(betId) {
   const db = readDb()
   return delay(db.betCopies.filter((c) => c.originalBetId === betId))
@@ -555,19 +671,30 @@ export function listBetCopies(betId) {
 
 // --- Tracker ---------------------------------------------------------------
 
+/** @param {string} userId @returns {Promise<ManualEntry[]>} */
 export function listManualEntries(userId) {
   const db = readDb()
   return delay(db.manualEntries.filter((e) => e.userId === userId))
 }
 
+/**
+ * @param {{userId: string, sport: string, marketType: string, selections: any[], stake: number|null, potentialReturn: number|null}} entry
+ * @returns {Promise<ManualEntry>}
+ */
 export function addManualEntry(entry) {
   const db = readDb()
-  const record = { id: uid('manual'), createdAt: new Date().toISOString(), status: 'open', settledAt: null, ...entry }
+  /** @type {ManualEntry} */
+  const record = { id: uid('manual'), createdAt: new Date().toISOString(), status: 'open', settledAt: null, outcomes: null, ...entry }
   db.manualEntries.push(record)
   writeDb(db)
   return delay(record)
 }
 
+/**
+ * @param {string} entryId @param {'open'|'won'|'lost'|'void'} status
+ * @param {number} [potentialReturnOverride] @param {any[]} [outcomes]
+ * @returns {Promise<ManualEntry>}
+ */
 export function updateManualEntryStatus(entryId, status, potentialReturnOverride, outcomes) {
   const db = readDb()
   const entry = db.manualEntries.find((e) => e.id === entryId)
@@ -580,6 +707,7 @@ export function updateManualEntryStatus(entryId, status, potentialReturnOverride
   return delay(entry)
 }
 
+/** @param {string} entryId @param {{stake: number|null, potentialReturn: number|null}} params @returns {Promise<ManualEntry>} */
 export function updateManualEntry(entryId, { stake, potentialReturn }) {
   const db = readDb()
   const entry = db.manualEntries.find((e) => e.id === entryId)
@@ -591,6 +719,7 @@ export function updateManualEntry(entryId, { stake, potentialReturn }) {
   return delay(entry)
 }
 
+/** @param {string} entryId @returns {Promise<true>} */
 export function deleteManualEntry(entryId) {
   const db = readDb()
   const entry = db.manualEntries.find((e) => e.id === entryId)
@@ -603,6 +732,7 @@ export function deleteManualEntry(entryId) {
 
 // --- Account -----------------------------------------------------------
 
+/** @param {string} userId @param {string} displayName @returns {Promise<string>} */
 export function updateDisplayName(userId, displayName) {
   const db = readDb()
   const user = db.users.find((u) => u.id === userId)
@@ -621,6 +751,7 @@ export function updateDisplayName(userId, displayName) {
   return delay(displayName)
 }
 
+/** @param {string} userId @param {string[]} prefs @returns {Promise<string[]>} */
 export function updateBookmakerPrefs(userId, prefs) {
   const db = readDb()
   const user = db.users.find((u) => u.id === userId)
@@ -639,6 +770,7 @@ export function updateBookmakerPrefs(userId, prefs) {
   return delay(prefs)
 }
 
+/** @param {string} userId @param {Profile['notificationPrefs']} prefs @returns {Promise<Profile['notificationPrefs']>} */
 export function updateNotificationPrefs(userId, prefs) {
   const db = readDb()
   const user = db.users.find((u) => u.id === userId)
@@ -657,6 +789,10 @@ export function updateNotificationPrefs(userId, prefs) {
   return delay(prefs)
 }
 
+/**
+ * @param {string} userId @param {{amount: number|null, period: string|null}} params
+ * @returns {Promise<{amount: number|null, period: string|null}>}
+ */
 export function updateStakeLimit(userId, { amount, period }) {
   const db = readDb()
   const user = db.users.find((u) => u.id === userId)
@@ -677,6 +813,7 @@ export function updateStakeLimit(userId, { amount, period }) {
   return delay({ amount, period })
 }
 
+/** @param {string} userId @param {string|null} buddyId @returns {Promise<string|null>} */
 export function updateLimitBuddy(userId, buddyId) {
   const db = readDb()
   const user = db.users.find((u) => u.id === userId)
@@ -699,11 +836,15 @@ export function updateLimitBuddy(userId, buddyId) {
 // stores that directly, which is fine at avatar-sized files but would bloat
 // localStorage fast at any real size. Fine for dev-mode clicking around;
 // the Supabase-backed uploadAvatar in dataStore.js is what production uses.
+/** @param {string} userId @param {File} file @returns {Promise<string>} */
 export function uploadAvatar(userId, file) {
   return new Promise((resolve, reject) => {
     const reader = new FileReader()
     reader.onload = () => {
-      const url = reader.result
+      // readAsDataURL always yields a string result (the other FileReader
+      // read modes are what can produce an ArrayBuffer) - the DOM lib's
+      // .result type covers every read method generically, not just this one.
+      const url = /** @type {string} */ (reader.result)
       const db = readDb()
       const user = db.users.find((u) => u.id === userId)
       if (user) {
@@ -725,6 +866,7 @@ export function uploadAvatar(userId, file) {
   })
 }
 
+/** @param {string} userId @returns {Promise<number>} */
 export function countReferrals(userId) {
   const db = readDb()
   return delay(db.users.filter((u) => u.referredBy === userId).length)
@@ -734,10 +876,12 @@ export function countReferrals(userId) {
 // No server to send a push from in local mode - the real subscribe/permission
 // flow in src/lib/push.js still runs, this just has nowhere to persist it.
 
+/** @param {string} _userId @param {PushSubscription} _subscription @returns {Promise<null>} */
 export function savePushSubscription(_userId, _subscription) {
   return delay(null)
 }
 
+/** @param {string} _endpoint @returns {Promise<null>} */
 export function deletePushSubscription(_endpoint) {
   return delay(null)
 }
@@ -748,6 +892,11 @@ export function deletePushSubscription(_endpoint) {
 // usual "fully clickable without a real backend" rule even though the
 // checking half of the feature has nowhere to run here.
 
+/**
+ * @param {string} userId
+ * @param {{sport: string, eventId: string, eventLabel: string, kickoff: string, marketKey?: string, marketLabel: string, outcomeName?: string, selectionLabel: string, targetDecimal: number}} alert
+ * @returns {Promise<OddsAlert & {userId: string}>}
+ */
 export function createOddsAlert(userId, alert) {
   const db = readDb()
   const record = { id: uid('alert'), userId, createdAt: new Date().toISOString(), triggeredAt: null, ...alert }
@@ -756,11 +905,13 @@ export function createOddsAlert(userId, alert) {
   return delay(record)
 }
 
+/** @param {string} userId @returns {Promise<(OddsAlert & {userId: string})[]>} */
 export function listMyOddsAlerts(userId) {
   const db = readDb()
-  return delay(db.oddsAlerts.filter((a) => a.userId === userId).sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt)))
+  return delay(db.oddsAlerts.filter((a) => a.userId === userId).sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()))
 }
 
+/** @param {string} alertId @returns {Promise<null>} */
 export function deleteOddsAlert(alertId) {
   const db = readDb()
   db.oddsAlerts = db.oddsAlerts.filter((a) => a.id !== alertId)
@@ -768,8 +919,10 @@ export function deleteOddsAlert(alertId) {
   return delay(null)
 }
 
+/** @param {string} userId @param {{sport: string, eventId: string, eventLabel: string, kickoff: string}} follow @returns {Promise<null>} */
 export function followFixture(userId, follow) {
   const db = readDb()
+  /** @param {{userId: string, sport: string, eventId: string}} f */
   const key = (f) => `${f.userId}|${f.sport}|${f.eventId}`
   db.followedFixtures = db.followedFixtures.filter((f) => key(f) !== `${userId}|${follow.sport}|${follow.eventId}`)
   db.followedFixtures.push({ id: uid('follow'), userId, ...follow, createdAt: new Date().toISOString() })
@@ -777,6 +930,7 @@ export function followFixture(userId, follow) {
   return delay(null)
 }
 
+/** @param {string} userId @param {string} sport @param {string} eventId @returns {Promise<null>} */
 export function unfollowFixture(userId, sport, eventId) {
   const db = readDb()
   db.followedFixtures = db.followedFixtures.filter((f) => !(f.userId === userId && f.sport === sport && f.eventId === eventId))
@@ -784,6 +938,7 @@ export function unfollowFixture(userId, sport, eventId) {
   return delay(null)
 }
 
+/** @param {string} userId @param {string} sport @param {string} eventId @returns {Promise<boolean>} */
 export function isFollowingFixture(userId, sport, eventId) {
   const db = readDb()
   return delay(db.followedFixtures.some((f) => f.userId === userId && f.sport === sport && f.eventId === eventId))
@@ -791,6 +946,7 @@ export function isFollowingFixture(userId, sport, eventId) {
 
 // --- Followed teams/players ---------------------------------------------
 
+/** @param {string} userId @param {string} sport @param {string} name @returns {Promise<null>} */
 export function followParticipant(userId, sport, name) {
   const db = readDb()
   db.followedParticipants = db.followedParticipants.filter((p) => !(p.userId === userId && p.sport === sport && p.name === name))
@@ -799,6 +955,7 @@ export function followParticipant(userId, sport, name) {
   return delay(null)
 }
 
+/** @param {string} userId @param {string} sport @param {string} name @returns {Promise<null>} */
 export function unfollowParticipant(userId, sport, name) {
   const db = readDb()
   db.followedParticipants = db.followedParticipants.filter((p) => !(p.userId === userId && p.sport === sport && p.name === name))
@@ -806,6 +963,7 @@ export function unfollowParticipant(userId, sport, name) {
   return delay(null)
 }
 
+/** @param {string} userId @returns {Promise<{sport: string, name: string}[]>} */
 export function listFollowedParticipants(userId) {
   const db = readDb()
   return delay(db.followedParticipants.filter((p) => p.userId === userId).map((p) => ({ sport: p.sport, name: p.name })))
@@ -815,6 +973,7 @@ export function listFollowedParticipants(userId) {
 // Adding by code connects instantly (no request/accept step), matching
 // the same low-friction pattern as group invite codes.
 
+/** @param {string} code @param {string} userId @returns {Promise<{id: string, displayName: string}>} */
 export function addFriendByCode(code, userId) {
   const db = readDb()
   const target = db.users.find((u) => u.friendCode === code.trim().toUpperCase())
@@ -829,6 +988,7 @@ export function addFriendByCode(code, userId) {
   return delay({ id: target.id, displayName: target.displayName })
 }
 
+/** @param {string} userId @returns {Promise<{id: string, displayName: string}[]>} */
 export function listFriends(userId) {
   const db = readDb()
   const friendIds = db.friendships
@@ -839,6 +999,10 @@ export function listFriends(userId) {
 
 // --- Video tips ----------------------------------------------------------
 
+/**
+ * @param {{authorId: string, videoKey: string, durationSec: number, caption: string, tag?: string}} params
+ * @returns {Promise<{id: string, authorId: string, videoKey: string, durationSec: number, caption: string, tag: string|null, createdAt: string}>}
+ */
 export function createVideoPost({ authorId, videoKey, durationSec, caption, tag }) {
   const db = readDb()
   const post = {
@@ -855,6 +1019,10 @@ export function createVideoPost({ authorId, videoKey, durationSec, caption, tag 
   return delay(post)
 }
 
+/**
+ * @param {string} userId
+ * @returns {Promise<{id: string, authorId: string, videoKey: string, durationSec: number, caption: string, tag: string|null, createdAt: string, authorName: string}[]>}
+ */
 export async function listFriendsFeed(userId) {
   const db = readDb()
   const friends = await listFriends(userId)
@@ -863,9 +1031,10 @@ export async function listFriendsFeed(userId) {
   return db.videoPosts
     .filter((v) => authorIds.has(v.authorId))
     .map((v) => ({ ...v, authorName: names[v.authorId] ?? 'Someone' }))
-    .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))
+    .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
 }
 
+/** @param {string} videoId @param {string} sharedByUserId @param {{type: string, id: string}} target @returns {Promise<any>} */
 export function shareVideo(videoId, sharedByUserId, target) {
   const db = readDb()
   const video = db.videoPosts.find((v) => v.id === videoId)
@@ -883,6 +1052,7 @@ export function shareVideo(videoId, sharedByUserId, target) {
   return delay(share)
 }
 
+/** @param {Db} db @param {Db['videoShares']} shares */
 function resolveShares(db, shares) {
   const names = Object.fromEntries(db.users.map((u) => [u.id, u.displayName]))
   return shares
@@ -897,15 +1067,17 @@ function resolveShares(db, shares) {
       }
     })
     .filter(Boolean)
-    .sort((a, b) => new Date(b.sharedAt) - new Date(a.sharedAt))
+    .sort((a, b) => new Date(b.sharedAt).getTime() - new Date(a.sharedAt).getTime())
 }
 
+/** @param {string} userId @returns {Promise<ReturnType<typeof resolveShares>>} */
 export function listSharedWithMe(userId) {
   const db = readDb()
   const shares = db.videoShares.filter((s) => s.targetType === 'friend' && s.targetId === userId)
   return delay(resolveShares(db, shares))
 }
 
+/** @param {string} groupId @returns {Promise<ReturnType<typeof resolveShares>>} */
 export function listSharedInGroup(groupId) {
   const db = readDb()
   const shares = db.videoShares.filter((s) => s.targetType === 'group' && s.targetId === groupId)
@@ -917,6 +1089,7 @@ export function listSharedInGroup(groupId) {
 // follow back, matching the public-feed "follow whoever's picks you like"
 // model rather than the mutual-connect model friends/groups use.
 
+/** @param {string} userId @param {string} targetId @returns {Promise<true>} */
 export function followUser(userId, targetId) {
   const db = readDb()
   if (targetId === userId) return Promise.reject(new Error("You can't follow yourself."))
@@ -928,6 +1101,7 @@ export function followUser(userId, targetId) {
   return delay(true)
 }
 
+/** @param {string} userId @param {string} targetId @returns {Promise<true>} */
 export function unfollowUser(userId, targetId) {
   const db = readDb()
   db.follows = db.follows.filter((f) => !(f.followerId === userId && f.followingId === targetId))
@@ -935,6 +1109,7 @@ export function unfollowUser(userId, targetId) {
   return delay(true)
 }
 
+/** @param {string} userId @returns {Promise<string[]>} */
 export function listFollowing(userId) {
   const db = readDb()
   const ids = db.follows.filter((f) => f.followerId === userId).map((f) => f.followingId)
@@ -943,6 +1118,7 @@ export function listFollowing(userId) {
 
 // --- Blocks & reports ----------------------------------------------------
 
+/** @param {string} userId @param {string} blockedId @returns {Promise<true>} */
 export function blockUser(userId, blockedId) {
   const db = readDb()
   if (!db.blocks.some((b) => b.blockerId === userId && b.blockedId === blockedId)) {
@@ -952,6 +1128,7 @@ export function blockUser(userId, blockedId) {
   return delay(true)
 }
 
+/** @param {string} userId @param {string} blockedId @returns {Promise<true>} */
 export function unblockUser(userId, blockedId) {
   const db = readDb()
   db.blocks = db.blocks.filter((b) => !(b.blockerId === userId && b.blockedId === blockedId))
@@ -959,11 +1136,13 @@ export function unblockUser(userId, blockedId) {
   return delay(true)
 }
 
+/** @param {string} userId @returns {Promise<string[]>} */
 export function listBlockedUserIds(userId) {
   const db = readDb()
   return delay(db.blocks.filter((b) => b.blockerId === userId).map((b) => b.blockedId))
 }
 
+/** @param {string} userId @returns {Promise<{id: string, displayName: string}[]>} */
 export function listBlockedUsers(userId) {
   const db = readDb()
   const names = Object.fromEntries(db.users.map((u) => [u.id, u.displayName]))
@@ -972,6 +1151,7 @@ export function listBlockedUsers(userId) {
   )
 }
 
+/** @param {string} postId @param {string} reporterId @param {string} reason @returns {Promise<true>} */
 export function reportPost(postId, reporterId, reason) {
   const db = readDb()
   if (!db.postReports.some((r) => r.postId === postId && r.reporterId === reporterId)) {
@@ -983,6 +1163,9 @@ export function reportPost(postId, reporterId, reason) {
 
 // --- Report moderation ---------------------------------------------------
 
+/**
+ * @returns {Promise<{id: string, reason: string, createdAt: string, reporterName: string, postId: string, post: {id: string, authorName: string, event: string, stake: number|null, status: string}}[]>}
+ */
 export function listAllReports() {
   const db = readDb()
   const names = Object.fromEntries(db.users.map((u) => [u.id, u.displayName]))
@@ -1006,11 +1189,12 @@ export function listAllReports() {
           }
         }
       })
-      .filter(Boolean)
-      .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))
+      .filter((r) => r !== null)
+      .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
   )
 }
 
+/** @param {string} postId @returns {Promise<true>} */
 export function dismissReportsForPost(postId) {
   const db = readDb()
   db.postReports = db.postReports.filter((r) => r.postId !== postId)
@@ -1018,6 +1202,7 @@ export function dismissReportsForPost(postId) {
   return delay(true)
 }
 
+/** @param {string} postId @returns {Promise<true>} */
 export function removePost(postId) {
   const db = readDb()
   db.betPosts = db.betPosts.filter((p) => p.id !== postId)
