@@ -24,6 +24,7 @@ import FollowButton from '../components/FollowButton.jsx'
 import FixtureChatPanel from '../components/FixtureChatPanel.jsx'
 import FollowParticipantButton from '../components/FollowParticipantButton.jsx'
 import ParticipantProfileSheet from '../components/ParticipantProfileSheet.jsx'
+import CoachGptLink from '../components/CoachGptLink.jsx'
 
 export default function GenericEventDetailPage() {
   const { sportKey, id } = useParams()
@@ -142,6 +143,7 @@ export default function GenericEventDetailPage() {
           eventLabel={`${event.participantA} v ${event.participantB}`}
           kickoff={event.kickoff}
         />
+        <CoachGptLink question={`What's the best bet for ${event.participantA} v ${event.participantB}?`} />
         {isLive(event.kickoff, sportKey) && (
           <div className="race-header-live">
             <LiveBadge />
