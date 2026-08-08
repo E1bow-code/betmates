@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
+import CoachGptLink from '../components/CoachGptLink.jsx'
 import { fetchFixture } from '../api/oddsClient.js'
 import { formatDateTime, formatCountdown } from '../utils/format.js'
 import { bestWithinFilter } from '../utils/oddsUtils.js'
@@ -122,6 +123,7 @@ export default function FixtureDetailPage() {
           eventLabel={`${fixture.homeTeam} v ${fixture.awayTeam}`}
           kickoff={fixture.kickoff}
         />
+        <CoachGptLink question={`What's the best bet for ${fixture.homeTeam} v ${fixture.awayTeam}?`} />
         {isLive(fixture.kickoff, 'football') && (
           <div className="race-header-live">
             <LiveBadge />

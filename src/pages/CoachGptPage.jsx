@@ -1,5 +1,5 @@
-import { useEffect, useState } from 'react'
-import { Link } from 'react-router-dom'
+import { useEffect, useRef, useState } from 'react'
+import { Link, useLocation, useNavigate } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext.jsx'
 import * as dataStore from '../lib/dataStore.js'
 import { sendCoachGptMessage } from '../api/coachGptClient.js'
@@ -18,12 +18,15 @@ const EXAMPLE_PROMPTS = ['What’s the value bet for Arsenal tonight?', 'Tell me
 
 export default function CoachGptPage() {
   const { user } = useAuth()
+  const location = useLocation()
+  const navigate = useNavigate()
   const [messages, setMessages] = useState(null)
   const [draft, setDraft] = useState('')
   const [sending, setSending] = useState(false)
   const [unavailable, setUnavailable] = useState(false)
   const [error, setError] = useState(null)
   const runAsync = useAsyncAction()
+  const prefillSent = useRef(false)
 
   useEffect(() => {
     dataStore
@@ -32,15 +35,27 @@ export default function CoachGptPage() {
       .catch((err) => setError(err.message))
   }, [user.id])
 
-  async function handleSend(e) {
-    e.preventDefault()
-    const body = draft.trim()
-    if (!body) return
+  // Arrived here via an "Ask CoachGPT about this" link (e.g.
+  // FixtureDetailPage.jsx) carrying a pre-built question in router state -
+  // send it automatically rather than just dropping it in the input, since
+  // the button itself already reads as "ask this", not "let me draft a
+  // question". Guarded by a ref (not just the empty router state below)
+  // so React StrictMode's double-effect or a re-render mid-send can't fire
+  // it twice; the state is cleared via `replace` navigation once consumed
+  // so a later back/forward or refresh on this page doesn't resend it.
+  useEffect(() => {
+    const prefill = location.state?.prefill
+    if (!prefill || messages === null || prefillSent.current) return
+    prefillSent.current = true
+    navigate(location.pathname, { replace: true, state: {} })
+    sendMessage(prefill)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [location.state, messages])
 
+  async function sendMessage(body) {
     const userMessage = { id: `pending-${Date.now()}`, userId: user.id, role: 'user', body, createdAt: new Date().toISOString() }
     const history = (messages ?? []).slice(-12).map((m) => ({ role: m.role, content: m.body }))
     setMessages((m) => [...(m ?? []), userMessage])
-    setDraft('')
     setSending(true)
 
     const ok = await runAsync(async () => {
@@ -57,6 +72,14 @@ export default function CoachGptPage() {
     }, "Couldn't reach the Coach - try again")
     setSending(false)
     if (!ok) setMessages((m) => (m ?? []).filter((x) => x.id !== userMessage.id))
+  }
+
+  function handleSend(e) {
+    e.preventDefault()
+    const body = draft.trim()
+    if (!body) return
+    setDraft('')
+    sendMessage(body)
   }
 
   return (
