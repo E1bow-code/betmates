@@ -1628,6 +1628,11 @@ h1, h2, .topbar h1, .sheet-title, .auth-title {
 }
 .scan-cta-title { margin: 0; font-size: 1rem; font-weight: 700; }
 .scan-cta-body { margin: 0; font-size: 0.85rem; color: var(--text-dim); max-width: 320px; }
+/* Ctrl+V/Cmd+V means nothing on a touch device with no keyboard - only
+   show the paste hint where a real keyboard shortcut is plausible. */
+@media (pointer: coarse) {
+  .scan-cta-paste-hint { display: none; }
+}
 .scan-cta-button { position: relative; margin-top: 6px; cursor: pointer; }
 /* Standard clip-based visually-hidden pattern - keeps the real <input>
    keyboard/screen-reader operable (unlike display:none), while the

@@ -125,7 +125,8 @@ export default function ManualEntrySheet({ userId, onClose, onSaved }) {
         <div className="scan-cta">
           <p className="scan-cta-title">📷 Scan your bet slip</p>
           <p className="scan-cta-body">
-            Screenshot it and paste - Ctrl+V / ⌘V - or choose a photo. We'll read off the odds and stake for you.
+            Screenshot it, then choose it below
+            <span className="scan-cta-paste-hint"> - or paste it, Ctrl+V / ⌘V</span>. We'll read off the odds and stake for you.
           </p>
           <label className="btn btn-primary scan-cta-button">
             {scanning ? 'Reading your slip…' : 'Choose a photo'}
