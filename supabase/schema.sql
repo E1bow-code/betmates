@@ -155,11 +155,23 @@ create policy "creator renames their group" on groups for update using (auth.uid
 -- RLS policy for the inner query. security definer sidesteps that by
 -- running the check with the function owner's privileges (bypassing RLS)
 -- instead of the caller's.
+-- search_path is pinned rather than left to inherit the caller's: these
+-- run security definer (see above), and account deletion showed the gap in
+-- practice - auth.admin.deleteUser()'s internal cascade delete runs as a
+-- role whose default search_path doesn't include public, so the unqualified
+-- group_members/groups references below resolved to nothing and threw
+-- "relation does not exist", which surfaced to the user as a failed account
+-- deletion (netlify/functions/delete-account.js). Every security definer
+-- function in this file needs this, not just these two - a function that
+-- resolves table names via the caller's search_path instead of a pinned one
+-- is also a privilege-escalation footgun in general (a caller-writable
+-- schema earlier in their search_path could shadow the intended table).
 create or replace function is_group_member(_group_id uuid, _user_id uuid)
 returns boolean
 language sql
 security definer
 stable
+set search_path = public
 as $$
   select exists (select 1 from group_members where group_id = _group_id and user_id = _user_id);
 $$;
@@ -176,6 +188,7 @@ create or replace function sync_group_member_count()
 returns trigger
 language plpgsql
 security definer
+set search_path = public
 as $$
 begin
   if (tg_op = 'INSERT') then

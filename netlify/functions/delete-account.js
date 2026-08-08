@@ -68,13 +68,15 @@ export default async (req) => {
 
     return new Response(JSON.stringify({ success: true }), { status: 200, headers: { 'content-type': 'application/json' } })
   } catch (err) {
-    // err isn't guaranteed to be a plain Error with a useful .message (a
-    // Supabase AuthRetryableFetchError's .message can itself be an opaque
-    // "{}" when the underlying fetch fails at the network level rather
-    // than returning a structured API error) - fall back through name/
-    // status rather than risk JSON.stringify silently dropping an
-    // undefined .message down to a bare, useless "{}" response body.
-    const message = (err instanceof Error && err.message) || err?.name || 'Failed to delete account.'
+    // A Supabase AuthRetryableFetchError's .message can itself be the
+    // opaque literal string "{}" when the underlying fetch fails at the
+    // network level rather than returning a structured API error - that's
+    // a truthy string, so a plain `err.message || fallback` chain never
+    // catches it. Treat that literal (and any other non-informative
+    // "{...}"-shaped message) as if it were missing.
+    const raw = err instanceof Error ? err.message : undefined
+    const isOpaque = !raw || /^\{.*\}$/.test(raw.trim())
+    const message = isOpaque ? (err?.name ? `Failed to delete account (${err.name}). Please try again.` : 'Failed to delete account. Please try again.') : raw
     return new Response(JSON.stringify({ error: message }), { status: 500 })
   }
 }
