@@ -1858,6 +1858,7 @@ h1, h2, .topbar h1, .sheet-title, .auth-title {
    columns either - GroupRecapCard/FplPanel put 3 tiles into it and would
    end up bunched into 3/5 of the row width instead of filling it. */
 .profile-stat-tiles { grid-template-columns: repeat(5, 1fr); }
+.admin-stat-tiles { grid-template-columns: repeat(3, 1fr); }
 .stat-tile-value { font-weight: 700; font-size: 1.05rem; }
 .stat-tile.tone-good { background: linear-gradient(180deg, rgba(var(--accent-rgb), 0.12) 0%, transparent 75%); }
 .stat-tile.tone-bad { background: linear-gradient(180deg, rgba(var(--bad-rgb), 0.12) 0%, transparent 75%); }
@@ -2132,6 +2133,7 @@ h1, h2, .topbar h1, .sheet-title, .auth-title {
      wraps to a 3-then-2 layout instead. */
   .profile-stat-tiles { grid-template-columns: repeat(3, 1fr); }
   .profile-stat-tiles .stat-tile:nth-child(3) { border-right: none; }
+  .admin-stat-tiles { grid-template-columns: repeat(2, 1fr); }
 }
 
 /* Open bets as dockets - same stub-stripe language as .bet-card (see the

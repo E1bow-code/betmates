@@ -68,7 +68,8 @@ export default function MoreMenu() {
           label: 'Admin',
           items: [
             { to: '/admin/reports', label: 'Reported posts' },
-            { to: '/admin/errors', label: 'Error logs' }
+            { to: '/admin/errors', label: 'Error logs' },
+            { to: '/admin/analytics', label: 'Analytics' }
           ]
         }
       ]

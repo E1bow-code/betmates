@@ -6,6 +6,9 @@
 // other requires no UI changes. NOT for production use: "auth" here is
 // unhashed and purely local to the browser.
 
+import { computeStreak, computeLongestWinStreak } from '../utils/trackerStats.js'
+import { bucketByDay, distinctUsersSince } from '../utils/adminAnalyticsAgg.js'
+
 // Records stored here use the same camelCase field names dataStore.js's
 // map* functions produce (this file *is* the shape the UI expects, not a
 // raw row to be mapped) - so its typedefs are reused directly rather than
@@ -21,6 +24,7 @@
 /** @typedef {import('./dataStore.js').Predictor} Predictor */
 /** @typedef {import('./dataStore.js').PredictorEntry} PredictorEntry */
 /** @typedef {import('./dataStore.js').ErrorLog} ErrorLog */
+/** @typedef {import('./dataStore.js').AdminAnalytics} AdminAnalytics */
 /**
  * @typedef {object} Db
  * @property {(Profile & {referredBy: string|null})[]} users
@@ -1248,4 +1252,79 @@ export function deleteErrorLog(id) {
   db.errorLogs = db.errorLogs.filter((e) => e.id !== id)
   writeDb(db)
   return delay(undefined)
+}
+
+// --- Admin analytics ----------------------------------------------------
+// No identity/is_admin check here, unlike dataStore.js's Supabase path
+// (which goes through netlify/functions/admin-analytics.js for that) -
+// local mode has no real security boundary, same as listErrorLogs/
+// listAllReports above.
+const DAYS = 30
+const TOP_N = 5
+
+/** @returns {Promise<AdminAnalytics>} */
+export function getAdminAnalytics() {
+  const db = readDb()
+  const names = Object.fromEntries(db.users.map((u) => [u.id, u.displayName]))
+  const allBets = [...db.betPosts, ...db.manualEntries]
+  const settledStatuses = ['won', 'lost', 'void']
+
+  const now = new Date()
+  const weekAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000)
+  const todayKey = now.toISOString().slice(0, 10)
+
+  const overview = {
+    totalUsers: db.users.length,
+    totalGroups: db.groups.length,
+    totalBets: allBets.length,
+    totalSettled: allBets.filter((b) => settledStatuses.includes(b.status)).length,
+    signupsToday: db.users.filter((u) => u.createdAt?.slice(0, 10) === todayKey).length,
+    signupsThisWeek: db.users.filter((u) => new Date(u.createdAt) >= weekAgo).length
+  }
+
+  const signupsByDay = bucketByDay(db.users, 'createdAt', DAYS)
+  const betsByDay = bucketByDay(allBets, 'createdAt', DAYS)
+  const groupsByDay = bucketByDay(db.groups, 'createdAt', DAYS)
+
+  const activityRows = [
+    ...allBets.map((r) => ({ userId: r.userId, at: r.createdAt })),
+    ...db.comments.map((r) => ({ userId: r.userId, at: r.createdAt })),
+    ...db.reactions.map((r) => ({ userId: r.userId, at: r.createdAt })),
+    ...db.groupMessages.map((r) => ({ userId: r.userId, at: r.createdAt })),
+    ...db.directMessages.map((r) => ({ userId: r.senderId, at: r.createdAt })),
+    ...db.betCopies.map((r) => ({ userId: r.copyingUserId, at: r.createdAt })),
+    ...db.predictorEntries.map((r) => ({ userId: r.userId, at: r.createdAt }))
+  ]
+  const activeUsers = {
+    dau: distinctUsersSince(activityRows, new Date(now.getTime() - 24 * 60 * 60 * 1000)),
+    wau: distinctUsersSince(activityRows, weekAgo),
+    mau: distinctUsersSince(activityRows, new Date(now.getTime() - DAYS * 24 * 60 * 60 * 1000))
+  }
+
+  const byUser = new Map()
+  for (const row of allBets) {
+    if (!byUser.has(row.userId)) byUser.set(row.userId, [])
+    byUser.get(row.userId).push({ stake: row.stake, status: row.status, potentialReturn: row.potentialReturn, settledAt: row.settledAt })
+  }
+  const current = []
+  const longest = []
+  for (const [userId, entries] of byUser) {
+    const name = names[userId] ?? 'Someone'
+    const streak = computeStreak(entries)
+    if (streak.type === 'won' && streak.count > 0) current.push({ userId, name, count: streak.count })
+    const longestCount = computeLongestWinStreak(entries)
+    if (longestCount > 0) longest.push({ userId, name, count: longestCount })
+  }
+  current.sort((a, b) => b.count - a.count)
+  longest.sort((a, b) => b.count - a.count)
+
+  return delay({
+    overview,
+    signupsByDay,
+    betsByDay,
+    groupsByDay,
+    activeUsers,
+    topStreaks: { current: current.slice(0, TOP_N), longest: longest.slice(0, TOP_N) },
+    generatedAt: now.toISOString()
+  })
 }

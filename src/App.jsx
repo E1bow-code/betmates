@@ -42,6 +42,7 @@ const InsightsPage = lazy(() => import('./pages/InsightsPage.jsx'))
 const HallOfFamePage = lazy(() => import('./pages/HallOfFamePage.jsx'))
 const AdminReportsPage = lazy(() => import('./pages/AdminReportsPage.jsx'))
 const AdminErrorLogsPage = lazy(() => import('./pages/AdminErrorLogsPage.jsx'))
+const AdminAnalyticsPage = lazy(() => import('./pages/AdminAnalyticsPage.jsx'))
 const DirectMessagePage = lazy(() => import('./pages/DirectMessagePage.jsx'))
 const MessagesInboxPage = lazy(() => import('./pages/MessagesInboxPage.jsx'))
 import NewsTickerBar from './components/NewsTickerBar.jsx'
@@ -248,6 +249,7 @@ function Shell() {
                 <Route path="/account" element={<AccountPage />} />
                 <Route path="/admin/reports" element={<AdminReportsPage />} />
                 <Route path="/admin/errors" element={<AdminErrorLogsPage />} />
+                <Route path="/admin/analytics" element={<AdminAnalyticsPage />} />
                 <Route path="/u/:code" element={<PublicProfilePage />} />
                 <Route path="/hall-of-fame" element={<HallOfFamePage />} />
                 <Route path="/legal" element={<LegalPage />} />

@@ -139,6 +139,16 @@ import * as local from './localBackend.js'
  * @property {string|null} userAgent
  * @property {string} createdAt
  */
+/**
+ * @typedef {object} AdminAnalytics
+ * @property {{totalUsers: number, totalGroups: number, totalBets: number, totalSettled: number, signupsToday: number, signupsThisWeek: number}} overview
+ * @property {{date: string, count: number}[]} signupsByDay
+ * @property {{date: string, count: number}[]} betsByDay
+ * @property {{date: string, count: number}[]} groupsByDay
+ * @property {{dau: number, wau: number, mau: number}} activeUsers
+ * @property {{current: {userId: string, name: string, count: number}[], longest: {userId: string, name: string, count: number}[]}} topStreaks
+ * @property {string} generatedAt
+ */
 
 /** @param {any} row @returns {Profile|null} */
 function mapProfile(row) {
@@ -1562,4 +1572,26 @@ export async function listErrorLogs() {
 export async function deleteErrorLog(id) {
   if (!isSupabaseConfigured) return local.deleteErrorLog(id)
   await supabase.from('error_logs').delete().eq('id', id)
+}
+
+// --- Admin analytics ----------------------------------------------------
+// netlify/functions/admin-analytics.js does the actual cross-user
+// aggregation (service-role, RLS doesn't give an admin broad read access
+// to bet_posts/manual_entries/etc) - this just forwards the caller's own
+// access token the same way deleteAccount() does, so the function can
+// verify identity + is_admin server-side rather than trusting a client flag.
+/** @returns {Promise<AdminAnalytics>} */
+export async function getAdminAnalytics() {
+  if (!isSupabaseConfigured) return local.getAdminAnalytics()
+  const { data } = await supabase.auth.getSession()
+  const accessToken = data.session?.access_token
+  if (!accessToken) throw new Error('No active session.')
+  const res = await fetch('/api/admin-analytics', {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({ accessToken })
+  })
+  const body = await res.json().catch(() => ({}))
+  if (!res.ok || body?.error) throw new Error(body?.error || 'Failed to load analytics.')
+  return body
 }
