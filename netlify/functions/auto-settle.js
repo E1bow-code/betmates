@@ -16,10 +16,26 @@
 // cached per src/lib/apiCache.js, so a run landing soon after a user's own
 // Tracker visit (or after alert-checks.js's own /api/scores call) shares
 // that quota instead of spending it twice.
+// @ts-check
 import { createClient } from '@supabase/supabase-js'
 import webpush from 'web-push'
 import { evaluateEntryDetailed, resolveSettlement } from '../../src/lib/betEvaluation.js'
 import { apiKeysForSport } from '../../src/lib/sportsConfig.js'
+
+// Narrower than dataStore.js's BetPost/ManualEntry typedefs - this only
+// selects the columns settlement actually needs, straight off the raw
+// Postgrest row (snake_case), not the camelCase shape map* helpers produce.
+/**
+ * @typedef {object} SettleRow
+ * @property {string} id
+ * @property {string} user_id
+ * @property {string} sport
+ * @property {any[]} selections
+ * @property {number|null} stake
+ * @property {{notification_prefs?: {betSettled?: boolean}}|null} profiles
+ */
+/** @typedef {SettleRow & {table: 'bet_posts'|'manual_entries'}} OpenEntry */
+/** @typedef {OpenEntry & {status: string, potentialReturnOverride?: number, outcomes?: any[]}} SettledEntry */
 
 const SUPABASE_URL = process.env.VITE_SUPABASE_URL
 const SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY
@@ -27,6 +43,10 @@ const VAPID_PUBLIC_KEY = process.env.VITE_VAPID_PUBLIC_KEY
 const VAPID_PRIVATE_KEY = process.env.VAPID_PRIVATE_KEY
 const SITE_URL = process.env.URL || 'https://betmates.org'
 
+/**
+ * @param {string[]} apiSportKeys
+ * @returns {Promise<any[]>}
+ */
 async function fetchScores(apiSportKeys) {
   if (!apiSportKeys.length) return []
   const res = await fetch(`${SITE_URL}/api/scores?keys=${encodeURIComponent(apiSportKeys.join(','))}`)
@@ -34,16 +54,22 @@ async function fetchScores(apiSportKeys) {
   return res.json()
 }
 
+/** @returns {Promise<any[]>} */
 async function fetchRaceResults() {
   const res = await fetch(`${SITE_URL}/api/racing-results`)
   if (!res.ok) return []
   return res.json()
 }
 
+/** @param {any[]} selections */
 function eventSummary(selections) {
   return selections?.[0]?.event ?? 'Your bet'
 }
 
+/**
+ * @param {Request} req
+ * @returns {Promise<Response>}
+ */
 export default async (req) => {
   if (!SUPABASE_URL || !SERVICE_ROLE_KEY) {
     return new Response(JSON.stringify({ settled: 0, reason: 'not configured' }), { status: 200 })
@@ -56,13 +82,19 @@ export default async (req) => {
       supabase.from('bet_posts').select('id,user_id,sport,selections,stake,profiles(notification_prefs)').eq('status', 'open'),
       supabase.from('manual_entries').select('id,user_id,sport,selections,stake,profiles(notification_prefs)').eq('status', 'open')
     ])
+    // Supabase's untyped client sometimes infers the profiles(...) to-one
+    // join as an array - it's a single row here, matching the FK.
+    const postRows = /** @type {SettleRow[]} */ (/** @type {unknown} */ (posts ?? []))
+    const manualRows = /** @type {SettleRow[]} */ (/** @type {unknown} */ (manual ?? []))
 
+    /** @type {OpenEntry[]} */
     const open = [
-      ...(posts ?? []).map((p) => ({ ...p, table: 'bet_posts' })),
-      ...(manual ?? []).map((m) => ({ ...m, table: 'manual_entries' }))
+      ...postRows.map((p) => ({ ...p, table: /** @type {const} */ ('bet_posts') })),
+      ...manualRows.map((m) => ({ ...m, table: /** @type {const} */ ('manual_entries') }))
     ]
     if (!open.length) return new Response(JSON.stringify({ settled: 0 }), { status: 200 })
 
+    /** @type {Set<string>} */
     const neededKeys = new Set()
     let needsRacing = false
     for (const entry of open) {
@@ -76,6 +108,7 @@ export default async (req) => {
     const [games, raceResults] = await Promise.all([fetchScores([...neededKeys]), needsRacing ? fetchRaceResults() : Promise.resolve([])])
     if (!games.length && !raceResults.length) return new Response(JSON.stringify({ settled: 0 }), { status: 200 })
 
+    /** @type {SettledEntry[]} */
     const settledEntries = []
     for (const entry of open) {
       const detailed = evaluateEntryDetailed(entry, games, raceResults)
@@ -89,6 +122,7 @@ export default async (req) => {
     const settledAt = new Date().toISOString()
     await Promise.all(
       settledEntries.map((entry) => {
+        /** @type {{status: string, settled_at: string, potential_return?: number, outcomes?: any[]}} */
         const update = { status: entry.status, settled_at: settledAt }
         if (entry.potentialReturnOverride !== undefined) update.potential_return = entry.potentialReturnOverride
         if (entry.outcomes !== undefined) update.outcomes = entry.outcomes
@@ -104,10 +138,11 @@ export default async (req) => {
       if (notifiable.length) {
         const userIds = [...new Set(notifiable.map((e) => e.user_id))]
         const { data: subs } = await supabase.from('push_subscriptions').select('*').in('user_id', userIds)
+        /** @type {Map<string, any[]>} */
         const subsByUser = new Map()
         for (const sub of subs ?? []) {
           if (!subsByUser.has(sub.user_id)) subsByUser.set(sub.user_id, [])
-          subsByUser.get(sub.user_id).push(sub)
+          subsByUser.get(sub.user_id)?.push(sub)
         }
 
         const sends = notifiable.flatMap((entry) => {
@@ -132,7 +167,8 @@ export default async (req) => {
       headers: { 'content-type': 'application/json' }
     })
   } catch (err) {
-    return new Response(JSON.stringify({ settled: 0, error: err.message }), { status: 200 })
+    const message = err instanceof Error ? err.message : String(err)
+    return new Response(JSON.stringify({ settled: 0, error: message }), { status: 200 })
   }
 }
 

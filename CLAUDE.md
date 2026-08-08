@@ -116,7 +116,12 @@ every 15 minutes down to one, same frequency and behavior either way.
   elsewhere - most untyped JS throws inference noise (arithmetic on
   loosely-typed values, component prop shapes) that isn't a real bug, so
   opting in file-by-file keeps the tool actually green rather than
-  permanently red.
+  permanently red. `netlify/functions/` runs under a second, sibling
+  `netlify/functions/tsconfig.json` (Node globals via `@types/node`, no DOM
+  lib) rather than the root config, since it's a different runtime context
+  from `src/` - `npm run typecheck` runs both. `auto-settle.js` is opted in
+  today, typed against the raw snake_case Postgrest row it actually selects
+  (`SettleRow`), not `dataStore.js`'s camelCase `BetPost`/`ManualEntry`.
 - No CSS framework - one hand-written `src/style.css`, CSS custom properties
   for theming, `@media (prefers-color-scheme)` plus a stored override.
 - No state library. Context for cross-cutting state (auth, bet slip, toasts,
