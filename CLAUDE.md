@@ -119,9 +119,14 @@ every 15 minutes down to one, same frequency and behavior either way.
   permanently red. `netlify/functions/` runs under a second, sibling
   `netlify/functions/tsconfig.json` (Node globals via `@types/node`, no DOM
   lib) rather than the root config, since it's a different runtime context
-  from `src/` - `npm run typecheck` runs both. `auto-settle.js` is opted in
-  today, typed against the raw snake_case Postgrest row it actually selects
-  (`SettleRow`), not `dataStore.js`'s camelCase `BetPost`/`ManualEntry`.
+  from `src/` - `npm run typecheck` runs both. `auto-settle.js` and
+  `alert-checks.js` are opted in today, both typed against the raw
+  snake_case Postgrest rows they actually select (`SettleRow`,
+  `DueBetRow`/`OddsAlertRow`/etc.), not `dataStore.js`'s camelCase
+  `BetPost`/`ManualEntry` - and both keep the `supabase` client itself typed
+  as `any`, since the real `SupabaseClient` generic (no `Database` type
+  configured) makes `.update()` resolve to `never` on a non-literal table
+  name.
 - No CSS framework - one hand-written `src/style.css`, CSS custom properties
   for theming, `@media (prefers-color-scheme)` plus a stored override.
 - No state library. Context for cross-cutting state (auth, bet slip, toasts,

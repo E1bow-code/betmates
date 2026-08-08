@@ -9,10 +9,66 @@
 // RLS - the one place in this project that does. A fourth check
 // (runLimitBuddyAlerts, below) joined the same invocation later for the
 // same reason - one more independent check, same cost as zero extra crons.
+// @ts-check
 import { createClient } from '@supabase/supabase-js'
 import webpush from 'web-push'
 import { apiKeysForSport } from '../../src/lib/sportsConfig.js'
 import { periodStart, sumStakesSince } from '../../src/utils/spendLimit.js'
+
+// No Database generic (see dataStore.js's own comment on this) - typing this
+// as the real ReturnType<typeof createClient> makes .update()'s argument
+// resolve to `never` on a dynamic (non-literal) table name, so this stays
+// `any` and the row shapes below carry the actual type information instead.
+/** @typedef {any} Supabase */
+/** @typedef {{notification_prefs?: Record<string, boolean>}|null} ProfileJoin */
+/**
+ * @typedef {object} DueBetRow
+ * @property {string} id
+ * @property {string} user_id
+ * @property {any[]} selections
+ * @property {ProfileJoin} profiles
+ */
+/**
+ * @typedef {object} DueFollowRow
+ * @property {string} id
+ * @property {string} user_id
+ * @property {string} event_label
+ * @property {string} kickoff
+ * @property {ProfileJoin} profiles
+ */
+/**
+ * @typedef {object} OddsAlertRow
+ * @property {string} id
+ * @property {string} user_id
+ * @property {string} sport
+ * @property {string} event_id
+ * @property {string} market_key
+ * @property {string} outcome_name
+ * @property {string} selection_label
+ * @property {string} market_label
+ * @property {string} event_label
+ * @property {number|string} target_decimal
+ * @property {string} kickoff
+ * @property {string|null} triggered_at
+ */
+/**
+ * @typedef {object} FollowedFixtureRow
+ * @property {string} id
+ * @property {string} user_id
+ * @property {string} sport
+ * @property {string} event_label
+ * @property {string} kickoff
+ * @property {string|null} result_sent_at
+ */
+/**
+ * @typedef {object} LimitedProfileRow
+ * @property {string} id
+ * @property {string} display_name
+ * @property {number|string} stake_limit_amount
+ * @property {'weekly'|'monthly'} stake_limit_period
+ * @property {string} limit_buddy_id
+ * @property {string|null} limit_alert_sent_at
+ */
 
 const SUPABASE_URL = process.env.VITE_SUPABASE_URL
 const SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY
@@ -20,14 +76,22 @@ const VAPID_PUBLIC_KEY = process.env.VITE_VAPID_PUBLIC_KEY
 const VAPID_PRIVATE_KEY = process.env.VAPID_PRIVATE_KEY
 const SITE_URL = process.env.URL || 'https://betmates.org'
 
+/**
+ * @template {{user_id: string}} T
+ * @param {Supabase} supabase
+ * @param {T[]} notifications
+ * @param {(item: T) => {title: string, body: string, url: string}} buildPayload
+ * @returns {Promise<number>}
+ */
 async function sendAll(supabase, notifications, buildPayload) {
   if (!notifications.length) return 0
   const userIds = [...new Set(notifications.map((n) => n.user_id))]
   const { data: subs } = await supabase.from('push_subscriptions').select('*').in('user_id', userIds)
+  /** @type {Map<string, any[]>} */
   const subsByUser = new Map()
   for (const sub of subs ?? []) {
     if (!subsByUser.has(sub.user_id)) subsByUser.set(sub.user_id, [])
-    subsByUser.get(sub.user_id).push(sub)
+    subsByUser.get(sub.user_id)?.push(sub)
   }
   const sends = notifications.flatMap((n) => {
     const userSubs = subsByUser.get(n.user_id) ?? []
@@ -47,6 +111,7 @@ async function sendAll(supabase, notifications, buildPayload) {
 // double-sending before it passes out of range.
 const REMINDER_WINDOW_MS = 30 * 60 * 1000
 
+/** @param {any[]} selections */
 function earliestKickoff(selections) {
   const times = (selections ?? [])
     .map((s) => s.kickoff)
@@ -56,10 +121,16 @@ function earliestKickoff(selections) {
   return times.length ? Math.min(...times) : null
 }
 
+/** @param {any[]} selections */
 function eventSummary(selections) {
   return selections?.[0]?.event ?? 'Your bet'
 }
 
+/**
+ * @param {Supabase} supabase
+ * @param {'bet_posts'|'manual_entries'} table
+ * @returns {Promise<(DueBetRow & {kickoffAt: number})[]>}
+ */
 async function collectDueBets(supabase, table) {
   const { data, error } = await supabase
     .from(table)
@@ -68,10 +139,11 @@ async function collectDueBets(supabase, table) {
     .is('kickoff_reminder_sent_at', null)
   if (error || !data) return []
 
+  const rows = /** @type {DueBetRow[]} */ (/** @type {unknown} */ (data))
   const now = Date.now()
-  return data
+  return rows
     .map((row) => ({ ...row, kickoffAt: earliestKickoff(row.selections) }))
-    .filter((row) => row.kickoffAt !== null && row.kickoffAt > now && row.kickoffAt <= now + REMINDER_WINDOW_MS)
+    .filter(/** @returns {row is DueBetRow & {kickoffAt: number}} */ (row) => row.kickoffAt !== null && row.kickoffAt > now && row.kickoffAt <= now + REMINDER_WINDOW_MS)
 }
 
 // Same idea as collectDueBets above, but for a followed fixture (see
@@ -79,6 +151,10 @@ async function collectDueBets(supabase, table) {
 // - kickoff lives on its own column here instead of nested in a
 // selections array, so this reads it directly rather than reusing
 // earliestKickoff.
+/**
+ * @param {Supabase} supabase
+ * @returns {Promise<(DueFollowRow & {kickoffAt: number})[]>}
+ */
 async function collectDueFollows(supabase) {
   const { data, error } = await supabase
     .from('followed_fixtures')
@@ -86,12 +162,14 @@ async function collectDueFollows(supabase) {
     .is('kickoff_reminder_sent_at', null)
   if (error || !data) return []
 
+  const rows = /** @type {DueFollowRow[]} */ (/** @type {unknown} */ (data))
   const now = Date.now()
-  return data
+  return rows
     .map((row) => ({ ...row, kickoffAt: new Date(row.kickoff).getTime() }))
     .filter((row) => row.kickoffAt > now && row.kickoffAt <= now + REMINDER_WINDOW_MS)
 }
 
+/** @param {Supabase} supabase */
 async function runKickoffReminders(supabase) {
   const [duePosts, dueManual, dueFollows] = await Promise.all([
     collectDueBets(supabase, 'bet_posts'),
@@ -99,9 +177,9 @@ async function runKickoffReminders(supabase) {
     collectDueFollows(supabase)
   ])
   const due = [
-    ...duePosts.map((r) => ({ ...r, table: 'bet_posts' })),
-    ...dueManual.map((r) => ({ ...r, table: 'manual_entries' })),
-    ...dueFollows.map((r) => ({ ...r, table: 'followed_fixtures' }))
+    ...duePosts.map((r) => ({ ...r, table: /** @type {const} */ ('bet_posts') })),
+    ...dueManual.map((r) => ({ ...r, table: /** @type {const} */ ('manual_entries') })),
+    ...dueFollows.map((r) => ({ ...r, table: /** @type {const} */ ('followed_fixtures') }))
   ]
   if (!due.length) return { sent: 0 }
 
@@ -117,7 +195,7 @@ async function runKickoffReminders(supabase) {
     const isFollow = row.table === 'followed_fixtures'
     return {
       title: '⏰ Kickoff soon',
-      body: `${isFollow ? row.event_label : eventSummary(row.selections)} kicks off in ${minutes} min`,
+      body: `${isFollow ? row.event_label : eventSummary(/** @type {any} */ (row).selections)} kicks off in ${minutes} min`,
       url: isFollow ? '/#/odds' : '/#/tracker'
     }
   })
@@ -132,12 +210,23 @@ async function runKickoffReminders(supabase) {
 // one outcome and compare its price to the target. Racing has no alerts to
 // check: the create UI never offers a bell for it (racingClient.js's
 // USE_MOCK is true, its prices never move).
+/**
+ * @param {string} sport
+ * @param {string} eventId
+ */
 function eventPath(sport, eventId) {
   if (sport === 'football') return `/api/odds?id=${encodeURIComponent(eventId)}`
   if (sport === 'ufc') return `/api/ufc?id=${encodeURIComponent(eventId)}`
   return `/api/sport?sport=${encodeURIComponent(sport)}&id=${encodeURIComponent(eventId)}`
 }
 
+/**
+ * @param {string} sport
+ * @param {string} eventId
+ * @param {string} marketKey
+ * @param {string} outcomeName
+ * @returns {Promise<number|null>}
+ */
 async function fetchCurrentPrice(sport, eventId, marketKey, outcomeName) {
   const res = await fetch(`${SITE_URL}${eventPath(sport, eventId)}`)
   if (!res.ok) return null
@@ -147,9 +236,11 @@ async function fetchCurrentPrice(sport, eventId, marketKey, outcomeName) {
   return outcome?.bestOdds?.decimal ?? null
 }
 
+/** @param {Supabase} supabase */
 async function runOddsAlerts(supabase) {
-  const { data: pending } = await supabase.from('odds_alerts').select('*').is('triggered_at', null)
-  if (!pending?.length) return { checked: 0 }
+  const { data } = await supabase.from('odds_alerts').select('*').is('triggered_at', null)
+  const pending = /** @type {OddsAlertRow[]} */ (/** @type {unknown} */ (data ?? []))
+  if (!pending.length) return { checked: 0 }
 
   // An alert whose event has already kicked off has nothing left to check
   // - pre-match prices are moot once the market's gone in-play - so these
@@ -160,13 +251,15 @@ async function runOddsAlerts(supabase) {
   if (expired.length) await supabase.from('odds_alerts').delete().in('id', expired.map((a) => a.id))
   if (!active.length) return { checked: 0, expired: expired.length }
 
+  /** @type {Map<string, OddsAlertRow[]>} */
   const groups = new Map()
   for (const alert of active) {
     const key = `${alert.sport}|${alert.event_id}`
     if (!groups.has(key)) groups.set(key, [])
-    groups.get(key).push(alert)
+    groups.get(key)?.push(alert)
   }
 
+  /** @type {(OddsAlertRow & {currentDecimal: number})[]} */
   const triggered = []
   await Promise.all(
     [...groups.entries()].map(async ([key, alerts]) => {
@@ -211,6 +304,10 @@ const DURATION_MINUTES = {
   cricket: 360
 }
 
+/**
+ * @param {string[]} apiSportKeys
+ * @returns {Promise<any[]>}
+ */
 async function fetchScores(apiSportKeys) {
   if (!apiSportKeys.length) return []
   const res = await fetch(`${SITE_URL}/api/scores?keys=${encodeURIComponent(apiSportKeys.join(','))}`)
@@ -218,9 +315,11 @@ async function fetchScores(apiSportKeys) {
   return res.json()
 }
 
+/** @param {Supabase} supabase */
 async function runFollowedResults(supabase) {
-  const { data: pending } = await supabase.from('followed_fixtures').select('*').is('result_sent_at', null)
-  if (!pending?.length) return { checked: 0 }
+  const { data } = await supabase.from('followed_fixtures').select('*').is('result_sent_at', null)
+  const pending = /** @type {FollowedFixtureRow[]} */ (/** @type {unknown} */ (data ?? []))
+  if (!pending.length) return { checked: 0 }
 
   const now = Date.now()
   // Only worth checking once the event's estimated live window has
@@ -231,12 +330,14 @@ async function runFollowedResults(supabase) {
   })
   if (!ready.length) return { checked: 0 }
 
+  /** @type {Map<string, FollowedFixtureRow[]>} */
   const bySport = new Map()
   for (const f of ready) {
     if (!bySport.has(f.sport)) bySport.set(f.sport, [])
-    bySport.get(f.sport).push(f)
+    bySport.get(f.sport)?.push(f)
   }
 
+  /** @type {(FollowedFixtureRow & {scoreLine: string})[]} */
   const notifications = []
   for (const [sport, follows] of bySport) {
     const games = await fetchScores(apiKeysForSport(sport))
@@ -269,14 +370,17 @@ async function runFollowedResults(supabase) {
 // period watermark rather than a boolean - comparing it against
 // periodStart(period) means it "resets" the moment a new week/month
 // starts, with no separate job needed to clear it.
+/** @param {Supabase} supabase */
 async function runLimitBuddyAlerts(supabase) {
-  const { data: limited } = await supabase
+  const { data } = await supabase
     .from('profiles')
     .select('id,display_name,stake_limit_amount,stake_limit_period,limit_buddy_id,limit_alert_sent_at')
     .not('stake_limit_amount', 'is', null)
     .not('limit_buddy_id', 'is', null)
-  if (!limited?.length) return { checked: 0 }
+  const limited = /** @type {LimitedProfileRow[]} */ (/** @type {unknown} */ (data ?? []))
+  if (!limited.length) return { checked: 0 }
 
+  /** @type {(LimitedProfileRow & {spend: number})[]} */
   const due = []
   for (const profile of limited) {
     const since = periodStart(profile.stake_limit_period)
@@ -306,6 +410,10 @@ async function runLimitBuddyAlerts(supabase) {
   return { checked: limited.length, due: due.length, sent }
 }
 
+/**
+ * @param {Request} req
+ * @returns {Promise<Response>}
+ */
 export default async (req) => {
   if (!SUPABASE_URL || !SERVICE_ROLE_KEY) {
     return new Response(JSON.stringify({ reason: 'not configured' }), { status: 200 })
@@ -324,6 +432,7 @@ export default async (req) => {
     runLimitBuddyAlerts(supabase)
   ])
 
+  /** @param {PromiseSettledResult<any>} r */
   const settle = (r) => (r.status === 'fulfilled' ? r.value : { error: r.reason?.message ?? String(r.reason) })
   return new Response(
     JSON.stringify({
