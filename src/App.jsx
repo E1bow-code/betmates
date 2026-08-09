@@ -10,7 +10,7 @@ import BottomNav from './components/BottomNav.jsx'
 import MoreMenu from './components/MoreMenu.jsx'
 import AppHeader from './components/AppHeader.jsx'
 import InstallGuideBanner from './components/InstallGuideBanner.jsx'
-import OnboardingTour from './components/OnboardingTour.jsx'
+import FirstRunWizard from './components/FirstRunWizard.jsx'
 import RealityCheck from './components/RealityCheck.jsx'
 import BetSlipBar from './components/BetSlipBar.jsx'
 import BetBuilderSheet from './components/BetBuilderSheet.jsx'
@@ -307,7 +307,7 @@ function Shell() {
             <MoreMenu />
           </div>
           <NewsSidebar headlines={newsHeadlines} />
-          {showTour && <OnboardingTour onDone={dismissTour} />}
+          {showTour && <FirstRunWizard onDone={dismissTour} />}
           <RealityCheck />
           <CoachLauncher />
         </div>
