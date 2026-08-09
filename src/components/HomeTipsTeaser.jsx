@@ -24,7 +24,7 @@ export default function HomeTipsTeaser() {
   if (!latest) return null
 
   return (
-    <Link to="/social" state={{ segment: 'tips' }} className="home-tips-teaser">
+    <Link to="/groups" state={{ segment: 'tips' }} className="home-tips-teaser">
       <span className="home-tips-teaser-icon">🎥</span>
       <span className="home-tips-teaser-body">
         <span className="home-tips-teaser-title">
