@@ -9,6 +9,7 @@
 import { computeStreak, computeLongestWinStreak } from '../utils/trackerStats.js'
 import { bucketByDay, distinctUsersSince } from '../utils/adminAnalyticsAgg.js'
 import { groupCoachSessions } from '../utils/coachSessions.js'
+import { freezesGranted, computeStreakTransition } from '../utils/dailyStreak.js'
 
 // Records stored here use the same camelCase field names dataStore.js's
 // map* functions produce (this file *is* the shape the UI expects, not a
@@ -197,6 +198,9 @@ export function signUp({ email, displayName, dob, referredByCode }) {
     limitBuddyId: null,
     bankrollAmount: null,
     stakingRule: null,
+    streakCurrentCount: 0,
+    streakLastLoggedDate: null,
+    streakFreezesUsed: 0,
     referredBy: referrer?.id ?? null
   }
   db.users.push(user)
@@ -630,7 +634,35 @@ export function createBetPost(post) {
   }
   db.betPosts.push(record)
   writeDb(db)
+  bumpDailyStreak(post.userId)
   return delay(record)
+}
+
+// Mirrors dataStore.js's bumpDailyStreak - same computeStreakTransition
+// state machine, just reading/writing the local user record instead of a
+// Supabase row. Never throws (see the try/catch), matching the "a failure
+// here should never break the bet save" rule the Supabase twin follows.
+export function bumpDailyStreak(userId) {
+  try {
+    const db = readDb()
+    const user = db.users.find((u) => u.id === userId)
+    if (!user) return
+    const today = new Date().toISOString().slice(0, 10)
+    const freezesAvailable = freezesGranted(user.createdAt) - (user.streakFreezesUsed ?? 0)
+    const transition = computeStreakTransition({
+      currentCount: user.streakCurrentCount ?? 0,
+      lastLoggedDate: user.streakLastLoggedDate ?? null,
+      freezesAvailable,
+      today
+    })
+    if (!transition.changed) return
+    user.streakCurrentCount = transition.currentCount
+    user.streakLastLoggedDate = transition.lastLoggedDate
+    user.streakFreezesUsed = (user.streakFreezesUsed ?? 0) + (transition.freezeConsumed ? 1 : 0)
+    writeDb(db)
+  } catch {
+    // Best-effort - see comment above.
+  }
 }
 
 /**
@@ -783,6 +815,7 @@ export function addManualEntry(entry) {
   const record = { id: uid('manual'), createdAt: new Date().toISOString(), status: 'open', settledAt: null, outcomes: null, ...entry }
   db.manualEntries.push(record)
   writeDb(db)
+  bumpDailyStreak(entry.userId)
   return delay(record)
 }
 

@@ -67,6 +67,10 @@ export default function HomePage() {
   const greeting = hour < 12 ? 'Morning' : hour < 18 ? 'Afternoon' : 'Evening'
   const firstName = user.displayName?.split(' ')[0] ?? 'there'
   const dateLabel = now.toLocaleDateString([], { weekday: 'long', month: 'short', day: 'numeric' })
+  // The daily "log a bet" streak (src/utils/dailyStreak.js) - different
+  // from `streak` above, which counts consecutive WINS. today's date as a
+  // UTC string matches the 'date' column streak_last_logged_date holds.
+  const loggedToday = user.streakLastLoggedDate === now.toISOString().slice(0, 10)
 
   return (
     <div>
@@ -80,6 +84,11 @@ export default function HomePage() {
         {streak.count >= 2 && (
           <div className="dashboard-hero-streak">
             {streak.type === 'won' ? '🔥' : '🥶'} {streak.count}-{streak.type === 'won' ? 'win' : 'loss'} streak
+          </div>
+        )}
+        {user.streakCurrentCount >= 1 && (
+          <div className="dashboard-hero-streak dashboard-hero-daily-streak">
+            📅 {user.streakCurrentCount}-day streak{!loggedToday && ' · log a bet today to keep it going'}
           </div>
         )}
       </div>

@@ -10,6 +10,7 @@
 import { supabase, isSupabaseConfigured } from './supabaseClient.js'
 import * as local from './localBackend.js'
 import { groupCoachSessions } from '../utils/coachSessions.js'
+import { freezesGranted, computeStreakTransition } from '../utils/dailyStreak.js'
 
 // Raw Postgrest rows are untyped (no generated Database types - see
 // supabase/schema.sql) - these describe the shape each map* function below
@@ -32,6 +33,9 @@ import { groupCoachSessions } from '../utils/coachSessions.js'
  * @property {string|null} limitBuddyId
  * @property {number|null} bankrollAmount
  * @property {{type: 'flat'|'percent', value: number}|null} stakingRule
+ * @property {number} streakCurrentCount
+ * @property {string|null} streakLastLoggedDate
+ * @property {number} streakFreezesUsed
  */
 /**
  * @typedef {object} Group
@@ -191,7 +195,10 @@ function mapProfile(row) {
     stakeLimitPeriod: row.stake_limit_period ?? null,
     limitBuddyId: row.limit_buddy_id ?? null,
     bankrollAmount: row.bankroll_amount ?? null,
-    stakingRule: row.staking_rule ?? null
+    stakingRule: row.staking_rule ?? null,
+    streakCurrentCount: row.streak_current_count ?? 0,
+    streakLastLoggedDate: row.streak_last_logged_date ?? null,
+    streakFreezesUsed: row.streak_freezes_used ?? 0
   }
 }
 
@@ -795,6 +802,44 @@ export function subscribeGroupFeed(groupId, onInsert) {
   return subscribeToInserts('bet_posts', `group_id=eq.${groupId}`, mapBetPost, onInsert)
 }
 
+// Called (not awaited) from every bet-creation path below - a failure here
+// should never hold up or break the bet save it's a side effect of, same
+// "never let a secondary effect break the primary action" rule notify.js
+// already follows for push sends. Reads the profile's own persisted streak
+// state rather than re-deriving it, since a freeze-bridged gap can't be
+// recovered from bet history alone - see supabase/schema.sql's comment on
+// why streak_current_count/streak_last_logged_date are stored at all.
+async function bumpDailyStreak(userId) {
+  if (!isSupabaseConfigured) return local.bumpDailyStreak(userId)
+  try {
+    const { data: profile } = await supabase
+      .from('profiles')
+      .select('streak_current_count, streak_last_logged_date, streak_freezes_used, created_at')
+      .eq('id', userId)
+      .maybeSingle()
+    if (!profile) return
+    const today = new Date().toISOString().slice(0, 10)
+    const freezesAvailable = freezesGranted(profile.created_at) - profile.streak_freezes_used
+    const transition = computeStreakTransition({
+      currentCount: profile.streak_current_count,
+      lastLoggedDate: profile.streak_last_logged_date,
+      freezesAvailable,
+      today
+    })
+    if (!transition.changed) return
+    await supabase
+      .from('profiles')
+      .update({
+        streak_current_count: transition.currentCount,
+        streak_last_logged_date: transition.lastLoggedDate,
+        streak_freezes_used: profile.streak_freezes_used + (transition.freezeConsumed ? 1 : 0)
+      })
+      .eq('id', userId)
+  } catch {
+    // Best-effort - see comment above.
+  }
+}
+
 /**
  * @param {{groupId: string|null, userId: string, sport: string, marketType: string, selections: any[], stake: number|null, stakeHidden?: boolean, potentialReturn: number|null, visibility?: 'group'|'public', caption?: string|null}} post
  * @returns {Promise<BetPost>}
@@ -818,6 +863,7 @@ export async function createBetPost(post) {
     .select()
     .single()
   if (error) throw error
+  bumpDailyStreak(post.userId)
   return mapBetPost(data)
 }
 
@@ -1257,6 +1303,7 @@ export async function addManualEntry(entry) {
     .select()
     .single()
   if (error) throw error
+  bumpDailyStreak(entry.userId)
   return mapManualEntry(data)
 }
 

@@ -1739,6 +1739,14 @@ button.conversation-row { width: 100%; background: none; border: none; border-bo
 
 .avatar-photo { object-fit: cover; }
 
+/* Avatar.jsx's optional level-flair ring (src/utils/xp.js's
+   flairTierForLevel) - a box-shadow so it never changes layout size the
+   way a border would. */
+.avatar-tier-bronze { box-shadow: 0 0 0 2px #b87333; }
+.avatar-tier-silver { box-shadow: 0 0 0 2px #c4c4cc; }
+.avatar-tier-gold { box-shadow: 0 0 0 2px var(--accent), 0 0 6px 1px rgba(var(--accent-rgb), 0.5); }
+.avatar-tier-diamond { box-shadow: 0 0 0 2px #7ec8e3, 0 0 8px 2px rgba(126, 200, 227, 0.6); }
+
 /* Leaderboard - a scoreboard, not stacked cards: one bordered panel, rows
    divided by hairlines, rank + P&L set in tabular monospace. */
 .leaderboard { margin: 12px 0; }
