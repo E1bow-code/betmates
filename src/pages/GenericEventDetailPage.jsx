@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import { fetchEvent } from '../api/genericSportsClient.js'
+import * as dataStore from '../lib/dataStore.js'
 import { GENERIC_SPORTS } from '../lib/sportsConfig.js'
 import { formatDateTime, formatCountdown } from '../utils/format.js'
 import { bestWithinFilter } from '../utils/oddsUtils.js'
@@ -14,6 +15,7 @@ import { useBacking } from '../lib/backing.js'
 import TeamBadge from '../components/TeamBadge.jsx'
 import PlayerPhoto from '../components/PlayerPhoto.jsx'
 import OddsMoveIndicator from '../components/OddsMoveIndicator.jsx'
+import SharpMoneyBadge from '../components/SharpMoneyBadge.jsx'
 import BestValueBadge from '../components/BestValueBadge.jsx'
 import Sparkline from '../components/Sparkline.jsx'
 import SportHeroBanner from '../components/SportHeroBanner.jsx'
@@ -39,11 +41,13 @@ export default function GenericEventDetailPage() {
   const [expandedOutcome, setExpandedOutcome] = useState(null)
   const [expandedMarkets, setExpandedMarkets] = useState(new Set())
   const [profileTarget, setProfileTarget] = useState(null)
+  const [snapshotSeries, setSnapshotSeries] = useState({})
 
   useEffect(() => {
     fetchEvent(sportKey, id)
       .then(setEvent)
       .catch((err) => setError(err.message))
+    dataStore.getOddsSnapshotSeries(id).then(setSnapshotSeries).catch(() => {})
   }, [sportKey, id])
 
   useEffect(() => {
@@ -214,6 +218,7 @@ export default function GenericEventDetailPage() {
                           </span>
                           <span className="best-bookmaker">{best.bookmaker}</span>
                           {!bookmakerFilter && <BestValueBadge allOdds={outcome.allOdds} />}
+                          <SharpMoneyBadge series={snapshotSeries[`${market.key}|${outcome.name}`]} />
                           <Sparkline points={histories[historyKey(event.id, market.key, outcome.name)]} />
                         </span>
                       ) : (

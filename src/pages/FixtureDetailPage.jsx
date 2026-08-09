@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import CoachGptLink from '../components/CoachGptLink.jsx'
 import { fetchFixture } from '../api/oddsClient.js'
+import * as dataStore from '../lib/dataStore.js'
 import { formatDateTime, formatCountdown } from '../utils/format.js'
 import { bestWithinFilter } from '../utils/oddsUtils.js'
 import { formatOdds } from '../utils/oddsFormat.js'
@@ -14,6 +15,7 @@ import { useBacking } from '../lib/backing.js'
 import TeamBadge from '../components/TeamBadge.jsx'
 import PlayerPhoto from '../components/PlayerPhoto.jsx'
 import OddsMoveIndicator from '../components/OddsMoveIndicator.jsx'
+import SharpMoneyBadge from '../components/SharpMoneyBadge.jsx'
 import BestValueBadge from '../components/BestValueBadge.jsx'
 import Sparkline from '../components/Sparkline.jsx'
 import SportHeroBanner from '../components/SportHeroBanner.jsx'
@@ -39,11 +41,16 @@ export default function FixtureDetailPage() {
   const [expandedOutcome, setExpandedOutcome] = useState(null)
   const [expandedMarkets, setExpandedMarkets] = useState(new Set())
   const [profileTarget, setProfileTarget] = useState(null)
+  // Server-recorded price history for this fixture - only has anything in
+  // it if someone's followed it (see netlify/functions/odds-snapshot.js),
+  // which is also the only case SharpMoneyBadge ever renders anything.
+  const [snapshotSeries, setSnapshotSeries] = useState({})
 
   useEffect(() => {
     fetchFixture(id)
       .then(setFixture)
       .catch((err) => setError(err.message))
+    dataStore.getOddsSnapshotSeries(id).then(setSnapshotSeries).catch(() => {})
   }, [id])
 
   // Every market used to render fully expanded, which turned a fixture
@@ -210,6 +217,7 @@ export default function FixtureDetailPage() {
                           </span>
                           <span className="best-bookmaker">{best.bookmaker}</span>
                           {!bookmakerFilter && <BestValueBadge allOdds={outcome.allOdds} />}
+                          <SharpMoneyBadge series={snapshotSeries[`${market.key}|${outcome.name}`]} />
                           <Sparkline points={histories[historyKey(fixture.id, market.key, outcome.name)]} />
                         </span>
                       ) : (

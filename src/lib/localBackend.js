@@ -43,7 +43,7 @@ import { bucketByDay, distinctUsersSince } from '../utils/adminAnalyticsAgg.js'
  * @property {{id: string, blockerId: string, blockedId: string, createdAt: string}[]} blocks
  * @property {{id: string, postId: string, reporterId: string, reason: string, createdAt: string}[]} postReports
  * @property {DirectMessage[]} directMessages
- * @property {{id: string, userId: string, role: 'user'|'assistant', body: string, grounding: object|null, createdAt: string}[]} coachMessages
+ * @property {{id: string, userId: string, role: 'user'|'assistant', body: string, grounding: object|null, recommendation: object|null, result: string|null, createdAt: string}[]} coachMessages
  * @property {(OddsAlert & {userId: string})[]} oddsAlerts
  * @property {{id: string, userId: string, sport: string, eventId: string, eventLabel: string, kickoff: string, createdAt: string}[]} followedFixtures
  * @property {{id: string, userId: string, sport: string, name: string, createdAt: string}[]} followedParticipants
@@ -540,7 +540,7 @@ export function sendDirectMessage(userId, friendId, body) {
   return delay(message)
 }
 
-/** @param {string} userId @returns {Promise<{id: string, userId: string, role: 'user'|'assistant', body: string, grounding: object|null, createdAt: string}[]>} */
+/** @param {string} userId @returns {Promise<{id: string, userId: string, role: 'user'|'assistant', body: string, grounding: object|null, recommendation: object|null, result: string|null, createdAt: string}[]>} */
 export function listCoachMessages(userId) {
   const db = readDb()
   return delay(
@@ -550,10 +550,13 @@ export function listCoachMessages(userId) {
   )
 }
 
-/** @param {{userId: string, role: 'user'|'assistant', body: string, grounding?: object|null}} entry */
-export function addCoachMessage({ userId, role, body, grounding = null }) {
+// No local equivalent of coach-settle.js (a scheduled function needs a real
+// backend) - recommendations just never settle in local mode, same honest
+// gap as CLV's getOddsSnapshotSeries stub.
+/** @param {{userId: string, role: 'user'|'assistant', body: string, grounding?: object|null, recommendation?: object|null}} entry */
+export function addCoachMessage({ userId, role, body, grounding = null, recommendation = null }) {
   const db = readDb()
-  const message = { id: uid('coach'), userId, role, body, grounding, createdAt: new Date().toISOString() }
+  const message = { id: uid('coach'), userId, role, body, grounding, recommendation, result: null, createdAt: new Date().toISOString() }
   db.coachMessages.push(message)
   writeDb(db)
   return delay(message)
@@ -959,8 +962,15 @@ export function countReferrals(userId) {
 // against: real Closing Line Value just isn't available offline and the Tracker
 // falls back to device-local line value. Empty map, shaped like the Supabase
 // twin in dataStore.js.
-/** @returns {Promise<Record<string, number>>} */
-export function getClosingLines() {
+/** @param {string[]} _fixtureIds @returns {Promise<Record<string, number>>} */
+export function getClosingLines(_fixtureIds) {
+  return delay({})
+}
+
+// Same reasoning as getClosingLines above - no snapshot job in local mode,
+// so no history exists to show a sharp-money badge from either.
+/** @param {string} _fixtureId @returns {Promise<Record<string, {odds: number, fetchedAt: string}[]>>} */
+export function getOddsSnapshotSeries(_fixtureId) {
   return delay({})
 }
 

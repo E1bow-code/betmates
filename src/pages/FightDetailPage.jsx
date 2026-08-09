@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import { fetchFight } from '../api/ufcClient.js'
+import * as dataStore from '../lib/dataStore.js'
 import { formatDateTime, formatCountdown } from '../utils/format.js'
 import { bestWithinFilter } from '../utils/oddsUtils.js'
 import { formatOdds } from '../utils/oddsFormat.js'
@@ -12,6 +13,7 @@ import { useOddsMovement, movementKey, useOddsHistory, historyKey } from '../lib
 import { useBacking } from '../lib/backing.js'
 import PlayerPhoto from '../components/PlayerPhoto.jsx'
 import OddsMoveIndicator from '../components/OddsMoveIndicator.jsx'
+import SharpMoneyBadge from '../components/SharpMoneyBadge.jsx'
 import BestValueBadge from '../components/BestValueBadge.jsx'
 import Sparkline from '../components/Sparkline.jsx'
 import SportHeroBanner from '../components/SportHeroBanner.jsx'
@@ -36,11 +38,13 @@ export default function FightDetailPage() {
   const [expandedOutcome, setExpandedOutcome] = useState(null)
   const [expandedMarkets, setExpandedMarkets] = useState(new Set())
   const [profileTarget, setProfileTarget] = useState(null)
+  const [snapshotSeries, setSnapshotSeries] = useState({})
 
   useEffect(() => {
     fetchFight(id)
       .then(setFight)
       .catch((err) => setError(err.message))
+    dataStore.getOddsSnapshotSeries(id).then(setSnapshotSeries).catch(() => {})
   }, [id])
 
   useEffect(() => {
@@ -179,6 +183,7 @@ export default function FightDetailPage() {
                           </span>
                           <span className="best-bookmaker">{best.bookmaker}</span>
                           {!bookmakerFilter && <BestValueBadge allOdds={outcome.allOdds} />}
+                          <SharpMoneyBadge series={snapshotSeries[`${market.key}|${outcome.name}`]} />
                           <Sparkline points={histories[historyKey(fight.id, market.key, outcome.name)]} />
                         </span>
                       ) : (

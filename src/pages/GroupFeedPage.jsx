@@ -22,6 +22,10 @@ export default function GroupFeedPage() {
   const navigate = useNavigate()
   const [group, setGroup] = useState(null)
   const [posts, setPosts] = useState(null)
+  // Server-recorded closing lines, same fetch TrackerPage.jsx/
+  // InsightsPage.jsx already do per-user, scoped here to the whole group's
+  // posts so Leaderboard.jsx can rank members by CLV, not just profit.
+  const [closes, setCloses] = useState({})
   const [items, setItems] = useState(null) // bets + shared videos, merged and sorted
   const [members, setMembers] = useState([])
   const [memberNames, setMemberNames] = useState({})
@@ -51,6 +55,8 @@ export default function GroupFeedPage() {
           ...videos.map((v) => ({ kind: 'video', sortAt: v.sharedAt, data: v }))
         ].sort((a, b) => new Date(b.sortAt) - new Date(a.sortAt))
         setItems(merged)
+        const fixtureIds = betPosts.flatMap((p) => (p.selections ?? []).map((s) => s.eventId)).filter(Boolean)
+        dataStore.getClosingLines(fixtureIds).then(setCloses).catch(() => {})
       })
       .catch((err) => setError(err.message))
   }
@@ -215,7 +221,7 @@ export default function GroupFeedPage() {
           {error && <div className="error">Hmm, couldn't load this group: {error}</div>}
           {!error && items === null && <div className="loading">Catching up on the feed…</div>}
           {posts && posts.length > 0 && <GroupRecapCard posts={posts} memberNames={memberNames} />}
-          {posts && posts.length > 0 && <Leaderboard posts={posts} memberNames={memberNames} currentUserId={user.id} />}
+          {posts && posts.length > 0 && <Leaderboard posts={posts} memberNames={memberNames} currentUserId={user.id} closes={closes} />}
           {posts && posts.length > 0 && <PickemLeaderboard posts={posts} memberNames={memberNames} />}
           {items && !items.length && (
             <EmptyState

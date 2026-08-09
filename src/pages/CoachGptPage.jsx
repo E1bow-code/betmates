@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { Link, useLocation, useNavigate } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext.jsx'
 import { useBetSlip } from '../context/BetSlipContext.jsx'
@@ -6,7 +6,32 @@ import * as dataStore from '../lib/dataStore.js'
 import { sendCoachGptMessage } from '../api/coachGptClient.js'
 import { useAsyncAction } from '../lib/useAsyncAction.js'
 import { formatRelativeTime } from '../utils/format.js'
+import { computeCoachRecord } from '../utils/coachRecord.js'
 import EmptyState from '../components/EmptyState.jsx'
+
+// Only appears once there's real settled history - CoachGPT's own picks
+// start from zero (there's no way to backfill a record for chats that
+// predate lock_in_recommendation), so an empty/near-empty scoreboard would
+// just read as broken rather than "not enough data yet".
+function CoachScoreboard({ record }) {
+  if (!record) return null
+  return (
+    <div className="stat-tiles">
+      <div className={`stat-tile ${record.winRate >= 50 ? 'tone-good' : record.winRate == null ? '' : 'tone-bad'}`}>
+        <div className="stat-tile-value">{record.winRate == null ? '—' : `${record.winRate}%`}</div>
+        <div className="stat-tile-label">Win rate</div>
+      </div>
+      <div className={`stat-tile ${record.profit >= 0 ? 'tone-good' : 'tone-bad'}`}>
+        <div className="stat-tile-value">{record.profit >= 0 ? '+' : ''}{record.profit.toFixed(1)}u</div>
+        <div className="stat-tile-label">Notional P&L</div>
+      </div>
+      <div className="stat-tile">
+        <div className="stat-tile-value">{record.decidedCount}</div>
+        <div className="stat-tile-label">Picks settled</div>
+      </div>
+    </div>
+  )
+}
 
 // "Log this" - a message's `grounding` (see netlify/functions/coachgpt.js's
 // groundFixtureOutcomes/groundRunner) is real BetSlip legs, not a parse of
@@ -52,6 +77,7 @@ export default function CoachGptPage() {
   const [error, setError] = useState(null)
   const runAsync = useAsyncAction()
   const prefillSent = useRef(false)
+  const coachRecord = useMemo(() => computeCoachRecord(messages), [messages])
 
   useEffect(() => {
     dataStore
@@ -80,12 +106,21 @@ export default function CoachGptPage() {
   async function sendMessage(body) {
     const userMessage = { id: `pending-${Date.now()}`, userId: user.id, role: 'user', body, createdAt: new Date().toISOString() }
     const history = (messages ?? []).slice(-12).map((m) => ({ role: m.role, content: m.body }))
+    // The netlify function only knows about a fixture's grounding (priced
+    // legs) if IT called find_fixture this turn - a natural follow-up like
+    // "who do you like there?" often doesn't, since the model already has
+    // the prices in `history`. Without this, lock_in_recommendation has
+    // nothing to match against and silently drops a real pick. Carrying the
+    // last grounded message's data along (separately from `history`, which
+    // only ever holds role+text for Claude) lets the function fall back to
+    // it when this turn's own tool calls come up empty.
+    const priorGrounding = [...(messages ?? [])].reverse().find((m) => m.grounding)?.grounding ?? null
     setMessages((m) => [...(m ?? []), userMessage])
     setSending(true)
 
     const ok = await runAsync(async () => {
       await dataStore.addCoachMessage({ userId: user.id, role: 'user', body })
-      const res = await sendCoachGptMessage({ message: body, history })
+      const res = await sendCoachGptMessage({ message: body, history, priorGrounding })
       if (!res.configured) {
         setUnavailable(true)
         return
@@ -99,7 +134,13 @@ export default function CoachGptPage() {
       // block's first `body` reference (a few lines up) runs, since a
       // const anywhere in a scope claims that name for the WHOLE scope.
       const replyBody = res.reply || "Couldn't get a straight answer that time - mind trying again, maybe with a bit more detail?"
-      const assistantMessage = await dataStore.addCoachMessage({ userId: user.id, role: 'assistant', body: replyBody, grounding: res.grounding ?? null })
+      const assistantMessage = await dataStore.addCoachMessage({
+        userId: user.id,
+        role: 'assistant',
+        body: replyBody,
+        grounding: res.grounding ?? null,
+        recommendation: res.recommendation ?? null
+      })
       setMessages((m) => [...(m ?? []), assistantMessage])
     }, "Couldn't reach the Coach - try again")
     setSending(false)
@@ -123,6 +164,7 @@ export default function CoachGptPage() {
         <h1>CoachGPT</h1>
       </div>
       <p className="hint">Ask about a fixture or a player - CoachGPT will give you a real lean, backed by the actual odds and data on the board.</p>
+      <CoachScoreboard record={coachRecord} />
 
       {error && <div className="error">Couldn't load your conversation: {error}</div>}
       {unavailable && (

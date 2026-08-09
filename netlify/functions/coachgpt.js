@@ -209,6 +209,37 @@ async function toolGetPlayerProfile(name) {
   return profile ?? { found: false }
 }
 
+// lock_in_recommendation's tool input carries bare identity fields
+// (eventId/marketKey/outcomeName, or raceId/horseId) - matched back
+// against the last grounding array (built from the RAW fixture/runner
+// objects, not the trimmed summary Claude sees) to recover the full
+// priced leg: price, bookmaker, kickoff, etc. Storing that whole leg, not
+// just the identity fields, is what lets the CoachGPT scoreboard later
+// show what it actually recommended, not just settle it blind.
+//
+// recommendation.outcomeName is matched against leg.selection, NOT
+// leg.outcomeName - confirmed live: the tool asks the model for "the
+// exact selection name, e.g. a team name or Draw" (matching how it
+// phrases its own prose reply), but groundFixtureOutcomes' outcomeName
+// field holds the RAW h2h outcome key ("Home"/"Away"/"Draw"), while its
+// selection field holds the translated team name/"Draw" the model
+// actually returns. Matching against outcomeName silently dropped every
+// recommendation until this was caught via a debug field on a live call.
+function matchRecommendation(recommendation, grounding) {
+  if (!recommendation || !grounding?.length) return null
+  return (
+    grounding.find((leg) => {
+      if (recommendation.eventId) {
+        return leg.eventId === recommendation.eventId && leg.marketKey === recommendation.marketKey && leg.selection === recommendation.outcomeName
+      }
+      if (recommendation.raceId) {
+        return leg.raceId === recommendation.raceId && leg.horseId === recommendation.horseId
+      }
+      return false
+    }) ?? null
+  )
+}
+
 export default async (req) => {
   if (req.method !== 'POST') return json({ configured: true, error: 'POST only' }, 405)
 
@@ -242,6 +273,21 @@ export default async (req) => {
     return { error: `Unknown tool: ${name}` }
   }
 
-  const reply = await runCoachGptTurn({ apiKey, history: body?.history, message, callTool })
-  return json({ configured: true, reply, grounding: reply ? lastGrounding : null })
+  const { text, recommendation } = await runCoachGptTurn({ apiKey, history: body?.history, message, callTool })
+  // A follow-up like "who do you like there?" often answers straight from
+  // `history` without calling find_fixture again this turn, leaving
+  // lastGrounding null even though the reply clearly leans on a fixture
+  // looked up earlier - fall back to the grounding the client carried over
+  // from that earlier message so lock_in_recommendation still has
+  // something real to match against. The "Log this" row on THIS message
+  // stays tied to this turn's own lookup only (lastGrounding, unseeded) -
+  // no fallback there, so it never shows stale legs under a reply that
+  // didn't itself look anything up.
+  const matchGrounding = lastGrounding ?? body?.priorGrounding ?? null
+  return json({
+    configured: true,
+    reply: text,
+    grounding: text ? lastGrounding : null,
+    recommendation: matchRecommendation(recommendation, matchGrounding)
+  })
 }

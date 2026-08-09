@@ -955,6 +955,16 @@ create policy "user inserts own coach messages" on coach_messages for insert wit
 -- every column on this table.
 alter table coach_messages add column if not exists grounding jsonb;
 
+-- recommendation/result: which single grounded leg (if any) an assistant
+-- reply actually leaned on (netlify/functions/coachgpt.js's
+-- lock_in_recommendation tool, matched back to the full leg from
+-- grounding) and how it settled - null/null until netlify/functions/
+-- coach-settle.js resolves it. No new RLS policy: reads reuse the select
+-- policy above, and coach-settle.js runs under the service-role key
+-- (same as auto-settle.js), which bypasses RLS entirely for the update.
+alter table coach_messages add column if not exists recommendation jsonb;
+alter table coach_messages add column if not exists result text check (result in ('won', 'lost', 'void'));
+
 -- --- Value-edge push alerts -------------------------------------------------
 -- netlify/functions/alert-checks.js's runValueEdgeAlerts - the proactive
 -- half of CoachGPT: pushes when a followed team/fighter (followed_participants)

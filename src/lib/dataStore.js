@@ -617,10 +617,19 @@ function mapDirectMessage(row) {
 }
 
 function mapCoachMessage(row) {
-  return { id: row.id, userId: row.user_id, role: row.role, body: row.body, grounding: row.grounding ?? null, createdAt: row.created_at }
+  return {
+    id: row.id,
+    userId: row.user_id,
+    role: row.role,
+    body: row.body,
+    grounding: row.grounding ?? null,
+    recommendation: row.recommendation ?? null,
+    result: row.result ?? null,
+    createdAt: row.created_at
+  }
 }
 
-/** @param {string} userId @returns {Promise<{id: string, userId: string, role: 'user'|'assistant', body: string, grounding: object|null, createdAt: string}[]>} */
+/** @param {string} userId @returns {Promise<{id: string, userId: string, role: 'user'|'assistant', body: string, grounding: object|null, recommendation: object|null, result: string|null, createdAt: string}[]>} */
 export async function listCoachMessages(userId) {
   if (!isSupabaseConfigured) return local.listCoachMessages(userId)
   const { data, error } = await supabase
@@ -636,10 +645,17 @@ export async function listCoachMessages(userId) {
 // grounding: real BetSlip legs a "Log this" affordance can pre-fill from -
 // see netlify/functions/coachgpt.js's groundFixtureOutcomes/groundRunner.
 // Only ever set on an assistant message; always null on a user message.
-/** @param {{userId: string, role: 'user'|'assistant', body: string, grounding?: object|null}} entry */
-export async function addCoachMessage({ userId, role, body, grounding = null }) {
-  if (!isSupabaseConfigured) return local.addCoachMessage({ userId, role, body, grounding })
-  const { data, error } = await supabase.from('coach_messages').insert({ user_id: userId, role, body, grounding }).select().single()
+// recommendation: the one full leg (same shape as grounding's entries)
+// CoachGPT's lock_in_recommendation tool named as its lean - null until
+// netlify/functions/coach-settle.js resolves `result` on it.
+/** @param {{userId: string, role: 'user'|'assistant', body: string, grounding?: object|null, recommendation?: object|null}} entry */
+export async function addCoachMessage({ userId, role, body, grounding = null, recommendation = null }) {
+  if (!isSupabaseConfigured) return local.addCoachMessage({ userId, role, body, grounding, recommendation })
+  const { data, error } = await supabase
+    .from('coach_messages')
+    .insert({ user_id: userId, role, body, grounding, recommendation })
+    .select()
+    .single()
   if (error) throw error
   return mapCoachMessage(data)
 }
@@ -1283,6 +1299,34 @@ export async function getClosingLines(fixtureIds) {
   const out = {}
   for (const [key, value] of best) out[key] = value.odds
   return out
+}
+
+// The full snapshot HISTORY for one fixture, grouped per outcome - what
+// src/utils/sharpMoney.js needs to detect real movement over time, as
+// opposed to getClosingLines above which only cares about the single
+// latest pre-kickoff price. Only ever has data for a fixture someone
+// followed (or bet on) while snapshots were being taken - see
+// netlify/functions/odds-snapshot.js's follow-based snapshotting; a
+// fixture nobody followed simply returns an empty object, same "honest
+// absence, not an error" contract getClosingLines already uses.
+/** @param {string} fixtureId @returns {Promise<Record<string, {odds: number, fetchedAt: string}[]>>} */
+export async function getOddsSnapshotSeries(fixtureId) {
+  if (!isSupabaseConfigured) return local.getOddsSnapshotSeries(fixtureId)
+  if (!fixtureId) return {}
+  const { data, error } = await supabase
+    .from('odds_snapshots')
+    .select('market,selection,odds,fetched_at')
+    .eq('fixture_id', fixtureId)
+    .order('fetched_at', { ascending: true })
+  if (error) throw error
+  /** @type {Record<string, {odds: number, fetchedAt: string}[]>} */
+  const series = {}
+  for (const row of data ?? []) {
+    const key = `${row.market}|${row.selection}`
+    if (!series[key]) series[key] = []
+    series[key].push({ odds: Number(row.odds), fetchedAt: row.fetched_at })
+  }
+  return series
 }
 
 // Corrects a mis-typed stake on a private entry that's still open - same

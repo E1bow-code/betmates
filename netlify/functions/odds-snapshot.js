@@ -27,6 +27,15 @@
 // side - fixtures.home_team/away_team are nullable (see schema.sql) and left
 // null for racing rows; nothing reads those two columns today, only
 // fixtures.kickoff and odds_snapshots' own columns feed CLV.
+//
+// Also snapshots EVERY outcome (not just one specific leg) of a fixture
+// that's in followed_fixtures - this is what src/utils/sharpMoney.js's
+// movement detection needs: a real time series for a whole outcome, not
+// just the single leg someone happened to bet on. Deliberately NOT the
+// whole board (that would need a materially bigger, less self-limiting
+// fetch pattern than every other job here uses) - scoped to fixtures
+// someone cared enough about to follow, the same "only track what's in
+// play" principle as the open-bet snapshotting above.
 import { createClient } from '@supabase/supabase-js'
 
 const SUPABASE_URL = process.env.VITE_SUPABASE_URL
@@ -57,13 +66,17 @@ async function fetchSportList(sport) {
 
 // Two-participant sports (football, ufc, every GENERIC_SPORTS entry) share one
 // shape: markets[].outcomes[] on each item, keyed id|market.key|outcome.name -
-// exactly what odds.js/ufc.js/sport.js already return.
-/** @param {any[]} items @param {string} sport @param {Set<string>} wanted @param {Map<string, any>} fixtureRows @param {any[]} snapshots @param {string} now */
-function collectFixtureSnapshots(items, sport, wanted, fixtureRows, snapshots, now) {
+// exactly what odds.js/ufc.js/sport.js already return. An outcome gets
+// snapshotted if EITHER an open bet references that exact leg (wantedLegs,
+// feeds CLV) OR the whole fixture is followed (wantedFixtureIds, feeds
+// sharp-money movement detection across every outcome, not just one leg).
+/** @param {any[]} items @param {string} sport @param {Set<string>} wantedLegs @param {Set<string>} wantedFixtureIds @param {Map<string, any>} fixtureRows @param {any[]} snapshots @param {string} now */
+function collectFixtureSnapshots(items, sport, wantedLegs, wantedFixtureIds, fixtureRows, snapshots, now) {
   for (const item of items ?? []) {
     for (const market of item.markets ?? []) {
       for (const outcome of market.outcomes ?? []) {
-        if (!wanted.has(`${item.id}|${market.key}|${outcome.name}`)) continue
+        const wanted = wantedLegs.has(`${item.id}|${market.key}|${outcome.name}`) || wantedFixtureIds.has(item.id)
+        if (!wanted) continue
         const decimal = outcome.bestOdds?.decimal
         if (!Number.isFinite(decimal)) continue
         fixtureRows.set(item.id, {
@@ -90,11 +103,13 @@ function collectFixtureSnapshots(items, sport, wanted, fixtureRows, snapshots, n
 
 // Racing has no head-to-head market - each runner in the field is its own
 // outcome, keyed race.id|win|runner.name (see RaceDetailPage.jsx's pick()).
-/** @param {any[]} races @param {Set<string>} wanted @param {Map<string, any>} fixtureRows @param {any[]} snapshots @param {string} now */
-function collectRacingSnapshots(races, wanted, fixtureRows, snapshots, now) {
+// Same either/or "wanted" rule as collectFixtureSnapshots above.
+/** @param {any[]} races @param {Set<string>} wantedLegs @param {Set<string>} wantedFixtureIds @param {Map<string, any>} fixtureRows @param {any[]} snapshots @param {string} now */
+function collectRacingSnapshots(races, wantedLegs, wantedFixtureIds, fixtureRows, snapshots, now) {
   for (const race of races ?? []) {
     for (const runner of race.runners ?? []) {
-      if (!wanted.has(`${race.id}|win|${runner.name}`)) continue
+      const wanted = wantedLegs.has(`${race.id}|win|${runner.name}`) || wantedFixtureIds.has(race.id)
+      if (!wanted) continue
       const decimal = runner.bestOdds?.decimal
       if (!Number.isFinite(decimal)) continue
       fixtureRows.set(race.id, {
@@ -126,27 +141,39 @@ export default async () => {
   try {
     const supabase = createClient(SUPABASE_URL, SERVICE_ROLE_KEY)
 
-    // Only the outcomes open bets actually reference get snapshotted, so both
-    // the work and the stored history stay proportional to real betting
+    // Only the outcomes open bets actually reference, or fixtures someone
+    // follows, get snapshotted - both keep the work proportional to real
     // activity rather than the whole odds board.
-    const [{ data: posts }, { data: manual }] = await Promise.all([
+    const [{ data: posts }, { data: manual }, { data: follows }] = await Promise.all([
       supabase.from('bet_posts').select('selections').eq('status', 'open'),
-      supabase.from('manual_entries').select('selections').eq('status', 'open')
+      supabase.from('manual_entries').select('selections').eq('status', 'open'),
+      supabase.from('followed_fixtures').select('sport,event_id')
     ])
 
     // Keyed exactly how src/utils/clv.js looks a closing price up. Also track
     // which sports are actually represented so only those lists get fetched.
-    const wanted = new Set()
+    const wantedLegs = new Set()
     const sportsInPlay = new Set()
     for (const row of [...(posts ?? []), ...(manual ?? [])]) {
       for (const leg of row.selections ?? []) {
         if (!leg?.eventId || !leg?.marketKey || !leg?.outcomeName) continue
-        wanted.add(`${leg.eventId}|${leg.marketKey}|${leg.outcomeName}`)
+        wantedLegs.add(`${leg.eventId}|${leg.marketKey}|${leg.outcomeName}`)
         sportsInPlay.add(leg.sport ?? 'football')
       }
     }
-    if (!wanted.size) {
-      return new Response(JSON.stringify({ snapshotted: 0, reason: 'no open bets' }), { status: 200 })
+
+    // Whole-fixture follows - every outcome of these gets snapshotted (not
+    // just one leg), so src/utils/sharpMoney.js has a real series to look
+    // at per outcome, not just the one price an open bet happens to name.
+    const wantedFixtureIds = new Set()
+    for (const follow of follows ?? []) {
+      if (!follow?.event_id) continue
+      wantedFixtureIds.add(follow.event_id)
+      sportsInPlay.add(follow.sport ?? 'football')
+    }
+
+    if (!wantedLegs.size && !wantedFixtureIds.size) {
+      return new Response(JSON.stringify({ snapshotted: 0, reason: 'no open bets or follows' }), { status: 200 })
     }
 
     const now = new Date().toISOString()
@@ -158,8 +185,8 @@ export default async () => {
     await Promise.all(
       [...sportsInPlay].map(async (sport) => {
         const items = await fetchSportList(sport)
-        if (sport === 'racing') collectRacingSnapshots(items, wanted, fixtureRows, snapshots, now)
-        else collectFixtureSnapshots(items, sport, wanted, fixtureRows, snapshots, now)
+        if (sport === 'racing') collectRacingSnapshots(items, wantedLegs, wantedFixtureIds, fixtureRows, snapshots, now)
+        else collectFixtureSnapshots(items, sport, wantedLegs, wantedFixtureIds, fixtureRows, snapshots, now)
       })
     )
 
@@ -183,6 +210,6 @@ export default async () => {
 export const config = {
   // Every 30 min, the same cadence as the app's other schedulers. A fixture's
   // price gets sampled repeatedly as kickoff nears; the last sample at or before
-  // kickoff is its closing line. Only fixtures with an open bet are ever fetched.
+  // kickoff is its closing line. Only fixtures with an open bet, or a follow, are ever fetched.
   schedule: '*/30 * * * *'
 }

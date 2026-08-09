@@ -4,22 +4,26 @@
 //   { configured: false }                     - no ANTHROPIC_API_KEY set;
 //                                                show a "not available
 //                                                here" state
-//   { configured: true, reply, grounding }    - the reply text (reply:
+//   { configured: true, reply, grounding,
+//     recommendation }                        - the reply text (reply:
 //                                                null only on a genuine
-//                                                Anthropic failure), plus
-//                                                real BetSlip legs for a
+//                                                Anthropic failure), real
+//                                                BetSlip legs for a
 //                                                "Log this" affordance
 //                                                when the reply was
 //                                                grounded in exactly one
-//                                                fixture/race (else null)
+//                                                fixture/race (else null),
+//                                                and the single full leg
+//                                                CoachGPT locked in as its
+//                                                actual lean (else null)
 // Never throws - any network failure resolves to "not configured" so the
 // page can show one consistent unavailable state either way.
-export async function sendCoachGptMessage({ message, history }) {
+export async function sendCoachGptMessage({ message, history, priorGrounding }) {
   try {
     const res = await fetch('/api/coachgpt', {
       method: 'POST',
       headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({ message, history })
+      body: JSON.stringify({ message, history, priorGrounding })
     })
     if (!res.ok) return { configured: false }
     return await res.json()

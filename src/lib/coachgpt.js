@@ -29,9 +29,10 @@ export const COACHGPT_SYSTEM = [
   'You may be asked things like "what\'s the best bet for [fixture]" or "tell',
   'me about [player]". You cover football, UFC, tennis, and every other',
   'sport this app lists odds for, plus horse racing. You have two tools -',
-  'call one before answering ANY question about a specific team, fighter,',
-  'horse, or player, even if you think you already know the answer, since',
-  'this app\'s odds and prices change by the hour and yours don\'t:',
+  'call find_fixture or get_player_profile before answering ANY question',
+  'about a specific team, fighter, horse, or player, even if you think you',
+  'already know the answer, since this app\'s odds and prices change by the',
+  'hour and yours don\'t:',
   '- find_fixture(query, sport?): looks up a specific upcoming fixture,',
   '  fight, or horse race and its prices, including pre-computed value',
   '  edges (where the best price beats the market average by a meaningful',
@@ -110,7 +111,31 @@ export const COACHGPT_TOOLS = [
   }
 ]
 
-async function callClaude(apiKey, messages, allowTools) {
+// Not offered to the model as a free choice - see lockInRecommendation
+// below for why. `hasPick` is required so the model has a clean way to
+// say "no real pick here" without needing every other field optional to
+// carry that meaning; the identity fields only matter when hasPick is true.
+const RECOMMENDATION_TOOL = {
+  name: 'lock_in_recommendation',
+  description: 'Record whether your last reply named one specific selection as your lean, and if so, which one.',
+  input_schema: {
+    type: 'object',
+    properties: {
+      hasPick: {
+        type: 'boolean',
+        description: 'True only if your last reply named ONE specific selection as a lean. False for a clarifying question, background-only answer, or no real pick.'
+      },
+      eventId: { type: 'string', description: 'For a fixture/fight/event outcome - the id find_fixture returned' },
+      marketKey: { type: 'string', description: 'For a fixture/fight/event outcome - e.g. "h2h"' },
+      outcomeName: { type: 'string', description: 'For a fixture/fight/event outcome - the exact selection name, e.g. a team name or "Draw"' },
+      raceId: { type: 'string', description: 'For a horse racing runner instead' },
+      horseId: { type: 'string', description: 'For a horse racing runner instead' }
+    },
+    required: ['hasPick']
+  }
+}
+
+async function callClaude(apiKey, messages, extra) {
   try {
     const res = await fetch('https://api.anthropic.com/v1/messages', {
       method: 'POST',
@@ -119,8 +144,8 @@ async function callClaude(apiKey, messages, allowTools) {
         model: COACHGPT_MODEL,
         max_tokens: 500,
         system: COACHGPT_SYSTEM,
-        ...(allowTools ? { tools: COACHGPT_TOOLS } : {}),
-        messages
+        messages,
+        ...extra
       })
     })
     if (!res.ok) {
@@ -135,25 +160,55 @@ async function callClaude(apiKey, messages, allowTools) {
   }
 }
 
+// A plain "call this tool whenever relevant" instruction turned out
+// unreliable in practice: lock_in_recommendation has zero effect on what
+// the user sees, and Claude would consistently skip it even for replies
+// that named one clear pick in plain English (verified live - see PR/
+// commit history). Forcing it via tool_choice as a separate, mandatory
+// follow-up call - after the real answer is already decided - removes
+// that judgement call entirely: the model can still opt out cleanly via
+// hasPick: false, but it can no longer just forget to mention a pick.
+// Costs one extra Anthropic request per turn; only made when there's a
+// real answer to classify.
+async function lockInRecommendation(apiKey, messages, text) {
+  const followUp = [
+    ...messages,
+    { role: 'assistant', content: text },
+    {
+      role: 'user',
+      content:
+        'Call lock_in_recommendation now to record whether your reply above named one specific selection as your lean.'
+    }
+  ]
+  const data = await callClaude(apiKey, followUp, { tools: [RECOMMENDATION_TOOL], tool_choice: { type: 'tool', name: 'lock_in_recommendation' } })
+  const block = data?.content?.find((b) => b.type === 'tool_use' && b.name === 'lock_in_recommendation')
+  return block?.input?.hasPick ? block.input : null
+}
+
 // history: [{ role: 'user'|'assistant', content: string }] - prior turns
 // of this conversation, oldest first. message: the new user message.
 // callTool: async (name, input) => JSON-serialisable result.
-// Returns the final assistant text, or null only if the Anthropic request
-// itself failed outright (bad key, network error, etc) - a vague/broad
-// question that eats the whole tool-round budget still gets a real answer,
-// see the forced no-tools call below.
+// Returns { text, recommendation } - text is the final assistant reply
+// (null only if the Anthropic request itself failed outright - bad key,
+// network error, etc; a vague/broad question that eats the whole
+// tool-round budget still gets a real answer, see the forced no-tools
+// call below). recommendation is lock_in_recommendation's raw input from
+// the forced follow-up call below, or null if it found no real pick (or
+// text itself is null).
 export async function runCoachGptTurn({ apiKey, history, message, callTool }) {
-  if (!apiKey) return null
+  if (!apiKey) return { text: null, recommendation: null }
 
   const messages = [...(history ?? []).map((m) => ({ role: m.role, content: m.content })), { role: 'user', content: message }]
 
-  for (let round = 0; round < MAX_TOOL_ROUNDS; round++) {
-    const data = await callClaude(apiKey, messages, true)
-    if (!data) return null
+  let text = null
+  for (let round = 0; round < MAX_TOOL_ROUNDS && text === null; round++) {
+    const data = await callClaude(apiKey, messages, { tools: COACHGPT_TOOLS })
+    if (!data) return { text: null, recommendation: null }
 
     const content = data.content ?? []
     if (data.stop_reason !== 'tool_use') {
-      return content.find((b) => b.type === 'text')?.text?.trim() ?? null
+      text = content.find((b) => b.type === 'text')?.text?.trim() ?? null
+      break
     }
 
     messages.push({ role: 'assistant', content })
@@ -178,6 +233,11 @@ export async function runCoachGptTurn({ apiKey, history, message, callTool }) {
   // horse to anchor a lookup on. Strip the tools and force one last call
   // so it has to answer in text from whatever it's already gathered,
   // rather than leaving the user with nothing.
-  const finalData = await callClaude(apiKey, messages, false)
-  return finalData?.content?.find((b) => b.type === 'text')?.text?.trim() ?? null
+  if (text === null) {
+    const finalData = await callClaude(apiKey, messages, {})
+    text = finalData?.content?.find((b) => b.type === 'text')?.text?.trim() ?? null
+  }
+
+  const recommendation = text ? await lockInRecommendation(apiKey, messages, text) : null
+  return { text, recommendation }
 }

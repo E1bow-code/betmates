@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import { fetchRace } from '../api/racingClient.js'
+import * as dataStore from '../lib/dataStore.js'
 import { formatKickoff, formatCountdown } from '../utils/format.js'
 import { bestWithinFilter } from '../utils/oddsUtils.js'
 import { formatOdds } from '../utils/oddsFormat.js'
@@ -14,6 +15,7 @@ import WatchLiveButton from '../components/WatchLiveButton.jsx'
 import FollowButton from '../components/FollowButton.jsx'
 import RunnerForm from '../components/RunnerForm.jsx'
 import CoachGptLink from '../components/CoachGptLink.jsx'
+import SharpMoneyBadge from '../components/SharpMoneyBadge.jsx'
 
 export default function RaceDetailPage() {
   const { id } = useParams()
@@ -24,11 +26,15 @@ export default function RaceDetailPage() {
   const [error, setError] = useState(null)
   const [myBookiesOnly, setMyBookiesOnly] = useState(false)
   const [expandedRunner, setExpandedRunner] = useState(null)
+  // Only has data if this race is followed - see FixtureDetailPage.jsx's
+  // identical fetch for the full reasoning.
+  const [snapshotSeries, setSnapshotSeries] = useState({})
 
   useEffect(() => {
     fetchRace(id)
       .then(setRace)
       .catch((err) => setError(err.message))
+    dataStore.getOddsSnapshotSeries(id).then(setSnapshotSeries).catch(() => {})
   }, [id])
 
   if (error) return <ErrorState message={error} />
@@ -141,6 +147,7 @@ export default function RaceDetailPage() {
                   >
                     <div className="best-price">{formatOdds(best.decimal, format, best.price)}</div>
                     <div className="best-bookmaker">{best.bookmaker}</div>
+                    <SharpMoneyBadge series={snapshotSeries[`win|${runner.name}`]} />
                   </button>
                 ) : (
                   <div className="runner-best">

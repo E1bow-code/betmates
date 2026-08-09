@@ -46,12 +46,16 @@ backend at all. Add a data operation in *both* or the no-backend path
 breaks silently.
 
 **Settlement rules live in `src/lib/betEvaluation.js` and nowhere else.**
-Two callers share them and must never disagree: `src/lib/settlement.js`
-(runs when someone opens the Tracker) and
-`netlify/functions/auto-settle.js` (runs on a schedule with nobody signed
-in). That file is deliberately free of I/O so a Netlify Function can import
-straight out of `src/lib`. It's the only code that decides what a bet pays -
-`src/lib/betEvaluation.test.js` covers it, so run `npm test` after touching it.
+Three callers share them and must never disagree: `src/lib/settlement.js`
+(runs when someone opens the Tracker), `netlify/functions/auto-settle.js`
+(runs on a schedule with nobody signed in), and
+`netlify/functions/coach-settle.js` (settles CoachGPT's own
+`lock_in_recommendation` picks for its scoreboard, reusing `evaluateLeg`
+directly against a recommendation leg rather than a real bet's `selections`
+array). That file is deliberately free of I/O so a Netlify Function can
+import straight out of `src/lib`. It's the only code that decides what a
+bet pays - `src/lib/betEvaluation.test.js` covers it, so run `npm test`
+after touching it.
 
 **Void legs re-price the bet.** A void leg in a winning multi goes to odds
 1.00 and the accumulator is re-priced (`voidAdjustedReturn`), rather than
@@ -91,6 +95,8 @@ Netlify cron, configured per-file via `export const config = { schedule }`:
 | `weekly-recap.js` | `0 20 * * 0` | Sunday 20:00 recap push |
 | `streak-reminders.js` | `*/30 * * * *` | push on a new 3/5/10 win-streak milestone |
 | `team-news-alerts.js` | `*/30 * * * *` | push when a followed team/player appears in a news headline |
+| `odds-snapshot.js` | `*/30 * * * *` | snapshots prices for open-bet legs (CLV) and followed fixtures (sharp-money) |
+| `coach-settle.js` | `*/30 * * * *` | settles CoachGPT's `lock_in_recommendation` picks for its own scoreboard |
 
 `alert-checks.js` (and every other scheduled function above) runs with
 nobody signed in, so it uses `SUPABASE_SERVICE_ROLE_KEY` and bypasses RLS -
