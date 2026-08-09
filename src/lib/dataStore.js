@@ -1865,6 +1865,51 @@ export async function createChallenge({ challengerId, opponentId, metric, days }
   return mapChallenge(data)
 }
 
+function mapGroupTournament(row) {
+  return {
+    id: row.id,
+    groupId: row.group_id,
+    name: row.name,
+    metric: row.metric,
+    startsAt: row.starts_at,
+    endsAt: row.ends_at,
+    createdBy: row.created_by,
+    createdAt: row.created_at
+  }
+}
+
+// Every tournament a group has run, newest first - GroupTournamentSection.jsx
+// picks the still-running one (if any, by endsAt) as "active" and the rest
+// as history, same split ChallengeSection.jsx already does for challenges.
+/** @param {string} groupId @returns {Promise<{id: string, groupId: string, name: string, metric: 'profit'|'roi', startsAt: string, endsAt: string, createdBy: string, createdAt: string}[]>} */
+export async function listGroupTournaments(groupId) {
+  if (!isSupabaseConfigured) return local.listGroupTournaments(groupId)
+  const { data, error } = await supabase.from('group_tournaments').select('*').eq('group_id', groupId).order('created_at', { ascending: false })
+  if (error) throw error
+  return data.map(mapGroupTournament)
+}
+
+/** @param {{groupId: string, name: string, metric: 'profit'|'roi', days: number, createdBy: string}} entry */
+export async function createGroupTournament({ groupId, name, metric, days, createdBy }) {
+  if (!isSupabaseConfigured) return local.createGroupTournament({ groupId, name, metric, days, createdBy })
+  const startsAt = new Date()
+  const endsAt = new Date(startsAt.getTime() + days * 24 * 60 * 60 * 1000)
+  const { data, error } = await supabase
+    .from('group_tournaments')
+    .insert({
+      group_id: groupId,
+      name,
+      metric,
+      starts_at: startsAt.toISOString(),
+      ends_at: endsAt.toISOString(),
+      created_by: createdBy
+    })
+    .select()
+    .single()
+  if (error) throw error
+  return mapGroupTournament(data)
+}
+
 /**
  * @param {{authorId: string, videoKey: string, durationSec: number, caption: string, tag: string}} params
  * @returns {Promise<{id: string, authorId: string, videoKey: string, durationSec: number, caption: string, tag: string, createdAt: string}>}

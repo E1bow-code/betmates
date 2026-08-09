@@ -1201,3 +1201,35 @@ alter table profiles add column if not exists streak_freezes_used integer not nu
 -- calendar date per user, same one-shot-per-value idea as
 -- streak_milestone_notified above.
 alter table profiles add column if not exists streak_reminder_sent_date date;
+
+-- --- Group tournaments -------------------------------------------------
+-- A seasonal mini-league scoped to one group, ranking every member (not
+-- just two, unlike the `challenges` 1v1 above) by profit or ROI over the
+-- tournament's own fixed [starts_at, ends_at] window. Same "no cron"
+-- reasoning as challenges: the window is stored on the row itself, so
+-- src/utils/groupTournament.js just recomputes standings live from
+-- bet_posts any time it's viewed, before or after ends_at, rather than
+-- snapshotting a result the way season_results does - a bet that settles
+-- a little late still counts instead of being missed by a snapshot.
+-- Starting one is a group-admin action, same "creator only" rule already
+-- used for renaming a group / removing a member.
+create table group_tournaments (
+  id uuid primary key default gen_random_uuid(),
+  group_id uuid not null references groups(id) on delete cascade,
+  name text not null,
+  metric text not null check (metric in ('profit', 'roi')),
+  starts_at timestamptz not null default now(),
+  ends_at timestamptz not null,
+  created_by uuid not null references profiles(id) on delete cascade,
+  created_at timestamptz not null default now(),
+  check (ends_at > starts_at)
+);
+
+alter table group_tournaments enable row level security;
+
+create policy "group members read their group's tournaments" on group_tournaments for select using (
+  is_group_member(group_id, auth.uid())
+);
+create policy "group creator starts a tournament" on group_tournaments for insert with check (
+  auth.uid() = created_by and exists (select 1 from groups g where g.id = group_id and g.created_by = auth.uid())
+);

@@ -55,6 +55,7 @@ import { saveVideoBlob, getVideoBlob } from './videoStore.js'
  * @property {PredictorEntry[]} predictorEntries
  * @property {ErrorLog[]} errorLogs
  * @property {{id: string, challengerId: string, opponentId: string, metric: 'profit'|'roi'|'pickem', startsAt: string, endsAt: string, createdAt: string}[]} challenges
+ * @property {{id: string, groupId: string, name: string, metric: 'profit'|'roi', startsAt: string, endsAt: string, createdBy: string, createdAt: string}[]} groupTournaments
  */
 
 const DB_KEY = 'betmates.db'
@@ -85,7 +86,8 @@ const EMPTY_DB = {
   predictors: [],
   predictorEntries: [],
   errorLogs: [],
-  challenges: []
+  challenges: [],
+  groupTournaments: []
 }
 
 // Merges in any table keys added after a browser's db was first created -
@@ -1206,6 +1208,36 @@ export function createChallenge({ challengerId, opponentId, metric, days }) {
   db.challenges.push(challenge)
   writeDb(db)
   return delay(challenge)
+}
+
+/** @param {string} groupId @returns {Promise<{id: string, groupId: string, name: string, metric: 'profit'|'roi', startsAt: string, endsAt: string, createdBy: string, createdAt: string}[]>} */
+export function listGroupTournaments(groupId) {
+  const db = readDb()
+  return delay(
+    db.groupTournaments
+      .filter((t) => t.groupId === groupId)
+      .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
+  )
+}
+
+/** @param {{groupId: string, name: string, metric: 'profit'|'roi', days: number, createdBy: string}} entry */
+export function createGroupTournament({ groupId, name, metric, days, createdBy }) {
+  const db = readDb()
+  const startsAt = new Date()
+  const endsAt = new Date(startsAt.getTime() + days * 24 * 60 * 60 * 1000)
+  const tournament = {
+    id: uid('tournament'),
+    groupId,
+    name,
+    metric,
+    startsAt: startsAt.toISOString(),
+    endsAt: endsAt.toISOString(),
+    createdBy,
+    createdAt: startsAt.toISOString()
+  }
+  db.groupTournaments.push(tournament)
+  writeDb(db)
+  return delay(tournament)
 }
 
 // --- Video tips ----------------------------------------------------------

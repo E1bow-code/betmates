@@ -5,6 +5,7 @@ import * as dataStore from '../lib/dataStore.js'
 import BetCard from '../components/BetCard.jsx'
 import VideoCard from '../components/VideoCard.jsx'
 import Leaderboard from '../components/Leaderboard.jsx'
+import GroupTournamentSection from '../components/GroupTournamentSection.jsx'
 import GroupRecapCard from '../components/GroupRecapCard.jsx'
 import PickemLeaderboard from '../components/PickemLeaderboard.jsx'
 import TablePredictorPanel from '../components/TablePredictorPanel.jsx'
@@ -225,6 +226,16 @@ export default function GroupFeedPage() {
             <Leaderboard posts={posts} memberNames={memberNames} currentUserId={user.id} closes={closes} groupId={id} />
           )}
           {posts && posts.length > 0 && <PickemLeaderboard posts={posts} memberNames={memberNames} />}
+          {posts && (
+            <GroupTournamentSection
+              groupId={id}
+              groupName={group?.name ?? 'the group'}
+              posts={posts}
+              memberNames={memberNames}
+              currentUserId={user.id}
+              isCreator={isCreator}
+            />
+          )}
           {items && !items.length && (
             <EmptyState
               icon="💬"
