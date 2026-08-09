@@ -6,12 +6,15 @@
 // "pending"), sharing the same evaluation rules from betEvaluation.js so the
 // two never disagree on what counts as settled.
 import * as dataStore from './dataStore.js'
-import { apiKeysForSport } from './sportsConfig.js'
+import { apiKeysForSport, sgoEventIdForLeg } from './sportsConfig.js'
 import { evaluateEntryDetailed, resolveSettlement } from './betEvaluation.js'
 
-async function fetchScores(apiSportKeys) {
-  if (!apiSportKeys.length) return []
-  const res = await fetch(`/api/scores?keys=${encodeURIComponent(apiSportKeys.join(','))}`)
+async function fetchScores(apiSportKeys, sgoIds) {
+  if (!apiSportKeys.length && !sgoIds.length) return []
+  const params = new URLSearchParams()
+  if (apiSportKeys.length) params.set('keys', apiSportKeys.join(','))
+  if (sgoIds.length) params.set('sgoIds', sgoIds.join(','))
+  const res = await fetch(`/api/scores?${params}`)
   if (!res.ok) return []
   return res.json()
 }
@@ -31,16 +34,22 @@ export async function checkAndSettleBets(userId) {
   if (!open.length) return { settled: 0 }
 
   const neededKeys = new Set()
+  const neededSgoIds = new Set()
   let needsRacing = false
   for (const entry of open) {
     for (const leg of entry.selections) {
       if (leg.sport === 'racing') needsRacing = true
       for (const key of apiKeysForSport(leg.sport ?? entry.sport)) neededKeys.add(key)
+      const sgoId = sgoEventIdForLeg(leg)
+      if (sgoId) neededSgoIds.add(sgoId)
     }
   }
-  if (!neededKeys.size && !needsRacing) return { settled: 0 }
+  if (!neededKeys.size && !neededSgoIds.size && !needsRacing) return { settled: 0 }
 
-  const [games, raceResults] = await Promise.all([fetchScores([...neededKeys]), needsRacing ? fetchRaceResults() : Promise.resolve([])])
+  const [games, raceResults] = await Promise.all([
+    fetchScores([...neededKeys], [...neededSgoIds]),
+    needsRacing ? fetchRaceResults() : Promise.resolve([])
+  ])
   if (!games.length && !raceResults.length) return { settled: 0 }
 
   let settled = 0

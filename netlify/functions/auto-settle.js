@@ -20,7 +20,7 @@
 import { createClient } from '@supabase/supabase-js'
 import webpush from 'web-push'
 import { evaluateEntryDetailed, resolveSettlement } from '../../src/lib/betEvaluation.js'
-import { apiKeysForSport } from '../../src/lib/sportsConfig.js'
+import { apiKeysForSport, sgoEventIdForLeg } from '../../src/lib/sportsConfig.js'
 
 // Narrower than dataStore.js's BetPost/ManualEntry typedefs - this only
 // selects the columns settlement actually needs, straight off the raw
@@ -45,11 +45,15 @@ const SITE_URL = process.env.URL || 'https://betmates.org'
 
 /**
  * @param {string[]} apiSportKeys
+ * @param {string[]} sgoIds
  * @returns {Promise<any[]>}
  */
-async function fetchScores(apiSportKeys) {
-  if (!apiSportKeys.length) return []
-  const res = await fetch(`${SITE_URL}/api/scores?keys=${encodeURIComponent(apiSportKeys.join(','))}`)
+async function fetchScores(apiSportKeys, sgoIds) {
+  if (!apiSportKeys.length && !sgoIds.length) return []
+  const params = new URLSearchParams()
+  if (apiSportKeys.length) params.set('keys', apiSportKeys.join(','))
+  if (sgoIds.length) params.set('sgoIds', sgoIds.join(','))
+  const res = await fetch(`${SITE_URL}/api/scores?${params}`)
   if (!res.ok) return []
   return res.json()
 }
@@ -96,16 +100,23 @@ export default async (req) => {
 
     /** @type {Set<string>} */
     const neededKeys = new Set()
+    /** @type {Set<string>} */
+    const neededSgoIds = new Set()
     let needsRacing = false
     for (const entry of open) {
       for (const leg of entry.selections ?? []) {
         if (leg.sport === 'racing') needsRacing = true
         for (const key of apiKeysForSport(leg.sport ?? entry.sport)) neededKeys.add(key)
+        const sgoId = sgoEventIdForLeg(leg)
+        if (sgoId) neededSgoIds.add(sgoId)
       }
     }
-    if (!neededKeys.size && !needsRacing) return new Response(JSON.stringify({ settled: 0 }), { status: 200 })
+    if (!neededKeys.size && !neededSgoIds.size && !needsRacing) return new Response(JSON.stringify({ settled: 0 }), { status: 200 })
 
-    const [games, raceResults] = await Promise.all([fetchScores([...neededKeys]), needsRacing ? fetchRaceResults() : Promise.resolve([])])
+    const [games, raceResults] = await Promise.all([
+      fetchScores([...neededKeys], [...neededSgoIds]),
+      needsRacing ? fetchRaceResults() : Promise.resolve([])
+    ])
     if (!games.length && !raceResults.length) return new Response(JSON.stringify({ settled: 0 }), { status: 200 })
 
     /** @type {SettledEntry[]} */

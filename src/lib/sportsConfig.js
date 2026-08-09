@@ -38,10 +38,10 @@ export const GENERIC_SPORTS = {
   // branches on `provider`) instead of The Odds API - separate free
   // quota, and better-suited coverage for US sports than querying UK
   // bookmakers for them ever was. provider/leagueID replace apiSportKeys;
-  // apiKeysForSport() below (the Odds-API /scores lookup used for
-  // settlement/results) has no equivalent for these yet, so auto-settle
-  // and the results archive don't cover them - manual settling still
-  // works fine, this only affects the automatic part.
+  // settlement/live-scores/results-archive read these through
+  // sgoEventIdForLeg() below instead of apiKeysForSport() - SportsGameOdds
+  // has no sport-wide /scores sweep, so those three ask about the specific
+  // event a leg was struck on (leg.eventId) rather than a fetch window.
   basketball: { label: 'Basketball', provider: 'sgo', leagueID: 'NBA', participantType: 'team', hasDraw: false },
   hockey: { label: 'Ice Hockey', provider: 'sgo', leagueID: 'NHL', participantType: 'team', hasDraw: false },
   baseball: { label: 'Baseball', provider: 'sgo', leagueID: 'MLB', participantType: 'team', hasDraw: false },
@@ -70,13 +70,42 @@ export const SPORT_LABEL = {
   ...Object.fromEntries(Object.entries(GENERIC_SPORTS).map(([key, cfg]) => [key, cfg.label]))
 }
 
-// Shared by src/lib/settlement.js and src/api/resultsClient.js - anything
-// that needs to ask The Odds API's /scores endpoint about a sport has to
-// go through the same internal-key -> real-API-key mapping. Tennis isn't
-// included: it needs the same dynamic tournament-discovery sport.js does
-// for odds, which /scores doesn't have a parallel for yet.
+// A sentinel, not a real Odds API sport key - tennis has no fixed key the
+// way the soccer leagues above do (see GENERIC_SPORTS.tennis's own
+// comment), so this flows through the same neededKeys Set every caller
+// below already builds, and netlify/functions/scores.js expands it into
+// whichever tennis_* keys The Odds API currently lists as active (the same
+// discovery netlify/functions/sport.js does for tennis odds) before it
+// queries /scores for real.
+export const TENNIS_DYNAMIC_KEY = 'tennis_dynamic'
+
+// Shared by src/lib/settlement.js, netlify/functions/auto-settle.js and
+// src/lib/liveScores.js - anything that needs to ask The Odds API's
+// /scores endpoint about a sport has to go through the same internal-key
+// -> real-API-key mapping.
 export function apiKeysForSport(internalSport) {
   if (internalSport === 'football') return FOOTBALL_SPORT_KEYS
   if (internalSport === 'ufc') return [UFC_SPORT_KEY]
+  if (GENERIC_SPORTS[internalSport]?.dynamicPrefix) return [TENNIS_DYNAMIC_KEY]
   return GENERIC_SPORTS[internalSport]?.apiSportKeys ?? []
+}
+
+// The four `provider: 'sgo'` sports (basketball/hockey/baseball/nfl) have
+// no Odds-API key at all - SportsGameOdds is a completely different
+// provider, keyed by its own eventID rather than a sport-wide key, so
+// settlement/live-scores/results-archive need the specific event a leg was
+// struck on (leg.eventId, already stored for CLV lookups) rather than a
+// sport-wide fetch window. Returns null for every other sport, so callers
+// can filter with .filter(Boolean) the same way they already collect keys.
+export function sgoEventIdForLeg(leg) {
+  return GENERIC_SPORTS[leg.sport]?.provider === 'sgo' ? (leg.eventId ?? null) : null
+}
+
+// For "browse recent results" (src/api/resultsClient.js's Results tab,
+// which isn't scoped to any one user's bets) rather than settlement's
+// specific-event lookup above - there's no set of eventIds to ask about
+// yet, so this needs SportsGameOdds' own leagueID instead.
+export function sgoLeagueForSport(sport) {
+  const config = GENERIC_SPORTS[sport]
+  return config?.provider === 'sgo' ? config.leagueID : null
 }
