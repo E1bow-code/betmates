@@ -35,6 +35,52 @@ export function coachBriefing(s) {
   return lines.join('\n')
 }
 
+// Same idea as coachBriefing but for ONE settled bet rather than a whole
+// record - used by "bet review" (Tracker's on-request "Ask Coach" button).
+// Takes the plain bet-shaped object Tracker/localBackend already use
+// (selections/stake/potentialReturn/status), not a rolled-up summary.
+const RESULT_WORD = { won: 'Won', lost: 'Lost', void: 'Void', placed: 'Placed (each-way, not the win)' }
+
+export function betBriefing(bet) {
+  const lines = []
+  const legs = bet.selections ?? []
+  if (legs.length === 1) {
+    const leg = legs[0]
+    lines.push(`Selection: ${leg.selection} (${leg.market}, ${leg.event}) @ ${Number(leg.odds).toFixed(2)} (${leg.bookmaker})`)
+  } else if (legs.length > 1) {
+    lines.push(`${legs.length}-leg bet:`)
+    legs.forEach((leg, i) => lines.push(`  ${i + 1}. ${leg.selection} (${leg.market}, ${leg.event}) @ ${Number(leg.odds).toFixed(2)}`))
+    const combined = legs.reduce((acc, l) => acc * Number(l.odds), 1)
+    lines.push(`Combined odds: ${combined.toFixed(2)}`)
+  }
+  if (Number.isFinite(Number(bet.stake))) lines.push(`Stake: £${Number(bet.stake).toFixed(2)}`)
+  if (bet.status && RESULT_WORD[bet.status]) lines.push(`Result: ${RESULT_WORD[bet.status]}`)
+  if ((bet.status === 'won' || bet.status === 'placed') && Number.isFinite(Number(bet.potentialReturn)))
+    lines.push(`Returned: £${Number(bet.potentialReturn).toFixed(2)}`)
+  return lines.join('\n')
+}
+
+// Turns a group's weekly recap (src/utils/groupRecap.js's computeGroupRecap
+// output - already shown numerically on GroupRecapCard) into a briefing for
+// the group-level Coach take. Same "reflect what's already there" contract.
+export function groupBriefing(recap) {
+  const lines = []
+  if (Number.isFinite(recap.settledCount)) lines.push(`Bets settled this week: ${recap.settledCount}`)
+  if (Number.isFinite(recap.activeCount)) lines.push(`Mates who bet this week: ${recap.activeCount}`)
+  if (Number.isFinite(recap.groupProfit)) lines.push(`Group P&L: ${recap.groupProfit >= 0 ? '+' : ''}£${recap.groupProfit.toFixed(2)}`)
+  if (recap.topTipster) {
+    const t = recap.topTipster
+    lines.push(
+      `Top tipster: ${t.name} (${t.profit >= 0 ? '+' : ''}£${t.profit.toFixed(2)} over ${t.settledCount} bet${t.settledCount === 1 ? '' : 's'}${t.winRate == null ? '' : `, ${t.winRate}% win rate`})`
+    )
+  }
+  if (recap.biggestWin) {
+    const b = recap.biggestWin
+    lines.push(`Biggest win: ${b.name} +£${b.profit.toFixed(2)}${b.event ? ` on ${b.legs > 1 ? `a ${b.legs}-leg bet` : b.event}` : ''}`)
+  }
+  return lines.join('\n')
+}
+
 // The rules both voices share. Only the length/context differs between the
 // full Insights card and the one-line push.
 const HARD_RULES = [
@@ -75,16 +121,58 @@ export const COACH_PUSH_SYSTEM = [
   'about how they bet this week. No preamble, no emoji, British English.'
 ].join('\n')
 
+// "Bet review" - a reaction to ONE of the user's own settled bets, on request
+// (Tracker's "Ask Coach" button), not their whole record.
+const BET_PREAMBLE = [
+  'You are the "Coach" inside BetMates, a social betting tracker. Users log',
+  'their own bets; the app never places real bets and shows no live money.',
+  'You are given the details of ONE of the user\'s own settled bets (already',
+  'won, lost or void) and write a short, honest reaction to it - the pick,',
+  'the price, and the stake.',
+  '',
+  'Hard rules:',
+  HARD_RULES
+].join('\n')
+
+export const COACH_BET_SYSTEM = [
+  BET_PREAMBLE,
+  '',
+  'Format: 1-3 short sentences. No preamble, no sign-off, at most one emoji.',
+  'British English, pub-mate tone. Speak to this one bet only - you have not',
+  'been given their overall record, so don\'t guess at it.'
+].join('\n')
+
+// "Group Coach" - a take on a group's week together (fed the same numbers
+// GroupRecapCard already shows), not any one member's individual record.
+const GROUP_PREAMBLE = [
+  'You are the "Coach" inside BetMates, a social betting tracker. Users log',
+  'their own bets in shared groups with mates; the app never places real bets.',
+  'You are given a GROUP\'s numbers for the last 7 days and write the group a',
+  'short, friendly take on their week together.',
+  '',
+  'Hard rules:',
+  HARD_RULES
+].join('\n')
+
+export const COACH_GROUP_SYSTEM = [
+  GROUP_PREAMBLE,
+  '- Speak to the group as a whole ("you lot", "the group") - don\'t single',
+  '  anyone out beyond the top tipster/biggest win you were given.',
+  '',
+  'Format: 2-3 short sentences. No preamble, no sign-off, at most one emoji.',
+  'British English, pub-mate tone.'
+].join('\n')
+
 // Ask Claude for a take. Returns the text, or null for any reason it can't be
-// produced (no key, empty summary, upstream error) - callers treat null as
+// produced (no key, empty briefing, upstream error) - callers treat null as
 // "no take to show" and carry on, never surfacing an error.
-export async function requestCoachTake({ summary, apiKey, style = 'full' }) {
+export async function requestCoachTake({ summary, bet, recap, apiKey, style = 'full' }) {
   if (!apiKey) return null
-  const brief = coachBriefing(summary ?? {})
+  const brief = style === 'bet' ? betBriefing(bet ?? {}) : style === 'group' ? groupBriefing(recap ?? {}) : coachBriefing(summary ?? {})
   if (!brief) return null
 
-  const system = style === 'push' ? COACH_PUSH_SYSTEM : COACH_SYSTEM
-  const maxTokens = style === 'push' ? 120 : 350
+  const system = style === 'push' ? COACH_PUSH_SYSTEM : style === 'bet' ? COACH_BET_SYSTEM : style === 'group' ? COACH_GROUP_SYSTEM : COACH_SYSTEM
+  const maxTokens = style === 'push' ? 120 : style === 'bet' ? 150 : style === 'group' ? 250 : 350
 
   try {
     const res = await fetch('https://api.anthropic.com/v1/messages', {

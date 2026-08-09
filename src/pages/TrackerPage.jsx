@@ -36,6 +36,7 @@ import { betLineValue, beatTheLineRate } from '../utils/lineValue.js'
 import { betClv, clvSummary } from '../utils/clv.js'
 import { computeCashOutReplay } from '../utils/cashOutReplay.js'
 import CashOutReplay from '../components/CashOutReplay.jsx'
+import BetReviewButton from '../components/BetReviewButton.jsx'
 
 const STATUS_LABEL = { open: 'Pending', won: 'Won', lost: 'Lost', void: 'Void' }
 
@@ -388,6 +389,7 @@ export default function TrackerPage() {
                   ) : null}
                   {clv ? <ClvTag clv={clv} /> : lineValue ? <LineValueTag lv={lineValue} /> : null}
                   <CashOutReplay replay={cashOut} actualReturn={entry.potentialReturn != null ? Number(entry.potentialReturn) : null} />
+                  {entry.status !== 'open' && <BetReviewButton entry={entry} />}
                 </div>
                 <div className="tracker-row-status">
                   {entry.source === 'manual' && entry.status === 'open' ? (

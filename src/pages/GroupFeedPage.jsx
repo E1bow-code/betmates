@@ -7,6 +7,7 @@ import VideoCard from '../components/VideoCard.jsx'
 import Leaderboard from '../components/Leaderboard.jsx'
 import GroupTournamentSection from '../components/GroupTournamentSection.jsx'
 import GroupRecapCard from '../components/GroupRecapCard.jsx'
+import GroupCoachTake from '../components/GroupCoachTake.jsx'
 import PickemLeaderboard from '../components/PickemLeaderboard.jsx'
 import TablePredictorPanel from '../components/TablePredictorPanel.jsx'
 import Avatar from '../components/Avatar.jsx'
@@ -225,6 +226,7 @@ export default function GroupFeedPage() {
           {error && <div className="error">Hmm, couldn't load this group: {error}</div>}
           {!error && items === null && <div className="loading">Catching up on the feed…</div>}
           {posts && posts.length > 0 && <GroupRecapCard posts={posts} memberNames={memberNames} />}
+          {posts && posts.length > 0 && <GroupCoachTake posts={posts} memberNames={memberNames} />}
           {posts && posts.length > 0 && (
             <Leaderboard
               posts={posts}
