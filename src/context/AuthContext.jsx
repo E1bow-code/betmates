@@ -133,6 +133,15 @@ export function AuthProvider({ children }) {
     [user]
   )
 
+  const updateStakingPlan = useCallback(
+    async (bankrollAmount, stakingRule) => {
+      if (!user) return
+      await dataStore.updateStakingPlan(user.id, { bankrollAmount, stakingRule })
+      setUser((u) => ({ ...u, bankrollAmount, stakingRule }))
+    },
+    [user]
+  )
+
   return (
     <AuthContext.Provider
       value={{
@@ -149,7 +158,8 @@ export function AuthProvider({ children }) {
         updateNotificationPrefs,
         updateAvatar,
         updateStakeLimit,
-        updateLimitBuddy
+        updateLimitBuddy,
+        updateStakingPlan
       }}
     >
       {children}

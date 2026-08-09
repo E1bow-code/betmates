@@ -192,6 +192,8 @@ export function signUp({ email, displayName, dob, referredByCode }) {
     stakeLimitAmount: null,
     stakeLimitPeriod: null,
     limitBuddyId: null,
+    bankrollAmount: null,
+    stakingRule: null,
     referredBy: referrer?.id ?? null
   }
   db.users.push(user)
@@ -915,6 +917,30 @@ export function updateLimitBuddy(userId, buddyId) {
     }
   }
   return delay(buddyId)
+}
+
+/**
+ * @param {string} userId @param {{bankrollAmount: number|null, stakingRule: {type: 'flat'|'percent', value: number}|null}} params
+ * @returns {Promise<{bankrollAmount: number|null, stakingRule: {type: 'flat'|'percent', value: number}|null}>}
+ */
+export function updateStakingPlan(userId, { bankrollAmount, stakingRule }) {
+  const db = readDb()
+  const user = db.users.find((u) => u.id === userId)
+  if (user) {
+    user.bankrollAmount = bankrollAmount
+    user.stakingRule = stakingRule
+    writeDb(db)
+  }
+  const session = localStorage.getItem(SESSION_KEY)
+  if (session) {
+    const sessionUser = JSON.parse(session)
+    if (sessionUser.id === userId) {
+      sessionUser.bankrollAmount = bankrollAmount
+      sessionUser.stakingRule = stakingRule
+      localStorage.setItem(SESSION_KEY, JSON.stringify(sessionUser))
+    }
+  }
+  return delay({ bankrollAmount, stakingRule })
 }
 
 // No real object storage in local mode - reads the file as a data URL and

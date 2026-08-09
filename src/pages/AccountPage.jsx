@@ -9,6 +9,7 @@ import { getStoredTheme, setTheme } from '../lib/theme.js'
 import { isIOS, isStandalone } from '../lib/platform.js'
 import { shareOrCopy, publicProfileUrl, referralUrl } from '../lib/share.js'
 import { periodStart, sumStakesSince } from '../utils/spendLimit.js'
+import { suggestedStake } from '../utils/stakingPlan.js'
 import { getRealityCheckMins, setRealityCheckMins, REALITY_CHECK_OPTIONS } from '../lib/realityCheck.js'
 import { referralRewardState } from '../utils/referralRewards.js'
 import Avatar from '../components/Avatar.jsx'
@@ -55,7 +56,8 @@ export default function AccountPage() {
     updateNotificationPrefs,
     updateAvatar,
     updateStakeLimit,
-    updateLimitBuddy
+    updateLimitBuddy,
+    updateStakingPlan
   } = useAuth()
   const { format: oddsFormat, setFormat: setOddsFormat } = useOddsFormat()
   const [pushEnabled, setPushEnabled] = useState(false)
@@ -82,6 +84,11 @@ export default function AccountPage() {
   const [limitSaving, setLimitSaving] = useState(false)
   const [limitSaved, setLimitSaved] = useState(false)
   const [periodSpend, setPeriodSpend] = useState(null)
+  const [bankrollInput, setBankrollInput] = useState(user.bankrollAmount ?? '')
+  const [stakingTypeInput, setStakingTypeInput] = useState(user.stakingRule?.type ?? 'flat')
+  const [stakingValueInput, setStakingValueInput] = useState(user.stakingRule?.value ?? '')
+  const [stakingSaving, setStakingSaving] = useState(false)
+  const [stakingSaved, setStakingSaved] = useState(false)
   const [friends, setFriends] = useState(null)
   const [buddySaving, setBuddySaving] = useState(false)
   const [expandedGroups, setExpandedGroups] = useState(loadExpandedGroups)
@@ -200,6 +207,27 @@ export default function AccountPage() {
     setLimitSaving(true)
     await runAsync(() => updateStakeLimit(null, null), "Couldn't turn off your limit - try again")
     setLimitSaving(false)
+  }
+
+  async function handleSaveStakingPlan(e) {
+    e.preventDefault()
+    setStakingSaving(true)
+    const bankrollAmount = bankrollInput === '' ? null : Number(bankrollInput)
+    const stakingRule = stakingValueInput === '' ? null : { type: stakingTypeInput, value: Number(stakingValueInput) }
+    const ok = await runAsync(() => updateStakingPlan(bankrollAmount, stakingRule), "Couldn't save your staking plan - try again")
+    setStakingSaving(false)
+    if (ok) {
+      setStakingSaved(true)
+      setTimeout(() => setStakingSaved(false), 2000)
+    }
+  }
+
+  async function handleClearStakingPlan() {
+    setBankrollInput('')
+    setStakingValueInput('')
+    setStakingSaving(true)
+    await runAsync(() => updateStakingPlan(null, null), "Couldn't turn off your staking plan - try again")
+    setStakingSaving(false)
   }
 
   async function handleBuddyChange(e) {
@@ -438,6 +466,66 @@ export default function AccountPage() {
               ? 'Turn on push above to actually receive these on this device, not just store the preference.'
               : "These are stored for when you're on a browser that supports push."}
           </p>
+        </div>
+      </AccountGroup>
+
+      <AccountGroup id="staking" title="Bankroll & staking plan" expanded={expandedGroups} onToggle={toggleGroup}>
+        <div className="account-section">
+          <p className="hint">
+            Set a bankroll figure and a staking rule, and BetMates will flag it (gently - nothing's blocked) when a bet slip's
+            stake runs well over what your own plan suggests. Also feeds the bankroll chart on your Tracker.
+          </p>
+          <form className="inline-form" onSubmit={handleSaveStakingPlan}>
+            <label className="field">
+              <span>Bankroll</span>
+              <input
+                type="number"
+                min="0"
+                step="10"
+                placeholder="No bankroll set"
+                value={bankrollInput}
+                onChange={(e) => setBankrollInput(e.target.value)}
+              />
+            </label>
+            <label className="field">
+              <span>Staking rule</span>
+              <div className="inline-form">
+                <select value={stakingTypeInput} onChange={(e) => setStakingTypeInput(e.target.value)}>
+                  <option value="flat">Flat £</option>
+                  <option value="percent">% of bankroll</option>
+                </select>
+                <input
+                  type="number"
+                  min="0"
+                  step={stakingTypeInput === 'percent' ? 0.5 : 1}
+                  placeholder="No rule set"
+                  value={stakingValueInput}
+                  onChange={(e) => setStakingValueInput(e.target.value)}
+                />
+              </div>
+            </label>
+            <button className="btn btn-primary btn-small" type="submit" disabled={stakingSaving}>
+              {stakingSaving ? 'Saving…' : stakingSaved ? 'Saved ✓' : 'Save'}
+            </button>
+          </form>
+          {user.stakingRule ? (
+            <>
+              <p className="hint">
+                {(() => {
+                  const suggestion = suggestedStake(user)
+                  if (suggestion == null) return 'Add a bankroll figure above to see a suggested stake for a % rule.'
+                  return `Your plan suggests £${suggestion.toFixed(2)} per bet${
+                    user.stakingRule.type === 'percent' ? ` (${user.stakingRule.value}% of £${Number(user.bankrollAmount).toFixed(2)})` : ''
+                  }.`
+                })()}
+              </p>
+              <button className="btn btn-ghost btn-small" onClick={handleClearStakingPlan} disabled={stakingSaving}>
+                Turn off staking plan
+              </button>
+            </>
+          ) : (
+            <p className="hint">No staking rule set.</p>
+          )}
         </div>
       </AccountGroup>
 

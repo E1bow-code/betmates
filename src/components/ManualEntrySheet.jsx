@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { useAuth } from '../context/AuthContext.jsx'
 import * as dataStore from '../lib/dataStore.js'
 import { BOOKMAKERS } from '../lib/bookmakers.js'
 import { SPORT_LABEL } from '../lib/sportsConfig.js'
@@ -6,6 +7,7 @@ import { parseOddsInput } from '../utils/oddsFormat.js'
 import { parseSlipText } from '../utils/betSlipOcr.js'
 import { recognizeSlipText } from '../lib/ocr.js'
 import { detectLossChasing } from '../utils/lossChasing.js'
+import { stakingPlanWarning } from '../utils/stakingPlan.js'
 import { useAsyncAction } from '../lib/useAsyncAction.js'
 import { useEscapeKey } from '../lib/useEscapeKey.js'
 
@@ -20,6 +22,7 @@ const SPORT_OPTIONS = Object.entries(SPORT_LABEL).filter(([key]) => key !== 'mul
 // to type from what they can see in the photo or the raw recognised text
 // shown below the scan control.
 export default function ManualEntrySheet({ userId, onClose, onSaved }) {
+  const { user } = useAuth()
   const [sport, setSport] = useState('football')
   const [event, setEvent] = useState('')
   const [market, setMarket] = useState('')
@@ -45,6 +48,7 @@ export default function ManualEntrySheet({ userId, onClose, onSaved }) {
   const stakeNum = stake ? Number(stake) : null
   const potentialReturn = stakeNum && odds ? Math.round(stakeNum * odds * 100) / 100 : null
   const lossChasing = detectLossChasing(entries, stakeNum)
+  const stakingWarning = stakingPlanWarning(user, stakeNum)
 
   async function scanImage(file) {
     setScanning(true)
@@ -188,6 +192,12 @@ export default function ManualEntrySheet({ userId, onClose, onSaved }) {
             <div className="limit-warning">
               👀 Your last logged bet lost at £{lossChasing.lastStake.toFixed(2)} - this one's {lossChasing.increasePct}% bigger. No
               judgement, just flagging it.
+            </div>
+          )}
+          {stakingWarning && (
+            <div className="limit-warning">
+              📐 Your staking plan suggests £{stakingWarning.suggestion.toFixed(2)} a bet - this one's {stakingWarning.overPct}%
+              over that.
             </div>
           )}
           {error && <div className="auth-error">{error}</div>}

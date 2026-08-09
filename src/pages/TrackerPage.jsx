@@ -23,6 +23,7 @@ import EmptyState from '../components/EmptyState.jsx'
 import EditBetSheet from '../components/EditBetSheet.jsx'
 import ManualEntrySheet from '../components/ManualEntrySheet.jsx'
 import PnlChart from '../components/PnlChart.jsx'
+import BankrollChart from '../components/BankrollChart.jsx'
 import { trackerEntriesToCsv, downloadCsv } from '../lib/csvExport.js'
 import PullToRefresh from '../components/PullToRefresh.jsx'
 import ShareRecapButton from '../components/ShareRecapButton.jsx'
@@ -33,6 +34,8 @@ import LiveBadge from '../components/LiveBadge.jsx'
 import { useLiveScores } from '../lib/liveScores.js'
 import { betLineValue, beatTheLineRate } from '../utils/lineValue.js'
 import { betClv, clvSummary } from '../utils/clv.js'
+import { computeCashOutReplay } from '../utils/cashOutReplay.js'
+import CashOutReplay from '../components/CashOutReplay.jsx'
 
 const STATUS_LABEL = { open: 'Pending', won: 'Won', lost: 'Lost', void: 'Void' }
 
@@ -44,6 +47,13 @@ export default function TrackerPage() {
   // {eventId|marketKey|outcomeName} (see dataStore.getClosingLines). Feeds real
   // CLV; stays empty in local mode, where the Tracker falls back to line value.
   const [closes, setCloses] = useState({})
+  // Pre-kickoff price history per fixture these bets touch, keyed by
+  // fixtureId then {marketKey|outcomeName} - same shape
+  // dataStore.getOddsSnapshotSeries returns for one fixture, just merged
+  // across every fixture a settled single-leg bet references. Feeds
+  // CashOutReplay; empty for any fixture nobody followed/had open while
+  // odds-snapshot.js was running, same honest gap the sharp-money badge has.
+  const [snapshotSeriesByFixture, setSnapshotSeriesByFixture] = useState({})
   const [checking, setChecking] = useState(false)
   const [rebetting, setRebetting] = useState(null)
   const [rebetDone, setRebetDone] = useState(null)
@@ -80,6 +90,21 @@ export default function TrackerPage() {
       // rows can show real CLV. Best-effort - a failure just leaves CLV absent.
       const fixtureIds = combined.flatMap((entry) => (entry.selections ?? []).map((s) => s.eventId)).filter(Boolean)
       dataStore.getClosingLines(fixtureIds).then(setCloses).catch(() => {})
+      // Only settled single-leg bets can ever get a cash-out replay (see
+      // computeCashOutReplay) - narrower than the closing-line fetch above,
+      // so this doesn't fire an extra query per fixture an open or
+      // multi-leg bet happens to touch.
+      const cashOutFixtureIds = [
+        ...new Set(
+          combined
+            .filter((e) => e.status !== 'open' && e.selections?.length === 1)
+            .map((e) => e.selections[0].eventId)
+            .filter(Boolean)
+        )
+      ]
+      Promise.all(
+        cashOutFixtureIds.map((id) => dataStore.getOddsSnapshotSeries(id).then((series) => [id, series]).catch(() => [id, {}]))
+      ).then((pairs) => setSnapshotSeriesByFixture(Object.fromEntries(pairs)))
     })
   }
 
@@ -286,6 +311,7 @@ export default function TrackerPage() {
       )}
 
       <PnlChart entries={entries} />
+      <BankrollChart entries={entries} bankrollAmount={user.bankrollAmount} />
 
       {bySport.length > 1 && (
         <>
@@ -325,6 +351,13 @@ export default function TrackerPage() {
             const combinedOdds = selections.length > 1 ? selections.reduce((acc, s) => acc * s.odds, 1) : null
             const lineValue = betLineValue(entry)
             const clv = betClv(entry, closes)
+            const cashOut =
+              entry.status !== 'open' && selections.length === 1
+                ? computeCashOutReplay(
+                    { stake: entry.stake, odds: selections[0].odds },
+                    snapshotSeriesByFixture[selections[0].eventId]?.[`${selections[0].marketKey}|${selections[0].outcomeName}`]
+                  )
+                : null
             return (
               <div key={entry.id} className={`tracker-row status-${entry.status}`}>
                 <div className="tracker-row-main">
@@ -354,6 +387,7 @@ export default function TrackerPage() {
                     </div>
                   ) : null}
                   {clv ? <ClvTag clv={clv} /> : lineValue ? <LineValueTag lv={lineValue} /> : null}
+                  <CashOutReplay replay={cashOut} actualReturn={entry.potentialReturn != null ? Number(entry.potentialReturn) : null} />
                 </div>
                 <div className="tracker-row-status">
                   {entry.source === 'manual' && entry.status === 'open' ? (

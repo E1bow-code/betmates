@@ -10,6 +10,8 @@ import { formatOdds } from '../utils/oddsFormat.js'
 import { periodStart, sumStakesSince } from '../utils/spendLimit.js'
 import { getEachWayTerms, computeEachWayReturn } from '../utils/eachWay.js'
 import { detectLossChasing } from '../utils/lossChasing.js'
+import { stakingPlanWarning } from '../utils/stakingPlan.js'
+import { detectSameGameCorrelation } from '../utils/sameGameCorrelation.js'
 import { useEscapeKey } from '../lib/useEscapeKey.js'
 import { computeStats } from '../utils/trackerStats.js'
 import { tipsterBadge } from '../utils/tipsterBadge.js'
@@ -71,6 +73,8 @@ export default function BetBuilderSheet() {
   const combinedOdds = legs.reduce((acc, leg) => acc * leg.odds, 1)
   const stakeNum = stake ? Number(stake) : null
   const lossChasing = detectLossChasing(entries, stakeNum)
+  const stakingWarning = stakingPlanWarning(user, stakeNum)
+  const correlation = detectSameGameCorrelation(legs)
   // Each-way only makes sense for a single racing pick - real books don't
   // offer it on multi-leg accumulators, and combining it with other sports'
   // legs has no defined payout rule.
@@ -226,6 +230,13 @@ export default function BetBuilderSheet() {
           </div>
         )}
 
+        {correlation && (
+          <div className="limit-warning">
+            🔗 {correlation.legCount} of these legs are on the same {correlation.events.length > 1 ? 'matches' : 'match'} - they're
+            not really independent, so that combined price overstates how spread out the risk is.
+          </div>
+        )}
+
         <label className="field">
           <span>Stake (optional)</span>
           <input type="number" min="0" step="0.5" placeholder="£" value={stake} onChange={(e) => setStake(e.target.value)} />
@@ -265,6 +276,13 @@ export default function BetBuilderSheet() {
           <div className="limit-warning">
             👀 Your last logged bet lost at £{lossChasing.lastStake.toFixed(2)} - this one's {lossChasing.increasePct}% bigger. No
             judgement, just flagging it.
+          </div>
+        )}
+
+        {stakingWarning && (
+          <div className="limit-warning">
+            📐 Your staking plan suggests £{stakingWarning.suggestion.toFixed(2)} a bet - this one's {stakingWarning.overPct}%
+            over that.
           </div>
         )}
 

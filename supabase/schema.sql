@@ -594,6 +594,22 @@ create policy "followed users can read their followers' push subscriptions" on p
 alter table profiles add column if not exists stake_limit_amount numeric;
 alter table profiles add column if not exists stake_limit_period text check (stake_limit_period in ('weekly', 'monthly'));
 
+-- --- Bankroll & staking plan ---------------------------------------------
+-- A self-set bankroll figure plus a staking rule ({type: 'flat'|'percent',
+-- value: number}) - see src/pages/AccountPage.jsx (editing),
+-- src/components/BankrollChart.jsx (bankroll-over-time trajectory: starting
+-- bankroll + cumulative settled P&L, same running-total approach as
+-- PnlChart.jsx) and src/components/BetBuilderSheet.jsx's soft warning nudge
+-- when a stake overshoots the plan. staking_rule stored as jsonb rather
+-- than two flat columns since 'flat'/'percent' genuinely change what
+-- `value` means (an amount vs a percentage) - a single tagged object keeps
+-- that pairing atomic instead of two columns that could disagree. Both
+-- null means no plan set - purely opt-in, never blocks logging a bet.
+-- No new RLS policy needed: "update own profile" above already covers
+-- these columns.
+alter table profiles add column if not exists bankroll_amount numeric;
+alter table profiles add column if not exists staking_rule jsonb;
+
 -- --- Odds target alerts -------------------------------------------------
 -- "Alert me when this hits X" on a single outcome (see FixtureDetailPage's
 -- bell button on each outcome row). event_id/market_key/outcome_name are

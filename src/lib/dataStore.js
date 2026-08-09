@@ -29,6 +29,8 @@ import * as local from './localBackend.js'
  * @property {number|null} stakeLimitAmount
  * @property {string|null} stakeLimitPeriod
  * @property {string|null} limitBuddyId
+ * @property {number|null} bankrollAmount
+ * @property {{type: 'flat'|'percent', value: number}|null} stakingRule
  */
 /**
  * @typedef {object} Group
@@ -185,7 +187,9 @@ function mapProfile(row) {
     avatarUrl: row.avatar_url || null,
     stakeLimitAmount: row.stake_limit_amount ?? null,
     stakeLimitPeriod: row.stake_limit_period ?? null,
-    limitBuddyId: row.limit_buddy_id ?? null
+    limitBuddyId: row.limit_buddy_id ?? null,
+    bankrollAmount: row.bankroll_amount ?? null,
+    stakingRule: row.staking_rule ?? null
   }
 }
 
@@ -1405,6 +1409,24 @@ export async function updateLimitBuddy(userId, buddyId) {
   const { error } = await supabase.from('profiles').update({ limit_buddy_id: buddyId }).eq('id', userId)
   if (error) throw error
   return buddyId
+}
+
+// bankrollAmount/stakingRule both null clears the plan (the "off" state) -
+// same convention as updateStakeLimit above. stakingRule is {type: 'flat'|
+// 'percent', value: number} or null; see src/components/BetBuilderSheet.jsx's
+// suggestedStake() for how it's turned into a per-bet stake suggestion.
+/**
+ * @param {string} userId @param {{bankrollAmount: number|null, stakingRule: {type: 'flat'|'percent', value: number}|null}} params
+ * @returns {Promise<{bankrollAmount: number|null, stakingRule: {type: 'flat'|'percent', value: number}|null}>}
+ */
+export async function updateStakingPlan(userId, { bankrollAmount, stakingRule }) {
+  if (!isSupabaseConfigured) return local.updateStakingPlan(userId, { bankrollAmount, stakingRule })
+  const { error } = await supabase
+    .from('profiles')
+    .update({ bankroll_amount: bankrollAmount, staking_rule: stakingRule })
+    .eq('id', userId)
+  if (error) throw error
+  return { bankrollAmount, stakingRule }
 }
 
 // Path is prefixed with the uploader's own user id - the storage RLS
