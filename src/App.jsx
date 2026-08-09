@@ -8,11 +8,13 @@ import { ToastProvider } from './context/ToastContext.jsx'
 import ErrorBoundary from './components/ErrorBoundary.jsx'
 import BottomNav from './components/BottomNav.jsx'
 import MoreMenu from './components/MoreMenu.jsx'
+import AppHeader from './components/AppHeader.jsx'
 import InstallGuideBanner from './components/InstallGuideBanner.jsx'
 import OnboardingTour from './components/OnboardingTour.jsx'
 import RealityCheck from './components/RealityCheck.jsx'
 import BetSlipBar from './components/BetSlipBar.jsx'
 import BetBuilderSheet from './components/BetBuilderSheet.jsx'
+import ManualEntrySheet from './components/ManualEntrySheet.jsx'
 import CoachLauncher from './components/CoachLauncher.jsx'
 // AuthPage is the one page kept as a regular (non-lazy) import - it's the
 // very first thing a logged-out visitor sees, so splitting it would add a
@@ -133,8 +135,14 @@ const ONBOARDED_PREFIX = 'betmates:onboarded:'
 
 function Shell() {
   const { user, loading, passwordRecovery, recoveryFailed } = useAuth()
+  const navigate = useNavigate()
   const [showTour, setShowTour] = useState(false)
   const [newsHeadlines, setNewsHeadlines] = useState([])
+  // BottomNav's center "+" FAB opens this from anywhere in the app, not
+  // just Tracker (which keeps its own separate "+ Log a bet" trigger) -
+  // same self-contained sheet, just a second mount point with its own
+  // local open/close state.
+  const [showQuickAdd, setShowQuickAdd] = useState(false)
 
   useEffect(() => {
     if (user && !localStorage.getItem(ONBOARDED_PREFIX + user.id)) setShowTour(true)
@@ -229,6 +237,7 @@ function Shell() {
         <NewsTickerBar headlines={newsHeadlines} />
         <div className="app-shell">
           <div className="app-content">
+            <AppHeader />
             <InstallGuideBanner />
             <Suspense fallback={<div className="loading">Loading…</div>}>
               <Routes>
@@ -263,8 +272,18 @@ function Shell() {
           </div>
           <BetSlipBar />
           <BetBuilderSheet />
+          {showQuickAdd && (
+            <ManualEntrySheet
+              userId={user.id}
+              onClose={() => setShowQuickAdd(false)}
+              onSaved={() => {
+                setShowQuickAdd(false)
+                navigate('/tracker')
+              }}
+            />
+          )}
           <div className="sidebar-nav">
-            <BottomNav />
+            <BottomNav onAddClick={() => setShowQuickAdd(true)} />
             <MoreMenu />
           </div>
           <NewsSidebar headlines={newsHeadlines} />

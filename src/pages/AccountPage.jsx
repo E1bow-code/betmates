@@ -12,6 +12,7 @@ import { periodStart, sumStakesSince } from '../utils/spendLimit.js'
 import { suggestedStake } from '../utils/stakingPlan.js'
 import { getRealityCheckMins, setRealityCheckMins, REALITY_CHECK_OPTIONS } from '../lib/realityCheck.js'
 import { referralRewardState } from '../utils/referralRewards.js'
+import { computeStats } from '../utils/trackerStats.js'
 import Avatar from '../components/Avatar.jsx'
 import InstallGuide from '../components/InstallGuide.jsx'
 import SportHeroBanner from '../components/SportHeroBanner.jsx'
@@ -92,6 +93,7 @@ export default function AccountPage() {
   const [friends, setFriends] = useState(null)
   const [buddySaving, setBuddySaving] = useState(false)
   const [expandedGroups, setExpandedGroups] = useState(loadExpandedGroups)
+  const [trackerStats, setTrackerStats] = useState(null)
   const runAsync = useAsyncAction()
 
   function toggleGroup(id) {
@@ -128,6 +130,16 @@ export default function AccountPage() {
   useEffect(() => {
     dataStore.countReferrals(user.id).then(setReferralCount)
   }, [])
+
+  // Tracker no longer has its own bottom-nav slot (see BottomNav.jsx) -
+  // this teaser is now the only way to reach it, so unlike RankTeaser/
+  // HomeHighlights it always renders, with an empty-state message rather
+  // than silently disappearing when there's nothing settled yet.
+  useEffect(() => {
+    Promise.all([dataStore.listBetPostsByUser(user.id), dataStore.listManualEntries(user.id)])
+      .then((lists) => setTrackerStats(computeStats(lists.flat())))
+      .catch(() => setTrackerStats(computeStats([])))
+  }, [user.id])
 
   useEffect(() => {
     if (!user.stakeLimitAmount) return
@@ -360,6 +372,30 @@ export default function AccountPage() {
       <p className="hint account-hero-hint">
         Tap your avatar to upload a photo, or leave it - initials and colour come from your name automatically.
       </p>
+
+      {trackerStats && (
+        <Link to="/tracker" className="rank-teaser">
+          {trackerStats.settledCount > 0 ? (
+            <>
+              <span className={`rank-teaser-rank ${trackerStats.profit >= 0 ? 'tone-good' : 'tone-bad'}`}>
+                {trackerStats.profit >= 0 ? '+' : '-'}£{Math.abs(trackerStats.profit).toFixed(0)}
+              </span>
+              <span className="rank-teaser-body">
+                <span className="rank-teaser-group">Tracker</span>
+                <span className="rank-teaser-context">
+                  {trackerStats.settledCount} settled{trackerStats.winRate !== null ? ` · ${trackerStats.winRate}% win rate` : ''}
+                </span>
+              </span>
+            </>
+          ) : (
+            <span className="rank-teaser-body">
+              <span className="rank-teaser-group">Tracker</span>
+              <span className="rank-teaser-context">No settled bets yet - tap to see your history</span>
+            </span>
+          )}
+          <span className="rank-teaser-chevron">›</span>
+        </Link>
+      )}
 
       <AccountGroup id="preferences" title="Preferences" expanded={expandedGroups} onToggle={toggleGroup}>
         <div className="account-section">

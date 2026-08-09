@@ -12,13 +12,28 @@ import SportIcon from './icons/SportIcons.jsx'
 // each fetching and rendering it independently. Owns its own fetch; exposes
 // refresh() via ref for callers using PullToRefresh (SocialFeedPage) or a
 // manual "load more" trigger (HomePage's post-then-land flow).
-const PublicFeedView = forwardRef(function PublicFeedView(_props, ref) {
+//
+// `filter='following'` (from HomePage's segmented pill row) narrows the
+// same fetched feed down to people the signed-in user follows, fetched
+// once here rather than the per-card lookup BetCard.jsx already does for
+// its own Follow-button state - two independent uses of the same
+// dataStore.listFollowing call, not a shared cache.
+const PublicFeedView = forwardRef(function PublicFeedView({ filter = 'all' }, ref) {
   const { user } = useAuth()
   const [publicFeed, setPublicFeed] = useState(null)
+  const [followedIds, setFollowedIds] = useState(null)
 
   useEffect(() => {
     load()
   }, [user.id])
+
+  useEffect(() => {
+    if (filter !== 'following') return
+    dataStore
+      .listFollowing(user.id)
+      .then(setFollowedIds)
+      .catch(() => setFollowedIds([]))
+  }, [filter, user.id])
 
   function load() {
     return dataStore.listPublicFeed(user.id).then(setPublicFeed)
@@ -28,15 +43,23 @@ const PublicFeedView = forwardRef(function PublicFeedView(_props, ref) {
 
   const trendingPicks = useMemo(() => (publicFeed ? computeTrendingPicks(publicFeed) : []), [publicFeed])
 
+  const visibleFeed = useMemo(() => {
+    if (!publicFeed || filter !== 'following') return publicFeed
+    if (!followedIds) return null
+    return publicFeed.filter((p) => followedIds.includes(p.userId))
+  }, [publicFeed, filter, followedIds])
+
   function handleBlocked(blockedUserId) {
     setPublicFeed((pf) => (pf ? pf.filter((p) => p.userId !== blockedUserId) : pf))
   }
 
   return (
     <>
-      <p className="hint">Everyone's picks - tap a price on the Odds tab and choose "Post to everyone" to add yours.</p>
+      {filter === 'all' && (
+        <p className="hint">Everyone's picks - tap a price on the Odds tab and choose "Post to everyone" to add yours.</p>
+      )}
 
-      {trendingPicks.length > 0 && (
+      {filter === 'all' && trendingPicks.length > 0 && (
         <div className="account-section">
           <h2 className="market-title">🔥 Trending this week</h2>
           <div className="trending-row">
@@ -56,14 +79,18 @@ const PublicFeedView = forwardRef(function PublicFeedView(_props, ref) {
         </div>
       )}
 
-      {publicFeed === null && <div className="loading">Catching up on the feed…</div>}
-      {publicFeed && !publicFeed.length && (
-        <EmptyState icon="📣" title="Nothing here yet" subtitle="Be the first to post a pick for everyone to see." />
+      {visibleFeed === null && <div className="loading">Catching up on the feed…</div>}
+      {visibleFeed && !visibleFeed.length && (
+        <EmptyState
+          icon="📣"
+          title="Nothing here yet"
+          subtitle={filter === 'following' ? "Follow a few people to see their picks here." : 'Be the first to post a pick for everyone to see.'}
+        />
       )}
 
-      {publicFeed && publicFeed.length > 0 && (
+      {visibleFeed && visibleFeed.length > 0 && (
         <div className="bet-feed">
-          {publicFeed.map((post) => (
+          {visibleFeed.map((post) => (
             <BetCard key={post.id} post={post} variant="public" onBlocked={handleBlocked} onChanged={load} />
           ))}
         </div>

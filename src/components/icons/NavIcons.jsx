@@ -78,6 +78,16 @@ export function AccountIcon(props) {
   )
 }
 
+// Plain cross - the bottom nav's central "log/post a bet" quick-add.
+export function PlusIcon(props) {
+  return (
+    <svg {...base} {...props}>
+      <path d="M12 5v14" />
+      <path d="M5 12h14" />
+    </svg>
+  )
+}
+
 // Three stacked lines, shortest on top - a drawer/menu of everything else
 // that doesn't fit BottomNav's six primary tabs (MoreMenu.jsx).
 export function MoreIcon(props) {

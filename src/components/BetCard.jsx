@@ -3,6 +3,7 @@ import { useAuth } from '../context/AuthContext.jsx'
 import { useOddsFormat } from '../context/OddsFormatContext.jsx'
 import * as dataStore from '../lib/dataStore.js'
 import { formatOdds } from '../utils/oddsFormat.js'
+import { formatRelativeTime } from '../utils/format.js'
 import { computeEachWayReturn } from '../utils/eachWay.js'
 import { isLive } from '../utils/liveStatus.js'
 import { notifyBetAuthor } from '../lib/notify.js'
@@ -157,11 +158,11 @@ export default function BetCard({ post, memberNames, variant = 'group', onBlocke
           <Avatar name={authorName} />
           <div>
             <span className="bet-card-author">{authorName}</span>
+            <span className="bet-card-time">{formatRelativeTime(post.createdAt)}</span>
             {post.groupName && <span className="bet-card-group-tag">in {post.groupName}</span>}
           </div>
         </div>
         <div className="bet-card-header-right">
-          <span className={`bet-status-pill status-${status}`}>{STATUS_LABEL[status]}</span>
           {liveChatLeg ? (
             <button
               className="live-badge-link"
@@ -250,33 +251,54 @@ export default function BetCard({ post, memberNames, variant = 'group', onBlocke
       )}
 
       <div className="bet-card-body">
-        {selections.length > 1 && <div className="bet-card-leg-count">{selections.length}-leg bet builder</div>}
-        {selections.map((selection, i) => (
-          <div key={i} className={selections.length > 1 ? 'bet-card-leg' : undefined}>
-            <div className="selection-event">{selection.event}</div>
-            <div className="selection-row">
-              <span>{selection.market}</span>
-              <span className="selection-pick">{selection.selection}</span>
-            </div>
-            <div className="selection-odds-row">
-              <span className="selection-odds">{formatOdds(selection.odds, format)}</span>
-              <span className="selection-bookmaker">{selection.bookmaker}</span>
-            </div>
-          </div>
-        ))}
-        {combinedOdds && (
-          <div className="bet-card-combined-odds">
-            Combined odds: <strong>{formatOdds(combinedOdds, format)}</strong>
-          </div>
-        )}
         {post.caption && <p className="bet-card-caption">"{post.caption}"</p>}
-        {!post.stakeHidden && post.stake ? (
-          <div className="bet-card-stake">
-            £{post.stake} staked{post.potentialReturn ? <> · returns <strong>£{post.potentialReturn.toFixed(2)}</strong></> : ''}
+
+        <div className="bet-card-ticket">
+          <div className="bet-card-ticket-header">
+            <span className="bet-card-ticket-tag">{post.marketType}</span>
+            <span className={`bet-status-pill status-${status}`}>{STATUS_LABEL[status]}</span>
           </div>
-        ) : (
-          post.stakeHidden && <div className="bet-card-stake bet-card-stake-hidden">Stake kept private</div>
-        )}
+
+          {selections.map((selection, i) => (
+            <div key={i} className={selections.length > 1 ? 'bet-card-leg' : undefined}>
+              <div className="selection-event">{selection.event}</div>
+              <div className="selection-row">
+                <span>{selection.market}</span>
+                <span className="selection-pick">{selection.selection}</span>
+              </div>
+              <div className="selection-odds-row">
+                <span className="selection-odds">{formatOdds(selection.odds, format)}</span>
+                <span className="selection-bookmaker">{selection.bookmaker}</span>
+              </div>
+            </div>
+          ))}
+
+          {post.stakeHidden ? (
+            <div className="bet-card-stake bet-card-stake-hidden">Stake kept private</div>
+          ) : (
+            <>
+              <div className="bet-card-ticket-divider" />
+              <div className="bet-card-stats">
+                {post.stake ? (
+                  <div className="bet-card-stat">
+                    <span className="bet-card-stat-label">Stake</span>
+                    <span className="bet-card-stat-value">£{post.stake}</span>
+                  </div>
+                ) : null}
+                <div className="bet-card-stat">
+                  <span className="bet-card-stat-label">Odds</span>
+                  <span className="bet-card-stat-value">{formatOdds(combinedOdds ?? selections[0].odds, format)}</span>
+                </div>
+                {post.stake && post.potentialReturn ? (
+                  <div className="bet-card-stat">
+                    <span className="bet-card-stat-label">Returns</span>
+                    <span className="bet-card-stat-value accent">£{post.potentialReturn.toFixed(2)}</span>
+                  </div>
+                ) : null}
+              </div>
+            </>
+          )}
+        </div>
       </div>
 
       <div className="bet-card-footer">

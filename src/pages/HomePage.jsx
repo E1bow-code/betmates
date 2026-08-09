@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
+import { Link } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext.jsx'
 import * as dataStore from '../lib/dataStore.js'
 import { computeStreak } from '../utils/trackerStats.js'
@@ -8,7 +9,6 @@ import SportHeroBanner from '../components/SportHeroBanner.jsx'
 import PublicFeedView from '../components/PublicFeedView.jsx'
 import RankTeaser from '../components/RankTeaser.jsx'
 import HomeHighlights from '../components/HomeHighlights.jsx'
-import HomeTipsTeaser from '../components/HomeTipsTeaser.jsx'
 
 // The front door post-login (see App.jsx's HomeRedirect) - the public feed
 // is still the main attraction, and raw P&L/open-bets/recent-activity still
@@ -20,6 +20,7 @@ export default function HomePage() {
   const { user } = useAuth()
   const [entries, setEntries] = useState(null)
   const [rankTeaser, setRankTeaser] = useState(null)
+  const [feedFilter, setFeedFilter] = useState('all')
 
   useEffect(() => {
     Promise.all([dataStore.listBetPostsByUser(user.id), dataStore.listManualEntries(user.id)])
@@ -87,9 +88,19 @@ export default function HomePage() {
 
       <HomeHighlights highlights={highlights} />
 
-      <HomeTipsTeaser />
+      <div className="mode-switcher">
+        <button className={feedFilter === 'all' ? 'mode-tab active' : 'mode-tab'} onClick={() => setFeedFilter('all')}>
+          All
+        </button>
+        <button className={feedFilter === 'following' ? 'mode-tab active' : 'mode-tab'} onClick={() => setFeedFilter('following')}>
+          Following
+        </button>
+        <Link to="/groups" state={{ segment: 'tips' }} className="mode-tab">
+          Tips
+        </Link>
+      </div>
 
-      <PublicFeedView />
+      <PublicFeedView filter={feedFilter} />
     </div>
   )
 }

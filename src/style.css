@@ -3,15 +3,18 @@
    to, chalk-white text, amber for the odds/accent colour instead of the
    usual fintech green.
 
-   Layout language is deliberately NOT "one rounded card for everything":
-   - listings (fixtures, races, fights, tracker rows) are a single divided
-     list, like a results sheet - not stacked boxed cards
-   - bet/tip posts are a sharp-cornered slip with a torn-off divider before
-     the action row, like an actual betting slip
-   - leaderboard and stats are a scoreboard: monospace tabular numbers,
+   Layout language (revised for the rounded-card feed pass): the feed -
+   bet posts, the nested bet-slip "ticket" inside each post, status pills,
+   segmented tabs, the primary Copy Bet action - is soft and pill-first,
+   closer to a consumer social app than the old sharp-cornered-slip look.
+   That treatment is scoped to the feed/nav surfaces, not applied blanket
+   app-wide:
+   - listings (fixtures, races, fights, tracker rows) stay a single
+     divided list, like a results sheet - not stacked boxed cards
+   - leaderboard and stats stay a scoreboard: monospace tabular numbers,
      ranked rows, one bordered panel rather than many
-   - tags/badges/reaction buttons are small rectangular labels, not pills -
-     the pill shape is reserved for the sport/segment tabs only */
+   - sheets/forms keep their existing moderate-radius buttons - only the
+     feed card and its action row went fully pill/rounded */
 :root {
   --bg: #15120f;
   --bg-rgb: 21, 18, 15;
@@ -111,6 +114,26 @@ h1, h2, .topbar h1, .sheet-title, .auth-title {
   padding: env(safe-area-inset-top, 0) 12px 88px;
 }
 
+/* Persistent logo + notification-bell row (src/components/AppHeader.jsx) -
+   sits as the first thing inside .app-content rather than a sibling of it,
+   so it just becomes normal top-of-page flow instead of a third flex
+   column once .app-shell goes row-direction at the desktop breakpoint. */
+.app-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin: 0 -12px 10px;
+  padding: 10px 14px;
+  position: sticky;
+  top: 0;
+  z-index: 15;
+  background: var(--bg);
+  border-bottom: 1px solid var(--border);
+}
+.app-header-brand { font-family: Georgia, 'Times New Roman', serif; font-size: 1.15rem; color: var(--accent); text-decoration: none; }
+.app-header-bell { position: relative; display: flex; align-items: center; color: var(--text); background: none; border: none; padding: 6px; border-radius: 999px; }
+.app-header-bell .bottom-nav-dot { top: 4px; right: 4px; }
+
 /* Bottom nav */
 .bottom-nav {
   position: fixed;
@@ -142,6 +165,25 @@ h1, h2, .topbar h1, .sheet-title, .auth-title {
 .bottom-nav-icon { font-size: 1.2rem; position: relative; display: inline-block; }
 .bottom-nav-label { display: flex; align-items: center; gap: 3px; }
 .bottom-nav-streak { font-size: 0.66rem; font-weight: 700; }
+
+/* Center "+" quick-add - raised above the bar on its own filled circle,
+   not just another .bottom-nav-item, so it reads as the feed's primary
+   action rather than a sixth equal tab. */
+.bottom-nav-fab {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 48px;
+  height: 48px;
+  margin-top: -22px;
+  border-radius: 999px;
+  border: none;
+  background: linear-gradient(180deg, var(--accent) 0%, var(--accent-dim) 100%);
+  color: var(--accent-ink);
+  box-shadow: 0 4px 14px rgba(var(--accent-rgb), 0.4);
+  cursor: pointer;
+}
+
 .sidebar-brand { display: none; }
 /* Confirmation toast (src/context/ToastContext.jsx) - sits above the
    bottom nav on mobile, drops lower once that nav becomes a sticky left
@@ -356,6 +398,28 @@ h1, h2, .topbar h1, .sheet-title, .auth-title {
 
   .bottom-nav-item.active { background: var(--surface); border-left-color: var(--accent); }
   .bottom-nav-icon { font-size: 1.1rem; }
+
+  /* Sidebar already carries the wordmark, so the header row only needs
+     to contribute the bell once the layout has room for a sidebar. */
+  .app-header { position: static; margin: 0 0 8px; padding: 0; border-bottom: none; background: none; justify-content: flex-end; }
+  .app-header-brand { display: none; }
+
+  /* The FAB's raised-circle treatment is a mobile-nav-bar idiom - on the
+     desktop sidebar it just becomes another row in the list, styled with
+     the same filled-accent treatment so it still reads as the primary
+     action among plain nav rows. */
+  .bottom-nav-fab {
+    width: auto;
+    height: auto;
+    margin-top: 0;
+    border-radius: 8px;
+    flex-direction: row;
+    justify-content: flex-start;
+    gap: 12px;
+    padding: 11px 24px;
+    margin: 0 12px;
+    box-shadow: none;
+  }
 
   .bet-slip-bar { bottom: 20px; left: 252px; right: 32px; margin: 0; }
 
@@ -924,8 +988,23 @@ h1, h2, .topbar h1, .sheet-title, .auth-title {
   margin: 2px 2px 0;
 }
 
-.mode-switcher { display: flex; gap: 2px; margin: 4px 0 2px; border: 1px solid var(--border); border-radius: 4px; overflow: hidden; width: fit-content; }
-.mode-tab { background: var(--surface); border: none; color: var(--text-dim); padding: 6px 14px; font-size: 0.8rem; font-weight: 600; cursor: pointer; }
+.mode-switcher { display: flex; gap: 2px; margin: 4px 0 2px; border: 1px solid var(--border); border-radius: 999px; overflow: hidden; width: fit-content; }
+/* Also used as a plain <Link> (Home's Tips pill, which navigates rather
+   than toggling state) alongside the <button> tabs, hence the anchor
+   resets - text-decoration/display/vertical-align don't come free on <a>
+   the way they do on <button>. */
+.mode-tab {
+  display: inline-flex;
+  align-items: center;
+  background: var(--surface);
+  border: none;
+  color: var(--text-dim);
+  padding: 6px 14px;
+  font-size: 0.8rem;
+  font-weight: 600;
+  text-decoration: none;
+  cursor: pointer;
+}
 .mode-tab.active { background: var(--accent); color: var(--accent-ink); box-shadow: inset 0 0 0 1px rgba(var(--accent-rgb), 0.4), 0 2px 6px rgba(var(--accent-rgb), 0.3); }
 
 .group-chat { display: flex; flex-direction: column; gap: 12px; }
@@ -1738,32 +1817,56 @@ h1, h2, .topbar h1, .sheet-title, .auth-title {
 .leaderboard-meta { color: var(--text-dim); font-size: 0.75rem; font-family: var(--font-mono); font-variant-numeric: tabular-nums; }
 .leaderboard-list-standalone { margin-top: 10px; }
 
-/* Bet feed / bet cards - styled like an actual betting slip: sharp
-   corners, a stub stripe down the left for status, and a torn/dashed
-   divider before the action row instead of just more padding. */
+/* Bet feed / bet cards - a rounded post card with its own nested
+   "ticket" block for the actual bet-slip content (see .bet-card-ticket
+   below), rather than a flat sharp-cornered slip. */
 .bet-feed { display: flex; flex-direction: column; gap: 12px; margin-top: 12px; }
 
 .bet-card {
   background: var(--surface);
   border: 1px solid var(--border);
-  border-left: 4px solid var(--border);
-  border-radius: 2px;
-  padding: 14px;
+  border-radius: 18px;
+  padding: 16px;
   display: flex;
   flex-direction: column;
   gap: 10px;
 }
 
-.bet-card.status-won { border-left-color: var(--accent); }
-.bet-card.status-lost { border-left-color: var(--bad); }
-.bet-card.status-void { border-left-color: var(--text-dim); }
-
 .bet-card-header { display: flex; justify-content: space-between; align-items: center; }
 .bet-card-who { display: flex; align-items: center; gap: 8px; }
-.bet-card-body { display: flex; flex-direction: column; gap: 4px; }
-.bet-card-author { font-weight: 600; font-size: 0.88rem; display: block; }
+.bet-card-body { display: flex; flex-direction: column; gap: 10px; }
+.bet-card-author { font-weight: 700; font-size: 0.9rem; display: inline; }
+.bet-card-time { color: var(--text-dim); font-weight: 400; font-size: 0.8rem; margin-left: 6px; }
 .bet-card-group-tag { font-size: 0.75rem; color: var(--text-dim); }
-.bet-card .selection-odds { font-size: 1.35rem; }
+.bet-card .selection-odds { font-size: 1.1rem; }
+
+/* The nested bet-slip block within the post - its own rounded panel
+   (one radius step down from .bet-card) with a header row (market/leg
+   pill + result status + odds), the leg list, a torn-perforation divider,
+   then the stake/odds/returns stat row. */
+.bet-card-ticket {
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  padding: 12px 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.bet-card-ticket-header { display: flex; align-items: center; justify-content: space-between; gap: 8px; flex-wrap: wrap; }
+.bet-card-ticket-tag {
+  font-size: 0.66rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--text-dim);
+}
+.bet-card-leg { padding-bottom: 8px; margin-bottom: 8px; border-bottom: 1px dashed var(--border); }
+.bet-card-leg:last-of-type { border-bottom: none; margin-bottom: 0; padding-bottom: 0; }
+
+/* Still used by TrackerPage.jsx's own bet-history rows, which keep the
+   plain-listing language (see the header comment) rather than the feed's
+   ticket treatment above. */
 .bet-card-leg-count {
   font-size: 0.66rem;
   font-weight: 700;
@@ -1771,19 +1874,39 @@ h1, h2, .topbar h1, .sheet-title, .auth-title {
   text-transform: uppercase;
   color: var(--accent);
 }
-.bet-card-leg { padding-bottom: 6px; margin-bottom: 6px; border-bottom: 1px dashed var(--border); }
-.bet-card-leg:last-of-type { border-bottom: none; margin-bottom: 0; padding-bottom: 0; }
-.bet-card-combined-odds { font-size: 0.85rem; color: var(--text-dim); }
-.bet-card-combined-odds strong { color: var(--accent); font-family: var(--font-mono); }
+
+/* Torn-ticket perforation between the leg list and the stat row - a
+   dashed rule with a small circular notch centred on it. */
+.bet-card-ticket-divider { position: relative; height: 1px; background: repeating-linear-gradient(90deg, var(--border) 0 6px, transparent 6px 12px); margin: 2px 0; }
+.bet-card-ticket-divider::before {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  transform: translate(-50%, -50%);
+}
+
+.bet-card-stats { display: grid; grid-auto-flow: column; grid-auto-columns: 1fr; gap: 4px; }
+.bet-card-stat { display: flex; flex-direction: column; gap: 2px; }
+.bet-card-stat:not(:first-child) { text-align: center; }
+.bet-card-stat:last-child { text-align: right; }
+.bet-card-stat-label { font-size: 0.62rem; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; color: var(--text-dim); }
+.bet-card-stat-value { font-family: var(--font-mono); font-variant-numeric: tabular-nums; font-weight: 700; font-size: 1rem; color: var(--text); }
+.bet-card-stat-value.accent { color: var(--accent); }
 
 /* Stamped, not a bubble: bordered rectangle with letterspaced caps,
    like a "PAID"/"VOID" stamp on a slip. */
 .bet-status-pill {
-  font-size: 0.66rem;
+  font-size: 0.64rem;
   font-weight: 700;
-  padding: 3px 8px;
+  padding: 4px 10px;
   border: 1px solid var(--border);
-  border-radius: 3px;
+  border-radius: 999px;
   background: none;
   color: var(--text-dim);
   white-space: nowrap;
@@ -1795,7 +1918,7 @@ h1, h2, .topbar h1, .sheet-title, .auth-title {
 .bet-status-pill.status-won { border-color: var(--accent); color: var(--accent); }
 .bet-status-pill.status-lost { border-color: var(--bad); color: var(--bad); }
 
-.bet-card-caption { font-size: 0.85rem; font-style: italic; color: var(--text); margin: 2px 0 6px; }
+.bet-card-caption { font-size: 0.88rem; color: var(--text); margin: 0; }
 .bet-card-stake { font-size: 0.85rem; color: var(--text-dim); }
 .bet-card-stake strong { color: var(--text); font-family: var(--font-mono); }
 .bet-card-stake-hidden { font-style: italic; }
@@ -1806,8 +1929,6 @@ h1, h2, .topbar h1, .sheet-title, .auth-title {
   align-items: center;
   flex-wrap: wrap;
   gap: 6px;
-  border-top: 1px dashed var(--border);
-  padding-top: 8px;
   margin-top: 2px;
 }
 /* flex-wrap here (not just on the parent .bet-card-footer) matters on
@@ -1821,8 +1942,18 @@ h1, h2, .topbar h1, .sheet-title, .auth-title {
    post's footer read as two heavy stacked rows instead of one compact
    block. Scoped to .bet-card-actions rather than shrinking .btn-small
    itself, which is used all over the app. */
-.bet-card-actions .btn-small { padding: 5px 10px; font-size: 0.78rem; white-space: nowrap; }
+.bet-card-actions .btn-small { padding: 5px 10px; font-size: 0.78rem; white-space: nowrap; border-radius: 999px; }
 .copy-bet-row { display: flex; gap: 6px; }
+/* The feed's one primary action - filled pill, not the flat outlined
+   .btn-secondary look every other secondary button in the app uses.
+   Scoped to the footer so sheets/forms elsewhere keep .btn-secondary's
+   normal treatment. */
+.bet-card-actions .copy-bet-row .btn-secondary {
+  background: linear-gradient(180deg, var(--accent) 0%, var(--accent-dim) 100%);
+  color: var(--accent-ink);
+  border: none;
+  font-weight: 700;
+}
 
 /* Revealed by the actions row's "More" toggle - the two least-reached-for
    actions (back a friend's pick, share an image) tucked out of the way so
@@ -1852,7 +1983,7 @@ h1, h2, .topbar h1, .sheet-title, .auth-title {
 .reaction-btn {
   background: none;
   border: 1px solid var(--border);
-  border-radius: 4px;
+  border-radius: 999px;
   padding: 4px 10px;
   font-size: 0.82rem;
   color: var(--text-dim);
@@ -1868,7 +1999,8 @@ h1, h2, .topbar h1, .sheet-title, .auth-title {
   color: var(--text-dim);
   font-size: 1.1rem;
   line-height: 1;
-  padding: 2px 6px;
+  padding: 2px 8px;
+  border-radius: 999px;
   cursor: pointer;
 }
 .moderation-menu {
@@ -1876,8 +2008,10 @@ h1, h2, .topbar h1, .sheet-title, .auth-title {
   align-items: center;
   flex-wrap: wrap;
   gap: 6px;
-  padding: 8px 14px;
-  border-bottom: 1px solid var(--border);
+  padding: 10px 14px;
+  margin-top: -2px;
+  border-radius: 12px;
+  border: 1px solid var(--border);
   background: var(--surface-2);
 }
 .moderation-menu .btn.active { border-color: var(--accent-dim); color: var(--accent); }
@@ -1898,7 +2032,7 @@ h1, h2, .topbar h1, .sheet-title, .auth-title {
 .vote-btn {
   background: none;
   border: 1px solid var(--border);
-  border-radius: 4px;
+  border-radius: 999px;
   padding: 5px 11px;
   font-size: 0.75rem;
   color: var(--text-dim);
@@ -2219,6 +2353,10 @@ h1, h2, .topbar h1, .sheet-title, .auth-title {
   color: var(--accent);
   flex-shrink: 0;
 }
+/* AccountPage's Tracker teaser reuses this component for a P&L figure
+   rather than a rank - needs both directions, not just the always-accent
+   default above. */
+.rank-teaser-rank.tone-bad { color: var(--bad); }
 .rank-teaser-body {
   flex: 1;
   min-width: 0;
@@ -2247,35 +2385,6 @@ h1, h2, .topbar h1, .sheet-title, .auth-title {
 }
 .home-highlights::-webkit-scrollbar { display: none; }
 
-/* Home page's teaser for the video-tips feature (src/components/HomeTipsTeaser.jsx) -
-   the feature itself still lives on the Social tab's Tips segment, this is
-   just a pointer to it so it isn't fully invisible from Home. Same tappable-
-   row language as .rank-teaser, not the highlight-card treatment, since like
-   the rank teaser it's a single link through to one destination. */
-.home-tips-teaser {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  border: 1px solid var(--border);
-  border-radius: 4px;
-  background: var(--surface);
-  padding: 12px 14px;
-  margin: 0 0 20px;
-  text-decoration: none;
-  color: inherit;
-}
-.home-tips-teaser-icon { font-size: 1.3rem; flex-shrink: 0; }
-.home-tips-teaser-body { flex: 1; min-width: 0; display: flex; flex-direction: column; }
-.home-tips-teaser-title { font-weight: 600; font-size: 0.85rem; }
-.home-tips-teaser-context {
-  font-size: 0.72rem;
-  color: var(--text-dim);
-  margin-top: 2px;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-.home-tips-teaser-chevron { color: var(--text-dim); flex-shrink: 0; }
 .home-highlight-card {
   flex: 0 0 auto;
   min-width: 150px;
