@@ -11,6 +11,7 @@ import { periodStart, sumStakesSince } from '../utils/spendLimit.js'
 import { getEachWayTerms, computeEachWayReturn } from '../utils/eachWay.js'
 import { detectLossChasing } from '../utils/lossChasing.js'
 import { stakingPlanWarning } from '../utils/stakingPlan.js'
+import { detectBigStake } from '../utils/bigStake.js'
 import { detectSameGameCorrelation } from '../utils/sameGameCorrelation.js'
 import { useEscapeKey } from '../lib/useEscapeKey.js'
 import { computeStats } from '../utils/trackerStats.js'
@@ -73,8 +74,10 @@ export default function BetBuilderSheet() {
 
   const combinedOdds = legs.reduce((acc, leg) => acc * leg.odds, 1)
   const stakeNum = stake ? Number(stake) : null
-  const lossChasing = detectLossChasing(entries, stakeNum)
-  const stakingWarning = stakingPlanWarning(user, stakeNum)
+  const sanityCheckOn = user.notificationPrefs?.preBetSanityCheck ?? false
+  const lossChasing = sanityCheckOn ? detectLossChasing(entries, stakeNum) : null
+  const stakingWarning = sanityCheckOn ? stakingPlanWarning(user, stakeNum) : null
+  const bigStake = sanityCheckOn ? detectBigStake(entries, stakeNum) : null
   const correlation = detectSameGameCorrelation(legs)
   // Each-way only makes sense for a single racing pick - real books don't
   // offer it on multi-leg accumulators, and combining it with other sports'
@@ -279,24 +282,35 @@ export default function BetBuilderSheet() {
           </label>
         )}
 
-        {user.stakeLimitAmount && periodSpend !== null && stakeNum > 0 && periodSpend + stakeNum > user.stakeLimitAmount && (
-          <div className="limit-warning">
-            ⚠️ This would take you to £{(periodSpend + stakeNum).toFixed(2)} of your £{Number(user.stakeLimitAmount).toFixed(2)}{' '}
-            {user.stakeLimitPeriod === 'monthly' ? 'monthly' : 'weekly'} limit.
-          </div>
-        )}
+        {sanityCheckOn && (bigStake || lossChasing || stakingWarning || (user.stakeLimitAmount && periodSpend !== null && stakeNum > 0 && periodSpend + stakeNum > user.stakeLimitAmount)) && (
+          <div className="sanity-check">
+            <p className="sanity-check-title">🧠 Heads-up</p>
+            {user.stakeLimitAmount && periodSpend !== null && stakeNum > 0 && periodSpend + stakeNum > user.stakeLimitAmount && (
+              <div className="limit-warning">
+                ⚠️ This would take you to £{(periodSpend + stakeNum).toFixed(2)} of your £{Number(user.stakeLimitAmount).toFixed(2)}{' '}
+                {user.stakeLimitPeriod === 'monthly' ? 'monthly' : 'weekly'} limit.
+              </div>
+            )}
 
-        {lossChasing && (
-          <div className="limit-warning">
-            👀 Your last logged bet lost at £{lossChasing.lastStake.toFixed(2)} - this one's {lossChasing.increasePct}% bigger. No
-            judgement, just flagging it.
-          </div>
-        )}
+            {lossChasing && (
+              <div className="limit-warning">
+                👀 Your last logged bet lost at £{lossChasing.lastStake.toFixed(2)} - this one's {lossChasing.increasePct}% bigger. No
+                judgement, just flagging it.
+              </div>
+            )}
 
-        {stakingWarning && (
-          <div className="limit-warning">
-            📐 Your staking plan suggests £{stakingWarning.suggestion.toFixed(2)} a bet - this one's {stakingWarning.overPct}%
-            over that.
+            {stakingWarning && (
+              <div className="limit-warning">
+                📐 Your staking plan suggests £{stakingWarning.suggestion.toFixed(2)} a bet - this one's {stakingWarning.overPct}%
+                over that.
+              </div>
+            )}
+
+            {bigStake && (
+              <div className="limit-warning">
+                📈 That's {bigStake.multiple}x your average stake (£{bigStake.avgStake.toFixed(2)}) - no judgement, just flagging it.
+              </div>
+            )}
           </div>
         )}
 

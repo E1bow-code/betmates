@@ -710,6 +710,12 @@ h1, h2, .topbar h1, .sheet-title, .auth-title {
 .auth-form { display: flex; flex-direction: column; gap: 14px; }
 .auth-error { color: var(--bad); font-size: 0.85rem; }
 .limit-warning { background: color-mix(in srgb, var(--accent) 15%, transparent); border: 1px solid var(--accent); border-radius: 10px; padding: 10px 12px; font-size: 0.85rem; color: var(--text); }
+/* Pre-bet sanity check (opt-in, see AccountPage's preBetSanityCheck toggle) -
+   groups up to 4 independent warnings under one heading instead of stacking
+   4 separate .limit-warning cards, which read as noisy/repetitive together. */
+.sanity-check { display: flex; flex-direction: column; gap: 6px; margin-bottom: 4px; }
+.sanity-check-title { font-size: 0.8rem; font-weight: 600; color: var(--text-dim); margin: 0; }
+.sanity-check .limit-warning { margin: 0; }
 .auth-footnote { color: var(--text-dim); font-size: 0.75rem; text-align: center; margin-top: 20px; line-height: 1.5; }
 .auth-footnote a { color: var(--text-dim); }
 

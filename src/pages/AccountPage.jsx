@@ -568,6 +568,15 @@ export default function AccountPage() {
             Set a bankroll figure and a staking rule, and BetMates will flag it (gently - nothing's blocked) when a bet slip's
             stake runs well over what your own plan suggests. Also feeds the bankroll chart on your Tracker.
           </p>
+          <label className="field-check">
+            <input
+              type="checkbox"
+              checked={user.notificationPrefs?.preBetSanityCheck ?? false}
+              onChange={() => toggleNotification('preBetSanityCheck')}
+            />
+            <span>🧠 Show a heads-up when logging a bet (unusually big stake, chasing a loss, over your staking plan or spend limit)</span>
+          </label>
+          <p className="hint">Off by default - opt in if you'd find the nudge useful. Never blocks you from posting.</p>
           <form className="inline-form" onSubmit={handleSaveStakingPlan}>
             <label className="field">
               <span>Bankroll</span>

@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { useAuth } from '../context/AuthContext.jsx'
 import { useToast } from '../context/ToastContext.jsx'
 import * as dataStore from '../lib/dataStore.js'
@@ -9,6 +9,8 @@ import { parseSlipText } from '../utils/betSlipOcr.js'
 import { recognizeSlipText } from '../lib/ocr.js'
 import { detectLossChasing } from '../utils/lossChasing.js'
 import { stakingPlanWarning } from '../utils/stakingPlan.js'
+import { detectBigStake } from '../utils/bigStake.js'
+import { periodStart, sumStakesSince } from '../utils/spendLimit.js'
 import { useAsyncAction } from '../lib/useAsyncAction.js'
 import { useEscapeKey } from '../lib/useEscapeKey.js'
 
@@ -50,8 +52,14 @@ export default function ManualEntrySheet({ userId, onClose, onSaved }) {
   const odds = parseOddsInput(oddsInput)
   const stakeNum = stake ? Number(stake) : null
   const potentialReturn = stakeNum && odds ? Math.round(stakeNum * odds * 100) / 100 : null
-  const lossChasing = detectLossChasing(entries, stakeNum)
-  const stakingWarning = stakingPlanWarning(user, stakeNum)
+  const periodSpend = useMemo(() => {
+    if (!entries || !user.stakeLimitAmount) return null
+    return sumStakesSince(entries, periodStart(user.stakeLimitPeriod))
+  }, [entries, user.stakeLimitAmount, user.stakeLimitPeriod])
+  const sanityCheckOn = user.notificationPrefs?.preBetSanityCheck ?? false
+  const lossChasing = sanityCheckOn ? detectLossChasing(entries, stakeNum) : null
+  const stakingWarning = sanityCheckOn ? stakingPlanWarning(user, stakeNum) : null
+  const bigStake = sanityCheckOn ? detectBigStake(entries, stakeNum) : null
 
   async function scanImage(file) {
     setScanning(true)
@@ -203,18 +211,38 @@ export default function ManualEntrySheet({ userId, onClose, onSaved }) {
             <input type="number" min="0" step="0.5" placeholder="£" value={stake} onChange={(e) => setStake(e.target.value)} />
           </label>
           {potentialReturn ? <p className="hint">Potential return: £{potentialReturn.toFixed(2)}</p> : null}
-          {lossChasing && (
-            <div className="limit-warning">
-              👀 Your last logged bet lost at £{lossChasing.lastStake.toFixed(2)} - this one's {lossChasing.increasePct}% bigger. No
-              judgement, just flagging it.
-            </div>
-          )}
-          {stakingWarning && (
-            <div className="limit-warning">
-              📐 Your staking plan suggests £{stakingWarning.suggestion.toFixed(2)} a bet - this one's {stakingWarning.overPct}%
-              over that.
-            </div>
-          )}
+          {sanityCheckOn &&
+            (bigStake ||
+              lossChasing ||
+              stakingWarning ||
+              (user.stakeLimitAmount && periodSpend !== null && stakeNum > 0 && periodSpend + stakeNum > user.stakeLimitAmount)) && (
+              <div className="sanity-check">
+                <p className="sanity-check-title">🧠 Heads-up</p>
+                {user.stakeLimitAmount && periodSpend !== null && stakeNum > 0 && periodSpend + stakeNum > user.stakeLimitAmount && (
+                  <div className="limit-warning">
+                    ⚠️ This would take you to £{(periodSpend + stakeNum).toFixed(2)} of your £{Number(user.stakeLimitAmount).toFixed(2)}{' '}
+                    {user.stakeLimitPeriod === 'monthly' ? 'monthly' : 'weekly'} limit.
+                  </div>
+                )}
+                {lossChasing && (
+                  <div className="limit-warning">
+                    👀 Your last logged bet lost at £{lossChasing.lastStake.toFixed(2)} - this one's {lossChasing.increasePct}% bigger.
+                    No judgement, just flagging it.
+                  </div>
+                )}
+                {stakingWarning && (
+                  <div className="limit-warning">
+                    📐 Your staking plan suggests £{stakingWarning.suggestion.toFixed(2)} a bet - this one's {stakingWarning.overPct}%
+                    over that.
+                  </div>
+                )}
+                {bigStake && (
+                  <div className="limit-warning">
+                    📈 That's {bigStake.multiple}x your average stake (£{bigStake.avgStake.toFixed(2)}) - no judgement, just flagging it.
+                  </div>
+                )}
+              </div>
+            )}
           {error && <div className="auth-error">{error}</div>}
           <div className="sheet-actions">
             <button className="btn btn-primary" type="submit" disabled={saving || scanning}>
