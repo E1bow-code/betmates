@@ -58,6 +58,7 @@ import * as local from './localBackend.js'
  * @property {string} createdAt
  * @property {string|null} settledAt
  * @property {any[]|null} outcomes
+ * @property {string|null} caption
  */
 /**
  * @typedef {object} ManualEntry
@@ -223,7 +224,8 @@ function mapBetPost(row) {
     status: row.status,
     createdAt: row.created_at,
     settledAt: row.settled_at,
-    outcomes: row.outcomes ?? null
+    outcomes: row.outcomes ?? null,
+    caption: row.caption ?? null
   }
 }
 
@@ -781,7 +783,7 @@ export function subscribeGroupFeed(groupId, onInsert) {
 }
 
 /**
- * @param {{groupId: string|null, userId: string, sport: string, marketType: string, selections: any[], stake: number|null, stakeHidden?: boolean, potentialReturn: number|null, visibility?: 'group'|'public'}} post
+ * @param {{groupId: string|null, userId: string, sport: string, marketType: string, selections: any[], stake: number|null, stakeHidden?: boolean, potentialReturn: number|null, visibility?: 'group'|'public', caption?: string|null}} post
  * @returns {Promise<BetPost>}
  */
 export async function createBetPost(post) {
@@ -797,7 +799,8 @@ export async function createBetPost(post) {
       stake: post.stake,
       stake_hidden: post.stakeHidden,
       potential_return: post.potentialReturn,
-      visibility: post.visibility ?? 'group'
+      visibility: post.visibility ?? 'group',
+      caption: post.caption ?? null
     })
     .select()
     .single()

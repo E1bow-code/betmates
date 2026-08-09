@@ -53,6 +53,7 @@ create table bet_posts (
   created_at timestamptz not null default now(),
   settled_at timestamptz,
   outcomes jsonb, -- per-leg ['won'|'lost'|'void'|'placed', ...], set on auto-settlement only (see betEvaluation.js) - null for manually-marked results, which have no per-leg breakdown
+  caption text, -- optional note the poster added at post time, shown on the card - not editable after posting
   check ((visibility = 'group' and group_id is not null) or (visibility = 'public' and group_id is null))
 );
 
@@ -1015,3 +1016,9 @@ alter table value_edge_alerts_sent enable row level security;
 -- constraint relaxation, not a data-shape change for existing rows.
 alter table fixtures alter column home_team drop not null;
 alter table fixtures alter column away_team drop not null;
+
+-- --- Bet post captions ------------------------------------------------------
+-- Optional note the poster adds at post time ("a few things they wanna say"),
+-- shown on the card - not editable after posting (see EditBetSheet.jsx, which
+-- deliberately doesn't let selections change after the fact either).
+alter table bet_posts add column if not exists caption text;

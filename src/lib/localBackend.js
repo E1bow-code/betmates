@@ -603,7 +603,7 @@ export function listBetPosts(groupId) {
 }
 
 /**
- * @param {{groupId: string|null, userId: string, sport: string, marketType: string, selections: any[], stake: number|null, stakeHidden?: boolean, potentialReturn: number|null, visibility?: 'group'|'public'}} post
+ * @param {{groupId: string|null, userId: string, sport: string, marketType: string, selections: any[], stake: number|null, stakeHidden?: boolean, potentialReturn: number|null, visibility?: 'group'|'public', caption?: string|null}} post
  * @returns {Promise<BetPost>}
  */
 export function createBetPost(post) {
@@ -617,6 +617,7 @@ export function createBetPost(post) {
     outcomes: null,
     stakeHidden: false,
     visibility: 'group',
+    caption: null,
     ...post
   }
   db.betPosts.push(record)

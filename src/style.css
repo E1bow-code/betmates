@@ -1795,6 +1795,7 @@ h1, h2, .topbar h1, .sheet-title, .auth-title {
 .bet-status-pill.status-won { border-color: var(--accent); color: var(--accent); }
 .bet-status-pill.status-lost { border-color: var(--bad); color: var(--bad); }
 
+.bet-card-caption { font-size: 0.85rem; font-style: italic; color: var(--text); margin: 2px 0 6px; }
 .bet-card-stake { font-size: 0.85rem; color: var(--text-dim); }
 .bet-card-stake strong { color: var(--text); font-family: var(--font-mono); }
 .bet-card-stake-hidden { font-style: italic; }
@@ -1861,20 +1862,6 @@ h1, h2, .topbar h1, .sheet-title, .auth-title {
 
 .bet-card-header-right { display: flex; align-items: center; gap: 8px; }
 
-.follow-btn {
-  background: none;
-  border: 1px solid var(--accent-dim);
-  color: var(--accent);
-  border-radius: 3px;
-  padding: 3px 10px;
-  font-size: 0.66rem;
-  font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: 0.03em;
-  cursor: pointer;
-}
-.follow-btn.active { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); }
-
 .moderation-toggle {
   background: none;
   border: none;
@@ -1893,6 +1880,12 @@ h1, h2, .topbar h1, .sheet-title, .auth-title {
   border-bottom: 1px solid var(--border);
   background: var(--surface-2);
 }
+.moderation-menu .btn.active { border-color: var(--accent-dim); color: var(--accent); }
+/* Splits the "do something" actions (Follow/Edit/Copy/Back/Share) from the
+   moderation actions (Block/Report) within the single merged menu, so the
+   two very different kinds of action still read as separate groups even
+   though they're no longer separate popovers. */
+.moderation-menu-divider { flex-basis: 100%; height: 1px; background: var(--border); margin: 2px 0; }
 
 .vote-row { display: flex; gap: 6px; flex-wrap: wrap; }
 .vote-row-live {
@@ -2253,6 +2246,36 @@ h1, h2, .topbar h1, .sheet-title, .auth-title {
   overscroll-behavior-x: contain;
 }
 .home-highlights::-webkit-scrollbar { display: none; }
+
+/* Home page's teaser for the video-tips feature (src/components/HomeTipsTeaser.jsx) -
+   the feature itself still lives on the Social tab's Tips segment, this is
+   just a pointer to it so it isn't fully invisible from Home. Same tappable-
+   row language as .rank-teaser, not the highlight-card treatment, since like
+   the rank teaser it's a single link through to one destination. */
+.home-tips-teaser {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  background: var(--surface);
+  padding: 12px 14px;
+  margin: 0 0 20px;
+  text-decoration: none;
+  color: inherit;
+}
+.home-tips-teaser-icon { font-size: 1.3rem; flex-shrink: 0; }
+.home-tips-teaser-body { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+.home-tips-teaser-title { font-weight: 600; font-size: 0.85rem; }
+.home-tips-teaser-context {
+  font-size: 0.72rem;
+  color: var(--text-dim);
+  margin-top: 2px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.home-tips-teaser-chevron { color: var(--text-dim); flex-shrink: 0; }
 .home-highlight-card {
   flex: 0 0 auto;
   min-width: 150px;

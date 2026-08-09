@@ -33,6 +33,7 @@ export default function BetBuilderSheet() {
   const [groupId, setGroupId] = useState('')
   const [stake, setStake] = useState('')
   const [stakeHidden, setStakeHidden] = useState(false)
+  const [caption, setCaption] = useState('')
   const [eachWay, setEachWay] = useState(false)
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState(null)
@@ -108,7 +109,8 @@ export default function BetBuilderSheet() {
         stake: stakeNum,
         stakeHidden,
         potentialReturn,
-        visibility: 'group'
+        visibility: 'group',
+        caption: caption.trim() || null
       })
       const groupName = groups.find((g) => g.id === groupId)?.name ?? 'your group'
       notifyGroup(
@@ -144,7 +146,8 @@ export default function BetBuilderSheet() {
         stake: stakeNum,
         stakeHidden,
         potentialReturn,
-        visibility: 'public'
+        visibility: 'public',
+        caption: caption.trim() || null
       })
       notifyPublicFollowers()
       clearSlip()
@@ -236,6 +239,17 @@ export default function BetBuilderSheet() {
             not really independent, so that combined price overstates how spread out the risk is.
           </div>
         )}
+
+        <label className="field">
+          <span>Say something (optional)</span>
+          <textarea
+            rows={2}
+            maxLength={200}
+            placeholder="Why this one, what you're watching for, anything…"
+            value={caption}
+            onChange={(e) => setCaption(e.target.value)}
+          />
+        </label>
 
         <label className="field">
           <span>Stake (optional)</span>

@@ -47,7 +47,7 @@ export default function BetCard({ post, memberNames, variant = 'group', onBlocke
   const [commentBody, setCommentBody] = useState('')
   const [status, setStatus] = useState(post.status)
   const [following, setFollowing] = useState(false)
-  const [showModeration, setShowModeration] = useState(false)
+  const [showCardMenu, setShowCardMenu] = useState(false)
   const [reported, setReported] = useState(false)
   const [showEdit, setShowEdit] = useState(false)
   const [showMoreActions, setShowMoreActions] = useState(false)
@@ -142,7 +142,7 @@ export default function BetCard({ post, memberNames, variant = 'group', onBlocke
     const ok = await runAsync(() => dataStore.reportPost(post.id, user.id, reason), "Couldn't send that report - try again")
     if (!ok) return
     setReported(true)
-    setShowModeration(false)
+    setShowCardMenu(false)
   }
 
   const selections = post.selections
@@ -161,11 +161,6 @@ export default function BetCard({ post, memberNames, variant = 'group', onBlocke
           </div>
         </div>
         <div className="bet-card-header-right">
-          {variant === 'public' && !isAuthor && (
-            <button className={following ? 'follow-btn active' : 'follow-btn'} onClick={handleFollowToggle}>
-              {following ? 'Following' : 'Follow'}
-            </button>
-          )}
           <span className={`bet-status-pill status-${status}`}>{STATUS_LABEL[status]}</span>
           {liveChatLeg ? (
             <button
@@ -181,12 +176,12 @@ export default function BetCard({ post, memberNames, variant = 'group', onBlocke
           ) : (
             live && <LiveBadge />
           )}
-          {variant === 'public' && !isAuthor && (
+          {variant === 'public' && (
             <button
               className="moderation-toggle"
-              onClick={() => setShowModeration((v) => !v)}
+              onClick={() => setShowCardMenu((v) => !v)}
               aria-label="More options"
-              aria-expanded={showModeration}
+              aria-expanded={showCardMenu}
             >
               ⋯
             </button>
@@ -194,21 +189,61 @@ export default function BetCard({ post, memberNames, variant = 'group', onBlocke
         </div>
       </div>
 
-      {showModeration && (
+      {/* variant='public' folds Follow, Edit+result, Back this bet, Share
+          image and Block/Report into one menu behind the header's "⋯" -
+          on the old layout these were scattered across a header toggle, a
+          footer "More" toggle and always-visible buttons, ~9-11 clickable
+          elements per card. Copy Bet and the comment toggle stay directly
+          visible below since they're the actual engagement mechanic, not
+          incidental clutter. */}
+      {variant === 'public' && showCardMenu && (
         <div className="moderation-menu">
-          <button className="btn btn-ghost btn-small" onClick={handleBlock}>
-            Block {authorName}
-          </button>
-          {reported ? (
-            <span className="hint">Reported, thanks.</span>
-          ) : (
+          {!isAuthor && (
+            <button className={following ? 'btn btn-ghost btn-small active' : 'btn btn-ghost btn-small'} onClick={handleFollowToggle}>
+              {following ? 'Following ✓' : 'Follow'}
+            </button>
+          )}
+          {isAuthor && status === 'open' && (
             <>
-              <span className="hint">Report:</span>
-              {REPORT_REASONS.map((r) => (
-                <button key={r.key} className="btn btn-ghost btn-small" onClick={() => handleReport(r.key)}>
-                  {r.label}
-                </button>
-              ))}
+              <button
+                className="btn btn-ghost btn-small"
+                type="button"
+                onClick={() => {
+                  setShowEdit(true)
+                  setShowCardMenu(false)
+                }}
+              >
+                Edit
+              </button>
+              <select className="status-select" defaultValue="open" onChange={handleStatusChange}>
+                <option value="open">Mark result</option>
+                <option value="won">Won</option>
+                {selections.length === 1 && selections[0].eachWay && <option value="placed">Placed (not won)</option>}
+                <option value="lost">Lost</option>
+                <option value="void">Void</option>
+              </select>
+            </>
+          )}
+          {!isAuthor && <BackBetButton post={post} />}
+          <ShareImageButton post={post} />
+          {!isAuthor && (
+            <>
+              <div className="moderation-menu-divider" />
+              <button className="btn btn-ghost btn-small" onClick={handleBlock}>
+                Block {authorName}
+              </button>
+              {reported ? (
+                <span className="hint">Reported, thanks.</span>
+              ) : (
+                <>
+                  <span className="hint">Report:</span>
+                  {REPORT_REASONS.map((r) => (
+                    <button key={r.key} className="btn btn-ghost btn-small" onClick={() => handleReport(r.key)}>
+                      {r.label}
+                    </button>
+                  ))}
+                </>
+              )}
             </>
           )}
         </div>
@@ -234,6 +269,7 @@ export default function BetCard({ post, memberNames, variant = 'group', onBlocke
             Combined odds: <strong>{formatOdds(combinedOdds, format)}</strong>
           </div>
         )}
+        {post.caption && <p className="bet-card-caption">"{post.caption}"</p>}
         {!post.stakeHidden && post.stake ? (
           <div className="bet-card-stake">
             £{post.stake} staked{post.potentialReturn ? <> · returns <strong>£{post.potentialReturn.toFixed(2)}</strong></> : ''}
@@ -297,7 +333,7 @@ export default function BetCard({ post, memberNames, variant = 'group', onBlocke
             💬 {comments.length > 0 && comments.length}
           </button>
           <CopyBetButton post={post} userId={user.id} copyCount={copyCount} onCopied={() => setCopyCount((c) => c + 1)} />
-          {isAuthor && status === 'open' && (
+          {variant === 'group' && isAuthor && status === 'open' && (
             <>
               <button className="btn btn-ghost btn-small" type="button" onClick={() => setShowEdit(true)}>
                 Edit
@@ -311,16 +347,18 @@ export default function BetCard({ post, memberNames, variant = 'group', onBlocke
               </select>
             </>
           )}
-          <button
-            className="btn btn-ghost btn-small"
-            type="button"
-            onClick={() => setShowMoreActions((v) => !v)}
-            aria-expanded={showMoreActions}
-          >
-            {showMoreActions ? 'Less ▴' : 'More ▾'}
-          </button>
+          {variant === 'group' && (
+            <button
+              className="btn btn-ghost btn-small"
+              type="button"
+              onClick={() => setShowMoreActions((v) => !v)}
+              aria-expanded={showMoreActions}
+            >
+              {showMoreActions ? 'Less ▴' : 'More ▾'}
+            </button>
+          )}
         </div>
-        {showMoreActions && (
+        {variant === 'group' && showMoreActions && (
           <div className="bet-card-more-menu">
             {!isAuthor && <BackBetButton post={post} />}
             <ShareImageButton post={post} />
