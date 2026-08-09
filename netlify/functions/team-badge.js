@@ -15,11 +15,15 @@
 // initials badge (src/components/TeamBadge.jsx).
 import { cacheGet, cacheSet } from '../../src/lib/apiCache.js'
 
-// Crests effectively never change, so cache hits for a week. A miss (team
-// not found, or the API had a wobble) is cached only briefly so a transient
-// failure doesn't blank a club for a week - the next viewer retries it.
+// Crests effectively never change, so cache hits for a week. A genuine miss
+// (team not found) is cached for the same hour, but a fetch that outright
+// failed (rate limit, timeout, a flaky mobile-triggered blip on the way to
+// TheSportsDB) says nothing about whether the club exists - caching THAT for
+// an hour was blanking real crests until the TTL happened to expire on
+// whichever warm instance took the request. Retry that case in minutes.
 const HIT_TTL = 7 * 24 * 60 * 60 * 1000
 const MISS_TTL = 60 * 60 * 1000
+const FAILURE_TTL = 5 * 60 * 1000
 
 // The odds feed and TheSportsDB don't always spell a club the same way, so
 // a raw lookup misses and the crest falls back to initials. Map the short
@@ -75,7 +79,7 @@ export default async (req) => {
     return json(badge, 'live')
   } catch (err) {
     console.error(`team-badge lookup failed for "${team}":`, err.message)
-    cacheSet(key, null, MISS_TTL)
+    cacheSet(key, null, FAILURE_TTL)
     return json(null)
   }
 }

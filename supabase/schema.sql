@@ -982,6 +982,32 @@ alter table coach_messages add column if not exists grounding jsonb;
 alter table coach_messages add column if not exists recommendation jsonb;
 alter table coach_messages add column if not exists result text check (result in ('won', 'lost', 'void'));
 
+-- session_id: groups turns into one conversation. CoachGptPage.jsx starts a
+-- fresh uuid (stored client-side in localStorage) each time the user hits
+-- "New chat" - older sessions aren't deleted, just no longer the active one,
+-- so they stay reachable from the history sheet. Every pre-existing row
+-- predates this column, so it's backfilled one generated uuid per user
+-- (not per row - a bare `gen_random_uuid()` default re-evaluates per row on
+-- backfill, which would explode every old message into its own 1-message
+-- session) before being locked to not null. No new RLS policy needed: the
+-- two policies above already cover every column on this table.
+alter table coach_messages add column if not exists session_id uuid;
+
+do $$
+declare
+  uid uuid;
+  sid uuid;
+begin
+  for uid in select distinct user_id from coach_messages where session_id is null loop
+    sid := gen_random_uuid();
+    update coach_messages set session_id = sid where user_id = uid and session_id is null;
+  end loop;
+end $$;
+
+alter table coach_messages alter column session_id set not null;
+alter table coach_messages alter column session_id set default gen_random_uuid();
+create index if not exists coach_messages_session_id_idx on coach_messages(session_id);
+
 -- --- Value-edge push alerts -------------------------------------------------
 -- netlify/functions/alert-checks.js's runValueEdgeAlerts - the proactive
 -- half of CoachGPT: pushes when a followed team/fighter (followed_participants)

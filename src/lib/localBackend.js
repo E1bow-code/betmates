@@ -8,6 +8,7 @@
 
 import { computeStreak, computeLongestWinStreak } from '../utils/trackerStats.js'
 import { bucketByDay, distinctUsersSince } from '../utils/adminAnalyticsAgg.js'
+import { groupCoachSessions } from '../utils/coachSessions.js'
 
 // Records stored here use the same camelCase field names dataStore.js's
 // map* functions produce (this file *is* the shape the UI expects, not a
@@ -43,7 +44,7 @@ import { bucketByDay, distinctUsersSince } from '../utils/adminAnalyticsAgg.js'
  * @property {{id: string, blockerId: string, blockedId: string, createdAt: string}[]} blocks
  * @property {{id: string, postId: string, reporterId: string, reason: string, createdAt: string}[]} postReports
  * @property {DirectMessage[]} directMessages
- * @property {{id: string, userId: string, role: 'user'|'assistant', body: string, grounding: object|null, recommendation: object|null, result: string|null, createdAt: string}[]} coachMessages
+ * @property {{id: string, userId: string, sessionId: string, role: 'user'|'assistant', body: string, grounding: object|null, recommendation: object|null, result: string|null, createdAt: string}[]} coachMessages
  * @property {(OddsAlert & {userId: string})[]} oddsAlerts
  * @property {{id: string, userId: string, sport: string, eventId: string, eventLabel: string, kickoff: string, createdAt: string}[]} followedFixtures
  * @property {{id: string, userId: string, sport: string, name: string, createdAt: string}[]} followedParticipants
@@ -542,23 +543,28 @@ export function sendDirectMessage(userId, friendId, body) {
   return delay(message)
 }
 
-/** @param {string} userId @returns {Promise<{id: string, userId: string, role: 'user'|'assistant', body: string, grounding: object|null, recommendation: object|null, result: string|null, createdAt: string}[]>} */
-export function listCoachMessages(userId) {
+/** @param {string} userId @param {string} [sessionId] @returns {Promise<{id: string, userId: string, sessionId: string, role: 'user'|'assistant', body: string, grounding: object|null, recommendation: object|null, result: string|null, createdAt: string}[]>} */
+export function listCoachMessages(userId, sessionId) {
   const db = readDb()
   return delay(
     db.coachMessages
-      .filter((m) => m.userId === userId)
+      .filter((m) => m.userId === userId && (!sessionId || m.sessionId === sessionId))
       .sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime())
   )
+}
+
+/** @param {string} userId @returns {Promise<{sessionId: string, title: string, startedAt: string, lastMessageAt: string, messageCount: number}[]>} */
+export async function listCoachSessions(userId) {
+  return groupCoachSessions(await listCoachMessages(userId))
 }
 
 // No local equivalent of coach-settle.js (a scheduled function needs a real
 // backend) - recommendations just never settle in local mode, same honest
 // gap as CLV's getOddsSnapshotSeries stub.
-/** @param {{userId: string, role: 'user'|'assistant', body: string, grounding?: object|null, recommendation?: object|null}} entry */
-export function addCoachMessage({ userId, role, body, grounding = null, recommendation = null }) {
+/** @param {{userId: string, sessionId: string, role: 'user'|'assistant', body: string, grounding?: object|null, recommendation?: object|null}} entry */
+export function addCoachMessage({ userId, sessionId, role, body, grounding = null, recommendation = null }) {
   const db = readDb()
-  const message = { id: uid('coach'), userId, role, body, grounding, recommendation, result: null, createdAt: new Date().toISOString() }
+  const message = { id: uid('coach'), userId, sessionId, role, body, grounding, recommendation, result: null, createdAt: new Date().toISOString() }
   db.coachMessages.push(message)
   writeDb(db)
   return delay(message)

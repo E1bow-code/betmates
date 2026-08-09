@@ -797,6 +797,11 @@ h1, h2, .topbar h1, .sheet-title, .auth-title {
   text-overflow: ellipsis;
 }
 
+/* CoachHistorySheet.jsx's session list - .conversation-row on a <button>
+   instead of a <Link>, since picking one switches state in place. */
+button.conversation-row { width: 100%; background: none; border: none; border-bottom: 1px solid var(--border); font: inherit; text-align: left; cursor: pointer; }
+.conversation-row-active { background: rgba(var(--accent-rgb), 0.1); }
+
 /* Discover-groups row - .conversation-row's spacing/border, but a <div>
    with a Join button rather than a <Link>: a non-member navigating
    straight to /groups/:id pre-join would hit an empty/broken feed under

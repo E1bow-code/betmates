@@ -9,6 +9,7 @@
 
 import { supabase, isSupabaseConfigured } from './supabaseClient.js'
 import * as local from './localBackend.js'
+import { groupCoachSessions } from '../utils/coachSessions.js'
 
 // Raw Postgrest rows are untyped (no generated Database types - see
 // supabase/schema.sql) - these describe the shape each map* function below
@@ -626,6 +627,7 @@ function mapCoachMessage(row) {
   return {
     id: row.id,
     userId: row.user_id,
+    sessionId: row.session_id,
     role: row.role,
     body: row.body,
     grounding: row.grounding ?? null,
@@ -635,15 +637,17 @@ function mapCoachMessage(row) {
   }
 }
 
-/** @param {string} userId @returns {Promise<{id: string, userId: string, role: 'user'|'assistant', body: string, grounding: object|null, recommendation: object|null, result: string|null, createdAt: string}[]>} */
-export async function listCoachMessages(userId) {
-  if (!isSupabaseConfigured) return local.listCoachMessages(userId)
-  const { data, error } = await supabase
-    .from('coach_messages')
-    .select('*')
-    .eq('user_id', userId)
-    .order('created_at', { ascending: true })
-    .limit(200)
+// sessionId scopes to one conversation - CoachGptPage.jsx's active chat.
+// Omit it to fetch every session (only listCoachSessions does this, to
+// group history) - not exposed as the page's own default, since loading
+// every past conversation into the active view is exactly what "New chat"
+// is meant to avoid.
+/** @param {string} userId @param {string} [sessionId] @returns {Promise<{id: string, userId: string, sessionId: string, role: 'user'|'assistant', body: string, grounding: object|null, recommendation: object|null, result: string|null, createdAt: string}[]>} */
+export async function listCoachMessages(userId, sessionId) {
+  if (!isSupabaseConfigured) return local.listCoachMessages(userId, sessionId)
+  let query = supabase.from('coach_messages').select('*').eq('user_id', userId)
+  if (sessionId) query = query.eq('session_id', sessionId)
+  const { data, error } = await query.order('created_at', { ascending: true }).limit(500)
   if (error) throw error
   return data.map(mapCoachMessage)
 }
@@ -654,16 +658,25 @@ export async function listCoachMessages(userId) {
 // recommendation: the one full leg (same shape as grounding's entries)
 // CoachGPT's lock_in_recommendation tool named as its lean - null until
 // netlify/functions/coach-settle.js resolves `result` on it.
-/** @param {{userId: string, role: 'user'|'assistant', body: string, grounding?: object|null, recommendation?: object|null}} entry */
-export async function addCoachMessage({ userId, role, body, grounding = null, recommendation = null }) {
-  if (!isSupabaseConfigured) return local.addCoachMessage({ userId, role, body, grounding, recommendation })
+/** @param {{userId: string, sessionId: string, role: 'user'|'assistant', body: string, grounding?: object|null, recommendation?: object|null}} entry */
+export async function addCoachMessage({ userId, sessionId, role, body, grounding = null, recommendation = null }) {
+  if (!isSupabaseConfigured) return local.addCoachMessage({ userId, sessionId, role, body, grounding, recommendation })
   const { data, error } = await supabase
     .from('coach_messages')
-    .insert({ user_id: userId, role, body, grounding, recommendation })
+    .insert({ user_id: userId, session_id: sessionId, role, body, grounding, recommendation })
     .select()
     .single()
   if (error) throw error
   return mapCoachMessage(data)
+}
+
+// Every past conversation, grouped for CoachGptPage.jsx's history sheet -
+// grouping happens client-side in groupCoachSessions() rather than a SQL
+// GROUP BY, since the 500-row cap above already keeps this small and it
+// lets local mode share the exact same grouping logic.
+/** @param {string} userId @returns {Promise<{sessionId: string, title: string, startedAt: string, lastMessageAt: string, messageCount: number}[]>} */
+export async function listCoachSessions(userId) {
+  return groupCoachSessions(await listCoachMessages(userId))
 }
 
 /** @param {string} userId @returns {Promise<{id: string, displayName: string, avatarUrl: string|null}|null>} */

@@ -8,6 +8,24 @@ import { useAsyncAction } from '../lib/useAsyncAction.js'
 import { formatRelativeTime } from '../utils/format.js'
 import { computeCoachRecord } from '../utils/coachRecord.js'
 import EmptyState from '../components/EmptyState.jsx'
+import CoachHistorySheet from '../components/CoachHistorySheet.jsx'
+
+// Active session id lives in localStorage, not React state alone, so it
+// survives a reload rather than silently starting a new chat every visit -
+// "New chat" is the only thing that's meant to move it. See schema.sql's
+// coach_messages.session_id comment for why messages are grouped this way
+// at all.
+function activeSessionKey(userId) {
+  return `coachgpt_session_${userId}`
+}
+function loadOrCreateSessionId(userId) {
+  const key = activeSessionKey(userId)
+  const existing = localStorage.getItem(key)
+  if (existing) return existing
+  const id = crypto.randomUUID()
+  localStorage.setItem(key, id)
+  return id
+}
 
 // Only appears once there's real settled history - CoachGPT's own picks
 // start from zero (there's no way to backfill a record for chats that
@@ -70,21 +88,47 @@ export default function CoachGptPage() {
   const { loadLegs } = useBetSlip()
   const location = useLocation()
   const navigate = useNavigate()
+  const [sessionId, setSessionId] = useState(() => loadOrCreateSessionId(user.id))
   const [messages, setMessages] = useState(null)
   const [draft, setDraft] = useState('')
   const [sending, setSending] = useState(false)
   const [unavailable, setUnavailable] = useState(false)
   const [error, setError] = useState(null)
+  const [showHistory, setShowHistory] = useState(false)
+  const [recordMessages, setRecordMessages] = useState(null)
   const runAsync = useAsyncAction()
   const prefillSent = useRef(false)
-  const coachRecord = useMemo(() => computeCoachRecord(messages), [messages])
+  // CoachGPT's overall pick record spans every past conversation, not just
+  // the one on screen - fetched separately from the active session's
+  // `messages` so switching/starting chats doesn't make the scoreboard
+  // flicker empty.
+  const coachRecord = useMemo(() => computeCoachRecord(recordMessages), [recordMessages])
 
   useEffect(() => {
     dataStore
-      .listCoachMessages(user.id)
+      .listCoachMessages(user.id, sessionId)
       .then(setMessages)
       .catch((err) => setError(err.message))
+  }, [user.id, sessionId])
+
+  useEffect(() => {
+    dataStore.listCoachMessages(user.id).then(setRecordMessages).catch(() => setRecordMessages([]))
   }, [user.id])
+
+  function startNewChat() {
+    const id = crypto.randomUUID()
+    localStorage.setItem(activeSessionKey(user.id), id)
+    setSessionId(id)
+    setMessages([])
+    setError(null)
+    setUnavailable(false)
+  }
+
+  function switchToSession(id) {
+    localStorage.setItem(activeSessionKey(user.id), id)
+    setSessionId(id)
+    setShowHistory(false)
+  }
 
   // Arrived here via an "Ask CoachGPT about this" link (e.g.
   // FixtureDetailPage.jsx) carrying a pre-built question in router state -
@@ -119,7 +163,7 @@ export default function CoachGptPage() {
     setSending(true)
 
     const ok = await runAsync(async () => {
-      await dataStore.addCoachMessage({ userId: user.id, role: 'user', body })
+      await dataStore.addCoachMessage({ userId: user.id, sessionId, role: 'user', body })
       const res = await sendCoachGptMessage({ message: body, history, priorGrounding })
       if (!res.configured) {
         setUnavailable(true)
@@ -136,6 +180,7 @@ export default function CoachGptPage() {
       const replyBody = res.reply || "Couldn't get a straight answer that time - mind trying again, maybe with a bit more detail?"
       const assistantMessage = await dataStore.addCoachMessage({
         userId: user.id,
+        sessionId,
         role: 'assistant',
         body: replyBody,
         grounding: res.grounding ?? null,
@@ -161,10 +206,28 @@ export default function CoachGptPage() {
         <Link to="/dashboard" className="back">
           &larr; Home
         </Link>
-        <h1>CoachGPT</h1>
+        <div className="topbar-row">
+          <h1>CoachGPT</h1>
+          <div className="topbar-actions">
+            <button className="btn btn-ghost btn-small" type="button" onClick={() => setShowHistory(true)}>
+              History
+            </button>
+            <button className="btn btn-ghost btn-small" type="button" onClick={startNewChat} disabled={sending}>
+              New chat
+            </button>
+          </div>
+        </div>
       </div>
       <p className="hint">Ask about a fixture or a player - CoachGPT will give you a real lean, backed by the actual odds and data on the board.</p>
       <CoachScoreboard record={coachRecord} />
+      {showHistory && (
+        <CoachHistorySheet
+          userId={user.id}
+          activeSessionId={sessionId}
+          onSelect={switchToSession}
+          onClose={() => setShowHistory(false)}
+        />
+      )}
 
       {error && <div className="error">Couldn't load your conversation: {error}</div>}
       {unavailable && (

@@ -11,6 +11,14 @@ import { cacheGet, cacheSet } from '../../src/lib/apiCache.js'
 
 const HIT_TTL = 7 * 24 * 60 * 60 * 1000
 const MISS_TTL = 60 * 60 * 1000
+// A genuine "TheSportsDB has no such player" is stable - cache it for as
+// long as a miss normally lasts. A fetch that outright failed (rate limit,
+// timeout, a flaky mobile-triggered blip on the way to TheSportsDB) tells
+// us nothing about whether the player exists, so caching it for the same
+// hour was blanking real fighters until the TTL happened to expire on
+// whichever warm instance took the request. Retry that case in minutes,
+// not an hour.
+const FAILURE_TTL = 5 * 60 * 1000
 
 function json(url, source) {
   const headers = { 'content-type': 'application/json' }
@@ -37,7 +45,7 @@ export default async (req) => {
     return json(photo, 'live')
   } catch (err) {
     console.error(`player-photo lookup failed for "${name}":`, err.message)
-    cacheSet(key, null, MISS_TTL)
+    cacheSet(key, null, FAILURE_TTL)
     return json(null)
   }
 }
