@@ -1740,11 +1740,42 @@ export async function listFeedForUser(userId) {
 
 // --- Friends & video tips ---------------------------------------------------
 // Metadata (who's friends with whom, captions, tags, shares) syncs through
-// Supabase like everything else once configured. Video BYTES don't - they
-// live in IndexedDB via src/lib/videoStore.js, so a clip recorded on one
-// device still won't play on another even with Supabase wired up (see the
-// note in supabase/schema.sql). Swapping that in later means changing
-// videoStore.js's save/get/delete trio to hit Supabase Storage instead.
+// Supabase like everything else once configured. Video bytes now do too,
+// via uploadVideoBlob/getVideoPlaybackUrl below (Supabase Storage, private
+// `videos` bucket - see supabase/schema.sql). Local mode has no Storage
+// backend, so it keeps using src/lib/videoStore.js's IndexedDB trio - an
+// honest, documented gap (a clip recorded in local mode still won't sync
+// anywhere), the same shape as getClosingLines/getOddsSnapshotSeries.
+
+const VIDEO_EXT_BY_MIME = { 'video/webm': 'webm', 'video/mp4': 'mp4', 'video/quicktime': 'mov' }
+
+// Path is prefixed with the uploader's own user id, same convention as
+// uploadAvatar - the storage RLS policies check exactly that prefix. Unlike
+// avatars this bucket is private (see schema.sql's comment on why), so the
+// key stored on video_posts is the object *path*, not a resolved URL -
+// playback URLs are short-lived and generated per-read by
+// getVideoPlaybackUrl below.
+/** @param {string} userId @param {Blob} blob @returns {Promise<string>} */
+export async function uploadVideoBlob(userId, blob) {
+  if (!isSupabaseConfigured) return local.uploadVideoBlob(userId, blob)
+  const ext = VIDEO_EXT_BY_MIME[blob.type] || 'webm'
+  const path = `${userId}/${Date.now()}.${ext}`
+  const { error } = await supabase.storage.from('videos').upload(path, blob)
+  if (error) throw error
+  return path
+}
+
+// Signed URLs are short-lived (1hr) and, unlike getPublicUrl, actually
+// enforce the bucket's select RLS policy at signing time - this is what
+// keeps a friend-only clip from being fetchable by a stranger who guesses
+// the path. Returns null if the object is missing or the viewer fails RLS.
+/** @param {string} videoKey @returns {Promise<string|null>} */
+export async function getVideoPlaybackUrl(videoKey) {
+  if (!isSupabaseConfigured) return local.getVideoPlaybackUrl(videoKey)
+  const { data, error } = await supabase.storage.from('videos').createSignedUrl(videoKey, 3600)
+  if (error) return null
+  return data.signedUrl
+}
 
 /** @param {string} code @param {string} userId @returns {Promise<{id: string, displayName: string}>} */
 export async function addFriendByCode(code, userId) {

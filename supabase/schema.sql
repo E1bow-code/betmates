@@ -535,6 +535,38 @@ create policy "user replaces own avatar" on storage.objects for update using (
   bucket_id = 'avatars' and (storage.foldername(name))[1] = auth.uid()::text
 );
 
+-- --- Video tips --------------------------------------------------------
+-- Storage bucket for video-tip clips (src/lib/dataStore.js's
+-- uploadVideoBlob/getVideoPlaybackUrl). Unlike avatars, this is private:
+-- video_posts already scopes row visibility to the author and their
+-- friends ("author and friends read video posts" above), so a public
+-- bucket would let anyone with a leaked/guessed URL watch a clip whose
+-- metadata is otherwise friend-only. The select policy below mirrors that
+-- same author-or-friend check, applied to the `${userId}/...` path
+-- prefix instead of author_id. Playback goes through
+-- supabase.storage.createSignedUrl(), which enforces this policy at
+-- signing time - no separate signing function needed.
+
+insert into storage.buckets (id, name, public) values ('videos', 'videos', false)
+on conflict (id) do nothing;
+
+create policy "author and friends read videos" on storage.objects for select using (
+  bucket_id = 'videos' and (
+    (storage.foldername(name))[1] = auth.uid()::text
+    or exists (
+      select 1 from friendships f
+      where (f.user_a = auth.uid() and f.user_b::text = (storage.foldername(name))[1])
+         or (f.user_b = auth.uid() and f.user_a::text = (storage.foldername(name))[1])
+    )
+  )
+);
+create policy "user uploads own video" on storage.objects for insert with check (
+  bucket_id = 'videos' and (storage.foldername(name))[1] = auth.uid()::text
+);
+create policy "user deletes own video" on storage.objects for delete using (
+  bucket_id = 'videos' and (storage.foldername(name))[1] = auth.uid()::text
+);
+
 -- --- Referrals -------------------------------------------------------------
 -- Who invited whom, captured at sign-up from a stashed /r/:code (mirrors
 -- App.jsx's existing StashJoinCode pattern for group invites) - not a

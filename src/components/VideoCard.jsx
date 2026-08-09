@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import Avatar from './Avatar.jsx'
 import ShareVideoSheet from './ShareVideoSheet.jsx'
-import { getVideoBlob } from '../lib/videoStore.js'
+import * as dataStore from '../lib/dataStore.js'
 
 function timeAgo(iso) {
   const diffMs = Date.now() - new Date(iso).getTime()
@@ -19,17 +19,19 @@ export default function VideoCard({ post }) {
   const [sharing, setSharing] = useState(false)
 
   useEffect(() => {
-    let objectUrl
-    getVideoBlob(post.videoKey).then((blob) => {
-      if (!blob) {
+    let url
+    dataStore.getVideoPlaybackUrl(post.videoKey).then((resolvedUrl) => {
+      if (!resolvedUrl) {
         setMissing(true)
         return
       }
-      objectUrl = URL.createObjectURL(blob)
-      setSrc(objectUrl)
+      url = resolvedUrl
+      setSrc(resolvedUrl)
     })
     return () => {
-      if (objectUrl) URL.revokeObjectURL(objectUrl)
+      // Local mode returns a blob: object URL that needs revoking; Supabase
+      // Storage's signed URL is a plain https URL - nothing to revoke there.
+      if (url?.startsWith('blob:')) URL.revokeObjectURL(url)
     }
   }, [post.videoKey])
 

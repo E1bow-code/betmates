@@ -10,6 +10,7 @@ import { computeStreak, computeLongestWinStreak } from '../utils/trackerStats.js
 import { bucketByDay, distinctUsersSince } from '../utils/adminAnalyticsAgg.js'
 import { groupCoachSessions } from '../utils/coachSessions.js'
 import { freezesGranted, computeStreakTransition } from '../utils/dailyStreak.js'
+import { saveVideoBlob, getVideoBlob } from './videoStore.js'
 
 // Records stored here use the same camelCase field names dataStore.js's
 // map* functions produce (this file *is* the shape the UI expects, not a
@@ -1208,6 +1209,21 @@ export function createChallenge({ challengerId, opponentId, metric, days }) {
 }
 
 // --- Video tips ----------------------------------------------------------
+// No Storage backend locally, so bytes stay in IndexedDB (videoStore.js) -
+// the videoKey below is just an arbitrary local key, never a real path.
+
+/** @param {string} userId @param {Blob} blob @returns {Promise<string>} */
+export async function uploadVideoBlob(userId, blob) {
+  const videoKey = `video_${userId}_${Date.now()}`
+  await saveVideoBlob(videoKey, blob)
+  return videoKey
+}
+
+/** @param {string} videoKey @returns {Promise<string|null>} */
+export async function getVideoPlaybackUrl(videoKey) {
+  const blob = await getVideoBlob(videoKey)
+  return blob ? URL.createObjectURL(blob) : null
+}
 
 /**
  * @param {{authorId: string, videoKey: string, durationSec: number, caption: string, tag?: string}} params

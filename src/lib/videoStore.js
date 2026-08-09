@@ -1,11 +1,11 @@
-// Local-only video blob storage (IndexedDB) for the Tips feed. Recorded/
-// uploaded clips never leave this browser today - localStorage can't hold
-// binary data at any real size, so blobs live here while their metadata
-// (author, caption, tag, timestamps) lives alongside everything else in
-// src/lib/localBackend.js. Swapping to real storage later (e.g. Supabase
-// Storage) means replacing the three functions below and pointing
-// video_posts.storage_key at a remote URL instead of an IndexedDB key -
-// see the note in supabase/schema.sql.
+// Local-only video blob storage (IndexedDB) for the Tips feed - used only
+// when Supabase isn't configured (see localBackend.js's uploadVideoBlob/
+// getVideoPlaybackUrl). localStorage can't hold binary data at any real
+// size, so blobs live here while their metadata (author, caption, tag,
+// timestamps) lives alongside everything else in src/lib/localBackend.js.
+// When Supabase IS configured, dataStore.js's uploadVideoBlob/
+// getVideoPlaybackUrl hit Supabase Storage instead, so clips actually sync
+// across devices - this file's local-only limit no longer applies there.
 
 const DB_NAME = 'betmates-videos'
 const STORE = 'clips'

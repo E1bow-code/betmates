@@ -1,7 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { useAuth } from '../context/AuthContext.jsx'
 import * as dataStore from '../lib/dataStore.js'
-import { saveVideoBlob } from '../lib/videoStore.js'
 import { useEscapeKey } from '../lib/useEscapeKey.js'
 
 const MAX_SECONDS = 60
@@ -121,8 +120,7 @@ export default function VideoRecorder({ onClose, onPosted }) {
     setSubmitting(true)
     setError(null)
     try {
-      const videoKey = `video_${user.id}_${Date.now()}`
-      await saveVideoBlob(videoKey, blob)
+      const videoKey = await dataStore.uploadVideoBlob(user.id, blob)
       const post = await dataStore.createVideoPost({
         authorId: user.id,
         videoKey,
