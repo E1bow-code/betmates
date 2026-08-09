@@ -493,12 +493,14 @@ export async function listGroupMembers(groupId) {
   if (!isSupabaseConfigured) return local.listGroupMembers(groupId)
   const { data, error } = await supabase
     .from('group_members')
-    .select('profiles(id, display_name)')
+    .select('profiles(id, display_name, referral_count)')
     .eq('group_id', groupId)
   if (error) throw error
   return data.map((row) => {
-    const profile = /** @type {{id: string, display_name: string}} */ (/** @type {unknown} */ (row.profiles))
-    return { id: profile.id, displayName: profile.display_name }
+    const profile = /** @type {{id: string, display_name: string, referral_count: number}} */ (
+      /** @type {unknown} */ (row.profiles)
+    )
+    return { id: profile.id, displayName: profile.display_name, referralCount: profile.referral_count }
   })
 }
 
@@ -1540,12 +1542,16 @@ export async function uploadAvatar(userId, file) {
   return url
 }
 
+// Reads the denormalized referral_count column (kept in sync by the
+// profiles_sync_referral_count trigger, see schema.sql) rather than a live
+// COUNT query - same column listGroupMembers below now also exposes, so a
+// referral tier only ever comes from one source of truth.
 /** @param {string} userId @returns {Promise<number>} */
 export async function countReferrals(userId) {
   if (!isSupabaseConfigured) return local.countReferrals(userId)
-  const { count, error } = await supabase.from('profiles').select('id', { count: 'exact', head: true }).eq('referred_by', userId)
+  const { data, error } = await supabase.from('profiles').select('referral_count').eq('id', userId).maybeSingle()
   if (error) throw error
-  return count ?? 0
+  return data?.referral_count ?? 0
 }
 
 // --- Push subscriptions -------------------------------------------------

@@ -6,6 +6,7 @@ import Avatar from '../components/Avatar.jsx'
 import SportIcon from '../components/icons/SportIcons.jsx'
 import SportHeroBanner from '../components/SportHeroBanner.jsx'
 import { tipsterBadge } from '../utils/tipsterBadge.js'
+import ReferralTierBadge from '../components/ReferralTierBadge.jsx'
 import { useAsyncAction } from '../lib/useAsyncAction.js'
 
 // The one route in this app that works fully logged out - reachable from a
@@ -83,6 +84,7 @@ export default function PublicProfilePage() {
                       {tipsterBadge(data.stats).icon} {tipsterBadge(data.stats).label}
                     </span>
                   )}
+                  <ReferralTierBadge count={data.referralCount} />
                 </span>
                 <div className="race-card-meta">
                   On BetMates since {new Date(data.memberSince).toLocaleDateString([], { month: 'long', year: 'numeric' })}

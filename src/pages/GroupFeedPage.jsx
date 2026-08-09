@@ -10,6 +10,7 @@ import GroupRecapCard from '../components/GroupRecapCard.jsx'
 import PickemLeaderboard from '../components/PickemLeaderboard.jsx'
 import TablePredictorPanel from '../components/TablePredictorPanel.jsx'
 import Avatar from '../components/Avatar.jsx'
+import ReferralTierBadge from '../components/ReferralTierBadge.jsx'
 import EmptyState from '../components/EmptyState.jsx'
 import { shareOrCopy, groupInviteUrl } from '../lib/share.js'
 import { useAsyncAction } from '../lib/useAsyncAction.js'
@@ -30,6 +31,7 @@ export default function GroupFeedPage() {
   const [items, setItems] = useState(null) // bets + shared videos, merged and sorted
   const [members, setMembers] = useState([])
   const [memberNames, setMemberNames] = useState({})
+  const [referralCounts, setReferralCounts] = useState({})
   const [error, setError] = useState(null)
   const [tab, setTab] = useState('feed')
   const [messages, setMessages] = useState(null)
@@ -51,6 +53,7 @@ export default function GroupFeedPage() {
         setPosts(betPosts)
         setMembers(groupMembers)
         setMemberNames(Object.fromEntries(groupMembers.map((m) => [m.id, m.displayName])))
+        setReferralCounts(Object.fromEntries(groupMembers.map((m) => [m.id, m.referralCount])))
         const merged = [
           ...betPosts.map((p) => ({ kind: 'bet', sortAt: p.createdAt, data: p })),
           ...videos.map((v) => ({ kind: 'video', sortAt: v.sharedAt, data: v }))
@@ -223,7 +226,14 @@ export default function GroupFeedPage() {
           {!error && items === null && <div className="loading">Catching up on the feed…</div>}
           {posts && posts.length > 0 && <GroupRecapCard posts={posts} memberNames={memberNames} />}
           {posts && posts.length > 0 && (
-            <Leaderboard posts={posts} memberNames={memberNames} currentUserId={user.id} closes={closes} groupId={id} />
+            <Leaderboard
+              posts={posts}
+              memberNames={memberNames}
+              currentUserId={user.id}
+              closes={closes}
+              groupId={id}
+              referralCounts={referralCounts}
+            />
           )}
           {posts && posts.length > 0 && <PickemLeaderboard posts={posts} memberNames={memberNames} />}
           {posts && (
@@ -344,6 +354,7 @@ export default function GroupFeedPage() {
                   <span>
                     {m.displayName}
                     {m.id === user.id && ' (you)'}
+                    <ReferralTierBadge count={m.referralCount} />
                   </span>
                 </span>
                 {isCreator && m.id !== user.id && (

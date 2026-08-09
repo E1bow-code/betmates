@@ -18,3 +18,13 @@ export function referralRewardState(count) {
   const next = REFERRAL_TIERS.find((tier) => c < tier.threshold) ?? null
   return { count: c, earned, next, toNext: next ? next.threshold - c : 0 }
 }
+
+// The single highest tier a count has earned, or null - for the compact
+// icon-only badge shown next to a name elsewhere in the app (Leaderboard
+// rows, the group Members list, a public profile), as opposed to
+// referralRewardState's full earned/next breakdown used on the referrer's
+// own Account page.
+export function topReferralTier(count) {
+  const earned = referralRewardState(count).earned
+  return earned.length ? earned[earned.length - 1] : null
+}

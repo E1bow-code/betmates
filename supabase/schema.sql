@@ -580,6 +580,42 @@ create policy "user deletes own video" on storage.objects for delete using (
 
 alter table profiles add column if not exists referred_by uuid references profiles(id) on delete set null;
 
+-- Denormalized count, kept in sync by a trigger (same shape as
+-- sync_group_member_count above) - lets the referral tier badge
+-- (src/utils/referralRewards.js) be shown cheaply wherever a member/author
+-- list is already fetched (Leaderboard rows, the group Members list, a
+-- public profile), not just computed on demand for the referrer's own
+-- Account page via a COUNT query. Only incremented on insert - a referral
+-- is credited once and, like every other badge/achievement in this app,
+-- isn't clawed back later (e.g. if the person they referred later deletes
+-- their own account).
+alter table profiles add column if not exists referral_count integer not null default 0;
+
+update profiles set referral_count = (select count(*) from profiles r where r.referred_by = profiles.id);
+
+-- security definer for the same reason as sync_group_member_count: a
+-- brand-new signer-upper's own INSERT needs to update someone ELSE's
+-- profiles row (their referrer's), which "user updates own profile" would
+-- otherwise block.
+create or replace function sync_referral_count()
+returns trigger
+language plpgsql
+security definer
+set search_path = public
+as $$
+begin
+  if new.referred_by is not null then
+    update profiles set referral_count = referral_count + 1 where id = new.referred_by;
+  end if;
+  return new;
+end;
+$$;
+
+drop trigger if exists profiles_sync_referral_count on profiles;
+create trigger profiles_sync_referral_count
+after insert on profiles
+for each row execute function sync_referral_count();
+
 -- --- Direct message push notifications ------------------------------------
 -- Same idea as the group-mates policy above, but for friends instead of
 -- group members - lets the sender's own token (see send-push.js's friendId

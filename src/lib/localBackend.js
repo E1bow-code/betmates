@@ -370,7 +370,13 @@ export function listGroupMembers(groupId) {
   const db = readDb()
   const memberIds = db.groupMembers.filter((m) => m.groupId === groupId).map((m) => m.userId)
   return delay(
-    db.users.filter((u) => memberIds.includes(u.id)).map((u) => ({ id: u.id, displayName: u.displayName }))
+    db.users
+      .filter((u) => memberIds.includes(u.id))
+      .map((u) => ({
+        id: u.id,
+        displayName: u.displayName,
+        referralCount: db.users.filter((r) => r.referredBy === u.id).length
+      }))
   )
 }
 

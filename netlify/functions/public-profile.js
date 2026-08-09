@@ -25,7 +25,7 @@ export default async (req) => {
 
     const { data: profile } = await supabase
       .from('profiles')
-      .select('id,display_name,created_at,avatar_url')
+      .select('id,display_name,created_at,avatar_url,referral_count')
       .eq('friend_code', code)
       .maybeSingle()
     // profile.id wasn't in the original response - it's needed client-side
@@ -56,6 +56,7 @@ export default async (req) => {
         displayName: profile.display_name,
         avatarUrl: profile.avatar_url,
         memberSince: profile.created_at,
+        referralCount: profile.referral_count,
         stats,
         recent
       }),
