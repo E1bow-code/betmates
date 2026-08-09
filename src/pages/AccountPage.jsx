@@ -13,6 +13,8 @@ import { suggestedStake } from '../utils/stakingPlan.js'
 import { getRealityCheckMins, setRealityCheckMins, REALITY_CHECK_OPTIONS } from '../lib/realityCheck.js'
 import { referralRewardState } from '../utils/referralRewards.js'
 import { computeStats } from '../utils/trackerStats.js'
+import { computeXp, levelForXp, xpForLevel, xpForNextLevel, flairTierForLevel } from '../utils/xp.js'
+import { freezesGranted } from '../utils/dailyStreak.js'
 import Avatar from '../components/Avatar.jsx'
 import InstallGuide from '../components/InstallGuide.jsx'
 import SportHeroBanner from '../components/SportHeroBanner.jsx'
@@ -94,6 +96,7 @@ export default function AccountPage() {
   const [buddySaving, setBuddySaving] = useState(false)
   const [expandedGroups, setExpandedGroups] = useState(loadExpandedGroups)
   const [trackerStats, setTrackerStats] = useState(null)
+  const [xpCounts, setXpCounts] = useState(null)
   const runAsync = useAsyncAction()
 
   function toggleGroup(id) {
@@ -135,10 +138,25 @@ export default function AccountPage() {
   // this teaser is now the only way to reach it, so unlike RankTeaser/
   // HomeHighlights it always renders, with an empty-state message rather
   // than silently disappearing when there's nothing settled yet.
+  // Same fetch also feeds computeXp's counts below - posted vs manual are
+  // kept separate only because "posted" (shared with a group or publicly)
+  // earns its own XP, distinct from just logging a bet privately.
   useEffect(() => {
     Promise.all([dataStore.listBetPostsByUser(user.id), dataStore.listManualEntries(user.id)])
-      .then((lists) => setTrackerStats(computeStats(lists.flat())))
-      .catch(() => setTrackerStats(computeStats([])))
+      .then(([posted, manual]) => {
+        const all = [...posted, ...manual]
+        setTrackerStats(computeStats(all))
+        setXpCounts({
+          loggedCount: all.length,
+          settledCount: all.filter((e) => e.stake && ['won', 'lost', 'void'].includes(e.status)).length,
+          wonCount: all.filter((e) => e.stake && e.status === 'won').length,
+          postedCount: posted.length
+        })
+      })
+      .catch(() => {
+        setTrackerStats(computeStats([]))
+        setXpCounts({ loggedCount: 0, settledCount: 0, wonCount: 0, postedCount: 0 })
+      })
   }, [user.id])
 
   useEffect(() => {
@@ -310,6 +328,16 @@ export default function AccountPage() {
     }
   }
 
+  // Fully derived, same as achievements - see src/utils/xp.js's header
+  // comment. referralCount is fetched separately above; xp stays null
+  // until both that and the bet-history counts have loaded.
+  const xp = xpCounts && referralCount !== null ? computeXp({ ...xpCounts, referralCount }) : null
+  const level = xp !== null ? levelForXp(xp) : null
+  const tier = level !== null ? flairTierForLevel(level) : null
+  const xpIntoLevel = xp !== null ? xp - xpForLevel(level) : null
+  const xpSpanForLevel = xp !== null ? xpForNextLevel(level) - xpForLevel(level) : null
+  const freezesAvailable = freezesGranted(user.createdAt) - user.streakFreezesUsed
+
   return (
     <div>
       <SportHeroBanner sport="account" />
@@ -319,7 +347,7 @@ export default function AccountPage() {
 
       <div className="account-hero">
         <label className="avatar-upload">
-          <Avatar name={user.displayName} photoUrl={user.avatarUrl} size={64} />
+          <Avatar name={user.displayName} photoUrl={user.avatarUrl} size={64} tier={tier} />
           <span className="avatar-upload-badge" aria-hidden="true">{avatarUploading ? '…' : '✎'}</span>
           <input
             type="file"
@@ -372,6 +400,35 @@ export default function AccountPage() {
       <p className="hint account-hero-hint">
         Tap your avatar to upload a photo, or leave it - initials and colour come from your name automatically.
       </p>
+
+      {xp !== null && (
+        <div className="account-section">
+          <div className="stat-tiles">
+            <div className="stat-tile">
+              <div className="stat-tile-value">Level {level}</div>
+              <div className="stat-tile-label">{xp} XP total</div>
+            </div>
+            <div className="stat-tile">
+              <div className="stat-tile-value">🔥 {user.streakCurrentCount}</div>
+              <div className="stat-tile-label">day streak</div>
+            </div>
+          </div>
+          <div
+            className="limit-progress-track"
+            role="progressbar"
+            aria-label="Progress to next level"
+            aria-valuenow={xpIntoLevel}
+            aria-valuemin={0}
+            aria-valuemax={xpSpanForLevel}
+          >
+            <div className="limit-progress-fill" style={{ width: `${Math.min(100, (xpIntoLevel / xpSpanForLevel) * 100)}%` }} />
+          </div>
+          <p className="hint">
+            {xpSpanForLevel - xpIntoLevel} XP to level {level + 1}
+            {freezesAvailable > 0 ? ` · ${freezesAvailable} streak freeze${freezesAvailable === 1 ? '' : 's'} banked` : ''}
+          </p>
+        </div>
+      )}
 
       {trackerStats && (
         <Link to="/tracker" className="rank-teaser">
@@ -483,7 +540,7 @@ export default function AccountPage() {
               checked={user.notificationPrefs?.streakReminders ?? false}
               onChange={() => toggleNotification('streakReminders')}
             />
-            <span>Win-streak milestones (3, 5, 10 in a row)</span>
+            <span>Streak reminders (win streaks, and your daily activity streak)</span>
           </label>
           <label className="field-check">
             <input type="checkbox" checked={user.notificationPrefs?.teamNews ?? false} onChange={() => toggleNotification('teamNews')} />

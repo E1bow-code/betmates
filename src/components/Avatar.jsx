@@ -14,11 +14,16 @@ function initialsFor(name) {
   return parts.length > 1 ? (parts[0][0] + parts[1][0]).toUpperCase() : name.slice(0, 2).toUpperCase()
 }
 
-export default function Avatar({ name, size = 28, photoUrl }) {
+// tier: an optional XP-level flair ring (src/utils/xp.js's
+// flairTierForLevel) - 'bronze'|'silver'|'gold'|'diamond'. Purely
+// cosmetic and automatic (never chosen/purchased), so every existing
+// caller that doesn't pass it renders exactly as before.
+export default function Avatar({ name, size = 28, photoUrl, tier = null }) {
+  const ringClass = tier ? ` avatar-tier-${tier}` : ''
   if (photoUrl) {
     return (
       <img
-        className="avatar avatar-photo"
+        className={`avatar avatar-photo${ringClass}`}
         src={photoUrl}
         alt=""
         title={name}
@@ -29,7 +34,7 @@ export default function Avatar({ name, size = 28, photoUrl }) {
   }
   return (
     <span
-      className="avatar"
+      className={`avatar${ringClass}`}
       style={{ background: colorFor(name), width: size, height: size, fontSize: size * 0.4 }}
       title={name}
     >

@@ -1135,3 +1135,37 @@ create policy "user starts a challenge against a real friend" on challenges for 
     where (f.user_a = auth.uid() and f.user_b = opponent_id) or (f.user_b = auth.uid() and f.user_a = opponent_id)
   )
 );
+
+-- --- Daily streak + XP progression ------------------------------------
+-- A DIFFERENT streak from src/utils/trackerStats.js's computeStreak (which
+-- counts consecutive WINS and already has its own 3/5/10 push in
+-- streak-reminders.js) - this one counts consecutive CALENDAR DAYS with at
+-- least one bet logged (src/utils/dailyStreak.js), the "open the app today"
+-- habit loop rather than a betting result.
+--
+-- streak_current_count/streak_last_logged_date are the authoritative,
+-- persisted state (not re-derived from bet_posts/manual_entries on every
+-- read) because a freeze-bridged gap has a real missing day in that raw
+-- data that a pure re-derivation would otherwise read as a broken streak.
+-- streak_freezes_used is spend against freezesGranted() (src/utils/
+-- dailyStreak.js), which is time-based off profiles.created_at rather than
+-- XP/level-based - tying freeze eligibility to a live XP recompute would
+-- mean re-deriving a user's entire bet history on every single bet save
+-- just to check it, which is a real cost for no real benefit here.
+--
+-- XP/levels themselves (src/utils/xp.js) stay fully derived at read time
+-- from existing bet_posts/manual_entries/referred_by data, same as
+-- src/utils/achievements.js already does - no column needed for those.
+--
+-- No new RLS policy: "user updates own profile" already covers new columns
+-- on an existing table.
+alter table profiles add column if not exists streak_current_count integer not null default 0;
+alter table profiles add column if not exists streak_last_logged_date date;
+alter table profiles add column if not exists streak_freezes_used integer not null default 0;
+
+-- Watermark for netlify/functions/streak-reminders.js's daily "keep your
+-- streak alive" push (reuses that function's existing */30 * * * * cron
+-- slot rather than adding a new schedule entry) - sent at most once per
+-- calendar date per user, same one-shot-per-value idea as
+-- streak_milestone_notified above.
+alter table profiles add column if not exists streak_reminder_sent_date date;
