@@ -1,18 +1,37 @@
 import { useState } from 'react'
 import { useOddsFormat } from '../context/OddsFormatContext.jsx'
+import { useAuth } from '../context/AuthContext.jsx'
 import { parseOddsInput } from '../utils/oddsFormat.js'
+import { kellyStake } from '../utils/kelly.js'
 import { useEscapeKey } from '../lib/useEscapeKey.js'
+
+const KELLY_FRACTIONS = [
+  { value: 0.25, label: 'Quarter' },
+  { value: 0.5, label: 'Half' },
+  { value: 1, label: 'Full' }
+]
 
 // Standalone "what if" tool, independent of the bet slip - lets someone
 // plan a stake against a price without first tapping a real outcome onto
 // their slip. Odds input accepts either decimal or fractional text (see
 // parseOddsInput) so it matches whatever the person is looking at on the
 // bookmaker's own site, not just this app's own odds-format preference.
+//
+// The Kelly section below the payout numbers is opt-in (collapsed until odds
+// are entered, and needs the user's own win-chance estimate to produce
+// anything) - BetMates never supplies that probability itself, since that
+// would cross into tipping. It only does the arithmetic on the user's own
+// view of the price, same "reflect what's given, never predict" rule the
+// Coach follows (src/lib/coach.js).
 export default function PayoutCalculatorButton() {
   const [open, setOpen] = useState(false)
   const { format } = useOddsFormat()
+  const { user } = useAuth()
   const [stake, setStake] = useState('')
   const [oddsInput, setOddsInput] = useState('')
+  const [bankroll, setBankroll] = useState('')
+  const [probability, setProbability] = useState('')
+  const [kellyFraction, setKellyFraction] = useState(0.25)
   useEscapeKey(close, open)
 
   const decimal = parseOddsInput(oddsInput)
@@ -20,10 +39,19 @@ export default function PayoutCalculatorButton() {
   const potentialReturn = stakeNum > 0 && decimal > 1 ? Math.round(stakeNum * decimal * 100) / 100 : null
   const profit = potentialReturn !== null ? Math.round((potentialReturn - stakeNum) * 100) / 100 : null
 
+  const bankrollNum = bankroll ? Number(bankroll) : user?.bankrollAmount ?? null
+  const probabilityNum = probability ? Number(probability) / 100 : null
+  const kelly =
+    decimal > 1 && bankrollNum > 0 && probabilityNum
+      ? kellyStake({ bankroll: bankrollNum, odds: decimal, probability: probabilityNum, fraction: kellyFraction })
+      : null
+
   function close() {
     setOpen(false)
     setStake('')
     setOddsInput('')
+    setBankroll('')
+    setProbability('')
   }
 
   return (
@@ -66,6 +94,57 @@ export default function PayoutCalculatorButton() {
                   Profit: <strong>£{profit.toFixed(2)}</strong>
                 </div>
               </>
+            )}
+
+            {decimal > 1 && (
+              <div className="kelly-calc">
+                <p className="kelly-calc-title">Kelly stake (optional)</p>
+                <p className="hint">
+                  Uses your own estimate of the true chance - BetMates doesn't predict outcomes, so type in your own view.
+                </p>
+                <label className="field">
+                  <span>Bankroll</span>
+                  <input
+                    type="number"
+                    min="0"
+                    step="1"
+                    placeholder={user?.bankrollAmount ? `£${user.bankrollAmount} (from your staking plan)` : '£'}
+                    value={bankroll}
+                    onChange={(e) => setBankroll(e.target.value)}
+                  />
+                </label>
+                <label className="field">
+                  <span>Your estimated win chance</span>
+                  <input
+                    type="number"
+                    min="0"
+                    max="100"
+                    step="1"
+                    placeholder="%"
+                    value={probability}
+                    onChange={(e) => setProbability(e.target.value)}
+                  />
+                </label>
+                <div className="mode-switcher">
+                  {KELLY_FRACTIONS.map((f) => (
+                    <button
+                      key={f.value}
+                      type="button"
+                      className={kellyFraction === f.value ? 'mode-tab active' : 'mode-tab'}
+                      onClick={() => setKellyFraction(f.value)}
+                    >
+                      {f.label} Kelly
+                    </button>
+                  ))}
+                </div>
+                {kelly && (
+                  <div className={kelly.stake > 0 ? 'potential-return' : 'hint'}>
+                    {kelly.stake > 0
+                      ? `Kelly suggests staking £${kelly.stake.toFixed(2)} (${(kelly.stakeFraction * 100).toFixed(1)}% of bankroll)`
+                      : "No edge at this price for your estimate - Kelly says skip this one."}
+                  </div>
+                )}
+              </div>
             )}
 
             <button className="btn btn-secondary" onClick={close} type="button">

@@ -1531,6 +1531,12 @@ button.conversation-row { width: 100%; background: none; border: none; border-bo
 .selection-bookmaker { color: var(--text-dim); font-size: 0.8rem; }
 .potential-return { font-size: 0.88rem; }
 
+/* Kelly section of the payout calculator (PayoutCalculatorSheet.jsx) - set
+   apart from the plain payout numbers above with a divider, since it needs
+   its own inputs (bankroll, win-chance estimate, fraction picker). */
+.kelly-calc { border-top: 1px solid var(--border); margin-top: 14px; padding-top: 14px; display: flex; flex-direction: column; gap: 10px; }
+.kelly-calc-title { margin: 0; font-size: 0.85rem; font-weight: 600; color: var(--text); }
+
 /* Groups - chips stay pill-shaped (they're navigational tabs to a group,
    same family as the sport switcher); the invite-code/friend lists below
    are plain divided lists. */
@@ -3349,3 +3355,16 @@ a.race-card:hover, a.race-card:focus-visible { background: rgba(var(--accent-rgb
    persona from CoachTake.jsx's reflective card. */
 .coach-chat-bubble { background: linear-gradient(180deg, rgba(var(--accent-rgb), 0.1) 0%, transparent 70%), var(--surface-2); }
 .coach-card-actions .btn-small { flex-shrink: 0; }
+
+/* BetReviewButton (Tracker rows) - a compact inline expansion rather than a
+   full .coach-card, since it lives inside a single settled row alongside
+   CashOutReplay/ClvTag, not as its own page section. */
+.bet-review { margin-top: 6px; }
+.bet-review-take, .bet-review-empty {
+  margin: 6px 0 0;
+  font-size: 0.82rem;
+  line-height: 1.45;
+  color: var(--text);
+  white-space: pre-wrap;
+}
+.bet-review-empty { color: var(--text-dim); font-style: italic; }
