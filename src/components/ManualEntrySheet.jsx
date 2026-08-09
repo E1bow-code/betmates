@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { useAuth } from '../context/AuthContext.jsx'
+import { useToast } from '../context/ToastContext.jsx'
 import * as dataStore from '../lib/dataStore.js'
 import { BOOKMAKERS } from '../lib/bookmakers.js'
 import { SPORT_LABEL } from '../lib/sportsConfig.js'
@@ -23,6 +24,7 @@ const SPORT_OPTIONS = Object.entries(SPORT_LABEL).filter(([key]) => key !== 'mul
 // shown below the scan control.
 export default function ManualEntrySheet({ userId, onClose, onSaved }) {
   const { user } = useAuth()
+  const { showToast } = useToast()
   const [sport, setSport] = useState('football')
   const [event, setEvent] = useState('')
   const [market, setMarket] = useState('')
@@ -32,6 +34,7 @@ export default function ManualEntrySheet({ userId, onClose, onSaved }) {
   const [stake, setStake] = useState('')
   const [scanning, setScanning] = useState(false)
   const [rawText, setRawText] = useState('')
+  const [scanEmptyGuess, setScanEmptyGuess] = useState(false)
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState(null)
   const [entries, setEntries] = useState(null)
@@ -52,13 +55,25 @@ export default function ManualEntrySheet({ userId, onClose, onSaved }) {
 
   async function scanImage(file) {
     setScanning(true)
-    await runAsync(async () => {
+    const ok = await runAsync(async () => {
       const text = await recognizeSlipText(file)
       setRawText(text)
       const guess = parseSlipText(text)
       if (guess.odds) setOddsInput(String(guess.odds))
       if (guess.stake) setStake(String(guess.stake))
+      // A racing slip's small, busy print reads far worse than a clean
+      // football fixture line, so an empty guess here is common, not rare -
+      // without this, the button just reverts to its idle "Choose a photo"
+      // label and nothing else visibly changes, which reads as the tap
+      // having done nothing at all rather than "scanned it, found nothing".
+      setScanEmptyGuess(!guess.odds && !guess.stake)
+      showToast(
+        guess.odds || guess.stake
+          ? "Scanned it - check the odds/stake below"
+          : "Scanned it, but couldn't find a clear price - see the text below and fill it in yourself"
+      )
     }, "Couldn't read that photo - fill the details in below instead")
+    if (!ok) setScanEmptyGuess(false)
     setScanning(false)
   }
 
@@ -137,7 +152,7 @@ export default function ManualEntrySheet({ userId, onClose, onSaved }) {
             <input type="file" accept="image/*" onChange={handleScan} disabled={scanning} className="scan-cta-input" />
           </label>
           {rawText && (
-            <details className="ocr-raw-text">
+            <details className="ocr-raw-text" open={scanEmptyGuess}>
               <summary>Recognised text - odds/stake below are a guess, copy the rest in yourself</summary>
               <pre>{rawText}</pre>
             </details>

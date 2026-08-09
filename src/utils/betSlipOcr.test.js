@@ -26,6 +26,17 @@ test('parseSlipText does not mistake a stake for the odds', () => {
   assert.equal(result.stake, 10)
 })
 
+test('parseSlipText skips a printed date instead of reading it as odds', () => {
+  const result = parseSlipText('Placed: 09/08/2026 14:32\nThunder Chaser to win\n5/2\nStake £10.00')
+  assert.equal(result.odds, 3.5)
+  assert.equal(result.stake, 10)
+})
+
+test('parseSlipText skips an each-way term instead of reading it as odds', () => {
+  const result = parseSlipText('Thunder Chaser each way\n1/4 odds, 3 places\n9/2\nStake £10.00')
+  assert.equal(result.odds, 5.5)
+})
+
 test('parseSlipText is safe on empty or unrecognisable input', () => {
   assert.deepEqual(parseSlipText(''), { odds: null, stake: null, lines: [] })
   assert.deepEqual(parseSlipText(null), { odds: null, stake: null, lines: [] })

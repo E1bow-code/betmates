@@ -6,7 +6,7 @@
 // worst case every guess is null and the form just starts blank, same as
 // opening it directly.
 
-const FRACTION_RE = /\b(\d{1,3})\s*\/\s*(\d{1,3})\b/
+const FRACTION_RE = /\b(\d{1,3})\s*\/\s*(\d{1,3})\b/g
 // Excludes a number immediately preceded by "£" so a stake like "£10.00"
 // isn't also guessed as the odds.
 const DECIMAL_ODDS_RE = /(?<!£)(?<!£\s)\b([1-9]\d{0,2}\.\d{1,2})\b/
@@ -20,12 +20,27 @@ export function parseSlipText(rawText) {
     .map((l) => l.trim())
     .filter(Boolean)
 
+  // A racing slip's printed date ("Placed: 09/08/2026 14:32") and an
+  // each-way term ("1/4 odds, 3 places") both match the same N/N shape as
+  // a real fractional price, and the date usually sits above the price on
+  // the slip - so taking the first match blindly was picking up "09/08"
+  // (-> a nonsense "2.13") instead of the actual "5/2" further down. Walk
+  // every candidate and skip the ones a real price fraction never looks
+  // like: a third "/YY" segment right after it (a date), the word "odds"
+  // right after it (an each-way term), or a date/time word right before it.
   let odds = null
-  const fractionMatch = text.match(FRACTION_RE)
-  if (fractionMatch) {
+  for (const fractionMatch of text.matchAll(FRACTION_RE)) {
+    const after = text.slice(fractionMatch.index + fractionMatch[0].length, fractionMatch.index + fractionMatch[0].length + 8)
+    const before = text.slice(Math.max(0, fractionMatch.index - 15), fractionMatch.index)
+    if (/^\s*\/\s*\d/.test(after)) continue
+    if (/^\s*odds\b/i.test(after)) continue
+    if (/(placed|date|time)\s*:?\s*$/i.test(before)) continue
     const num = Number(fractionMatch[1])
     const den = Number(fractionMatch[2])
-    if (num > 0 && den > 0) odds = Math.round((1 + num / den) * 100) / 100
+    if (num > 0 && den > 0) {
+      odds = Math.round((1 + num / den) * 100) / 100
+      break
+    }
   }
   if (odds === null) {
     const decimalMatch = text.match(DECIMAL_ODDS_RE)
