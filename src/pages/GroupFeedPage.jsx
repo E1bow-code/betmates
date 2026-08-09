@@ -221,7 +221,9 @@ export default function GroupFeedPage() {
           {error && <div className="error">Hmm, couldn't load this group: {error}</div>}
           {!error && items === null && <div className="loading">Catching up on the feed…</div>}
           {posts && posts.length > 0 && <GroupRecapCard posts={posts} memberNames={memberNames} />}
-          {posts && posts.length > 0 && <Leaderboard posts={posts} memberNames={memberNames} currentUserId={user.id} closes={closes} />}
+          {posts && posts.length > 0 && (
+            <Leaderboard posts={posts} memberNames={memberNames} currentUserId={user.id} closes={closes} groupId={id} />
+          )}
           {posts && posts.length > 0 && <PickemLeaderboard posts={posts} memberNames={memberNames} />}
           {items && !items.length && (
             <EmptyState

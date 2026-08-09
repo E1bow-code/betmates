@@ -97,6 +97,7 @@ Netlify cron, configured per-file via `export const config = { schedule }`:
 | `team-news-alerts.js` | `*/30 * * * *` | push when a followed team/player appears in a news headline |
 | `odds-snapshot.js` | `*/30 * * * *` | snapshots prices for open-bet legs (CLV) and followed fixtures (sharp-money) |
 | `coach-settle.js` | `*/30 * * * *` | settles CoachGPT's `lock_in_recommendation` picks for its own scoreboard |
+| `season-rollover.js` | `0 0 1 * *` | archives last month's #1-by-profit into `season_results`, per group and globally |
 
 `alert-checks.js` (and every other scheduled function above) runs with
 nobody signed in, so it uses `SUPABASE_SERVICE_ROLE_KEY` and bypasses RLS -

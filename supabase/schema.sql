@@ -1048,3 +1048,51 @@ alter table fixtures alter column away_team drop not null;
 -- shown on the card - not editable after posting (see EditBetSheet.jsx, which
 -- deliberately doesn't let selections change after the fact either).
 alter table bet_posts add column if not exists caption text;
+
+-- --- Season leaderboards (monthly reset + archive) --------------------------
+-- The "current" month leaderboard stays exactly what it's always been - a
+-- live filter over bet_posts (Leaderboard.jsx's month tab, hall-of-fame.js's
+-- monthTopProfit). This table is the missing other half: a PERMANENT record
+-- of a month that's already finished, written once by
+-- netlify/functions/season-rollover.js (00:00 UTC on the 1st) so a past
+-- champion doesn't just quietly vanish when the rolling window moves on.
+-- winner_name is snapshotted at rollover time rather than only ever joined
+-- from profiles, so a past season's result stays intact even if the winner
+-- later deletes their account - winner_user_id itself just goes null.
+--
+-- One row per (group, period) - enforced by a real unique constraint since
+-- group_id is never null for a group-scope row. A global-scope row (the
+-- whole app's public feed, group_id null) is deliberately NOT covered by
+-- that constraint - Postgres treats NULLs as distinct, so it wouldn't stop
+-- duplicates anyway - season-rollover.js instead checks for an existing
+-- global row before writing one, which is simpler than fighting a partial
+-- index through PostgREST's upsert for what's one row a month.
+create table season_results (
+  id uuid primary key default gen_random_uuid(),
+  scope text not null check (scope in ('global', 'group')),
+  group_id uuid references groups(id) on delete cascade,
+  period text not null, -- 'YYYY-MM' for the calendar month that just finished
+  winner_user_id uuid references profiles(id) on delete set null,
+  winner_name text not null,
+  profit numeric not null,
+  roi numeric,
+  win_rate numeric,
+  settled_count integer not null,
+  created_at timestamptz not null default now(),
+  check ((scope = 'group') = (group_id is not null)),
+  unique (group_id, period)
+);
+
+alter table season_results enable row level security;
+
+-- Group rows: members only, same rule as every other group-scoped table.
+-- Global rows have no policy at all here on purpose - HallOfFamePage.jsx's
+-- "Season champions" section reads them through
+-- netlify/functions/hall-of-fame.js's existing service-role client (bypasses
+-- RLS, same as every other record on that page) rather than opening a
+-- second public-read policy for a single section. No insert/update/delete
+-- policy either way - only season-rollover.js's service-role key writes
+-- here, same pattern as auto-settle.js.
+create policy "group members read their group's season results" on season_results for select using (
+  scope = 'group' and is_group_member(group_id, auth.uid())
+);

@@ -1,6 +1,6 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { computeGroupLeaderboard, computeGroupClvLeaderboard } from './groupLeaderboard.js'
+import { computeGroupLeaderboard, computeGroupClvLeaderboard, computeSeasonWinner } from './groupLeaderboard.js'
 
 // A group bet post. Defaults to a settled win; override per case.
 const post = (over) => ({
@@ -94,4 +94,21 @@ test('computeGroupClvLeaderboard does not drop stake-hidden posts', () => {
   ]
   const ranked = computeGroupClvLeaderboard(posts, names, closes, 'all')
   assert.equal(ranked.length, 1)
+})
+
+test('computeSeasonWinner picks the top-profit member settled within the given month', () => {
+  const posts = [
+    post({ userId: 'A', settledAt: '2026-07-15T12:00:00Z' }), // +£10 in July
+    post({ userId: 'A', settledAt: '2026-07-20T12:00:00Z' }), // +£10 in July -> £20 total
+    post({ userId: 'B', settledAt: '2026-07-18T12:00:00Z' }), // +£10 in July
+    post({ userId: 'A', settledAt: '2026-08-02T12:00:00Z' }) // outside the period entirely
+  ]
+  const winner = computeSeasonWinner(posts, names, '2026-07')
+  assert.equal(winner.userId, 'A')
+  assert.equal(winner.profit, 20)
+})
+
+test('computeSeasonWinner returns null when nothing settled in that month', () => {
+  const posts = [post({ userId: 'A', settledAt: '2026-06-15T12:00:00Z' })]
+  assert.equal(computeSeasonWinner(posts, names, '2026-07'), null)
 })

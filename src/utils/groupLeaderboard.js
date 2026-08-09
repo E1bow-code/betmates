@@ -5,7 +5,7 @@
 // reputation context). Extracted so the two callers can't drift apart -
 // this used to be inline in Leaderboard.jsx alone.
 import { computeStats } from './trackerStats.js'
-import { isWithinWindow } from './dateWindows.js'
+import { isWithinWindow, isWithinPeriod } from './dateWindows.js'
 import { clvSummary } from './clv.js'
 
 export function computeGroupLeaderboard(posts, memberNames, window = 'all') {
@@ -48,4 +48,21 @@ export function computeGroupClvLeaderboard(posts, memberNames, closes, window = 
     .filter((row) => row.clv)
     .sort((a, b) => b.clv.avgPct - a.clv.avgPct)
     .map((row, i) => ({ ...row, rank: i + 1 }))
+}
+
+// netlify/functions/season-rollover.js's core decision: who was #1 by
+// profit in a group (or, for the global season, across every public post -
+// callers just pass the whole app's public posts as if it were one big
+// group) for a calendar month that's already finished. Filters to the
+// period first, then hands off to computeGroupLeaderboard itself with
+// window='all' - the period boundary is drawn exactly once, here, rather
+// than composing two different kinds of date filtering in the same call
+// and risking them fighting each other. Returns null (not an empty row)
+// when nobody settled anything that month, so a dead group doesn't get an
+// empty trophy - same "omit rather than show nothing meaningful" rule
+// computeGroupClvLeaderboard already follows for a thin sample.
+export function computeSeasonWinner(posts, memberNames, period) {
+  const periodPosts = posts.filter((post) => isWithinPeriod(post.settledAt, period))
+  const rows = computeGroupLeaderboard(periodPosts, memberNames, 'all')
+  return rows[0] ?? null
 }

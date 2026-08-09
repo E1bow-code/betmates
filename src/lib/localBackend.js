@@ -1007,6 +1007,14 @@ export function getOddsSnapshotSeries(_fixtureId) {
   return delay({})
 }
 
+// No local equivalent of season-rollover.js (a scheduled function needs a
+// real backend) - past seasons just never accumulate in local mode, same
+// honest gap as coach-settle.js's recommendations never settling locally.
+/** @param {string} _groupId @returns {Promise<{period: string, winnerUserId: string|null, winnerName: string, profit: number, roi: number|null, winRate: number|null, settledCount: number}[]>} */
+export function listSeasonResults(_groupId) {
+  return delay([])
+}
+
 // --- Push subscriptions -------------------------------------------------
 // No server to send a push from in local mode - the real subscribe/permission
 // flow in src/lib/push.js still runs, this just has nowhere to persist it.

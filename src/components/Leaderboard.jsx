@@ -1,6 +1,7 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { computeGroupLeaderboard, computeGroupClvLeaderboard } from '../utils/groupLeaderboard.js'
-import { LEADERBOARD_WINDOWS } from '../utils/dateWindows.js'
+import { LEADERBOARD_WINDOWS, formatPeriod } from '../utils/dateWindows.js'
+import * as dataStore from '../lib/dataStore.js'
 import Avatar from './Avatar.jsx'
 import ShareLeaderboardButton from './ShareLeaderboardButton.jsx'
 
@@ -17,10 +18,22 @@ import ShareLeaderboardButton from './ShareLeaderboardButton.jsx'
 // still works for any caller that doesn't fetch closing lines - the CLV
 // tab just won't have any rows to show.
 
-export default function Leaderboard({ posts, memberNames, currentUserId, closes = {} }) {
+export default function Leaderboard({ posts, memberNames, currentUserId, closes = {}, groupId }) {
   const [expanded, setExpanded] = useState(false)
   const [timeWindow, setTimeWindow] = useState('all')
   const [metric, setMetric] = useState('profit')
+  const [seasons, setSeasons] = useState(null)
+
+  // Past champions only matter once the leaderboard itself is open, and
+  // groupId is optional (older/other callers than GroupFeedPage.jsx just
+  // won't get the strip) - no point fetching a list nobody will see.
+  useEffect(() => {
+    if (!expanded || !groupId) return
+    dataStore
+      .listSeasonResults(groupId)
+      .then(setSeasons)
+      .catch(() => setSeasons([]))
+  }, [expanded, groupId])
 
   const hasAnySettled = posts.some((p) => !p.stakeHidden && p.stake && ['won', 'lost', 'void'].includes(p.status))
   if (!hasAnySettled) return null
@@ -103,6 +116,22 @@ export default function Leaderboard({ posts, memberNames, currentUserId, closes 
                   </span>
                 </div>
               ))}
+            </div>
+          )}
+          {seasons && seasons.length > 0 && (
+            <div className="season-champions">
+              <p className="season-champions-title">🏆 Past champions</p>
+              <div className="season-champions-list">
+                {seasons.map((s) => (
+                  <div key={s.period} className="season-champions-row">
+                    <span className="season-champions-period">{formatPeriod(s.period)}</span>
+                    <span className="season-champions-name">{s.winnerName}</span>
+                    <span className={`season-champions-profit ${s.profit >= 0 ? 'tone-good' : 'tone-bad'}`}>
+                      {s.profit >= 0 ? '+' : ''}£{s.profit.toFixed(2)}
+                    </span>
+                  </div>
+                ))}
+              </div>
             </div>
           )}
         </>

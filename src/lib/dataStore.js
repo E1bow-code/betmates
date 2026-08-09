@@ -1321,6 +1321,35 @@ export async function getClosingLines(fixtureIds) {
   return out
 }
 
+// Past months' group leaderboard winners, most recent first - the permanent
+// half of Leaderboard.jsx's "Past champions" strip. Written once a month by
+// netlify/functions/season-rollover.js; nothing here writes to
+// season_results client-side (see supabase/schema.sql - there's no insert
+// policy for it). Global-scope rows aren't fetched through here at all -
+// HallOfFamePage.jsx reads those via netlify/functions/hall-of-fame.js's
+// service-role client instead, same as every other record on that page.
+/** @param {string} groupId @returns {Promise<{period: string, winnerUserId: string|null, winnerName: string, profit: number, roi: number|null, winRate: number|null, settledCount: number}[]>} */
+export async function listSeasonResults(groupId) {
+  if (!isSupabaseConfigured) return local.listSeasonResults(groupId)
+  const { data, error } = await supabase
+    .from('season_results')
+    .select('period,winner_user_id,winner_name,profit,roi,win_rate,settled_count')
+    .eq('scope', 'group')
+    .eq('group_id', groupId)
+    .order('period', { ascending: false })
+    .limit(12)
+  if (error) throw error
+  return data.map((row) => ({
+    period: row.period,
+    winnerUserId: row.winner_user_id,
+    winnerName: row.winner_name,
+    profit: Number(row.profit),
+    roi: row.roi === null ? null : Number(row.roi),
+    winRate: row.win_rate === null ? null : Number(row.win_rate),
+    settledCount: row.settled_count
+  }))
+}
+
 // The full snapshot HISTORY for one fixture, grouped per outcome - what
 // src/utils/sharpMoney.js needs to detect real movement over time, as
 // opposed to getClosingLines above which only cares about the single

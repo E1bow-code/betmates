@@ -1828,6 +1828,33 @@ button.conversation-row { width: 100%; background: none; border: none; border-bo
 .leaderboard-meta { color: var(--text-dim); font-size: 0.75rem; font-family: var(--font-mono); font-variant-numeric: tabular-nums; }
 .leaderboard-list-standalone { margin-top: 10px; }
 
+/* Leaderboard.jsx's "Past champions" strip - deliberately quieter than the
+   live standings above (smaller text, no rank/avatar column) since these
+   are archived history, not something to act on right now. */
+.season-champions { margin-top: 14px; }
+.season-champions-title { font-size: 0.8rem; font-weight: 700; color: var(--text-dim); margin: 0 0 4px; }
+.season-champions-list {
+  display: flex;
+  flex-direction: column;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  overflow: hidden;
+}
+.season-champions-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 6px 12px;
+  border-bottom: 1px solid var(--border);
+  font-size: 0.78rem;
+}
+.season-champions-list .season-champions-row:last-child { border-bottom: none; }
+.season-champions-period { color: var(--text-dim); width: 92px; flex-shrink: 0; }
+.season-champions-name { flex: 1; font-weight: 600; }
+.season-champions-profit { font-weight: 700; font-family: var(--font-mono); font-variant-numeric: tabular-nums; }
+.season-champions-profit.tone-good { color: var(--accent); }
+.season-champions-profit.tone-bad { color: var(--bad); }
+
 /* Bet feed / bet cards - a rounded post card with its own nested
    "ticket" block for the actual bet-slip content (see .bet-card-ticket
    below), rather than a flat sharp-cornered slip. */
