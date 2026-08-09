@@ -47,6 +47,14 @@ function summariseFixture(fixture) {
 // the value edge is computed here (reusing the exact same computeBestValue
 // the Odds tab's own "value on the board" flag uses) rather than handing
 // the model a raw allOdds array to reason about itself.
+//
+// raceId/horseId are real ids, not shown for the model to describe the
+// runner (course/raceName/horse already cover that) - they're here purely
+// so lock_in_recommendation's forced follow-up call has real values to
+// echo back. Without them the model had nothing but the human-readable
+// race name and horse name to fill those fields with, which never matched
+// groundRunner's actual raceId/horseId and silently dropped every racing
+// recommendation - confirmed live via a debug field on a real call.
 function summariseRunner(race, runner) {
   return {
     course: race.course,
@@ -57,7 +65,9 @@ function summariseRunner(race, runner) {
     trainer: runner.trainer,
     bestPrice: runner.bestOdds?.decimal,
     bestBookmaker: runner.bestOdds?.bookmaker,
-    valueEdge: computeBestValue(runner.allOdds)
+    valueEdge: computeBestValue(runner.allOdds),
+    raceId: race.id,
+    horseId: runner.id
   }
 }
 
