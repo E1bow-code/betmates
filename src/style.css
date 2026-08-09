@@ -1001,6 +1001,32 @@ button.conversation-row { width: 100%; background: none; border: none; border-bo
 
 .self-exclude-options { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 8px; }
 
+.premium-gate {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 12px 14px;
+  border: 1px dashed var(--border);
+  border-radius: 12px;
+  background: color-mix(in srgb, var(--accent) 6%, transparent);
+}
+.premium-gate-lock { font-size: 1.1em; }
+.premium-gate-label { flex: 1; font-size: 0.9em; color: var(--text-dim); }
+
+.premium-upsell {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  flex-wrap: wrap;
+  padding: 10px 14px;
+  border: 1px dashed var(--border);
+  border-radius: 12px;
+  background: color-mix(in srgb, var(--accent) 6%, transparent);
+  margin: 8px 0;
+}
+.premium-upsell p { margin: 0; font-size: 0.9em; color: var(--text-dim); }
+
 .mode-switcher { display: flex; gap: 2px; margin: 4px 0 2px; border: 1px solid var(--border); border-radius: 999px; overflow: hidden; width: fit-content; }
 /* Also used as a plain <Link> (Home's Tips pill, which navigates rather
    than toggling state) alongside the <button> tabs, hence the anchor

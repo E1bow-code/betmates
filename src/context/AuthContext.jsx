@@ -73,6 +73,17 @@ export function AuthProvider({ children }) {
     setUser(null)
   }, [])
 
+  // Re-pulls the full profile row rather than an optimistic patch - unlike
+  // every updateX below, premium status changes server-side (Stripe
+  // webhook) after the user's already left the app for Checkout, so there's
+  // nothing local to merge in. Used once on return from a successful
+  // checkout (see AccountPage's ?upgraded=1 handling) to pick up
+  // is_premium without needing a manual page reload.
+  const refreshUser = useCallback(async () => {
+    const fresh = await dataStore.getSession()
+    if (fresh) setUser(fresh)
+  }, [])
+
   const deleteAccount = useCallback(async () => {
     if (!user) return
     await dataStore.deleteAccount(user.id)
@@ -169,7 +180,8 @@ export function AuthProvider({ children }) {
         updateStakeLimit,
         updateLimitBuddy,
         updateStakingPlan,
-        updateSelfExclusion
+        updateSelfExclusion,
+        refreshUser
       }}
     >
       {children}

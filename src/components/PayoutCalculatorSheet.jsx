@@ -4,6 +4,7 @@ import { useAuth } from '../context/AuthContext.jsx'
 import { parseOddsInput } from '../utils/oddsFormat.js'
 import { kellyStake } from '../utils/kelly.js'
 import { useEscapeKey } from '../lib/useEscapeKey.js'
+import PremiumGate from './PremiumGate.jsx'
 
 const KELLY_FRACTIONS = [
   { value: 0.25, label: 'Quarter' },
@@ -97,6 +98,7 @@ export default function PayoutCalculatorButton() {
             )}
 
             {decimal > 1 && (
+              <PremiumGate isPremium={!!user?.isPremium} label="The Kelly staking calculator">
               <div className="kelly-calc">
                 <p className="kelly-calc-title">Kelly stake (optional)</p>
                 <p className="hint">
@@ -145,6 +147,7 @@ export default function PayoutCalculatorButton() {
                   </div>
                 )}
               </div>
+              </PremiumGate>
             )}
 
             <button className="btn btn-secondary" onClick={close} type="button">

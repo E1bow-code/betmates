@@ -10,6 +10,7 @@ import SportHeroBanner from '../components/SportHeroBanner.jsx'
 import ShareRecapButton from '../components/ShareRecapButton.jsx'
 import CoachTake from '../components/CoachTake.jsx'
 import CrowdWisdomPanel from '../components/CrowdWisdomPanel.jsx'
+import PremiumGate from '../components/PremiumGate.jsx'
 import EmptyState from '../components/EmptyState.jsx'
 
 export default function InsightsPage() {
@@ -36,6 +37,11 @@ export default function InsightsPage() {
   const insights = computeInsights(entries, closes)
   const rows = insights.map((i) => ({ label: i.title, value: i.value }))
   const badBeats = findBadBeats(entries, 5)
+  // Money left on the table is the one Plus-gated card in this list -
+  // pulled out and rendered separately (still shown, just behind a lock
+  // for a free user) rather than filtered away entirely.
+  const moneyLeftInsight = insights.find((i) => i.key === 'moneyLeftOnTable')
+  const freeInsights = insights.filter((i) => i.key !== 'moneyLeftOnTable')
 
   return (
     <div>
@@ -57,7 +63,7 @@ export default function InsightsPage() {
       {insights.length > 0 && (
         <>
           <div className="tracker-list">
-            {insights.map((i) => (
+            {freeInsights.map((i) => (
               <div key={i.key} className="tracker-row icon-row">
                 <span className="icon-row-badge">{i.icon}</span>
                 <div className="tracker-row-main">
@@ -67,6 +73,19 @@ export default function InsightsPage() {
               </div>
             ))}
           </div>
+          {moneyLeftInsight && (
+            <PremiumGate isPremium={user.isPremium} label="Money left on the table">
+              <div className="tracker-list">
+                <div className="tracker-row icon-row">
+                  <span className="icon-row-badge">{moneyLeftInsight.icon}</span>
+                  <div className="tracker-row-main">
+                    <div className="selection-event">{moneyLeftInsight.title}</div>
+                    <div className="race-card-meta">{moneyLeftInsight.value}</div>
+                  </div>
+                </div>
+              </div>
+            </PremiumGate>
+          )}
           <div className="account-section">
             <ShareRecapButton rows={rows} periodLabel="your insights" />
           </div>
@@ -74,7 +93,7 @@ export default function InsightsPage() {
       )}
 
       {badBeats.length > 0 && (
-        <>
+        <PremiumGate isPremium={user.isPremium} label="Agony column">
           <h3 className="market-title">Agony column</h3>
           <p className="hint">Multis that lost with just one leg wrong - the ones that got away.</p>
           <div className="tracker-list">
@@ -95,10 +114,12 @@ export default function InsightsPage() {
               </div>
             ))}
           </div>
-        </>
+        </PremiumGate>
       )}
 
-      <CrowdWisdomPanel userId={user.id} />
+      <PremiumGate isPremium={user.isPremium} label="Crowd wisdom calibration">
+        <CrowdWisdomPanel userId={user.id} />
+      </PremiumGate>
     </div>
   )
 }

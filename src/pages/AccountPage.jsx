@@ -1,9 +1,10 @@
 import { useEffect, useState } from 'react'
-import { Link } from 'react-router-dom'
+import { Link, useLocation, useNavigate } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext.jsx'
 import { useOddsFormat } from '../context/OddsFormatContext.jsx'
 import { BOOKMAKERS } from '../lib/bookmakers.js'
 import * as dataStore from '../lib/dataStore.js'
+import { startPremiumCheckout } from '../api/premiumClient.js'
 import { isPushSupported, getPushSubscription, subscribeToPush, unsubscribeFromPush } from '../lib/push.js'
 import { getStoredTheme, setTheme } from '../lib/theme.js'
 import { isIOS, isStandalone } from '../lib/platform.js'
@@ -61,8 +62,11 @@ export default function AccountPage() {
     updateStakeLimit,
     updateLimitBuddy,
     updateStakingPlan,
-    updateSelfExclusion
+    updateSelfExclusion,
+    refreshUser
   } = useAuth()
+  const location = useLocation()
+  const navigate = useNavigate()
   const { format: oddsFormat, setFormat: setOddsFormat } = useOddsFormat()
   const [pushEnabled, setPushEnabled] = useState(false)
   const [pushBusy, setPushBusy] = useState(false)
@@ -96,6 +100,8 @@ export default function AccountPage() {
   const [friends, setFriends] = useState(null)
   const [buddySaving, setBuddySaving] = useState(false)
   const [exclusionSaving, setExclusionSaving] = useState(false)
+  const [checkoutBusy, setCheckoutBusy] = useState(null)
+  const [checkoutError, setCheckoutError] = useState(null)
   const [expandedGroups, setExpandedGroups] = useState(loadExpandedGroups)
   const [trackerStats, setTrackerStats] = useState(null)
   const [xpCounts, setXpCounts] = useState(null)
@@ -120,6 +126,33 @@ export default function AccountPage() {
     if (!isPushSupported()) return
     getPushSubscription().then((sub) => setPushEnabled(!!sub))
   }, [])
+
+  // Stripe redirects back here with ?upgraded=1 after a successful
+  // Checkout - the webhook that actually flips is_premium fires
+  // asynchronously and may not have landed yet, hence the one retry rather
+  // than a single fetch. Query param is stripped either way so a later
+  // manual refresh of this page doesn't re-trigger it.
+  useEffect(() => {
+    if (!new URLSearchParams(location.search).get('upgraded')) return
+    navigate(location.pathname, { replace: true })
+    refreshUser()
+    const retry = setTimeout(refreshUser, 3000)
+    return () => clearTimeout(retry)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [location.search])
+
+  async function handleUpgrade(plan) {
+    setCheckoutBusy(plan)
+    setCheckoutError(null)
+    const accessToken = await dataStore.getAccessToken()
+    const res = await startPremiumCheckout({ accessToken, plan })
+    if (res.url) {
+      window.location.href = res.url
+      return
+    }
+    setCheckoutBusy(null)
+    setCheckoutError(res.configured === false ? "Payments aren't set up yet - check back soon." : res.error || 'Something went wrong - try again.')
+  }
 
   useEffect(() => {
     dataStore.listBlockedUsers(user.id).then(setBlockedUsers)
@@ -466,6 +499,33 @@ export default function AccountPage() {
           <span className="rank-teaser-chevron">›</span>
         </Link>
       )}
+
+      <div className="account-section" id="plus">
+        <h2 className="market-title">BetMates Plus</h2>
+        {user.isPremium ? (
+          <p className="hint">
+            You&apos;re on Plus{user.premiumUntil ? ` - renews ${new Date(user.premiumUntil).toLocaleDateString()}` : ''}. Unlimited
+            CoachGPT and the full Insights suite are unlocked.
+          </p>
+        ) : (
+          <>
+            <p className="hint">
+              Unlimited CoachGPT (free plan gets 10 messages a month) and the advanced analytics layer - CLV leaderboard, sharp-money
+              indicator, crowd wisdom calibration, bad beats, money-left-on-the-table, discipline streak, cash-out replay, and the
+              Kelly staking calculator. Everything else on BetMates stays free either way.
+            </p>
+            <div className="self-exclude-options">
+              <button className="btn btn-primary btn-small" disabled={!!checkoutBusy} onClick={() => handleUpgrade('monthly')}>
+                {checkoutBusy === 'monthly' ? 'Redirecting…' : '£2.99/month'}
+              </button>
+              <button className="btn btn-ghost btn-small" disabled={!!checkoutBusy} onClick={() => handleUpgrade('annual')}>
+                {checkoutBusy === 'annual' ? 'Redirecting…' : '£24.99/year'}
+              </button>
+            </div>
+            {checkoutError && <p className="error">{checkoutError}</p>}
+          </>
+        )}
+      </div>
 
       <AccountGroup id="preferences" title="Preferences" expanded={expandedGroups} onToggle={toggleGroup}>
         <div className="account-section">

@@ -1,10 +1,12 @@
 import { useEffect, useState } from 'react'
+import { useAuth } from '../context/AuthContext.jsx'
 import { computeGroupLeaderboard, computeGroupClvLeaderboard } from '../utils/groupLeaderboard.js'
 import { LEADERBOARD_WINDOWS, formatPeriod } from '../utils/dateWindows.js'
 import * as dataStore from '../lib/dataStore.js'
 import Avatar from './Avatar.jsx'
 import ShareLeaderboardButton from './ShareLeaderboardButton.jsx'
 import ReferralTierBadge from './ReferralTierBadge.jsx'
+import PremiumGate from './PremiumGate.jsx'
 
 // Section 2C's "aggregate group leaderboard" - ranks members of a single
 // group by P&L using the same computeStats math as the personal Tracker,
@@ -20,6 +22,7 @@ import ReferralTierBadge from './ReferralTierBadge.jsx'
 // tab just won't have any rows to show.
 
 export default function Leaderboard({ posts, memberNames, currentUserId, closes = {}, groupId, referralCounts = {} }) {
+  const { user } = useAuth()
   const [expanded, setExpanded] = useState(false)
   const [timeWindow, setTimeWindow] = useState('all')
   const [metric, setMetric] = useState('profit')
@@ -105,25 +108,27 @@ export default function Leaderboard({ posts, memberNames, currentUserId, closes 
             </div>
           )}
           {rows.length > 0 && metric === 'clv' && (
-            <div className="leaderboard-list">
-              {rows.map((row) => (
-                <div key={row.userId} className={row.rank === 1 ? 'leaderboard-row leaderboard-row-top' : 'leaderboard-row'}>
-                  <span className="leaderboard-rank">#{row.rank}</span>
-                  <Avatar name={row.name} size={24} />
-                  <span className="leaderboard-name">
-                    {row.name}
-                    <ReferralTierBadge count={referralCounts[row.userId]} />
-                  </span>
-                  <span className={`leaderboard-pnl ${row.clv.avgPct >= 0 ? 'tone-good' : 'tone-bad'}`}>
-                    {row.clv.avgPct >= 0 ? '+' : ''}
-                    {row.clv.avgPct}%
-                  </span>
-                  <span className="leaderboard-meta">
-                    Beat the close {row.clv.beatRate}% of the time · {row.clv.sample} bet{row.clv.sample === 1 ? '' : 's'}
-                  </span>
-                </div>
-              ))}
-            </div>
+            <PremiumGate isPremium={user.isPremium} label="The CLV leaderboard">
+              <div className="leaderboard-list">
+                {rows.map((row) => (
+                  <div key={row.userId} className={row.rank === 1 ? 'leaderboard-row leaderboard-row-top' : 'leaderboard-row'}>
+                    <span className="leaderboard-rank">#{row.rank}</span>
+                    <Avatar name={row.name} size={24} />
+                    <span className="leaderboard-name">
+                      {row.name}
+                      <ReferralTierBadge count={referralCounts[row.userId]} />
+                    </span>
+                    <span className={`leaderboard-pnl ${row.clv.avgPct >= 0 ? 'tone-good' : 'tone-bad'}`}>
+                      {row.clv.avgPct >= 0 ? '+' : ''}
+                      {row.clv.avgPct}%
+                    </span>
+                    <span className="leaderboard-meta">
+                      Beat the close {row.clv.beatRate}% of the time · {row.clv.sample} bet{row.clv.sample === 1 ? '' : 's'}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            </PremiumGate>
           )}
           {seasons && seasons.length > 0 && (
             <div className="season-champions">

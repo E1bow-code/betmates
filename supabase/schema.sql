@@ -1360,3 +1360,48 @@ create policy "admins restore auto-hidden posts" on bet_posts for update using (
 ) with check (
   exists (select 1 from profiles p where p.id = auth.uid() and p.is_admin)
 );
+
+-- --- BetMates Plus / Stripe subscriptions (P2-M) --------------------------
+-- Free stays the full tracker/social/groups/leaderboard experience -
+-- Plus (£2.99/mo or £24.99/yr) gates two things: CoachGPT beyond a small
+-- free monthly allowance (netlify/functions/coachgpt.js - the one feature
+-- with a real per-message Anthropic cost) and the "for people who take
+-- this seriously" analytics layer (CLV leaderboard, sharp-money indicator,
+-- crowd wisdom calibration, bad beats, money-left-on-the-table, discipline
+-- streak, cash-out replay, Kelly staking calculator) which costs nothing
+-- extra to serve but is real premium value.
+--
+-- Same problem as self_exclusion_until: "update own profile" has no with
+-- check, so a plain column add would let a raw API call self-grant
+-- premium for free. Guarded the same way (guard_is_admin/
+-- guard_self_exclusion above) - only requests NOT arriving as
+-- anon/authenticated can write these, which in practice means only
+-- stripe-webhook.js (service role, driven by a Stripe-signed event) and
+-- create-checkout-session.js (service role, to stash the Stripe customer
+-- id) ever touch them.
+alter table profiles add column if not exists is_premium boolean not null default false;
+alter table profiles add column if not exists premium_until timestamptz;
+alter table profiles add column if not exists stripe_customer_id text;
+alter table profiles add column if not exists stripe_subscription_id text;
+
+create or replace function guard_premium_fields()
+returns trigger
+language plpgsql
+security definer
+set search_path = public
+as $$
+begin
+  if auth.role() in ('anon', 'authenticated') then
+    new.is_premium := old.is_premium;
+    new.premium_until := old.premium_until;
+    new.stripe_customer_id := old.stripe_customer_id;
+    new.stripe_subscription_id := old.stripe_subscription_id;
+  end if;
+  return new;
+end;
+$$;
+
+drop trigger if exists guard_premium_fields_on_profiles on profiles;
+create trigger guard_premium_fields_on_profiles
+  before update on profiles
+  for each row execute function guard_premium_fields();

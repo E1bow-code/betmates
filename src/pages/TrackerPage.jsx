@@ -210,7 +210,7 @@ export default function TrackerPage() {
       // credited for discipline it's never been tested on.
       const disciplineStreak = computeDisciplineStreak(entries)
       const hasLoss = entries.some((e) => e.status === 'lost')
-      return hasLoss && disciplineStreak >= 3 && { icon: '🧊', label: `${disciplineStreak} bets without chasing a loss` }
+      return user.isPremium && hasLoss && disciplineStreak >= 3 && { icon: '🧊', label: `${disciplineStreak} bets without chasing a loss` }
     })()
   ].filter(Boolean)
 
@@ -388,7 +388,14 @@ export default function TrackerPage() {
                     </div>
                   ) : null}
                   {clv ? <ClvTag clv={clv} /> : lineValue ? <LineValueTag lv={lineValue} /> : null}
-                  <CashOutReplay replay={cashOut} actualReturn={entry.potentialReturn != null ? Number(entry.potentialReturn) : null} />
+                  {/* Cash-out replay is Plus-only (P2-M) - suppressed rather than shown behind an
+                      inline lock for a free user, since it already only renders per-row when there's
+                      real snapshot data to replay; the Account page's Plus section is where this gets
+                      discovered, not a per-row upsell in a dense list. */}
+                  <CashOutReplay
+                    replay={user.isPremium ? cashOut : null}
+                    actualReturn={entry.potentialReturn != null ? Number(entry.potentialReturn) : null}
+                  />
                   {entry.status !== 'open' && <BetReviewButton entry={entry} />}
                 </div>
                 <div className="tracker-row-status">

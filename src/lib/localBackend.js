@@ -205,6 +205,8 @@ export function signUp({ email, displayName, dob, referredByCode }) {
     streakLastLoggedDate: null,
     streakFreezesUsed: 0,
     selfExclusionUntil: null,
+    isPremium: false,
+    premiumUntil: null,
     referredBy: referrer?.id ?? null
   }
   db.users.push(user)

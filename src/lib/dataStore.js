@@ -37,6 +37,8 @@ import { freezesGranted, computeStreakTransition } from '../utils/dailyStreak.js
  * @property {string|null} streakLastLoggedDate
  * @property {number} streakFreezesUsed
  * @property {string|null} selfExclusionUntil
+ * @property {boolean} isPremium
+ * @property {string|null} premiumUntil
  */
 /**
  * @typedef {object} Group
@@ -201,7 +203,9 @@ function mapProfile(row) {
     streakCurrentCount: row.streak_current_count ?? 0,
     streakLastLoggedDate: row.streak_last_logged_date ?? null,
     streakFreezesUsed: row.streak_freezes_used ?? 0,
-    selfExclusionUntil: row.self_exclusion_until ?? null
+    selfExclusionUntil: row.self_exclusion_until ?? null,
+    isPremium: row.is_premium ?? false,
+    premiumUntil: row.premium_until ?? null
   }
 }
 
@@ -268,6 +272,19 @@ export async function getSession() {
   if (!authUser) return null
   const { data: profile } = await supabase.from('profiles').select('*').eq('id', authUser.id).single()
   return mapProfile(profile)
+}
+
+// The raw Supabase access token, for the handful of Netlify functions that
+// verify the caller's identity themselves (delete-account.js, coachgpt.js's
+// free-allowance check, create-checkout-session.js) rather than trusting a
+// client-supplied user id. null in local/no-backend mode - there's no real
+// session to hand over, and every caller of this already treats a missing
+// token as "can't check, so don't gate."
+/** @returns {Promise<string|null>} */
+export async function getAccessToken() {
+  if (!isSupabaseConfigured) return null
+  const { data } = await supabase.auth.getSession()
+  return data.session?.access_token ?? null
 }
 
 /**

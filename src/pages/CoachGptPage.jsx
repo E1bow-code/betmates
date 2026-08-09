@@ -96,6 +96,7 @@ export default function CoachGptPage() {
   const [error, setError] = useState(null)
   const [showHistory, setShowHistory] = useState(false)
   const [recordMessages, setRecordMessages] = useState(null)
+  const [limited, setLimited] = useState(false)
   const runAsync = useAsyncAction()
   const prefillSent = useRef(false)
   // CoachGPT's overall pick record spans every past conversation, not just
@@ -161,14 +162,27 @@ export default function CoachGptPage() {
     const priorGrounding = [...(messages ?? [])].reverse().find((m) => m.grounding)?.grounding ?? null
     setMessages((m) => [...(m ?? []), userMessage])
     setSending(true)
+    setLimited(false)
 
+    let blocked = false
     const ok = await runAsync(async () => {
-      await dataStore.addCoachMessage({ userId: user.id, sessionId, role: 'user', body })
-      const res = await sendCoachGptMessage({ message: body, history, priorGrounding })
+      // Checked before persisting the user's own message - a blocked call
+      // shouldn't burn a slot of the free monthly allowance it never
+      // actually used (coachgpt.js counts messages already in the DB), and
+      // there'd be nothing to show a reply under anyway.
+      const accessToken = await dataStore.getAccessToken()
+      const res = await sendCoachGptMessage({ message: body, history, priorGrounding, accessToken })
       if (!res.configured) {
         setUnavailable(true)
+        blocked = true
         return
       }
+      if (res.limited) {
+        setLimited(true)
+        blocked = true
+        return
+      }
+      await dataStore.addCoachMessage({ userId: user.id, sessionId, role: 'user', body })
       // res.reply can still come back empty on a genuine Anthropic failure
       // (bad key, network blip) even though the request itself succeeded -
       // that must never just vanish silently, or it reads exactly like the
@@ -189,7 +203,7 @@ export default function CoachGptPage() {
       setMessages((m) => [...(m ?? []), assistantMessage])
     }, "Couldn't reach the Coach - try again")
     setSending(false)
-    if (!ok) setMessages((m) => (m ?? []).filter((x) => x.id !== userMessage.id))
+    if (!ok || blocked) setMessages((m) => (m ?? []).filter((x) => x.id !== userMessage.id))
   }
 
   function handleSend(e) {
@@ -232,6 +246,14 @@ export default function CoachGptPage() {
       {error && <div className="error">Couldn't load your conversation: {error}</div>}
       {unavailable && (
         <div className="error">CoachGPT isn&apos;t set up on this environment right now - the rest of the app works as normal.</div>
+      )}
+      {limited && (
+        <div className="premium-upsell">
+          <p>You&apos;ve used your 10 free CoachGPT messages this month.</p>
+          <Link className="btn btn-primary btn-small" to="/account#plus">
+            Upgrade to Plus for unlimited
+          </Link>
+        </div>
       )}
 
       <div className="group-chat">

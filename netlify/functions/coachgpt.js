@@ -1,18 +1,56 @@
-// CoachGPT chat proxy - unlike coach.js this needs no Supabase access and
-// no auth check at all: the client sends its own recent conversation
-// turns (same trust level as the stats summary coach.js already accepts
-// as-is) and the new message, this function talks to Claude (with tool
-// use) and returns the reply text. Persistence of the conversation is the
-// client's job via the ordinary data layer (dataStore.js's
+// CoachGPT chat proxy - the client sends its own recent conversation turns
+// (same trust level as the stats summary coach.js already accepts as-is)
+// and the new message, this function talks to Claude (with tool use) and
+// returns the reply text. Persistence of the conversation is the client's
+// job via the ordinary data layer (dataStore.js's
 // listCoachMessages/addCoachMessage), not this function's.
 //
 // Missing ANTHROPIC_API_KEY degrades like every other proxy here:
 // { configured: false } at HTTP 200, never a crash.
+//
+// One real auth check DOES exist here now (P2-M): the free/Plus message
+// allowance needs to know who's asking, so the client sends its Supabase
+// access token and this function creates a client authenticated AS that
+// user (Authorization header, not the service-role key) - RLS's own
+// "user reads own profile"/"user reads own coach messages" policies do
+// the actual access control, no admin client needed for a read-only check.
+import { createClient } from '@supabase/supabase-js'
 import { runCoachGptTurn } from '../../src/lib/coachgpt.js'
 import { matchFixtureQuery, matchRaceQuery } from '../../src/utils/matchFixtureQuery.js'
 import { computeBestValue } from '../../src/utils/bestValue.js'
 import { getPlayerProfile } from '../../src/lib/playerProfile.js'
 import { GENERIC_SPORTS } from '../../src/lib/sportsConfig.js'
+
+const SUPABASE_URL = process.env.VITE_SUPABASE_URL
+const ANON_KEY = process.env.VITE_SUPABASE_ANON_KEY
+const FREE_MONTHLY_MESSAGE_LIMIT = 10
+
+// Missing accessToken/Supabase config means either local/no-backend mode or
+// a signed-out caller - either way there's no per-user allowance to track,
+// so this degrades to "unlimited" rather than blocking a mode that was
+// never metered in the first place.
+async function checkMessageAllowance(accessToken) {
+  if (!accessToken || !SUPABASE_URL || !ANON_KEY) return { limited: false }
+
+  const userClient = createClient(SUPABASE_URL, ANON_KEY, { global: { headers: { Authorization: `Bearer ${accessToken}` } } })
+  const { data: userData, error: userError } = await userClient.auth.getUser()
+  if (userError || !userData?.user) return { limited: false }
+
+  const { data: profile } = await userClient.from('profiles').select('is_premium').eq('id', userData.user.id).single()
+  if (profile?.is_premium) return { limited: false }
+
+  const startOfMonth = new Date()
+  startOfMonth.setUTCDate(1)
+  startOfMonth.setUTCHours(0, 0, 0, 0)
+  const { count } = await userClient
+    .from('coach_messages')
+    .select('id', { count: 'exact', head: true })
+    .eq('user_id', userData.user.id)
+    .eq('role', 'user')
+    .gte('created_at', startOfMonth.toISOString())
+
+  return { limited: (count ?? 0) >= FREE_MONTHLY_MESSAGE_LIMIT }
+}
 
 function json(body, status = 200) {
   return new Response(JSON.stringify(body), { status, headers: { 'content-type': 'application/json' } })
@@ -265,6 +303,9 @@ export default async (req) => {
 
   const message = body?.message?.trim()
   if (!message) return json({ configured: true, error: 'Missing message' }, 400)
+
+  const { limited } = await checkMessageAllowance(body?.accessToken)
+  if (limited) return json({ configured: true, limited: true, reply: null, grounding: null, recommendation: null })
 
   const siteUrl = process.env.URL || new URL(req.url).origin
 
