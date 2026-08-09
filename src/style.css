@@ -1595,6 +1595,35 @@ button.conversation-row { width: 100%; background: none; border: none; border-bo
 .h2h-meta { font-size: 0.75rem; color: var(--text-dim); margin-top: 2px; }
 .h2h-empty { color: var(--text-dim); font-size: 0.85rem; padding: 10px 0; }
 
+/* ChallengeSection.jsx - a time-boxed slice of the h2h comparison above.
+   Reuses .mode-switcher/.mode-tab for the metric/duration pickers rather
+   than inventing a second pill-row style. */
+.challenge-section { margin-top: 18px; padding-top: 14px; border-top: 1px solid var(--border); }
+.challenge-start { display: flex; flex-direction: column; gap: 8px; margin-top: 8px; }
+.challenge-active {
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  padding: 12px 14px;
+  margin-top: 8px;
+}
+.challenge-active-row { display: flex; align-items: center; justify-content: space-between; padding: 4px 0; font-weight: 600; }
+.challenge-value { font-family: var(--font-mono); font-variant-numeric: tabular-nums; font-weight: 700; color: var(--text-dim); }
+.challenge-value.tone-good { color: var(--accent); }
+.challenge-history { display: flex; flex-direction: column; gap: 6px; margin-top: 10px; }
+.challenge-history-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 10px;
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  font-size: 0.8rem;
+}
+.challenge-history-label { flex: 1; color: var(--text-dim); }
+.challenge-history-score { font-family: var(--font-mono); font-variant-numeric: tabular-nums; font-weight: 700; }
+
 .group-actions { display: flex; gap: 8px; margin: 8px 0 4px; }
 .inline-form { display: flex; gap: 8px; margin: 8px 0; }
 .inline-form input {

@@ -1096,3 +1096,42 @@ alter table season_results enable row level security;
 create policy "group members read their group's season results" on season_results for select using (
   scope = 'group' and is_group_member(group_id, auth.uid())
 );
+
+-- --- Head-to-head challenges -------------------------------------------
+-- Turns HeadToHeadSheet.jsx's always-on, all-time comparison into a real,
+-- time-boxed contest between two friends - pride-based, no real stakes.
+-- Deliberately no status/accept column: this only ever scores bets already
+-- visible to both parties under the exact same shared-groups-plus-public-
+-- feed rule HeadToHeadSheet has always used, so a challenge can't expose
+-- anything a plain "vs" comparison couldn't already show on demand - it's
+-- just that comparison, timestamped and labelled. No cron either: unlike
+-- season_results, a challenge already carries its own fixed starts_at/
+-- ends_at, so ChallengeSection.jsx just recomputes live from those bounds
+-- any time it's viewed, before or after the window closes - a bet that
+-- settles a little late after ends_at still counts correctly instead of
+-- being missed by a snapshot.
+create table challenges (
+  id uuid primary key default gen_random_uuid(),
+  challenger_id uuid not null references profiles(id) on delete cascade,
+  opponent_id uuid not null references profiles(id) on delete cascade,
+  metric text not null check (metric in ('profit', 'roi', 'pickem')),
+  starts_at timestamptz not null default now(),
+  ends_at timestamptz not null,
+  created_at timestamptz not null default now(),
+  check (challenger_id <> opponent_id)
+);
+
+alter table challenges enable row level security;
+
+create policy "participants read their challenges" on challenges for select using (
+  auth.uid() = challenger_id or auth.uid() = opponent_id
+);
+-- Same inline friendship check push_subscriptions' read policy above uses -
+-- no separate is_friend() helper exists in this schema, so this matches
+-- that established shape rather than introducing a new one.
+create policy "user starts a challenge against a real friend" on challenges for insert with check (
+  auth.uid() = challenger_id and exists (
+    select 1 from friendships f
+    where (f.user_a = auth.uid() and f.user_b = opponent_id) or (f.user_b = auth.uid() and f.user_a = opponent_id)
+  )
+);

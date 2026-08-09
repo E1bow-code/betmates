@@ -52,6 +52,7 @@ import { groupCoachSessions } from '../utils/coachSessions.js'
  * @property {Predictor[]} predictors
  * @property {PredictorEntry[]} predictorEntries
  * @property {ErrorLog[]} errorLogs
+ * @property {{id: string, challengerId: string, opponentId: string, metric: 'profit'|'roi'|'pickem', startsAt: string, endsAt: string, createdAt: string}[]} challenges
  */
 
 const DB_KEY = 'betmates.db'
@@ -81,7 +82,8 @@ const EMPTY_DB = {
   fixtureChatMessages: [],
   predictors: [],
   predictorEntries: [],
-  errorLogs: []
+  errorLogs: [],
+  challenges: []
 }
 
 // Merges in any table keys added after a browser's db was first created -
@@ -1138,6 +1140,38 @@ export function listFriends(userId) {
     .filter((f) => f.userA === userId || f.userB === userId)
     .map((f) => (f.userA === userId ? f.userB : f.userA))
   return delay(db.users.filter((u) => friendIds.includes(u.id)).map((u) => ({ id: u.id, displayName: u.displayName })))
+}
+
+/** @param {string} userId @param {string} friendId @returns {Promise<{id: string, challengerId: string, opponentId: string, metric: 'profit'|'roi'|'pickem', startsAt: string, endsAt: string, createdAt: string}[]>} */
+export function listChallengesBetween(userId, friendId) {
+  const db = readDb()
+  return delay(
+    db.challenges
+      .filter(
+        (c) =>
+          (c.challengerId === userId && c.opponentId === friendId) || (c.challengerId === friendId && c.opponentId === userId)
+      )
+      .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
+  )
+}
+
+/** @param {{challengerId: string, opponentId: string, metric: 'profit'|'roi'|'pickem', days: number}} entry */
+export function createChallenge({ challengerId, opponentId, metric, days }) {
+  const db = readDb()
+  const startsAt = new Date()
+  const endsAt = new Date(startsAt.getTime() + days * 24 * 60 * 60 * 1000)
+  const challenge = {
+    id: uid('challenge'),
+    challengerId,
+    opponentId,
+    metric,
+    startsAt: startsAt.toISOString(),
+    endsAt: endsAt.toISOString(),
+    createdAt: startsAt.toISOString()
+  }
+  db.challenges.push(challenge)
+  writeDb(db)
+  return delay(challenge)
 }
 
 // --- Video tips ----------------------------------------------------------

@@ -3,15 +3,19 @@ import { useAuth } from '../context/AuthContext.jsx'
 import * as dataStore from '../lib/dataStore.js'
 import { computeStats } from '../utils/trackerStats.js'
 import { useEscapeKey } from '../lib/useEscapeKey.js'
+import ChallengeSection from './ChallengeSection.jsx'
 
 // Compares two people using only bets both of them could actually see -
 // their shared groups' posts plus the public feed - not either person's
 // private tracker entries, since those were never visible to the other
 // person to begin with and wouldn't be a fair "you vs them" either way.
+// Keeps the raw filtered post arrays in state (not just their all-time
+// stats) so ChallengeSection below can re-window them itself for a
+// time-boxed challenge, rather than fetching everything a second time.
 
 export default function HeadToHeadSheet({ friend, onClose }) {
   const { user } = useAuth()
-  const [rows, setRows] = useState(null)
+  const [posts, setPosts] = useState(null)
   useEscapeKey(onClose)
 
   useEffect(() => {
@@ -19,9 +23,11 @@ export default function HeadToHeadSheet({ friend, onClose }) {
       const visible = [...feed, ...publicFeed].filter((p) => !p.stakeHidden)
       const mine = visible.filter((p) => p.userId === user.id)
       const theirs = visible.filter((p) => p.userId === friend.id)
-      setRows({ mine: computeStats(mine), theirs: computeStats(theirs) })
+      setPosts({ mine, theirs })
     })
   }, [user.id, friend.id])
+
+  const rows = posts && { mine: computeStats(posts.mine), theirs: computeStats(posts.theirs) }
 
   return (
     <div className="sheet-backdrop" onClick={onClose}>
@@ -33,16 +39,20 @@ export default function HeadToHeadSheet({ friend, onClose }) {
         {!rows && <div className="loading">Adding it up…</div>}
 
         {rows && (
-          <div className="h2h-grid">
-            <div className="h2h-col">
-              <div className="h2h-name">You</div>
-              <H2HStats stats={rows.mine} />
+          <>
+            <div className="h2h-grid">
+              <div className="h2h-col">
+                <div className="h2h-name">You</div>
+                <H2HStats stats={rows.mine} />
+              </div>
+              <div className="h2h-col">
+                <div className="h2h-name">{friend.displayName}</div>
+                <H2HStats stats={rows.theirs} />
+              </div>
             </div>
-            <div className="h2h-col">
-              <div className="h2h-name">{friend.displayName}</div>
-              <H2HStats stats={rows.theirs} />
-            </div>
-          </div>
+
+            <ChallengeSection user={user} friend={friend} myPosts={posts.mine} theirPosts={posts.theirs} />
+          </>
         )}
 
         <button className="btn btn-ghost" onClick={onClose}>

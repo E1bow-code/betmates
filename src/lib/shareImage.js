@@ -438,3 +438,103 @@ export async function shareLeaderboardImage(rankInfo) {
   URL.revokeObjectURL(url)
   return 'downloaded'
 }
+
+function drawChallengeColumn(ctx, { x, width, y, name, value, isWinner }) {
+  ctx.textAlign = 'center'
+  const cx = x + width / 2
+  if (isWinner) {
+    ctx.fillStyle = COLORS.accent
+    ctx.font = '22px -apple-system, sans-serif'
+    ctx.fillText('🏆', cx, y - 14)
+  }
+  ctx.fillStyle = COLORS.text
+  ctx.font = '600 20px -apple-system, sans-serif'
+  ctx.fillText(name, cx, y + 16)
+  ctx.fillStyle = isWinner ? COLORS.accent : COLORS.textDim
+  ctx.font = '800 36px ui-monospace, Consolas, monospace'
+  ctx.fillText(value, cx, y + 68)
+  ctx.textAlign = 'left'
+}
+
+// A "you vs them" result card for ChallengeSection.jsx (src/utils/
+// challenge.js's pickChallengeWinner/formatChallengeValue feed the
+// pre-computed winner/value strings in, so this file never re-derives
+// challenge logic itself) - two columns side by side rather than the
+// single-subject layout above, since a challenge is inherently a
+// comparison between two people, not one person's own number.
+export async function renderChallengeImage({ metric, days, nameA, valueA, nameB, valueB, winner }) {
+  const height = 320
+  const padding = 40
+  const colWidth = (WIDTH - padding * 2 - 40) / 2
+  const metricLabel = metric === 'pickem' ? "PICK'EM" : metric === 'roi' ? 'ROI' : 'PROFIT'
+
+  const canvas = document.createElement('canvas')
+  const dpr = Math.min(window.devicePixelRatio || 1, 2)
+  canvas.width = WIDTH * dpr
+  canvas.height = height * dpr
+  const ctx = canvas.getContext('2d')
+  ctx.scale(dpr, dpr)
+
+  ctx.fillStyle = COLORS.bg
+  ctx.fillRect(0, 0, WIDTH, height)
+
+  let y = padding
+  ctx.fillStyle = COLORS.accent
+  ctx.font = '700 24px Georgia, serif'
+  ctx.fillText('BetMates', padding, y)
+  ctx.fillStyle = COLORS.textDim
+  ctx.font = '600 13px -apple-system, sans-serif'
+  ctx.textAlign = 'right'
+  ctx.fillText(`${days}-DAY ${metricLabel} CHALLENGE`, WIDTH - padding, y - 2)
+  ctx.textAlign = 'left'
+  y += 30
+  ctx.strokeStyle = COLORS.border
+  ctx.beginPath()
+  ctx.moveTo(padding, y)
+  ctx.lineTo(WIDTH - padding, y)
+  ctx.stroke()
+  y += 70
+
+  const colAX = padding
+  const colBX = padding + colWidth + 40
+  drawChallengeColumn(ctx, { x: colAX, width: colWidth, y, name: nameA, value: valueA, isWinner: winner === 'a' })
+  drawChallengeColumn(ctx, { x: colBX, width: colWidth, y, name: nameB, value: valueB, isWinner: winner === 'b' })
+
+  ctx.strokeStyle = COLORS.border
+  ctx.beginPath()
+  ctx.moveTo(WIDTH / 2, y - 20)
+  ctx.lineTo(WIDTH / 2, y + 110)
+  ctx.stroke()
+
+  y += 140
+  ctx.fillStyle = COLORS.textDim
+  ctx.font = '600 15px -apple-system, sans-serif'
+  ctx.textAlign = 'center'
+  const resultText = winner === 'tie' ? "It's a tie" : winner === 'a' ? `${nameA} wins` : winner === 'b' ? `${nameB} wins` : 'Still to be decided'
+  ctx.fillText(resultText, WIDTH / 2, y)
+  ctx.textAlign = 'left'
+
+  ctx.fillStyle = COLORS.textDim
+  ctx.font = '12px -apple-system, sans-serif'
+  ctx.fillText('BetMates does not place bets or hold funds. 18+. Gamble responsibly.', padding, height - padding + 20)
+
+  return new Promise((resolve) => canvas.toBlob(resolve, 'image/png'))
+}
+
+export async function shareChallengeImage(info) {
+  const blob = await renderChallengeImage(info)
+  const file = new File([blob], 'betmates-challenge.png', { type: 'image/png' })
+
+  if (navigator.canShare?.({ files: [file] })) {
+    await navigator.share({ files: [file], title: 'My BetMates challenge' })
+    return 'shared'
+  }
+
+  const url = URL.createObjectURL(blob)
+  const a = document.createElement('a')
+  a.href = url
+  a.download = 'betmates-challenge.png'
+  a.click()
+  URL.revokeObjectURL(url)
+  return 'downloaded'
+}

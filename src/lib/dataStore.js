@@ -1739,6 +1739,54 @@ export async function listFriends(userId) {
   })
 }
 
+function mapChallenge(row) {
+  return {
+    id: row.id,
+    challengerId: row.challenger_id,
+    opponentId: row.opponent_id,
+    metric: row.metric,
+    startsAt: row.starts_at,
+    endsAt: row.ends_at,
+    createdAt: row.created_at
+  }
+}
+
+// Every challenge between exactly these two people, either direction,
+// newest first - ChallengeSection.jsx (mounted in HeadToHeadSheet.jsx)
+// picks the still-running one (if any) as "active" and the rest as
+// history, rather than this function drawing that line itself.
+/** @param {string} userId @param {string} friendId @returns {Promise<{id: string, challengerId: string, opponentId: string, metric: 'profit'|'roi'|'pickem', startsAt: string, endsAt: string, createdAt: string}[]>} */
+export async function listChallengesBetween(userId, friendId) {
+  if (!isSupabaseConfigured) return local.listChallengesBetween(userId, friendId)
+  const { data, error } = await supabase
+    .from('challenges')
+    .select('*')
+    .or(`and(challenger_id.eq.${userId},opponent_id.eq.${friendId}),and(challenger_id.eq.${friendId},opponent_id.eq.${userId})`)
+    .order('created_at', { ascending: false })
+  if (error) throw error
+  return data.map(mapChallenge)
+}
+
+/** @param {{challengerId: string, opponentId: string, metric: 'profit'|'roi'|'pickem', days: number}} entry */
+export async function createChallenge({ challengerId, opponentId, metric, days }) {
+  if (!isSupabaseConfigured) return local.createChallenge({ challengerId, opponentId, metric, days })
+  const startsAt = new Date()
+  const endsAt = new Date(startsAt.getTime() + days * 24 * 60 * 60 * 1000)
+  const { data, error } = await supabase
+    .from('challenges')
+    .insert({
+      challenger_id: challengerId,
+      opponent_id: opponentId,
+      metric,
+      starts_at: startsAt.toISOString(),
+      ends_at: endsAt.toISOString()
+    })
+    .select()
+    .single()
+  if (error) throw error
+  return mapChallenge(data)
+}
+
 /**
  * @param {{authorId: string, videoKey: string, durationSec: number, caption: string, tag: string}} params
  * @returns {Promise<{id: string, authorId: string, videoKey: string, durationSec: number, caption: string, tag: string, createdAt: string}>}
