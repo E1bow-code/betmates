@@ -36,6 +36,7 @@ import { freezesGranted, computeStreakTransition } from '../utils/dailyStreak.js
  * @property {number} streakCurrentCount
  * @property {string|null} streakLastLoggedDate
  * @property {number} streakFreezesUsed
+ * @property {string|null} selfExclusionUntil
  */
 /**
  * @typedef {object} Group
@@ -64,6 +65,7 @@ import { freezesGranted, computeStreakTransition } from '../utils/dailyStreak.js
  * @property {string|null} settledAt
  * @property {any[]|null} outcomes
  * @property {string|null} caption
+ * @property {boolean} autoHidden
  */
 /**
  * @typedef {object} ManualEntry
@@ -198,7 +200,8 @@ function mapProfile(row) {
     stakingRule: row.staking_rule ?? null,
     streakCurrentCount: row.streak_current_count ?? 0,
     streakLastLoggedDate: row.streak_last_logged_date ?? null,
-    streakFreezesUsed: row.streak_freezes_used ?? 0
+    streakFreezesUsed: row.streak_freezes_used ?? 0,
+    selfExclusionUntil: row.self_exclusion_until ?? null
   }
 }
 
@@ -233,7 +236,8 @@ function mapBetPost(row) {
     createdAt: row.created_at,
     settledAt: row.settled_at,
     outcomes: row.outcomes ?? null,
-    caption: row.caption ?? null
+    caption: row.caption ?? null,
+    autoHidden: row.auto_hidden ?? false
   }
 }
 
@@ -1091,11 +1095,17 @@ export async function listAllReports() {
     })
 }
 
+// Clears the reports AND un-hides the post (see auto_hide_reported_post in
+// schema.sql) - an admin reviewing and choosing to keep a post should
+// actually restore its visibility, not just silently clear the report
+// queue while it stays invisible to everyone but the author.
 /** @param {string} postId @returns {Promise<true>} */
 export async function dismissReportsForPost(postId) {
   if (!isSupabaseConfigured) return local.dismissReportsForPost(postId)
   const { error } = await supabase.from('post_reports').delete().eq('post_id', postId)
   if (error) throw error
+  const { error: unhideError } = await supabase.from('bet_posts').update({ auto_hidden: false }).eq('id', postId)
+  if (unhideError) throw unhideError
   return true
 }
 
@@ -1492,6 +1502,20 @@ export async function updateStakeLimit(userId, { amount, period }) {
     .eq('id', userId)
   if (error) throw error
   return { amount, period }
+}
+
+// A binding, timed app lockout - the harder tool alongside the soft
+// stake_limit_amount nudge above (see supabase/schema.sql's
+// guard_self_exclusion trigger for why a raw update can't shorten or clear
+// an active one early; this function has no special handling for that -
+// the DB enforces it either way). `until` is an ISO string in the future;
+// callers only ever extend, never clear, while one is still active.
+/** @param {string} userId @param {string} until @returns {Promise<string>} */
+export async function updateSelfExclusion(userId, until) {
+  if (!isSupabaseConfigured) return local.updateSelfExclusion(userId, until)
+  const { error } = await supabase.from('profiles').update({ self_exclusion_until: until }).eq('id', userId)
+  if (error) throw error
+  return until
 }
 
 // buddyId null clears it (the "off" state) - see supabase/schema.sql's

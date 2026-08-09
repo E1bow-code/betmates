@@ -1269,3 +1269,94 @@ create policy "group members read their group's tournaments" on group_tournament
 create policy "group creator starts a tournament" on group_tournaments for insert with check (
   auth.uid() = created_by and exists (select 1 from groups g where g.id = group_id and g.created_by = auth.uid())
 );
+
+-- --- Self-exclusion / cooling-off (P2-O) ---------------------------------
+-- The existing stake_limit_amount above is a self-set cap on what someone
+-- LOGS as staked - a nudge, never a block. This is the harder tool: a
+-- binding, timed lockout of the app itself, the in-app equivalent of real
+-- self-exclusion schemes (GAMSTOP etc.). "update own profile" below has no
+-- with check, so a plain column add would let a raw API call shorten or
+-- clear this early and defeat the entire point - guarded the same way
+-- is_admin already is (guard_is_admin/guard_is_admin_on_profiles above):
+-- a trigger that only lets requests arriving as anon/authenticated extend
+-- an ACTIVE exclusion further out, never pull it earlier or null it while
+-- still in the future. Once it naturally expires the guard no longer
+-- applies, so a lifted exclusion can be freely re-set.
+alter table profiles add column if not exists self_exclusion_until timestamptz;
+
+create or replace function guard_self_exclusion()
+returns trigger
+language plpgsql
+security definer
+set search_path = public
+as $$
+begin
+  if auth.role() in ('anon', 'authenticated') then
+    if old.self_exclusion_until is not null and old.self_exclusion_until > now()
+       and (new.self_exclusion_until is null or new.self_exclusion_until < old.self_exclusion_until) then
+      new.self_exclusion_until := old.self_exclusion_until;
+    end if;
+  end if;
+  return new;
+end;
+$$;
+
+drop trigger if exists guard_self_exclusion_on_profiles on profiles;
+create trigger guard_self_exclusion_on_profiles
+  before update on profiles
+  for each row execute function guard_self_exclusion();
+
+-- --- Automated moderation (P2-O) ------------------------------------------
+-- Reports were manual-review-only (AdminReportsPage) until now - a post
+-- could sit fully visible on the public feed indefinitely if an admin
+-- hadn't happened to check the queue. Once a post crosses a report
+-- threshold from distinct reporters it's auto-hidden from public reads
+-- pending that review - not deleted, and still visible to its own author
+-- (with a "pending review" note client-side) and to admins, just not to
+-- everyone else. dismissReportsForPost (src/lib/dataStore.js) clears this
+-- back to false when an admin reviews and keeps the post.
+alter table bet_posts add column if not exists auto_hidden boolean not null default false;
+
+create or replace function auto_hide_reported_post()
+returns trigger
+language plpgsql
+security definer
+set search_path = public
+as $$
+begin
+  if (select count(distinct reporter_id) from post_reports where post_id = new.post_id) >= 3 then
+    update bet_posts set auto_hidden = true where id = new.post_id;
+  end if;
+  return new;
+end;
+$$;
+
+drop trigger if exists post_reports_auto_hide on post_reports;
+create trigger post_reports_auto_hide
+  after insert on post_reports
+  for each row execute function auto_hide_reported_post();
+
+-- Replaces the original public-read policy: still anyone-signed-in for a
+-- visible post, but an auto_hidden one is only readable by its own author
+-- or an admin, not the general public. Group-visibility reads (the
+-- separate "members read bet posts in their groups" policy) are untouched -
+-- auto-hide is a public-feed-only concept, since a group's own members
+-- already chose to be around each other and have their own block/leave
+-- tools.
+drop policy if exists "anyone signed in can read public bet posts" on bet_posts;
+create policy "anyone signed in can read public bet posts" on bet_posts for select using (
+  visibility = 'public' and (
+    not auto_hidden
+    or auth.uid() = user_id
+    or exists (select 1 from profiles p where p.id = auth.uid() and p.is_admin)
+  )
+);
+
+-- Admin-only - needed so dismissReportsForPost can clear auto_hidden back
+-- to false after review (the existing "author updates own open bet post"
+-- policy only covers the author, and only while status = 'open').
+create policy "admins restore auto-hidden posts" on bet_posts for update using (
+  exists (select 1 from profiles p where p.id = auth.uid() and p.is_admin)
+) with check (
+  exists (select 1 from profiles p where p.id = auth.uid() and p.is_admin)
+);

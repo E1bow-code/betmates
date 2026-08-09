@@ -204,6 +204,7 @@ export function signUp({ email, displayName, dob, referredByCode }) {
     streakCurrentCount: 0,
     streakLastLoggedDate: null,
     streakFreezesUsed: 0,
+    selfExclusionUntil: null,
     referredBy: referrer?.id ?? null
   }
   db.users.push(user)
@@ -639,6 +640,7 @@ export function createBetPost(post) {
     stakeHidden: false,
     visibility: 'group',
     caption: null,
+    autoHidden: false,
     ...post
   }
   db.betPosts.push(record)
@@ -740,9 +742,15 @@ export function listPublicFeed(viewerId) {
   const names = Object.fromEntries(db.users.map((u) => [u.id, u.displayName]))
   const codes = Object.fromEntries(db.users.map((u) => [u.id, u.friendCode ?? null]))
   const blockedIds = viewerId ? db.blocks.filter((b) => b.blockerId === viewerId).map((b) => b.blockedId) : []
+  // Mirrors schema.sql's "anyone signed in can read public bet posts" -
+  // an auto-hidden post stays visible to its own author (and an admin
+  // viewer) but drops out of everyone else's feed, same as the real RLS
+  // policy for the Supabase-backed path.
+  const viewerIsAdmin = db.users.find((u) => u.id === viewerId)?.isAdmin ?? false
   return delay(
     db.betPosts
       .filter((b) => b.visibility === 'public' && !blockedIds.includes(b.userId))
+      .filter((b) => !b.autoHidden || b.userId === viewerId || viewerIsAdmin)
       .map((b) => ({ ...b, authorName: names[b.userId] ?? 'Someone', authorCode: codes[b.userId] ?? null }))
       .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
   )
@@ -949,6 +957,25 @@ export function updateStakeLimit(userId, { amount, period }) {
     }
   }
   return delay({ amount, period })
+}
+
+/** @param {string} userId @param {string} until @returns {Promise<string>} */
+export function updateSelfExclusion(userId, until) {
+  const db = readDb()
+  const user = db.users.find((u) => u.id === userId)
+  if (user) {
+    user.selfExclusionUntil = until
+    writeDb(db)
+  }
+  const session = localStorage.getItem(SESSION_KEY)
+  if (session) {
+    const sessionUser = JSON.parse(session)
+    if (sessionUser.id === userId) {
+      sessionUser.selfExclusionUntil = until
+      localStorage.setItem(SESSION_KEY, JSON.stringify(sessionUser))
+    }
+  }
+  return delay(until)
 }
 
 /** @param {string} userId @param {string|null} buddyId @returns {Promise<string|null>} */
@@ -1422,11 +1449,21 @@ export function listBlockedUsers(userId) {
   )
 }
 
+// Mirrors schema.sql's auto_hide_reported_post trigger: once a post has 3+
+// distinct reporters it's auto-hidden pending admin review (see
+// dismissReportsForPost below for the un-hide-on-review half).
+const AUTO_HIDE_REPORT_THRESHOLD = 3
+
 /** @param {string} postId @param {string} reporterId @param {string} reason @returns {Promise<true>} */
 export function reportPost(postId, reporterId, reason) {
   const db = readDb()
   if (!db.postReports.some((r) => r.postId === postId && r.reporterId === reporterId)) {
     db.postReports.push({ id: uid('report'), postId, reporterId, reason, createdAt: new Date().toISOString() })
+    const distinctReporters = new Set(db.postReports.filter((r) => r.postId === postId).map((r) => r.reporterId))
+    if (distinctReporters.size >= AUTO_HIDE_REPORT_THRESHOLD) {
+      const post = db.betPosts.find((p) => p.id === postId)
+      if (post) post.autoHidden = true
+    }
     writeDb(db)
   }
   return delay(true)
@@ -1469,6 +1506,8 @@ export function listAllReports() {
 export function dismissReportsForPost(postId) {
   const db = readDb()
   db.postReports = db.postReports.filter((r) => r.postId !== postId)
+  const post = db.betPosts.find((p) => p.id === postId)
+  if (post) post.autoHidden = false
   writeDb(db)
   return delay(true)
 }

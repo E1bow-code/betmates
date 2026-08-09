@@ -60,7 +60,8 @@ export default function AccountPage() {
     updateAvatar,
     updateStakeLimit,
     updateLimitBuddy,
-    updateStakingPlan
+    updateStakingPlan,
+    updateSelfExclusion
   } = useAuth()
   const { format: oddsFormat, setFormat: setOddsFormat } = useOddsFormat()
   const [pushEnabled, setPushEnabled] = useState(false)
@@ -94,6 +95,7 @@ export default function AccountPage() {
   const [stakingSaved, setStakingSaved] = useState(false)
   const [friends, setFriends] = useState(null)
   const [buddySaving, setBuddySaving] = useState(false)
+  const [exclusionSaving, setExclusionSaving] = useState(false)
   const [expandedGroups, setExpandedGroups] = useState(loadExpandedGroups)
   const [trackerStats, setTrackerStats] = useState(null)
   const [xpCounts, setXpCounts] = useState(null)
@@ -265,6 +267,17 @@ export default function AccountPage() {
     setBuddySaving(true)
     await runAsync(() => updateLimitBuddy(buddyId), "Couldn't save that - try again")
     setBuddySaving(false)
+  }
+
+  // Once set this can only be extended, never cleared or shortened early
+  // (enforced server-side by guard_self_exclusion in schema.sql) - so the
+  // confirm dialog is the only chance to back out before it's binding.
+  async function handleSelfExclude(days, label) {
+    if (!window.confirm(`Lock yourself out of BetMates for ${label}? This can't be undone or shortened early.`)) return
+    const until = new Date(Date.now() + days * 24 * 60 * 60 * 1000).toISOString()
+    setExclusionSaving(true)
+    await runAsync(() => updateSelfExclusion(until), "Couldn't set that - try again")
+    setExclusionSaving(false)
   }
 
   async function toggleNotification(key) {
@@ -742,6 +755,37 @@ export default function AccountPage() {
             </a>
             .
           </p>
+        </div>
+
+        <div className="account-section">
+          <h2 className="market-title">Take a break</h2>
+          {user.selfExclusionUntil && new Date(user.selfExclusionUntil) > new Date() ? (
+            <p className="hint">
+              You're locked out until <strong>{new Date(user.selfExclusionUntil).toLocaleString()}</strong>. This can't be undone
+              or shortened early - it'll lift automatically once that time passes.
+            </p>
+          ) : (
+            <>
+              <p className="hint">
+                A harder tool than the spending limit above - this locks you out of the whole app, not just what you log. Once set
+                it can't be cancelled or shortened, so pick the length that actually helps.
+              </p>
+              <div className="self-exclude-options">
+                <button className="btn btn-ghost btn-small" disabled={exclusionSaving} onClick={() => handleSelfExclude(1, '24 hours')}>
+                  24 hours
+                </button>
+                <button className="btn btn-ghost btn-small" disabled={exclusionSaving} onClick={() => handleSelfExclude(7, '7 days')}>
+                  7 days
+                </button>
+                <button className="btn btn-ghost btn-small" disabled={exclusionSaving} onClick={() => handleSelfExclude(30, '30 days')}>
+                  30 days
+                </button>
+                <button className="btn btn-ghost btn-small" disabled={exclusionSaving} onClick={() => handleSelfExclude(182, '6 months')}>
+                  6 months
+                </button>
+              </div>
+            </>
+          )}
         </div>
       </AccountGroup>
 

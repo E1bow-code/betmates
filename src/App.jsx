@@ -152,7 +152,7 @@ function HomeRedirect() {
 const ONBOARDED_PREFIX = 'betmates:onboarded:'
 
 function Shell() {
-  const { user, loading, passwordRecovery, recoveryFailed } = useAuth()
+  const { user, loading, passwordRecovery, recoveryFailed, signOut } = useAuth()
   const navigate = useNavigate()
   const [showTour, setShowTour] = useState(false)
   const [newsHeadlines, setNewsHeadlines] = useState([])
@@ -246,6 +246,45 @@ function Shell() {
           <Route path="*" element={<AuthPage />} />
         </Routes>
       </Suspense>
+    )
+  }
+
+  // A binding, timed lockout (see AccountPage.jsx's "Take a break" and
+  // schema.sql's guard_self_exclusion trigger) - checked ahead of the
+  // normal signed-in app so it can't be routed around, and deliberately
+  // offers no way to shorten/cancel from here, matching the DB-level
+  // enforcement.
+  if (user.selfExclusionUntil && new Date(user.selfExclusionUntil) > new Date()) {
+    return (
+      <div className="auth-page">
+        <div className="auth-page-scrim" />
+        <div className="auth-card">
+          <h1 className="auth-title">Taking a break</h1>
+          <p className="auth-subtitle">
+            You're locked out until {new Date(user.selfExclusionUntil).toLocaleString()}.
+          </p>
+          <p className="hint">
+            This can't be undone or shortened early - it'll lift automatically once that time passes. If gambling has stopped
+            being fun, help is free and confidential. Call the National Gambling Helpline on{' '}
+            <a href="tel:08088020133">0808 8020 133</a>, or visit{' '}
+            <a href="https://www.begambleaware.org" target="_blank" rel="noreferrer">
+              BeGambleAware
+            </a>{' '}
+            and{' '}
+            <a href="https://www.gamcare.org.uk" target="_blank" rel="noreferrer">
+              GamCare
+            </a>
+            . To block yourself from UK gambling sites, register with{' '}
+            <a href="https://www.gamstop.co.uk" target="_blank" rel="noreferrer">
+              GAMSTOP
+            </a>
+            .
+          </p>
+          <button className="btn btn-ghost" onClick={signOut}>
+            Sign out
+          </button>
+        </div>
+      </div>
     )
   }
 

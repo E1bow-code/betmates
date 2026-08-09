@@ -999,6 +999,8 @@ button.conversation-row { width: 100%; background: none; border: none; border-bo
   margin: 2px 2px 0;
 }
 
+.self-exclude-options { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 8px; }
+
 .mode-switcher { display: flex; gap: 2px; margin: 4px 0 2px; border: 1px solid var(--border); border-radius: 999px; overflow: hidden; width: fit-content; }
 /* Also used as a plain <Link> (Home's Tips pill, which navigates rather
    than toggling state) alongside the <button> tabs, hence the anchor

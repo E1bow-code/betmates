@@ -142,6 +142,15 @@ export function AuthProvider({ children }) {
     [user]
   )
 
+  const updateSelfExclusion = useCallback(
+    async (until) => {
+      if (!user) return
+      await dataStore.updateSelfExclusion(user.id, until)
+      setUser((u) => ({ ...u, selfExclusionUntil: until }))
+    },
+    [user]
+  )
+
   return (
     <AuthContext.Provider
       value={{
@@ -159,7 +168,8 @@ export function AuthProvider({ children }) {
         updateAvatar,
         updateStakeLimit,
         updateLimitBuddy,
-        updateStakingPlan
+        updateStakingPlan,
+        updateSelfExclusion
       }}
     >
       {children}
