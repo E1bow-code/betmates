@@ -3,6 +3,7 @@ import * as dataStore from '../lib/dataStore.js'
 import { notifyFriend } from '../lib/notify.js'
 import { computeChallengeStats, pickChallengeWinner, formatChallengeValue } from '../utils/challenge.js'
 import { shareChallengeImage } from '../lib/shareImage.js'
+import { shareOrCopy, challengeUrl } from '../lib/share.js'
 import { useAsyncAction } from '../lib/useAsyncAction.js'
 
 const DURATIONS = [
@@ -34,6 +35,7 @@ export default function ChallengeSection({ user, friend, myPosts, theirPosts }) 
   const [metric, setMetric] = useState('profit')
   const [starting, setStarting] = useState(false)
   const [shareStatus, setShareStatus] = useState({})
+  const [linkStatus, setLinkStatus] = useState('idle')
   const runAsync = useAsyncAction()
 
   function refresh() {
@@ -68,11 +70,27 @@ export default function ChallengeSection({ user, friend, myPosts, theirPosts }) 
       notifyFriend(friend.id, {
         title: '⚔️ New challenge',
         body: `${user.displayName ?? 'A mate'} challenged you - ${METRIC_LABEL[metric]} over ${days} days`,
-        url: '/#/groups'
+        url: challengeUrl(user.friendCode)
       })
       await refresh()
     }, "Couldn't start that challenge")
     setStarting(false)
+  }
+
+  async function handleShareLink() {
+    setLinkStatus('working')
+    try {
+      const result = await shareOrCopy({
+        title: 'BetMates challenge',
+        text: `${user.displayName ?? 'I'} challenged you on BetMates - open it to see the head-to-head.`,
+        url: challengeUrl(user.friendCode)
+      })
+      setLinkStatus(result === 'copied' ? 'copied' : 'shared')
+    } catch {
+      setLinkStatus('idle')
+    } finally {
+      setTimeout(() => setLinkStatus('idle'), 2000)
+    }
   }
 
   async function handleShare(challenge) {
@@ -98,7 +116,12 @@ export default function ChallengeSection({ user, friend, myPosts, theirPosts }) 
 
   return (
     <div className="challenge-section">
-      <p className="h2h-name">⚔️ Challenges</p>
+      <div className="challenge-history-row">
+        <p className="h2h-name">⚔️ Challenges</p>
+        <button className="btn btn-ghost btn-small" onClick={handleShareLink} disabled={linkStatus === 'working'}>
+          {linkStatus === 'working' ? 'Working…' : linkStatus === 'copied' ? 'Link copied!' : linkStatus === 'shared' ? 'Shared!' : '🔗 Send link'}
+        </button>
+      </div>
 
       {active && <ActiveChallenge challenge={active} stats={statsFor(active)} friendName={friend.displayName} />}
 

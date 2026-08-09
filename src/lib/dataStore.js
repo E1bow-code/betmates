@@ -1784,6 +1784,23 @@ export async function getVideoPlaybackUrl(videoKey) {
 }
 
 /** @param {string} code @param {string} userId @returns {Promise<{id: string, displayName: string}>} */
+// Read-only twin of addFriendByCode's own lookup, for anything that just
+// needs to resolve a code to a person without the side effect of adding
+// them - the /challenge/:code deep link (ChallengePage.jsx) needs to know
+// who a shared link points at before deciding whether the visitor is
+// already friends with them.
+/** @param {string} code @returns {Promise<{id: string, displayName: string}|null>} */
+export async function getProfileByFriendCode(code) {
+  if (!isSupabaseConfigured) return local.getProfileByFriendCode(code)
+  const { data, error } = await supabase
+    .from('profiles')
+    .select('id, display_name')
+    .eq('friend_code', code.trim().toUpperCase())
+    .maybeSingle()
+  if (error) throw error
+  return data ? { id: data.id, displayName: data.display_name } : null
+}
+
 export async function addFriendByCode(code, userId) {
   if (!isSupabaseConfigured) return local.addFriendByCode(code, userId)
   const { data: target, error: lookupError } = await supabase

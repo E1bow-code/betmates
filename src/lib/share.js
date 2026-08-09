@@ -27,3 +27,11 @@ export function publicProfileUrl(friendCode) {
 export function referralUrl(friendCode) {
   return `${window.location.origin}/#/r/${friendCode}`
 }
+
+// Points at the SENDER's own friend code, not the recipient's - opening it
+// resolves the sender as "the friend" from the opener's side (see
+// ChallengePage.jsx), landing them on the shared head-to-head/challenge
+// view between the two of them either way round.
+export function challengeUrl(friendCode) {
+  return `${window.location.origin}/#/challenge/${friendCode}`
+}

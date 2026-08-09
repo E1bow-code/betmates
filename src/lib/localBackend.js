@@ -1161,6 +1161,13 @@ export function listFollowedParticipants(userId) {
 // the same low-friction pattern as group invite codes.
 
 /** @param {string} code @param {string} userId @returns {Promise<{id: string, displayName: string}>} */
+/** @param {string} code @returns {Promise<{id: string, displayName: string}|null>} */
+export function getProfileByFriendCode(code) {
+  const db = readDb()
+  const target = db.users.find((u) => u.friendCode === code.trim().toUpperCase())
+  return delay(target ? { id: target.id, displayName: target.displayName } : null)
+}
+
 export function addFriendByCode(code, userId) {
   const db = readDb()
   const target = db.users.find((u) => u.friendCode === code.trim().toUpperCase())

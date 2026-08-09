@@ -49,6 +49,7 @@ const AdminAnalyticsPage = lazy(() => import('./pages/AdminAnalyticsPage.jsx'))
 const DirectMessagePage = lazy(() => import('./pages/DirectMessagePage.jsx'))
 const MessagesInboxPage = lazy(() => import('./pages/MessagesInboxPage.jsx'))
 const CoachGptPage = lazy(() => import('./pages/CoachGptPage.jsx'))
+const ChallengePage = lazy(() => import('./pages/ChallengePage.jsx'))
 import NewsTickerBar from './components/NewsTickerBar.jsx'
 import ScatteredSportPhotos from './components/ScatteredSportPhotos.jsx'
 import NewsSidebar from './components/NewsSidebar.jsx'
@@ -58,6 +59,7 @@ import { PENDING_REFERRAL_KEY } from './lib/referral.js'
 const NEWS_REFRESH_MS = 10 * 60 * 1000
 
 const PENDING_JOIN_KEY = 'betmates:pendingJoinCode'
+const PENDING_CHALLENGE_KEY = 'betmates:pendingChallengeCode'
 
 export default function App() {
   // Outside the providers as well as the router: a throw in AuthProvider's
@@ -104,6 +106,18 @@ function StashReferralCode() {
   return <Navigate to="/" replace />
 }
 
+// Same idea as StashJoinCode - a challenge link (src/lib/share.js's
+// challengeUrl) can land on someone who isn't signed in yet, most often
+// because the push notification arrived while they were logged out on a
+// different device. Picked back up by HomeRedirect below once authenticated.
+function StashChallengeCode() {
+  const { code } = useParams()
+  useEffect(() => {
+    if (code) localStorage.setItem(PENDING_CHALLENGE_KEY, code)
+  }, [code])
+  return <Navigate to="/" replace />
+}
+
 // StrictMode (see main.jsx) intentionally double-invokes effects in dev -
 // mount, cleanup, mount again - to catch impure ones. An effect that reads
 // AND consumes localStorage state and branches its navigate() target on
@@ -119,10 +133,14 @@ function HomeRedirect() {
   useEffect(() => {
     if (handled.current) return
     handled.current = true
-    const pending = localStorage.getItem(PENDING_JOIN_KEY)
-    if (pending) {
+    const pendingJoin = localStorage.getItem(PENDING_JOIN_KEY)
+    const pendingChallenge = localStorage.getItem(PENDING_CHALLENGE_KEY)
+    if (pendingJoin) {
       localStorage.removeItem(PENDING_JOIN_KEY)
-      navigate(`/join/${pending}`, { replace: true })
+      navigate(`/join/${pendingJoin}`, { replace: true })
+    } else if (pendingChallenge) {
+      localStorage.removeItem(PENDING_CHALLENGE_KEY)
+      navigate(`/challenge/${pendingChallenge}`, { replace: true })
     } else {
       navigate('/dashboard', { replace: true })
     }
@@ -222,6 +240,7 @@ function Shell() {
           <Route path="/help" element={<HelpPage />} />
           <Route path="/join/:code" element={<StashJoinCode />} />
           <Route path="/r/:code" element={<StashReferralCode />} />
+          <Route path="/challenge/:code" element={<StashChallengeCode />} />
           <Route path="/u/:code" element={<PublicProfilePage />} />
           <Route path="/hall-of-fame" element={<HallOfFamePage />} />
           <Route path="*" element={<AuthPage />} />
@@ -251,6 +270,7 @@ function Shell() {
                 <Route path="/groups" element={<SocialFeedPage />} />
                 <Route path="/groups/:id" element={<GroupFeedPage />} />
                 <Route path="/join/:code" element={<JoinGroupPage />} />
+                <Route path="/challenge/:code" element={<ChallengePage />} />
                 <Route path="/messages" element={<MessagesInboxPage />} />
                 <Route path="/messages/:friendId" element={<DirectMessagePage />} />
                 <Route path="/tracker" element={<TrackerPage />} />
