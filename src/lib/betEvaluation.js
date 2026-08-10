@@ -152,6 +152,28 @@ export function evaluateLeg(leg, games, raceResults) {
     return teamsMatch(leg.selection, winner) ? 'won' : 'lost'
   }
 
+  // Point spread / handicap (NBA/NHL/MLB/NFL - see netlify/functions/sport.js).
+  // The selection bakes in the team and its signed line, e.g. "Phillies -1.5"
+  // or "Lakers +3.5". The pick covers if that team's score plus its line beats
+  // the opponent's; an exact tie on the adjusted score is a push (stake back).
+  // Without this, spread bets on those sports never matched a settleable market
+  // and sat pending forever even though the final score was available.
+  if (leg.market === 'Spread') {
+    const m = String(leg.selection).match(/^(.*?)\s*([+-]?\d+(?:\.\d+)?)\s*$/)
+    if (!m) return 'undetermined'
+    const backedTeam = m[1].trim()
+    const line = Number(m[2])
+    const backedHome = teamsMatch(backedTeam, game.homeTeam)
+    const backedAway = teamsMatch(backedTeam, game.awayTeam)
+    // Ambiguous or unmatched team name - fall back to manual rather than guess.
+    if (backedHome === backedAway) return 'undetermined'
+    const teamScore = backedHome ? homeScore : awayScore
+    const oppScore = backedHome ? awayScore : homeScore
+    const adjusted = teamScore + line
+    if (adjusted === oppScore) return 'void'
+    return adjusted > oppScore ? 'won' : 'lost'
+  }
+
   return 'undetermined'
 }
 
