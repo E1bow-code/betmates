@@ -271,8 +271,11 @@ body.slip-bar-open .app-content {
    the left side so the two triggers never overlap. */
 .coach-fab {
   position: fixed;
-  left: 14px;
-  bottom: calc(126px + env(safe-area-inset-bottom, 0));
+  /* Default resting spot: right edge, stacked above the ≡ menu button rather
+     than bottom-left where it sat over a feed card's action buttons. Still
+     draggable anywhere (CoachLauncher.jsx) - this is just where it starts. */
+  right: 14px;
+  bottom: calc(182px + env(safe-area-inset-bottom, 0));
   z-index: 21;
   width: 44px;
   height: 44px;
@@ -766,6 +769,11 @@ body.slip-bar-open .app-content {
 
 /* Forms & fields */
 .field { display: flex; flex-direction: column; gap: 4px; font-size: 0.85rem; color: var(--text-dim); }
+/* Two short fields side-by-side (see ManualEntrySheet) - each takes half the
+   row and can shrink below its content so long option text doesn't force an
+   overflow. */
+.field-row { display: flex; gap: 10px; }
+.field-row .field { flex: 1; min-width: 0; }
 .field input, .field select, .field textarea {
   background: var(--surface);
   border: 1px solid var(--border);
@@ -3510,3 +3518,46 @@ a.btn,
   white-space: pre-wrap;
 }
 .bet-review-empty { color: var(--text-dim); font-style: italic; }
+
+/* ── Feed & Home polish pass ─────────────────────────────────────────────
+   Calms the bet card's action clutter and evens out Home spacing. Pure
+   presentation - no markup changes. */
+
+/* A touch more air between cards so each post reads as its own object. */
+.bet-feed { gap: 14px; }
+
+/* Separate the reaction/vote/action zone from the bet ticket with a hairline,
+   so the buttons read as one grouped footer rather than floating loose under
+   the odds. */
+.bet-card-footer {
+  border-top: 1px solid var(--border);
+  padding-top: 10px;
+  margin-top: 4px;
+  row-gap: 8px;
+}
+
+/* One consistent pill height + centring across every button in the footer
+   (vote, reaction, comment, copy, more), so a wrapped row lines up instead of
+   reading as mismatched heights. */
+.vote-btn,
+.reaction-btn,
+.bet-card-actions .btn-small,
+.bet-card-actions .status-select {
+  min-height: 30px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+.bet-card-actions .status-select { border-radius: 999px; }
+
+/* Quieter idle borders on the confidence/reaction pills so the row isn't a
+   wall of outlines - they lift to the accent on active/hover as before. */
+.vote-btn,
+.reaction-btn {
+  border-color: color-mix(in srgb, var(--border) 70%, transparent);
+}
+
+/* Home hero: a bit more space beneath the greeting block before the feed
+   controls, and a calmer date caption. */
+.dashboard-hero { margin-bottom: 14px; }
+.mode-switcher { margin: 10px 0 4px; }
