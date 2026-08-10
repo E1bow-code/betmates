@@ -3599,3 +3599,29 @@ a.btn,
 
 /* Invite buttons (share card + share link) sit on one wrapping row. */
 .invite-actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 4px; }
+
+/* Home "bring your mates in" nudge (HomeInviteNudge.jsx) - a friendly,
+   dismissible accent card shown to engaged solo users with no group yet. */
+.home-invite-nudge {
+  position: relative;
+  border: 1px solid var(--accent-dim);
+  border-radius: 14px;
+  padding: 14px 16px;
+  margin: 12px 0;
+  background: linear-gradient(180deg, rgba(var(--accent-rgb), 0.08) 0%, transparent 60%), var(--surface);
+}
+.home-invite-nudge-title { margin: 0 0 4px; font-weight: 700; font-size: 0.98rem; color: var(--text); }
+.home-invite-nudge-body { margin: 0 0 12px; font-size: 0.85rem; color: var(--text-dim); line-height: 1.45; max-width: 92%; }
+.home-invite-nudge-actions { display: flex; flex-wrap: wrap; gap: 8px; }
+.home-invite-nudge-close {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  background: none;
+  border: none;
+  color: var(--text-dim);
+  font-size: 0.9rem;
+  cursor: pointer;
+  padding: 4px 6px;
+  line-height: 1;
+}
