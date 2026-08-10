@@ -1054,16 +1054,51 @@ button.conversation-row { width: 100%; background: none; border: none; border-bo
 
 .self-exclude-options { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 8px; }
 
+/* The Plus upsell reads as a premium card - an accent-tinted frame with a
+   marked feature list - rather than a plain run of dim text in the settings
+   flow, so it stands out as the one paid thing without shouting. Scoped to
+   #plus so the other .account-section blocks stay plain. */
+#plus {
+  border: 1px solid var(--accent-dim);
+  border-radius: 14px;
+  padding: 16px;
+  background: linear-gradient(180deg, rgba(var(--accent-rgb), 0.06) 0%, transparent 55%), var(--surface);
+}
+#plus .market-title { margin-top: 0; }
+
 .plus-feature-list {
   list-style: none;
-  margin: 4px 4px 12px;
+  margin: 10px 0 14px;
   padding: 0;
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  gap: 8px;
 }
-.plus-feature-list li { font-size: 0.8rem; color: var(--text-dim); line-height: 1.4; }
-.plus-feature-list strong { color: var(--text); font-weight: 600; }
+.plus-feature-list li {
+  position: relative;
+  padding-left: 22px;
+  font-size: 0.8rem;
+  color: var(--text-dim);
+  line-height: 1.45;
+}
+/* Accent tick marker so each line reads as an unlocked feature. */
+.plus-feature-list li::before {
+  content: '✦';
+  position: absolute;
+  left: 2px;
+  top: 1px;
+  color: var(--accent);
+  font-size: 0.78rem;
+}
+.plus-feature-list strong { color: var(--text); font-weight: 700; }
+/* Price row: the monthly CTA leads, annual sits beside it as the quieter
+   option; a divider lifts them off the feature list. */
+#plus .self-exclude-options {
+  margin-top: 4px;
+  padding-top: 14px;
+  border-top: 1px solid var(--border);
+  gap: 8px;
+}
 
 .premium-gate {
   display: flex;
