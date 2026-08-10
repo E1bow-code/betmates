@@ -4,7 +4,7 @@
 // and netlify/functions/auto-settle.js on a schedule).
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { evaluateLeg, evaluateEntry, evaluateEntryDetailed, voidAdjustedReturn, resolveSettlement } from './betEvaluation.js'
+import { evaluateLeg, evaluateEntry, evaluateEntryDetailed, voidAdjustedReturn, resolveSettlement, findGame, teamsMatch } from './betEvaluation.js'
 import { getEachWayTerms, computeEachWayReturn } from '../utils/eachWay.js'
 
 const games = [
@@ -197,4 +197,36 @@ test('an each-way leg that placed resolves to won with the place-part return, re
 test('an all-void bet resolves to void with no correction', () => {
   const e = entry(10, [leg({ market: 'Draw No Bet', event: 'Arsenal v Chelsea', selection: 'Arsenal' })])
   assert.deepEqual(resolveSettlement(e, evaluateEntryDetailed(e, games, [])), { status: 'void', potentialReturnOverride: undefined })
+})
+
+// --- tolerant team-name matching (stuck-pending fix) --------------------------
+// A bet logged manually or via OCR can spell teams differently from the scores
+// feed; findGame/evaluateLeg now match on normalised names so those still settle
+// instead of sitting 'pending' forever.
+
+test('teamsMatch tolerates club suffixes and city abbreviations', () => {
+  assert.ok(teamsMatch('Houston Dynamo FC', 'Houston Dynamo'))
+  assert.ok(teamsMatch('LA Galaxy', 'Los Angeles Galaxy'))
+  assert.ok(teamsMatch('Spurs', 'Spurs'))
+  assert.ok(!teamsMatch('Manchester United', 'Manchester City'))
+  assert.ok(!teamsMatch('Arsenal', 'Aston Villa'))
+})
+
+test('findGame matches near-miss spellings but needs BOTH teams to line up', () => {
+  const mlsGames = [
+    { homeTeam: 'Houston Dynamo FC', awayTeam: 'Los Angeles Galaxy', scores: [{ name: 'Houston Dynamo FC', score: 2 }, { name: 'Los Angeles Galaxy', score: 1 }] }
+  ]
+  // Bet stored the shorter/abbreviated names - still finds the game.
+  assert.ok(findGame({ event: 'Houston Dynamo v LA Galaxy' }, mlsGames))
+  // One team right, the other a different club -> no false match.
+  assert.equal(findGame({ event: 'Houston Dynamo v New York City' }, mlsGames), undefined)
+})
+
+test('a near-miss MLS bet settles instead of staying pending', () => {
+  const mlsGames = [
+    { homeTeam: 'Houston Dynamo FC', awayTeam: 'Los Angeles Galaxy', scores: [{ name: 'Houston Dynamo FC', score: 2 }, { name: 'Los Angeles Galaxy', score: 1 }] }
+  ]
+  const bet = { sport: 'football', event: 'Houston Dynamo v LA Galaxy', market: '1X2', odds: 2 }
+  assert.equal(evaluateLeg({ ...bet, selection: 'Houston Dynamo' }, mlsGames), 'won')
+  assert.equal(evaluateLeg({ ...bet, selection: 'LA Galaxy' }, mlsGames), 'lost')
 })

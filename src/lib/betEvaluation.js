@@ -15,8 +15,56 @@ import { computeEachWayReturn } from '../utils/eachWay.js'
 // props, double chance, and boxing/UFC still can't be determined
 // automatically and keep the manual "Mark result" fallback in the UI.
 
+// Club-type tokens and filler that carry no identity - dropped before
+// comparing, so "Houston Dynamo FC" and "Houston Dynamo" read as the same club.
+const CLUB_TOKENS = new Set(['fc', 'afc', 'cf', 'sc', 'ac', 'cd', 'ec', 'fk', 'sk', 'if', 'bk', 'club', 'the'])
+// Unambiguous expansions in a sports context, so a hand-typed or OCR-scanned
+// "LA Galaxy" lines up with the feed's "Los Angeles Galaxy".
+const NAME_ALIASES = { la: 'los angeles', ny: 'new york', nyc: 'new york', sf: 'san francisco', dc: 'washington', utd: 'united', st: 'saint', intl: 'international' }
+
+function normalizeName(name) {
+  const cleaned = String(name ?? '')
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '') // strip accents
+    .replace(/[^a-z0-9]+/g, ' ')
+    .trim()
+  if (!cleaned) return ''
+  const tokens = []
+  for (const tok of cleaned.split(/\s+/)) {
+    if (NAME_ALIASES[tok]) tokens.push(...NAME_ALIASES[tok].split(' '))
+    else if (!CLUB_TOKENS.has(tok)) tokens.push(tok)
+  }
+  return tokens.join(' ')
+}
+
+// Two team names refer to the same team when, after normalising, they're equal
+// or one's tokens are a subset of the other's ("Dynamo" ⊆ "Houston Dynamo").
+// Deliberately tolerant: the exact-string path in findGame already covers the
+// common same-provider case, so this only kicks in for near-miss spellings.
+export function teamsMatch(a, b) {
+  const na = normalizeName(a)
+  const nb = normalizeName(b)
+  if (!na || !nb) return false
+  if (na === nb) return true
+  const ta = new Set(na.split(' '))
+  const tb = new Set(nb.split(' '))
+  const subset = (small, big) => small.size > 0 && [...small].every((t) => big.has(t))
+  return subset(ta, tb) || subset(tb, ta)
+}
+
 export function findGame(leg, games) {
-  return games.find((g) => leg.event === `${g.homeTeam} v ${g.awayTeam}`)
+  // Exact first - the common case, since a bet logged from the odds feed and
+  // the scores from the same provider spell teams identically.
+  const exact = games.find((g) => leg.event === `${g.homeTeam} v ${g.awayTeam}`)
+  if (exact) return exact
+  // Fall back to tolerant matching for manually-logged / OCR-scanned bets whose
+  // team names don't match the results feed exactly. Both teams must match, so
+  // a loose per-team match can't accidentally settle against a different game.
+  const parts = String(leg.event ?? '').split(' v ')
+  if (parts.length !== 2) return undefined
+  const [legHome, legAway] = parts
+  return games.find((g) => teamsMatch(g.homeTeam, legHome) && teamsMatch(g.awayTeam, legAway))
 }
 
 // Distinct from 'won'/'lost': an each-way leg whose horse placed but didn't
@@ -75,7 +123,8 @@ export function evaluateLeg(leg, games, raceResults) {
 
   if (leg.market === '1X2' || leg.market === 'Moneyline') {
     const winner = homeScore > awayScore ? game.homeTeam : awayScore > homeScore ? game.awayTeam : 'Draw'
-    return leg.selection === winner ? 'won' : 'lost'
+    if (winner === 'Draw') return leg.selection === 'Draw' ? 'won' : 'lost'
+    return teamsMatch(leg.selection, winner) ? 'won' : 'lost'
   }
 
   // Football's totals label always names the 2.5 line explicitly; the
@@ -100,7 +149,7 @@ export function evaluateLeg(leg, games, raceResults) {
   if (leg.market === 'Draw No Bet') {
     if (homeScore === awayScore) return 'void'
     const winner = homeScore > awayScore ? game.homeTeam : game.awayTeam
-    return leg.selection === winner ? 'won' : 'lost'
+    return teamsMatch(leg.selection, winner) ? 'won' : 'lost'
   }
 
   return 'undetermined'
