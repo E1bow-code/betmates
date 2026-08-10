@@ -230,3 +230,33 @@ test('a near-miss MLS bet settles instead of staying pending', () => {
   assert.equal(evaluateLeg({ ...bet, selection: 'Houston Dynamo' }, mlsGames), 'won')
   assert.equal(evaluateLeg({ ...bet, selection: 'LA Galaxy' }, mlsGames), 'lost')
 })
+
+// --- point spreads / handicaps (US sports auto-settle gap) --------------------
+// The selection bakes in team + signed line ("Lakers -3.5"); it covers if that
+// team's score plus its line beats the opponent's, an exact tie is a push.
+
+const nbaGames = [
+  { homeTeam: 'Los Angeles Lakers', awayTeam: 'Boston Celtics', scores: [{ name: 'Los Angeles Lakers', score: 110 }, { name: 'Boston Celtics', score: 104 }] }
+]
+const spread = (selection) => ({ sport: 'basketball', event: 'Los Angeles Lakers v Boston Celtics', market: 'Spread', selection, odds: 1.9 })
+
+test('a favourite covers the spread, or does not', () => {
+  // Lakers win by 6.
+  assert.equal(evaluateLeg(spread('Los Angeles Lakers -3.5'), nbaGames), 'won')
+  assert.equal(evaluateLeg(spread('Los Angeles Lakers -7.5'), nbaGames), 'lost')
+})
+
+test('an underdog covers the spread on the plus side', () => {
+  assert.equal(evaluateLeg(spread('Boston Celtics +7.5'), nbaGames), 'won')
+  assert.equal(evaluateLeg(spread('Boston Celtics +3.5'), nbaGames), 'lost')
+})
+
+test('an exact tie on the adjusted score is a push (void)', () => {
+  // Lakers win by exactly 6, so -6 lands dead level.
+  assert.equal(evaluateLeg(spread('Los Angeles Lakers -6'), nbaGames), 'void')
+})
+
+test('spread team names tolerate near-miss spelling, and unknown teams stay manual', () => {
+  assert.equal(evaluateLeg(spread('LA Lakers -3.5'), nbaGames), 'won')
+  assert.equal(evaluateLeg(spread('Chicago Bulls -3.5'), nbaGames), 'undetermined')
+})
