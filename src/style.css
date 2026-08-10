@@ -3596,3 +3596,6 @@ a.btn,
    controls, and a calmer date caption. */
 .dashboard-hero { margin-bottom: 14px; }
 .mode-switcher { margin: 10px 0 4px; }
+
+/* Invite buttons (share card + share link) sit on one wrapping row. */
+.invite-actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 4px; }

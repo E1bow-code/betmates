@@ -538,3 +538,112 @@ export async function shareChallengeImage(info) {
   URL.revokeObjectURL(url)
   return 'downloaded'
 }
+
+// A branded "come join me" invite card - the growth counterpart to the bet-slip
+// and recap cards above. Meant to be dropped into WhatsApp / Instagram Stories
+// where a bare referral link reads as spam: it says who's inviting, what the
+// app is, and shows the join code big, with the link carried by the share
+// sheet's text. Fixed layout (short, known-length content), same canvas-only
+// approach as renderLeaderboardImage.
+export async function renderInviteImage({ name, code }) {
+  const height = 400
+  const padding = 44
+  const inviter = (name || 'A mate').trim()
+
+  const canvas = document.createElement('canvas')
+  const dpr = Math.min(window.devicePixelRatio || 1, 2)
+  canvas.width = WIDTH * dpr
+  canvas.height = height * dpr
+  const ctx = canvas.getContext('2d')
+  ctx.scale(dpr, dpr)
+
+  ctx.fillStyle = COLORS.bg
+  ctx.fillRect(0, 0, WIDTH, height)
+
+  let y = padding
+  ctx.fillStyle = COLORS.accent
+  ctx.font = '700 24px Georgia, serif'
+  ctx.fillText('BetMates', padding, y)
+  ctx.fillStyle = COLORS.textDim
+  ctx.font = '600 13px -apple-system, sans-serif'
+  ctx.textAlign = 'right'
+  ctx.fillText("YOU'RE INVITED", WIDTH - padding, y - 2)
+  ctx.textAlign = 'left'
+  y += 30
+  ctx.strokeStyle = COLORS.border
+  ctx.beginPath()
+  ctx.moveTo(padding, y)
+  ctx.lineTo(WIDTH - padding, y)
+  ctx.stroke()
+  y += 58
+
+  // The hook - who's inviting.
+  ctx.fillStyle = COLORS.text
+  ctx.font = '700 34px Georgia, serif'
+  const hook = wrapText(ctx, `${inviter} wants you on BetMates`, WIDTH - padding * 2)
+  for (const line of hook) {
+    ctx.fillText(line, padding, y)
+    y += 42
+  }
+  y += 14
+
+  // What it is.
+  ctx.fillStyle = COLORS.textDim
+  ctx.font = '18px -apple-system, sans-serif'
+  const pitch = wrapText(ctx, 'Track your bets, compare the best odds, and settle the score with your mates.', WIDTH - padding * 2)
+  for (const line of pitch) {
+    ctx.fillText(line, padding, y)
+    y += 26
+  }
+  y += 22
+
+  // Join-code chip - the call to action.
+  if (code) {
+    const chipH = 52
+    ctx.fillStyle = COLORS.surface
+    ctx.strokeStyle = COLORS.accent
+    ctx.lineWidth = 1.5
+    if (ctx.roundRect) {
+      ctx.beginPath()
+      ctx.roundRect(padding, y, WIDTH - padding * 2, chipH, 10)
+      ctx.fill()
+      ctx.stroke()
+    } else {
+      ctx.fillRect(padding, y, WIDTH - padding * 2, chipH)
+      ctx.strokeRect(padding, y, WIDTH - padding * 2, chipH)
+    }
+    ctx.fillStyle = COLORS.textDim
+    ctx.font = '600 12px -apple-system, sans-serif'
+    ctx.fillText('JOIN WITH CODE', padding + 16, y + 20)
+    ctx.fillStyle = COLORS.accent
+    ctx.font = '700 22px ui-monospace, Consolas, monospace'
+    ctx.fillText(String(code).toUpperCase(), padding + 16, y + 41)
+    y += chipH
+  }
+
+  ctx.fillStyle = COLORS.textDim
+  ctx.font = '12px -apple-system, sans-serif'
+  ctx.fillText('BetMates does not place bets or hold funds. 18+. Gamble responsibly.', padding, height - padding + 20)
+
+  return new Promise((resolve) => canvas.toBlob(resolve, 'image/png'))
+}
+
+export async function shareInviteImage({ name, code, url }) {
+  const blob = await renderInviteImage({ name, code })
+  const file = new File([blob], 'betmates-invite.png', { type: 'image/png' })
+
+  // The image carries the pitch + code; the share text carries the actual
+  // tappable join link so a recipient can go straight in.
+  const text = `${(name || 'A mate').trim()} invited you to BetMates - track bets, compare odds, settle the score.`
+  if (navigator.canShare?.({ files: [file] })) {
+    await navigator.share({ files: [file], title: 'Join me on BetMates', text, url })
+    return 'shared'
+  }
+
+  const link = document.createElement('a')
+  link.href = URL.createObjectURL(blob)
+  link.download = 'betmates-invite.png'
+  link.click()
+  URL.revokeObjectURL(link.href)
+  return 'downloaded'
+}

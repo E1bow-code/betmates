@@ -13,6 +13,7 @@ import { periodStart, sumStakesSince } from '../utils/spendLimit.js'
 import { suggestedStake } from '../utils/stakingPlan.js'
 import { getRealityCheckMins, setRealityCheckMins, REALITY_CHECK_OPTIONS } from '../lib/realityCheck.js'
 import { referralRewardState } from '../utils/referralRewards.js'
+import InviteMatesButton from '../components/InviteMatesButton.jsx'
 import { computeStats } from '../utils/trackerStats.js'
 import { computeXp, levelForXp, xpForLevel, xpForNextLevel, flairTierForLevel } from '../utils/xp.js'
 import { freezesGranted } from '../utils/dailyStreak.js'
@@ -915,9 +916,12 @@ export default function AccountPage() {
               </>
             )
           })()}
-        <button className="btn btn-secondary btn-small" onClick={handleShareReferral}>
-          Share invite link
-        </button>
+        <div className="invite-actions">
+          <InviteMatesButton name={user.displayName} friendCode={user.friendCode} className="btn btn-primary btn-small" />
+          <button className="btn btn-secondary btn-small" onClick={handleShareReferral}>
+            Share invite link
+          </button>
+        </div>
         {referralShareStatus && <div className="hint">{referralShareStatus}</div>}
       </div>
 
