@@ -26,15 +26,19 @@ function isActiveStatus(status) {
 
 async function findUserId(admin, subscription) {
   if (subscription.metadata?.userId) return subscription.metadata.userId
-  const { data } = await admin.from('profiles').select('id').eq('stripe_customer_id', subscription.customer).single()
+  const { data, error } = await admin.from('profiles').select('id').eq('stripe_customer_id', subscription.customer).single()
+  if (error) console.error('findUserId lookup error', subscription.customer, error.message)
   return data?.id ?? null
 }
 
 async function syncSubscription(admin, subscription) {
   const userId = await findUserId(admin, subscription)
-  if (!userId) return
+  if (!userId) {
+    console.error('syncSubscription: no matching user for customer', subscription.customer, 'metadata', subscription.metadata)
+    return
+  }
   const periodEnd = subscription.current_period_end ? new Date(subscription.current_period_end * 1000).toISOString() : null
-  await admin
+  const { error } = await admin
     .from('profiles')
     .update({
       is_premium: isActiveStatus(subscription.status),
@@ -42,6 +46,8 @@ async function syncSubscription(admin, subscription) {
       stripe_subscription_id: subscription.id
     })
     .eq('id', userId)
+  if (error) console.error('syncSubscription update error', userId, error.message)
+  else console.log('syncSubscription ok', userId, subscription.status, subscription.id)
 }
 
 export default async (req) => {
