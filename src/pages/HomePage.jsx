@@ -9,6 +9,7 @@ import SportHeroBanner from '../components/SportHeroBanner.jsx'
 import PublicFeedView from '../components/PublicFeedView.jsx'
 import RankTeaser from '../components/RankTeaser.jsx'
 import HomeHighlights from '../components/HomeHighlights.jsx'
+import HomeInviteNudge from '../components/HomeInviteNudge.jsx'
 
 // The front door post-login (see App.jsx's HomeRedirect) - the public feed
 // is still the main attraction, and raw P&L/open-bets/recent-activity still
@@ -102,6 +103,8 @@ export default function HomePage() {
       {rankTeaser && <RankTeaser {...rankTeaser} />}
 
       <HomeHighlights highlights={highlights} />
+
+      {entries && <HomeInviteNudge user={user} entryCount={entries.length} />}
 
       <div className="mode-switcher">
         <button className={feedFilter === 'all' ? 'mode-tab active' : 'mode-tab'} onClick={() => setFeedFilter('all')}>
