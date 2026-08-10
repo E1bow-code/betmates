@@ -1083,7 +1083,7 @@ export function getOddsSnapshotSeries(_fixtureId) {
 // No local equivalent of season-rollover.js (a scheduled function needs a
 // real backend) - past seasons just never accumulate in local mode, same
 // honest gap as coach-settle.js's recommendations never settling locally.
-/** @param {string} _groupId @returns {Promise<{period: string, winnerUserId: string|null, winnerName: string, profit: number, roi: number|null, winRate: number|null, settledCount: number}[]>} */
+/** @param {string} _groupId @returns {Promise<{period: string, winnerUserId: string|null, winnerName: string, profit: number, roi: number|null, winRate: number|null, settledCount: number, clvWinnerUserId: string|null, clvWinnerName: string|null, clvAvgPct: number|null, clvBeatRate: number|null, clvSample: number|null}[]>} */
 export function listSeasonResults(_groupId) {
   return delay([])
 }
