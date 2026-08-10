@@ -257,6 +257,23 @@ async function toolGetPlayerProfile(name) {
   return profile ?? { found: false }
 }
 
+// Current sports headlines (live BBC Sport / Sky Sports feeds via
+// /api/sports-news), optionally filtered by a team/player/keyword - the
+// model's own knowledge has a training cutoff, so this is how it talks about
+// this week's form/injuries/results instead of guessing. A query with no hits
+// falls back to the top general headlines with a note, rather than nothing.
+async function toolGetNews(siteUrl, { query } = {}) {
+  const items = await fetchJson(siteUrl, '/api/sports-news')
+  if (!Array.isArray(items) || !items.length) return { headlines: [] }
+  const q = (query ?? '').trim().toLowerCase()
+  const matched = q ? items.filter((i) => i.title?.toLowerCase().includes(q)) : items
+  const chosen = (matched.length ? matched : items).slice(0, 8).map((i) => ({ title: i.title, source: i.source }))
+  return {
+    headlines: chosen,
+    note: q && !matched.length ? `No current headlines mention "${query}" - these are the top general sports headlines instead.` : undefined
+  }
+}
+
 // lock_in_recommendation's tool input carries bare identity fields
 // (eventId/marketKey/outcomeName, or raceId/horseId) - matched back
 // against the last grounding array (built from the RAW fixture/runner
@@ -321,6 +338,7 @@ export default async (req) => {
       return result
     }
     if (name === 'get_player_profile') return toolGetPlayerProfile(input.name)
+    if (name === 'get_recent_news') return toolGetNews(siteUrl, input)
     return { error: `Unknown tool: ${name}` }
   }
 
