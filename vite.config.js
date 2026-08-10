@@ -32,6 +32,7 @@ export default defineConfig({
       registerType: 'autoUpdate',
       includeAssets: ['favicon.svg'],
       manifest: {
+        id: '/',
         name: 'BetMates',
         short_name: 'BetMates',
         description: 'Compare odds and settle scores with your mates - leaderboards, streaks, and shared bet slips.',
@@ -39,10 +40,27 @@ export default defineConfig({
         background_color: '#15120f',
         display: 'standalone',
         start_url: '/',
+        categories: ['sports', 'social', 'lifestyle'],
         icons: [
           { src: '/icons/icon-192.png', sizes: '192x192', type: 'image/png' },
           { src: '/icons/icon-512.png', sizes: '512x512', type: 'image/png' },
           { src: '/icons/icon-maskable-512.png', sizes: '512x512', type: 'image/png', purpose: 'maskable' }
+        ],
+        screenshots: [
+          {
+            src: '/screenshots/mobile-home.png',
+            sizes: '1080x2400',
+            type: 'image/png',
+            form_factor: 'narrow',
+            label: 'Home feed with streaks and rank'
+          },
+          {
+            src: '/screenshots/desktop-home.png',
+            sizes: '2400x1350',
+            type: 'image/png',
+            form_factor: 'wide',
+            label: 'BetMates on desktop'
+          }
         ]
       }
     })
