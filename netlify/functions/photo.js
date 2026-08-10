@@ -28,7 +28,8 @@ const SPORT_QUERIES = {
   // lifestyle photography, so every banner in the app reads as sport at
   // a glance, not just the ones on a sport-specific tab.
   auth: 'stadium floodlights night',
-  dashboard: 'stadium aerial view daytime',
+  // NB: `dashboard` is handled specially (see resolveQuery) so the home
+  // banner rotates daily rather than showing the same photo every day.
   social: 'sports fans celebrating stadium',
   tracker: 'digital scoreboard close up sports',
   account: 'sports jersey number close up',
@@ -39,11 +40,44 @@ const SPORT_QUERIES = {
   insights: 'stadium scoreboard lights night'
 }
 
+// The home banner rotates through a different sport each day rather than
+// always showing the same photo - so the front door feels current, and over a
+// couple of weeks a user sees the whole spread of what the app covers. Keyed
+// off the calendar day so it's stable within a day (and the cache key carries
+// the date so a new day fetches a fresh one).
+const DASHBOARD_ROTATION = [
+  'football stadium crowd night',
+  'basketball arena game action',
+  'horse racing finish line',
+  'tennis grand slam court',
+  'boxing ring spotlight',
+  'cricket stadium floodlights',
+  'american football stadium night',
+  'ice hockey arena game',
+  'rugby match stadium',
+  'baseball stadium evening',
+  'formula one racing track',
+  'golf tournament course',
+  'marathon runners city street',
+  'sports stadium aerial sunset'
+]
+
+// Resolves the Pexels query + a cache key for a given banner slot. Everything
+// is a fixed per-sport query except `dashboard`, which rotates by date.
+function resolveQuery(sport) {
+  if (sport === 'dashboard') {
+    const today = new Date().toISOString().slice(0, 10) // YYYY-MM-DD (UTC)
+    const dayNumber = Math.floor(Date.parse(today) / 86400000)
+    return { query: DASHBOARD_ROTATION[dayNumber % DASHBOARD_ROTATION.length], cacheKey: `photo-dashboard-${today}` }
+  }
+  return { query: SPORT_QUERIES[sport], cacheKey: `photo-${sport}` }
+}
+
 export default async (req) => {
   const apiKey = process.env.PEXELS_API_KEY
   const url = new URL(req.url)
   const sport = url.searchParams.get('sport')
-  const query = SPORT_QUERIES[sport]
+  const { query, cacheKey } = resolveQuery(sport)
 
   if (!apiKey || !query) {
     return new Response(JSON.stringify({ url: null }), {
@@ -52,7 +86,7 @@ export default async (req) => {
     })
   }
 
-  const cached = cacheGet(`photo-${sport}`)
+  const cached = cacheGet(cacheKey)
   if (cached) {
     return new Response(JSON.stringify({ url: cached }), {
       status: 200,
@@ -67,7 +101,7 @@ export default async (req) => {
     if (!res.ok) throw new Error(`Pexels: ${res.status}`)
     const body = await res.json()
     const photoUrl = body.photos?.[0]?.src?.large2x ?? null
-    if (photoUrl) cacheSet(`photo-${sport}`, photoUrl, PHOTO_TTL)
+    if (photoUrl) cacheSet(cacheKey, photoUrl, PHOTO_TTL)
     return new Response(JSON.stringify({ url: photoUrl }), {
       status: 200,
       headers: { 'content-type': 'application/json', 'x-data-source': 'live' }
