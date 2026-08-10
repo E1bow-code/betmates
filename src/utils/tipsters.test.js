@@ -63,3 +63,28 @@ test('computeTipsterRankings filters by settlement window', () => {
 test('computeTipsterRankings returns null for a missing feed', () => {
   assert.equal(computeTipsterRankings(null), null)
 })
+
+test('computeTipsterRankings surfaces average CLV as a stat when closing lines are supplied', () => {
+  // Three single-leg wins by A, all struck at 2.0; the market closed at 1.8, so
+  // each beat the close. Keys match dataStore.getClosingLines / clv.js.
+  const leg = (eventId) => ({ eventId, marketKey: 'h2h', outcomeName: 'Home', odds: 2.0 })
+  const feed = [
+    post({ userId: 'A', selections: [leg('e1')] }),
+    post({ userId: 'A', selections: [leg('e2')] }),
+    post({ userId: 'A', selections: [leg('e3')] })
+  ]
+  const closes = { 'e1|h2h|Home': 1.8, 'e2|h2h|Home': 1.8, 'e3|h2h|Home': 1.8 }
+  const ranked = computeTipsterRankings(feed, 'all', closes)
+  assert.equal(ranked.length, 1)
+  assert.ok(ranked[0].clv, 'a clv stat is attached')
+  assert.equal(ranked[0].clv.beatRate, 100)
+  assert.ok(ranked[0].clv.avgPct > 0)
+})
+
+test('computeTipsterRankings leaves clv null when no closing lines are known', () => {
+  // Still fully ranked by ROI - CLV is an optional stat, not a gate.
+  const feed = [post({ userId: 'A' }), post({ userId: 'A' }), post({ userId: 'A' })]
+  const ranked = computeTipsterRankings(feed, 'all')
+  assert.equal(ranked.length, 1)
+  assert.equal(ranked[0].clv, null)
+})

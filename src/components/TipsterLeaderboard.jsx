@@ -50,7 +50,8 @@ export default function TipsterLeaderboard({ rows, window, onWindowChange, curre
     <>
       <p className="hint">
         The sharpest public tipsters, ranked by ROI on verified picks (min {MIN_SETTLED_TO_RANK} settled). Every pick is logged with
-        its odds locked in, so a record here can't be faked.
+        its odds locked in, so a record here can't be faked. 🎯 CLV shows how much they beat the closing line by — skill that,
+        unlike profit, can't be fluked.
       </p>
 
       <div className="mode-switcher">
@@ -94,6 +95,7 @@ export default function TipsterLeaderboard({ rows, window, onWindowChange, curre
                 <div className="tipster-meta">
                   {row.winRate === null ? '-' : `${row.winRate}% WR`} · {row.settledCount} picks
                   {row.streak >= 2 ? ` · 🔥 ${row.streak}` : ''}
+                  {row.clv ? ` · 🎯 ${row.clv.avgPct >= 0 ? '+' : ''}${row.clv.avgPct}% CLV` : ''}
                 </div>
               </div>
               <div className="tipster-numbers">

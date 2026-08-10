@@ -74,6 +74,11 @@ export default function SocialFeedPage() {
   const [friends, setFriends] = useState(null)
   const [videos, setVideos] = useState(null)
   const [publicFeed, setPublicFeed] = useState(null)
+  // Closing lines for the fixtures the public feed touches, keyed
+  // {eventId|marketKey|outcomeName} (see dataStore.getClosingLines). Feeds the
+  // tipster board's CLV stat; empty until snapshots exist, in which case CLV
+  // simply doesn't show.
+  const [closes, setCloses] = useState({})
   const [news, setNews] = useState(null)
   const [followedParticipants, setFollowedParticipants] = useState(null)
   const [newsFilter, setNewsFilter] = useState('all')
@@ -114,7 +119,19 @@ export default function SocialFeedPage() {
       .sort((a, b) => b.profit - a.profit)
   }, [feed, publicFeed, leaderboardWindow])
 
-  const tipsterRankings = useMemo(() => computeTipsterRankings(publicFeed, leaderboardWindow), [publicFeed, leaderboardWindow])
+  // Once the public feed loads, pull the closing lines for every fixture its
+  // posts reference so the tipster board can show each tipster's CLV.
+  // Best-effort - a failure just leaves CLV absent (the board still ranks by ROI).
+  useEffect(() => {
+    if (!publicFeed) return
+    const fixtureIds = publicFeed.flatMap((post) => (post.selections ?? []).map((s) => s.eventId)).filter(Boolean)
+    dataStore.getClosingLines(fixtureIds).then(setCloses).catch(() => {})
+  }, [publicFeed])
+
+  const tipsterRankings = useMemo(
+    () => computeTipsterRankings(publicFeed, leaderboardWindow, closes),
+    [publicFeed, leaderboardWindow, closes]
+  )
 
   const bookmakerRows = useMemo(() => {
     if (feed === null || publicFeed === null) return null

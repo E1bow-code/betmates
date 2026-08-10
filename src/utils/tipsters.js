@@ -10,10 +10,17 @@
 import { computeStats, computeLongestWinStreak } from './trackerStats.js'
 import { tipsterBadge } from './tipsterBadge.js'
 import { isWithinWindow } from './dateWindows.js'
+import { clvSummary } from './clv.js'
 
 export const MIN_SETTLED_TO_RANK = 3
 
-export function computeTipsterRankings(publicFeed, window = 'all') {
+// `closes` is the closing-line map (see dataStore.getClosingLines) - optional,
+// so callers without it (or before snapshots exist) still get a full ROI board.
+// It only adds a `clv` stat per tipster; ROI stays the ranking. CLV is computed
+// over the same visible posts the board already uses, and is null for anyone
+// below clvSummary's own sample gate - so it reads as "shown where earned",
+// same omit-rather-than-fake rule as the ROI/streak stats.
+export function computeTipsterRankings(publicFeed, window = 'all', closes = {}) {
   if (!publicFeed) return null
 
   const names = new Map()
@@ -39,7 +46,8 @@ export function computeTipsterRankings(publicFeed, window = 'all') {
         code: codes.get(userId),
         ...stats,
         streak: computeLongestWinStreak(posts),
-        badge: tipsterBadge(stats)
+        badge: tipsterBadge(stats),
+        clv: clvSummary(posts, closes) // avg closing line value, or null below the sample gate
       }
     })
     // Need a real, ranked sample: enough settled picks and a computable ROI.
