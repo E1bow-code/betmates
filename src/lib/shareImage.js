@@ -647,3 +647,119 @@ export async function shareInviteImage({ name, code, url }) {
   URL.revokeObjectURL(link.href)
   return 'downloaded'
 }
+
+// A "beat this" gauntlet card - the top-of-funnel counterpart to the challenge
+// RESULT card above. Where that one recaps a finished head-to-head between two
+// existing friends, this one is fired off to dare a mate (or anyone) into
+// starting one: the challenger's headline record shown big, with the challenge
+// deep-link carried by the share sheet. Single-subject layout like the invite
+// card. Whoever opens the link lands on ChallengePage (add-friend -> H2H).
+export async function renderChallengeInviteImage({ name, statLabel, statValue, code }) {
+  const height = 460
+  const padding = 44
+  const challenger = (name || 'A mate').trim()
+
+  const canvas = document.createElement('canvas')
+  const dpr = Math.min(window.devicePixelRatio || 1, 2)
+  canvas.width = WIDTH * dpr
+  canvas.height = height * dpr
+  const ctx = canvas.getContext('2d')
+  ctx.scale(dpr, dpr)
+
+  ctx.fillStyle = COLORS.bg
+  ctx.fillRect(0, 0, WIDTH, height)
+
+  let y = padding
+  ctx.fillStyle = COLORS.accent
+  ctx.font = '700 24px Georgia, serif'
+  ctx.fillText('BetMates', padding, y)
+  ctx.fillStyle = COLORS.textDim
+  ctx.font = '600 13px -apple-system, sans-serif'
+  ctx.textAlign = 'right'
+  ctx.fillText('⚔️ I CHALLENGE YOU', WIDTH - padding, y - 2)
+  ctx.textAlign = 'left'
+  y += 30
+  ctx.strokeStyle = COLORS.border
+  ctx.beginPath()
+  ctx.moveTo(padding, y)
+  ctx.lineTo(WIDTH - padding, y)
+  ctx.stroke()
+  y += 52
+
+  // The dare.
+  ctx.fillStyle = COLORS.text
+  ctx.font = '700 30px Georgia, serif'
+  const hook = wrapText(ctx, `${challenger} bets you can't beat this`, WIDTH - padding * 2)
+  for (const line of hook) {
+    ctx.fillText(line, padding, y)
+    y += 38
+  }
+  y += 22
+
+  // The headline stat, big.
+  if (statValue) {
+    ctx.fillStyle = COLORS.accent
+    ctx.font = '800 60px Georgia, serif'
+    ctx.fillText(String(statValue), padding, y)
+    y += 20
+    ctx.fillStyle = COLORS.textDim
+    ctx.font = '600 13px -apple-system, sans-serif'
+    ctx.fillText(String(statLabel || '').toUpperCase(), padding, y)
+    y += 34
+  }
+
+  // The pitch.
+  ctx.fillStyle = COLORS.textDim
+  ctx.font = '17px -apple-system, sans-serif'
+  const pitch = wrapText(ctx, 'Log your bets, track your record, and see who really knows their stuff.', WIDTH - padding * 2)
+  for (const line of pitch) {
+    ctx.fillText(line, padding, y)
+    y += 25
+  }
+  y += 18
+
+  // Join-code chip.
+  if (code) {
+    const chipH = 50
+    ctx.fillStyle = COLORS.surface
+    ctx.strokeStyle = COLORS.accent
+    ctx.lineWidth = 1.5
+    if (ctx.roundRect) {
+      ctx.beginPath()
+      ctx.roundRect(padding, y, WIDTH - padding * 2, chipH, 10)
+      ctx.fill()
+      ctx.stroke()
+    } else {
+      ctx.fillRect(padding, y, WIDTH - padding * 2, chipH)
+      ctx.strokeRect(padding, y, WIDTH - padding * 2, chipH)
+    }
+    ctx.fillStyle = COLORS.textDim
+    ctx.font = '600 12px -apple-system, sans-serif'
+    ctx.fillText('TAKE THEM ON — JOIN WITH CODE', padding + 16, y + 19)
+    ctx.fillStyle = COLORS.accent
+    ctx.font = '700 20px ui-monospace, Consolas, monospace'
+    ctx.fillText(String(code).toUpperCase(), padding + 16, y + 39)
+  }
+
+  ctx.fillStyle = COLORS.textDim
+  ctx.font = '12px -apple-system, sans-serif'
+  ctx.fillText('BetMates does not place bets or hold funds. 18+. Gamble responsibly.', padding, height - padding + 20)
+
+  return new Promise((resolve) => canvas.toBlob(resolve, 'image/png'))
+}
+
+export async function shareChallengeInviteImage({ name, statLabel, statValue, code, url }) {
+  const blob = await renderChallengeInviteImage({ name, statLabel, statValue, code })
+  const file = new File([blob], 'betmates-challenge.png', { type: 'image/png' })
+  const text = `${(name || 'A mate').trim()} is challenging you on BetMates — think you can beat their record?`
+  if (navigator.canShare?.({ files: [file] })) {
+    await navigator.share({ files: [file], title: 'I challenge you on BetMates', text, url })
+    return 'shared'
+  }
+  const link = document.createElement('a')
+  link.href = URL.createObjectURL(blob)
+  link.download = 'betmates-challenge.png'
+  link.click()
+  URL.revokeObjectURL(link.href)
+  return 'downloaded'
+}

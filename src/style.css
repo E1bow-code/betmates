@@ -3625,3 +3625,7 @@ a.btn,
   padding: 4px 6px;
   line-height: 1;
 }
+
+/* "Challenge a mate" CTA under the Tracker scoreboard. */
+.tracker-challenge-cta { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; margin: 10px 0 4px; }
+.tracker-challenge-cta .hint { margin: 0; }
