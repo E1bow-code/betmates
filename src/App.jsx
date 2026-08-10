@@ -13,6 +13,7 @@ import InstallGuideBanner from './components/InstallGuideBanner.jsx'
 import FirstRunWizard from './components/FirstRunWizard.jsx'
 import RealityCheck from './components/RealityCheck.jsx'
 import BetSlipBar from './components/BetSlipBar.jsx'
+import SlipBarSpacer from './components/SlipBarSpacer.jsx'
 import BetBuilderSheet from './components/BetBuilderSheet.jsx'
 import ManualEntrySheet from './components/ManualEntrySheet.jsx'
 import CoachLauncher from './components/CoachLauncher.jsx'
@@ -330,6 +331,7 @@ function Shell() {
             </Suspense>
           </div>
           <BetSlipBar />
+          <SlipBarSpacer />
           <BetBuilderSheet />
           {showQuickAdd && (
             <ManualEntrySheet

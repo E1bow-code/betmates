@@ -114,6 +114,14 @@ h1, h2, .topbar h1, .sheet-title, .auth-title {
   padding: env(safe-area-inset-top, 0) 12px 88px;
 }
 
+/* When the floating bet-slip bar is on screen (see SlipBarSpacer.jsx) it sits
+   above the nav as a fixed layer, so reserve enough bottom space that the last
+   row of a scrolling list clears it instead of hiding underneath. Only applied
+   while the bar is actually up, so pages don't carry the gap otherwise. */
+body.slip-bar-open .app-content {
+  padding-bottom: calc(132px + env(safe-area-inset-bottom, 0));
+}
+
 /* Persistent logo + notification-bell row (src/components/AppHeader.jsx) -
    sits as the first thing inside .app-content rather than a sibling of it,
    so it just becomes normal top-of-page flow instead of a third flex
@@ -2749,6 +2757,11 @@ button.conversation-row { width: 100%; background: none; border: none; border-bo
   top: 0;
   background: var(--bg);
   z-index: 10;
+  /* Reads as a pinned toolbar rather than text that mysteriously stops
+     scrolling: a hairline plus a soft shadow give the content a clear edge to
+     slide under, instead of appearing to vanish into the header. */
+  border-bottom: 1px solid var(--border);
+  box-shadow: 0 6px 12px -8px rgba(0, 0, 0, 0.6);
 }
 
 .topbar h1 {
@@ -3264,16 +3277,30 @@ a.race-card:hover, a.race-card:focus-visible { background: rgba(var(--accent-rgb
   box-shadow: 0 -1px 0 rgba(0, 0, 0, 0.35), 0 -10px 26px rgba(0, 0, 0, 0.22);
 }
 
-/* Tactile press feedback on buttons + the pill/tab controls. */
+/* touch-action: manipulation removes the ~300ms "wait for double-tap-to-zoom"
+   delay mobile browsers add to every tap, which is the main reason buttons felt
+   laggy. Applied to every interactive element, not just .btn, since a lot of the
+   app's tappables are bare <button>s (odds rows, nav, cards). */
+button,
+a.btn,
+[role='button'] {
+  touch-action: manipulation;
+}
+
+/* Tactile press feedback on buttons + the pill/tab controls. Because the app
+   sets -webkit-tap-highlight-color: transparent (no default tap flash), the
+   press state has to carry all the feedback - so a visible dim on top of the
+   1px nudge, or a tap reads as "nothing happened". */
 .btn,
 .sport-pill,
 .mode-tab {
-  transition: transform 0.06s ease, box-shadow 0.15s ease, background-color 0.15s ease;
+  transition: transform 0.06s ease, filter 0.06s ease, box-shadow 0.15s ease, background-color 0.15s ease;
 }
 .btn:active,
 .sport-pill:active,
 .mode-tab:active {
   transform: translateY(1px);
+  filter: brightness(0.9);
 }
 
 /* Punchier hero numbers - the best price is the thing the eye should land
