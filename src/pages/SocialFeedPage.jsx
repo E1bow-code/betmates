@@ -16,6 +16,7 @@ import ManageSheet from '../components/ManageSheet.jsx'
 import HeadToHeadSheet from '../components/HeadToHeadSheet.jsx'
 import GroupVsGroupSheet from '../components/GroupVsGroupSheet.jsx'
 import EmptyState from '../components/EmptyState.jsx'
+import InviteMatesButton from '../components/InviteMatesButton.jsx'
 import Avatar from '../components/Avatar.jsx'
 import PullToRefresh from '../components/PullToRefresh.jsx'
 import ShareLeaderboardButton from '../components/ShareLeaderboardButton.jsx'
@@ -285,6 +286,7 @@ export default function SocialFeedPage() {
                   <button className="btn btn-primary" onClick={() => setShowManage(true)}>
                     Create or join a group
                   </button>
+                  <InviteMatesButton name={user.displayName} friendCode={user.friendCode} label="Invite mates" className="btn btn-ghost" />
                   <Link to="/dashboard" className="btn btn-ghost">
                     Browse the public feed on Home
                   </Link>
