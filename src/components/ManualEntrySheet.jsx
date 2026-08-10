@@ -169,16 +169,32 @@ export default function ManualEntrySheet({ userId, onClose, onSaved }) {
         <p className="hint">Still need the event, market and selection below - scanning can't reliably read those off every slip.</p>
 
         <form onSubmit={handleSave}>
-          <label className="field">
-            <span>Sport</span>
-            <select value={sport} onChange={(e) => setSport(e.target.value)}>
-              {SPORT_OPTIONS.map(([key, label]) => (
-                <option key={key} value={key}>
-                  {label}
-                </option>
-              ))}
-            </select>
-          </label>
+          {/* Short fields paired onto rows so the form reads as a tidy block
+              rather than a long single column; the free-text event/market/
+              selection stay full-width since they hold longer values. */}
+          <div className="field-row">
+            <label className="field">
+              <span>Sport</span>
+              <select value={sport} onChange={(e) => setSport(e.target.value)}>
+                {SPORT_OPTIONS.map(([key, label]) => (
+                  <option key={key} value={key}>
+                    {label}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <label className="field">
+              <span>Bookmaker</span>
+              <select value={bookmaker} onChange={(e) => setBookmaker(e.target.value)}>
+                {BOOKMAKERS.map((b) => (
+                  <option key={b} value={b}>
+                    {b}
+                  </option>
+                ))}
+                <option value="Other">Other</option>
+              </select>
+            </label>
+          </div>
           <label className="field">
             <span>Event</span>
             <input value={event} onChange={(e) => setEvent(e.target.value)} placeholder="Arsenal v Chelsea" maxLength={120} />
@@ -191,25 +207,16 @@ export default function ManualEntrySheet({ userId, onClose, onSaved }) {
             <span>Selection</span>
             <input value={selection} onChange={(e) => setSelection(e.target.value)} placeholder="Arsenal to win" maxLength={120} />
           </label>
-          <label className="field">
-            <span>Odds</span>
-            <input value={oddsInput} onChange={(e) => setOddsInput(e.target.value)} placeholder="2.50 or 5/2" />
-          </label>
-          <label className="field">
-            <span>Bookmaker</span>
-            <select value={bookmaker} onChange={(e) => setBookmaker(e.target.value)}>
-              {BOOKMAKERS.map((b) => (
-                <option key={b} value={b}>
-                  {b}
-                </option>
-              ))}
-              <option value="Other">Other</option>
-            </select>
-          </label>
-          <label className="field">
-            <span>Stake (optional)</span>
-            <input type="number" min="0" step="0.5" placeholder="£" value={stake} onChange={(e) => setStake(e.target.value)} />
-          </label>
+          <div className="field-row">
+            <label className="field">
+              <span>Odds</span>
+              <input value={oddsInput} onChange={(e) => setOddsInput(e.target.value)} placeholder="2.50 or 5/2" />
+            </label>
+            <label className="field">
+              <span>Stake (optional)</span>
+              <input type="number" min="0" step="0.5" placeholder="£" value={stake} onChange={(e) => setStake(e.target.value)} />
+            </label>
+          </div>
           {potentialReturn ? <p className="hint">Potential return: £{potentialReturn.toFixed(2)}</p> : null}
           {sanityCheckOn &&
             (bigStake ||
