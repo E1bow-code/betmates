@@ -27,6 +27,7 @@ import BankrollChart from '../components/BankrollChart.jsx'
 import { trackerEntriesToCsv, downloadCsv } from '../lib/csvExport.js'
 import PullToRefresh from '../components/PullToRefresh.jsx'
 import ShareRecapButton from '../components/ShareRecapButton.jsx'
+import ChallengeMateButton from '../components/ChallengeMateButton.jsx'
 import ShareImageButton from '../components/ShareImageButton.jsx'
 import SportHeroBanner from '../components/SportHeroBanner.jsx'
 import SportIcon from '../components/icons/SportIcons.jsx'
@@ -270,6 +271,25 @@ export default function TrackerPage() {
           </div>
         </div>
       </div>
+
+      {/* Once there's a real record to flex (3+ decided bets), let the user dare
+          a mate to beat it - a gauntlet card carrying their headline stat and a
+          challenge deep-link (see ChallengeMateButton). */}
+      {stats.decidedCount >= 3 && (
+        <div className="tracker-challenge-cta">
+          <span className="hint">Think a mate can do better?</span>
+          <ChallengeMateButton
+            name={user.displayName}
+            friendCode={user.friendCode}
+            statLabel={stats.roi !== null ? 'All-time ROI' : 'All-time P&L'}
+            statValue={
+              stats.roi !== null
+                ? `${stats.roi >= 0 ? '+' : ''}${stats.roi}%`
+                : `${stats.profit >= 0 ? '+' : ''}£${stats.profit.toFixed(2)}`
+            }
+          />
+        </div>
+      )}
 
       {badges.length > 0 && (
         <div className="badge-row">
