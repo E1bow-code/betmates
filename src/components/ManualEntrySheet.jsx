@@ -10,7 +10,7 @@ import { recognizeSlipText } from '../lib/ocr.js'
 import { detectLossChasing } from '../utils/lossChasing.js'
 import { stakingPlanWarning } from '../utils/stakingPlan.js'
 import { detectBigStake } from '../utils/bigStake.js'
-import { periodStart, sumStakesSince } from '../utils/spendLimit.js'
+import { periodStart, sumStakesSince, wouldExceedLimit } from '../utils/spendLimit.js'
 import { useAsyncAction } from '../lib/useAsyncAction.js'
 import { useEscapeKey } from '../lib/useEscapeKey.js'
 
@@ -120,6 +120,15 @@ export default function ManualEntrySheet({ userId, onClose, onSaved }) {
     }
     if (!odds) {
       setError('Enter a valid price, e.g. 2.50 or 5/2.')
+      return
+    }
+    // Hard spend limit (opt-in): actually block the log once the period's over
+    // the cap, rather than only warning. The soft warning above still shows for
+    // everyone; this is the binding version.
+    if (user.notificationPrefs?.stakeLimitHard && wouldExceedLimit({ periodSpend, stake: stakeNum, amount: user.stakeLimitAmount })) {
+      setError(
+        `This would take you over your £${Number(user.stakeLimitAmount).toFixed(2)} ${user.stakeLimitPeriod === 'monthly' ? 'monthly' : 'weekly'} limit. You've set that as a hard limit, so it's blocked until the ${user.stakeLimitPeriod === 'monthly' ? 'month' : 'week'} resets.`
+      )
       return
     }
     setSaving(true)

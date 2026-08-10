@@ -780,6 +780,15 @@ export default function AccountPage() {
                 Turn off limit
               </button>
 
+              <label className="field-check">
+                <input
+                  type="checkbox"
+                  checked={user.notificationPrefs?.stakeLimitHard ?? false}
+                  onChange={() => toggleNotification('stakeLimitHard')}
+                />
+                <span>🔒 Make this a hard limit — stop me logging new bets once I've hit it (otherwise it only warns).</span>
+              </label>
+
               <label className="field">
                 <span>Notify a mate when you hit it</span>
                 <select value={user.limitBuddyId ?? ''} onChange={handleBuddyChange} disabled={buddySaving || !friends?.length}>

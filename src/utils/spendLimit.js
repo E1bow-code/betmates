@@ -17,3 +17,15 @@ export function sumStakesSince(entries, since) {
     .filter((e) => e.stake && new Date(e.createdAt) >= since)
     .reduce((sum, e) => sum + Number(e.stake), 0)
 }
+
+// Whether logging a new `stake` would push this period's logged stakes past the
+// limit. Used both for the advisory warning and - when the user has opted into
+// a hard limit (notificationPrefs.stakeLimitHard) - to actually block the save.
+// Only meaningful with a limit set and a real positive stake; anything missing
+// is treated as "no, carry on" so it never blocks by accident.
+export function wouldExceedLimit({ periodSpend, stake, amount }) {
+  const s = Number(stake)
+  const a = Number(amount)
+  if (!a || !Number.isFinite(s) || s <= 0 || periodSpend == null) return false
+  return periodSpend + s > a
+}
