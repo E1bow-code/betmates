@@ -7,7 +7,7 @@ import { useToast } from '../context/ToastContext.jsx'
 import * as dataStore from '../lib/dataStore.js'
 import { notifyGroup, notifyFollowers } from '../lib/notify.js'
 import { formatOdds } from '../utils/oddsFormat.js'
-import { periodStart, sumStakesSince } from '../utils/spendLimit.js'
+import { periodStart, sumStakesSince, wouldExceedLimit } from '../utils/spendLimit.js'
 import { getEachWayTerms, computeEachWayReturn } from '../utils/eachWay.js'
 import { detectLossChasing } from '../utils/lossChasing.js'
 import { stakingPlanWarning } from '../utils/stakingPlan.js'
@@ -99,7 +99,21 @@ export default function BetBuilderSheet() {
     if (!submitting) closeSheet()
   }
 
+  // Hard spend limit (opt-in via Account): block posting/saving a bet once the
+  // period is over the cap, rather than only warning. Shared by all three save
+  // paths below. The soft warning still shows for everyone; this binds it.
+  function hardLimitBlocked() {
+    if (user.notificationPrefs?.stakeLimitHard && wouldExceedLimit({ periodSpend, stake: stakeNum, amount: user.stakeLimitAmount })) {
+      setError(
+        `This would take you over your £${Number(user.stakeLimitAmount).toFixed(2)} ${user.stakeLimitPeriod === 'monthly' ? 'monthly' : 'weekly'} limit. You've set that as a hard limit, so it's blocked until the ${user.stakeLimitPeriod === 'monthly' ? 'month' : 'week'} resets.`
+      )
+      return true
+    }
+    return false
+  }
+
   async function handlePost() {
+    if (hardLimitBlocked()) return
     setSubmitting(true)
     setError(null)
     try {
@@ -137,6 +151,7 @@ export default function BetBuilderSheet() {
   }
 
   async function handlePostPublic() {
+    if (hardLimitBlocked()) return
     setSubmitting(true)
     setError(null)
     try {
@@ -184,6 +199,7 @@ export default function BetBuilderSheet() {
   }
 
   async function handleSaveToTracker() {
+    if (hardLimitBlocked()) return
     setSubmitting(true)
     setError(null)
     try {
