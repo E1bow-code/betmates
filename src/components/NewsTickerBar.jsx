@@ -9,13 +9,17 @@ export default function NewsTickerBar({ headlines }) {
   return (
     <div className="news-ticker-bar" aria-label="Sports news ticker">
       <span className="news-ticker-label">Sport news</span>
-      <div className="news-ticker-track">
-        {[...headlines, ...headlines].map((item, i) => (
-          <a key={i} className="news-ticker-item" href={item.link} target="_blank" rel="noreferrer">
-            <span className="news-ticker-source">{item.source}</span>
-            {item.title}
-          </a>
-        ))}
+      {/* The scrolling track lives in its own clipped lane so the headlines
+          never slide over the "Sport news" label (which left both unreadable). */}
+      <div className="news-ticker-viewport">
+        <div className="news-ticker-track">
+          {[...headlines, ...headlines].map((item, i) => (
+            <a key={i} className="news-ticker-item" href={item.link} target="_blank" rel="noreferrer">
+              <span className="news-ticker-source">{item.source}</span>
+              {item.title}
+            </a>
+          ))}
+        </div>
       </div>
     </div>
   )
