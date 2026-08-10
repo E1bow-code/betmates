@@ -1,0 +1,8 @@
+[{
+      "relation": ["delegate_permission/common.handle_all_urls"],
+      "target": {
+        "namespace": "android_app",
+        "package_name": "org.betmates.twa",
+        "sha256_cert_fingerprints": ["CA:CE:45:20:DA:FA:1C:25:CB:67:EA:5B:F5:E2:AA:A3:95:61:A9:11:9E:D1:F7:A9:B2:FA:58:13:24:3A:90:AF"]
+      }
+    }]
