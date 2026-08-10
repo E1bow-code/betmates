@@ -510,10 +510,35 @@ export default function AccountPage() {
         ) : (
           <>
             <p className="hint">
-              Unlimited CoachGPT (free plan gets 10 messages a month) and the advanced analytics layer - CLV leaderboard, sharp-money
-              indicator, crowd wisdom calibration, bad beats, money-left-on-the-table, discipline streak, cash-out replay, and the
-              Kelly staking calculator. Everything else on BetMates stays free either way.
+              Unlimited CoachGPT (free plan gets 10 messages a month) plus the advanced analytics layer below. Everything
+              else on BetMates stays free either way.
             </p>
+            <ul className="plus-feature-list">
+              <li>
+                <strong>CLV leaderboard</strong> - ranks you by the price you actually got vs. the closing line, not just who won.
+              </li>
+              <li>
+                <strong>Sharp-money indicator</strong> - flags when the market's moving hard on a price you're watching.
+              </li>
+              <li>
+                <strong>Crowd wisdom calibration</strong> - shows how well the group's confidence votes actually predict results.
+              </li>
+              <li>
+                <strong>Bad beats</strong> - the personal "so close" column: bets that lost right at the wire.
+              </li>
+              <li>
+                <strong>Money left on the table</strong> - what you'd have won taking the best price instead of your own bookmaker's.
+              </li>
+              <li>
+                <strong>Discipline streak</strong> - rewards sticking to your staking plan, not just winning.
+              </li>
+              <li>
+                <strong>Cash-out replay</strong> - see what cashing out early would actually have paid, after the fact.
+              </li>
+              <li>
+                <strong>Kelly staking calculator</strong> - a bet-sizing suggestion based on your own stated edge.
+              </li>
+            </ul>
             <div className="self-exclude-options">
               <button className="btn btn-primary btn-small" disabled={!!checkoutBusy} onClick={() => handleUpgrade('monthly')}>
                 {checkoutBusy === 'monthly' ? 'Redirecting…' : '£2.99/month'}

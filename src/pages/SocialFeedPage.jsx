@@ -87,7 +87,15 @@ export default function SocialFeedPage() {
   const [compareFriend, setCompareFriend] = useState(null)
   const [showGroupCompare, setShowGroupCompare] = useState(false)
   const [leaderboardWindow, setLeaderboardWindow] = useState('all')
+  const [moreSegmentsOpen, setMoreSegmentsOpen] = useState(false)
   const publicFeedViewRef = useRef(null)
+
+  // A brand-new, groupless account landing here has nothing to anchor
+  // Leaderboard/Tipsters/Bookmakers/News/Tips/FPL against yet, so those
+  // stay behind "More" until there's at least one group - or the user's
+  // already been deep-linked into one of them (e.g. Home's Tips pill).
+  const EXTRA_SEGMENTS = ['leaderboard', 'tipsters', 'bookmakers', 'news', 'tips', 'fpl']
+  const showAllSegments = moreSegmentsOpen || (groups && groups.length > 0) || EXTRA_SEGMENTS.includes(segment)
 
   useEffect(() => {
     refreshBets()
@@ -228,30 +236,38 @@ export default function SocialFeedPage() {
           <button className={segment === 'bets' ? 'sport-pill active' : 'sport-pill'} onClick={() => setSegment('bets')}>
             Bets
           </button>
-          <button className={segment === 'leaderboard' ? 'sport-pill active' : 'sport-pill'} onClick={() => setSegment('leaderboard')}>
-            🏆 Leaderboard
-          </button>
-          <button className={segment === 'tipsters' ? 'sport-pill active' : 'sport-pill'} onClick={() => setSegment('tipsters')}>
-            🎯 Tipsters
-          </button>
-          <button className={segment === 'bookmakers' ? 'sport-pill active' : 'sport-pill'} onClick={() => setSegment('bookmakers')}>
-            🏦 Bookmakers
-          </button>
           <button className={segment === 'feed' ? 'sport-pill active' : 'sport-pill'} onClick={() => setSegment('feed')}>
             Feed
           </button>
           <button className={segment === 'discover' ? 'sport-pill active' : 'sport-pill'} onClick={() => setSegment('discover')}>
             🔎 Discover
           </button>
-          <button className={segment === 'news' ? 'sport-pill active' : 'sport-pill'} onClick={() => setSegment('news')}>
-            📰 News
-          </button>
-          <button className={segment === 'tips' ? 'sport-pill active' : 'sport-pill'} onClick={() => setSegment('tips')}>
-            Tips
-          </button>
-          <button className={segment === 'fpl' ? 'sport-pill active' : 'sport-pill'} onClick={() => setSegment('fpl')}>
-            FPL
-          </button>
+          {showAllSegments ? (
+            <>
+              <button className={segment === 'leaderboard' ? 'sport-pill active' : 'sport-pill'} onClick={() => setSegment('leaderboard')}>
+                🏆 Leaderboard
+              </button>
+              <button className={segment === 'tipsters' ? 'sport-pill active' : 'sport-pill'} onClick={() => setSegment('tipsters')}>
+                🎯 Tipsters
+              </button>
+              <button className={segment === 'bookmakers' ? 'sport-pill active' : 'sport-pill'} onClick={() => setSegment('bookmakers')}>
+                🏦 Bookmakers
+              </button>
+              <button className={segment === 'news' ? 'sport-pill active' : 'sport-pill'} onClick={() => setSegment('news')}>
+                📰 News
+              </button>
+              <button className={segment === 'tips' ? 'sport-pill active' : 'sport-pill'} onClick={() => setSegment('tips')}>
+                Tips
+              </button>
+              <button className={segment === 'fpl' ? 'sport-pill active' : 'sport-pill'} onClick={() => setSegment('fpl')}>
+                FPL
+              </button>
+            </>
+          ) : (
+            <button className="sport-pill" onClick={() => setMoreSegmentsOpen(true)}>
+              More ▾
+            </button>
+          )}
         </div>
       </div>
 
@@ -265,9 +281,14 @@ export default function SocialFeedPage() {
               title="No groups yet"
               subtitle="Create one for your mates, or join with an invite code, to start sharing bets."
               action={
-                <button className="btn btn-primary" onClick={() => setShowManage(true)}>
-                  Create or join a group
-                </button>
+                <>
+                  <button className="btn btn-primary" onClick={() => setShowManage(true)}>
+                    Create or join a group
+                  </button>
+                  <Link to="/dashboard" className="btn btn-ghost">
+                    Browse the public feed on Home
+                  </Link>
+                </>
               }
             />
           )}

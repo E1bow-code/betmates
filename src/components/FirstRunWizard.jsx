@@ -61,16 +61,25 @@ export default function FirstRunWizard({ onDone }) {
     }
   }, [user.id])
 
+  // Optimistic: flips the chip immediately rather than waiting on the
+  // follow/unfollow round-trip, then reverts if it turns out to have
+  // failed - a chip that only lights up after a network call feels
+  // unresponsive on a slow connection, and invites a confused second tap.
   async function toggleTeam(name) {
     const following = followedTeams.has(name)
+    setFollowedTeams((prev) => {
+      const next = new Set(prev)
+      following ? next.delete(name) : next.add(name)
+      return next
+    })
     const ok = await runAsync(
       () => (following ? dataStore.unfollowParticipant(user.id, 'football', name) : dataStore.followParticipant(user.id, 'football', name)),
       `Couldn't ${following ? 'unfollow' : 'follow'} ${name} - try again`
     )
-    if (!ok) return
+    if (ok) return
     setFollowedTeams((prev) => {
       const next = new Set(prev)
-      following ? next.delete(name) : next.add(name)
+      following ? next.add(name) : next.delete(name)
       return next
     })
   }

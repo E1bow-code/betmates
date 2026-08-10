@@ -1046,6 +1046,17 @@ button.conversation-row { width: 100%; background: none; border: none; border-bo
 
 .self-exclude-options { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 8px; }
 
+.plus-feature-list {
+  list-style: none;
+  margin: 4px 4px 12px;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.plus-feature-list li { font-size: 0.8rem; color: var(--text-dim); line-height: 1.4; }
+.plus-feature-list strong { color: var(--text); font-weight: 600; }
+
 .premium-gate {
   display: flex;
   align-items: center;

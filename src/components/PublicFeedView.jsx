@@ -56,7 +56,10 @@ const PublicFeedView = forwardRef(function PublicFeedView({ filter = 'all' }, re
   return (
     <>
       {filter === 'all' && (
-        <p className="hint">Everyone's picks - tap a price on the Odds tab and choose "Post to everyone" to add yours.</p>
+        <p className="hint">
+          Everyone's picks - tap a price on the Odds tab and choose "Post to everyone" to add yours. Posting to a group
+          instead keeps it just between you and your mates.
+        </p>
       )}
 
       {filter === 'all' && trendingPicks.length > 0 && (

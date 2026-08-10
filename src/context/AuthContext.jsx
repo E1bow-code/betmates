@@ -102,8 +102,18 @@ export function AuthProvider({ children }) {
   const updateBookmakerPrefs = useCallback(
     async (prefs) => {
       if (!user) return
-      await dataStore.updateBookmakerPrefs(user.id, prefs)
+      // Optimistic - every caller (AccountPage's own settings, the
+      // first-run wizard) is a chip grid where the checked state reads
+      // straight off user.bookmakerPrefs, so without this the chip only
+      // lights up after the round-trip completes. Reverts on failure.
+      const previous = user.bookmakerPrefs
       setUser((u) => ({ ...u, bookmakerPrefs: prefs }))
+      try {
+        await dataStore.updateBookmakerPrefs(user.id, prefs)
+      } catch (err) {
+        setUser((u) => ({ ...u, bookmakerPrefs: previous }))
+        throw err
+      }
     },
     [user]
   )

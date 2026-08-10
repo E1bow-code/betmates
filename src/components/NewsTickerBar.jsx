@@ -2,7 +2,10 @@
 // size, hidden once there's room for the vertical NewsSidebar instead
 // (see the 1280px breakpoint in style.css). The headline list is rendered
 // twice back-to-back so the CSS animation's translateX(-50%) loops back
-// to the start of the duplicate seamlessly, with no visible jump.
+// to the start of the duplicate seamlessly, with no visible jump. The
+// second copy is aria-hidden and untabbable - it's a purely visual loop
+// device, not real content, so screen readers shouldn't announce every
+// headline twice and keyboard users shouldn't tab through duplicates.
 export default function NewsTickerBar({ headlines }) {
   if (!headlines.length) return null
 
@@ -13,8 +16,22 @@ export default function NewsTickerBar({ headlines }) {
           never slide over the "Sport news" label (which left both unreadable). */}
       <div className="news-ticker-viewport">
         <div className="news-ticker-track">
-          {[...headlines, ...headlines].map((item, i) => (
+          {headlines.map((item, i) => (
             <a key={i} className="news-ticker-item" href={item.link} target="_blank" rel="noreferrer">
+              <span className="news-ticker-source">{item.source}</span>
+              {item.title}
+            </a>
+          ))}
+          {headlines.map((item, i) => (
+            <a
+              key={`dup-${i}`}
+              className="news-ticker-item"
+              href={item.link}
+              target="_blank"
+              rel="noreferrer"
+              aria-hidden="true"
+              tabIndex={-1}
+            >
               <span className="news-ticker-source">{item.source}</span>
               {item.title}
             </a>
