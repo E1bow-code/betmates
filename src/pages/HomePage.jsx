@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext.jsx'
 import * as dataStore from '../lib/dataStore.js'
 import { computeStreak } from '../utils/trackerStats.js'
-import { computeGroupLeaderboard } from '../utils/groupLeaderboard.js'
+import { computeGroupLeaderboard, computeGroupClvLeaderboard } from '../utils/groupLeaderboard.js'
 import { computeHomeHighlights } from '../utils/homeHighlights.js'
 import SportHeroBanner from '../components/SportHeroBanner.jsx'
 import PublicFeedView from '../components/PublicFeedView.jsx'
@@ -48,12 +48,18 @@ export default function HomePage() {
       dataStore.listBetPosts(headline.groupId),
       dataStore.listGroupMembers(headline.groupId)
     ])
-      .then(([group, posts, members]) => {
+      .then(async ([group, posts, members]) => {
         const memberNames = Object.fromEntries(members.map((m) => [m.id, m.displayName]))
         const rows = computeGroupLeaderboard(posts, memberNames, 'all')
         const mine = rows.find((r) => r.userId === user.id)
+        // The user's own CLV in this same group, for the badge next to their
+        // rank. Best-effort: no recorded closes -> no badge, and it never
+        // blocks the rank itself (which is the teaser's whole point).
+        const fixtureIds = posts.flatMap((p) => (p.selections ?? []).map((s) => s.eventId)).filter(Boolean)
+        const closes = await dataStore.getClosingLines(fixtureIds).catch(() => ({}))
+        const myClv = computeGroupClvLeaderboard(posts, memberNames, closes, 'all').find((r) => r.userId === user.id)?.clv ?? null
         setRankTeaser(
-          mine && group ? { groupId: group.id, groupName: group.name, rank: mine.rank, totalRanked: rows.length } : null
+          mine && group ? { groupId: group.id, groupName: group.name, rank: mine.rank, totalRanked: rows.length, clv: myClv } : null
         )
       })
       .catch(() => setRankTeaser(null))

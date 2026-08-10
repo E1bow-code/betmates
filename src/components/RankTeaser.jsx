@@ -5,13 +5,19 @@ import { Link } from 'react-router-dom'
 // rendered when there's an actual rank to show (see HomePage's derivation) -
 // no "join a group" nudge otherwise, same silent-omission pattern as the
 // streak badge above it.
-export default function RankTeaser({ groupId, groupName, rank, totalRanked }) {
+export default function RankTeaser({ groupId, groupName, rank, totalRanked, clv }) {
   return (
     <Link to={`/groups/${groupId}`} className="rank-teaser">
       <span className="rank-teaser-rank">#{rank}</span>
       <span className="rank-teaser-body">
         <span className="rank-teaser-group">in {groupName}</span>
-        <span className="rank-teaser-context">{totalRanked} ranked · tap for the board</span>
+        <span className="rank-teaser-context">
+          {totalRanked} ranked · tap for the board
+          {/* The user's own closing line value in this group - the "are you
+              actually sharp" signal next to the "are you winning" rank. Only
+              shown once enough closes exist to clear clvSummary's sample gate. */}
+          {clv ? ` · 🎯 ${clv.avgPct >= 0 ? '+' : ''}${clv.avgPct}% CLV` : ''}
+        </span>
       </span>
       <span className="rank-teaser-chevron">›</span>
     </Link>
