@@ -1950,15 +1950,21 @@ button.conversation-row { width: 100%; background: none; border: none; border-bo
   border-radius: 4px;
   overflow: hidden;
 }
+.season-champions-entry { border-bottom: 1px solid var(--border); }
+.season-champions-list .season-champions-entry:last-child { border-bottom: none; }
 .season-champions-row {
   display: flex;
   align-items: center;
   gap: 10px;
   padding: 6px 12px;
-  border-bottom: 1px solid var(--border);
   font-size: 0.78rem;
 }
-.season-champions-list .season-champions-row:last-child { border-bottom: none; }
+/* The "sharpest tipster" (CLV) award line under a champion row. */
+.season-champions-clv {
+  padding: 0 12px 7px;
+  font-size: 0.72rem;
+  color: var(--text-dim);
+}
 .season-champions-period { color: var(--text-dim); width: 92px; flex-shrink: 0; }
 .season-champions-name { flex: 1; font-weight: 600; }
 .season-champions-profit { font-weight: 700; font-family: var(--font-mono); font-variant-numeric: tabular-nums; }

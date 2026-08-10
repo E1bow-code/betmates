@@ -1,6 +1,6 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { closingKey, legClv, legClvFromMap, betClv, clvSummary } from './clv.js'
+import { closingKey, legClv, legClvFromMap, betClv, clvSummary, closingLinesFromSnapshots } from './clv.js'
 
 const leg = (over) => ({ eventId: 'e1', marketKey: 'h2h', outcomeName: 'Home', odds: 2.0, ...over })
 const single = (over) => ({ selections: [leg(over)] })
@@ -86,4 +86,26 @@ test('clvSummary ignores entries with no recorded close', () => {
   ]
   // Only one comparable entry, below the default minSample of 3.
   assert.equal(clvSummary(entries, closes), null)
+})
+
+test('closingLinesFromSnapshots takes the latest price at or before kickoff', () => {
+  const kickoffs = { fx1: '2026-08-01T15:00:00Z' }
+  const snaps = [
+    { fixture_id: 'fx1', market: 'h2h', selection: 'Home', odds: 2.0, fetched_at: '2026-08-01T10:00:00Z' },
+    { fixture_id: 'fx1', market: 'h2h', selection: 'Home', odds: 1.9, fetched_at: '2026-08-01T14:30:00Z' }, // latest pre-KO -> the close
+    { fixture_id: 'fx1', market: 'h2h', selection: 'Home', odds: 1.5, fetched_at: '2026-08-01T15:30:00Z' } // after KO -> ignored
+  ]
+  const closes = closingLinesFromSnapshots(snaps, kickoffs)
+  assert.equal(closes['fx1|h2h|Home'], 1.9)
+})
+
+test('closingLinesFromSnapshots keeps the latest as provisional when kickoff is unknown', () => {
+  // No kickoff for this fixture -> nothing is "after kickoff", so the newest
+  // recorded price stands in as the close.
+  const snaps = [
+    { fixture_id: 'fxX', market: 'h2h', selection: 'Away', odds: 3.0, fetched_at: '2026-08-01T10:00:00Z' },
+    { fixture_id: 'fxX', market: 'h2h', selection: 'Away', odds: 2.7, fetched_at: '2026-08-01T12:00:00Z' }
+  ]
+  const closes = closingLinesFromSnapshots(snaps, {})
+  assert.equal(closes['fxX|h2h|Away'], 2.7)
 })

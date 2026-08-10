@@ -62,3 +62,28 @@ export function clvSummary(entries, closes, minSample = 3) {
     sample: values.length
   }
 }
+
+// Reduces raw odds_snapshots rows to the { key: decimal } closing-line map the
+// functions above consume: per outcome, the latest price recorded at or before
+// its fixture's kickoff (a snapshot taken after kickoff is an in-play sample,
+// not a close). `kickoffs` maps fixtureId -> kickoff (ISO string or Date),
+// accepting a Map or a plain object; an outcome whose fixture has no known
+// kickoff keeps its latest recorded price as a provisional close. Pure, so both
+// dataStore.getClosingLines (client) and netlify/functions/season-rollover.js
+// (server) build the identical map from their own query results instead of each
+// re-deriving this subtle "at or before kickoff" rule and risking drift.
+export function closingLinesFromSnapshots(snapshots, kickoffs) {
+  const kickoffFor = (id) => (kickoffs instanceof Map ? kickoffs.get(id) : kickoffs?.[id])
+  const best = new Map()
+  for (const snap of snapshots ?? []) {
+    const ko = kickoffFor(snap.fixture_id)
+    const at = new Date(snap.fetched_at).getTime()
+    if (ko && at > new Date(ko).getTime()) continue
+    const key = closingKey(snap.fixture_id, snap.market, snap.selection)
+    const prev = best.get(key)
+    if (!prev || at > prev.at) best.set(key, { at, odds: Number(snap.odds) })
+  }
+  const out = {}
+  for (const [key, value] of best) out[key] = value.odds
+  return out
+}

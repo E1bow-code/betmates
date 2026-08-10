@@ -1146,6 +1146,17 @@ create table season_results (
   roi numeric,
   win_rate numeric,
   settled_count integer not null,
+  -- "Sharpest tipster" award: the month's #1 by average Closing Line Value
+  -- (computeSeasonClvWinner in src/utils/groupLeaderboard.js), archived here at
+  -- rollover because CLV can't be recomputed later once odds_snapshots age out.
+  -- All nullable: a month with no qualifying CLV champion (nobody past the
+  -- sample gate, or no recorded closing lines) simply carries none, and rows
+  -- written before this award existed stay null too.
+  clv_winner_user_id uuid references profiles(id) on delete set null,
+  clv_winner_name text,
+  clv_avg_pct numeric,
+  clv_beat_rate numeric,
+  clv_sample integer,
   created_at timestamptz not null default now(),
   check ((scope = 'group') = (group_id is not null)),
   unique (group_id, period)

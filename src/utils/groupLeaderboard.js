@@ -66,3 +66,16 @@ export function computeSeasonWinner(posts, memberNames, period) {
   const rows = computeGroupLeaderboard(periodPosts, memberNames, 'all')
   return rows[0] ?? null
 }
+
+// The CLV twin of computeSeasonWinner: the month's "sharpest tipster" - #1 by
+// average closing line value - for season-rollover.js to archive alongside the
+// profit champion. Same period-filter-then-rank shape, but via
+// computeGroupClvLeaderboard (which needs the closing-line map). Returns null
+// when nobody clears clvSummary's sample gate that month, so a month with thin
+// CLV data simply has no sharpest-tipster award rather than a noisy one - the
+// same reason season-rollover writes a null clv_winner there.
+export function computeSeasonClvWinner(posts, memberNames, closes, period) {
+  const periodPosts = posts.filter((post) => isWithinPeriod(post.settledAt, period))
+  const rows = computeGroupClvLeaderboard(periodPosts, memberNames, closes, 'all')
+  return rows[0] ?? null
+}

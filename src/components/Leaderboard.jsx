@@ -135,12 +135,20 @@ export default function Leaderboard({ posts, memberNames, currentUserId, closes 
               <p className="season-champions-title">🏆 Past champions</p>
               <div className="season-champions-list">
                 {seasons.map((s) => (
-                  <div key={s.period} className="season-champions-row">
-                    <span className="season-champions-period">{formatPeriod(s.period)}</span>
-                    <span className="season-champions-name">{s.winnerName}</span>
-                    <span className={`season-champions-profit ${s.profit >= 0 ? 'tone-good' : 'tone-bad'}`}>
-                      {s.profit >= 0 ? '+' : ''}£{s.profit.toFixed(2)}
-                    </span>
+                  <div key={s.period} className="season-champions-entry">
+                    <div className="season-champions-row">
+                      <span className="season-champions-period">{formatPeriod(s.period)}</span>
+                      <span className="season-champions-name">{s.winnerName}</span>
+                      <span className={`season-champions-profit ${s.profit >= 0 ? 'tone-good' : 'tone-bad'}`}>
+                        {s.profit >= 0 ? '+' : ''}£{s.profit.toFixed(2)}
+                      </span>
+                    </div>
+                    {s.clvWinnerName && (
+                      <div className="season-champions-clv">
+                        🎯 Sharpest: {s.clvWinnerName} · {s.clvAvgPct >= 0 ? '+' : ''}
+                        {s.clvAvgPct}% CLV
+                      </div>
+                    )}
                   </div>
                 ))}
               </div>

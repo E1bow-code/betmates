@@ -1,6 +1,6 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { computeGroupLeaderboard, computeGroupClvLeaderboard, computeSeasonWinner } from './groupLeaderboard.js'
+import { computeGroupLeaderboard, computeGroupClvLeaderboard, computeSeasonWinner, computeSeasonClvWinner } from './groupLeaderboard.js'
 
 // A group bet post. Defaults to a settled win; override per case.
 const post = (over) => ({
@@ -111,4 +111,28 @@ test('computeSeasonWinner picks the top-profit member settled within the given m
 test('computeSeasonWinner returns null when nothing settled in that month', () => {
   const posts = [post({ userId: 'A', settledAt: '2026-06-15T12:00:00Z' })]
   assert.equal(computeSeasonWinner(posts, names, '2026-07'), null)
+})
+
+test('computeSeasonClvWinner picks the sharpest tipster by CLV within the month', () => {
+  const closes = { 'fx1|h2h|Home': 2.0 }
+  const posts = [
+    // July: A beats the close by a lot, B only barely
+    post({ userId: 'A', settledAt: '2026-07-10T12:00:00Z', selections: [leg(2.4)] }),
+    post({ userId: 'A', settledAt: '2026-07-11T12:00:00Z', selections: [leg(2.3)] }),
+    post({ userId: 'A', settledAt: '2026-07-12T12:00:00Z', selections: [leg(2.2)] }),
+    post({ userId: 'B', settledAt: '2026-07-10T12:00:00Z', selections: [leg(2.02)] }),
+    post({ userId: 'B', settledAt: '2026-07-11T12:00:00Z', selections: [leg(2.01)] }),
+    post({ userId: 'B', settledAt: '2026-07-12T12:00:00Z', selections: [leg(2.03)] }),
+    // August: outside the period, must not count
+    post({ userId: 'B', settledAt: '2026-08-01T12:00:00Z', selections: [leg(5.0)] })
+  ]
+  const winner = computeSeasonClvWinner(posts, names, closes, '2026-07')
+  assert.equal(winner.userId, 'A')
+  assert.ok(winner.clv.avgPct > 0)
+})
+
+test('computeSeasonClvWinner returns null when nobody clears the CLV sample that month', () => {
+  const closes = { 'fx1|h2h|Home': 2.0 }
+  const posts = [post({ userId: 'A', settledAt: '2026-07-10T12:00:00Z', selections: [leg(2.4)] })]
+  assert.equal(computeSeasonClvWinner(posts, names, closes, '2026-07'), null)
 })

@@ -9,6 +9,7 @@
 
 import { supabase, isSupabaseConfigured } from './supabaseClient.js'
 import * as local from './localBackend.js'
+import { closingLinesFromSnapshots } from '../utils/clv.js'
 import { groupCoachSessions } from '../utils/coachSessions.js'
 import { freezesGranted, computeStreakTransition } from '../utils/dailyStreak.js'
 
@@ -1379,22 +1380,9 @@ export async function getClosingLines(fixtureIds) {
     supabase.from('fixtures').select('id,kickoff').in('id', ids)
   ])
   const kickoff = new Map((fx ?? []).map((f) => [f.id, f.kickoff]))
-  // Per outcome, keep the latest price struck at or before kickoff - that's the
-  // close. A snapshot after kickoff (a late in-play sample) is not a closing line.
-  /** @type {Map<string, {at: number, odds: number}>} */
-  const best = new Map()
-  for (const snap of snaps ?? []) {
-    const ko = kickoff.get(snap.fixture_id)
-    const at = new Date(snap.fetched_at).getTime()
-    if (ko && at > new Date(ko).getTime()) continue
-    const key = `${snap.fixture_id}|${snap.market}|${snap.selection}`
-    const prev = best.get(key)
-    if (!prev || at > prev.at) best.set(key, { at, odds: Number(snap.odds) })
-  }
-  /** @type {Record<string, number>} */
-  const out = {}
-  for (const [key, value] of best) out[key] = value.odds
-  return out
+  // The "latest price at or before kickoff" reduction lives in clv.js so the
+  // season-rollover function can build the exact same closing-line map.
+  return closingLinesFromSnapshots(snaps, kickoff)
 }
 
 // Past months' group leaderboard winners, most recent first - the permanent
@@ -1404,12 +1392,12 @@ export async function getClosingLines(fixtureIds) {
 // policy for it). Global-scope rows aren't fetched through here at all -
 // HallOfFamePage.jsx reads those via netlify/functions/hall-of-fame.js's
 // service-role client instead, same as every other record on that page.
-/** @param {string} groupId @returns {Promise<{period: string, winnerUserId: string|null, winnerName: string, profit: number, roi: number|null, winRate: number|null, settledCount: number}[]>} */
+/** @param {string} groupId @returns {Promise<{period: string, winnerUserId: string|null, winnerName: string, profit: number, roi: number|null, winRate: number|null, settledCount: number, clvWinnerUserId: string|null, clvWinnerName: string|null, clvAvgPct: number|null, clvBeatRate: number|null, clvSample: number|null}[]>} */
 export async function listSeasonResults(groupId) {
   if (!isSupabaseConfigured) return local.listSeasonResults(groupId)
   const { data, error } = await supabase
     .from('season_results')
-    .select('period,winner_user_id,winner_name,profit,roi,win_rate,settled_count')
+    .select('period,winner_user_id,winner_name,profit,roi,win_rate,settled_count,clv_winner_user_id,clv_winner_name,clv_avg_pct,clv_beat_rate,clv_sample')
     .eq('scope', 'group')
     .eq('group_id', groupId)
     .order('period', { ascending: false })
@@ -1422,7 +1410,12 @@ export async function listSeasonResults(groupId) {
     profit: Number(row.profit),
     roi: row.roi === null ? null : Number(row.roi),
     winRate: row.win_rate === null ? null : Number(row.win_rate),
-    settledCount: row.settled_count
+    settledCount: row.settled_count,
+    clvWinnerUserId: row.clv_winner_user_id,
+    clvWinnerName: row.clv_winner_name,
+    clvAvgPct: row.clv_avg_pct === null ? null : Number(row.clv_avg_pct),
+    clvBeatRate: row.clv_beat_rate === null ? null : Number(row.clv_beat_rate),
+    clvSample: row.clv_sample
   }))
 }
 
