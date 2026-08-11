@@ -271,7 +271,11 @@ export async function getSession() {
   const { data } = await supabase.auth.getSession()
   const authUser = data.session?.user
   if (!authUser) return null
-  const { data: profile } = await supabase.from('profiles').select('*').eq('id', authUser.id).single()
+  // maybeSingle, not single: a cached session can outlive its profile row
+  // (e.g. the account was deleted from another tab/device while this one
+  // still holds a valid, unexpired token) - that's a legitimate "signed
+  // out" outcome here, not an error worth a 406 in the console.
+  const { data: profile } = await supabase.from('profiles').select('*').eq('id', authUser.id).maybeSingle()
   return mapProfile(profile)
 }
 
