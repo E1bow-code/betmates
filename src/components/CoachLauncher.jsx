@@ -55,6 +55,11 @@ export default function CoachLauncher() {
 
   function onPointerDown(e) {
     if (e.target.closest('.coach-fab-x')) return // let the dismiss button handle its own click
+    // Without this, dragging the pointer over a link/image elsewhere on the
+    // page mid-drag lets the browser interpret the gesture as "start a
+    // native drag of that link" instead - which fires pointercancel on this
+    // element's pointer capture and silently kills the drag right there.
+    e.preventDefault()
     const rect = e.currentTarget.getBoundingClientRect()
     drag.current = { startX: e.clientX, startY: e.clientY, offX: e.clientX - rect.left, offY: e.clientY - rect.top, moved: false }
     e.currentTarget.setPointerCapture(e.pointerId)
@@ -80,6 +85,13 @@ export default function CoachLauncher() {
     }
   }
 
+  // Safety net for the rare pointercancel preventDefault above doesn't
+  // catch (an OS-level gesture, e.g.) - without this the button can get
+  // stuck mid-drag since pointerup never fires for a cancelled sequence.
+  function onPointerCancel() {
+    drag.current = null
+  }
+
   function dismiss() {
     localStorage.setItem(HIDDEN_KEY, '1')
     setHidden(true)
@@ -99,6 +111,7 @@ export default function CoachLauncher() {
       onPointerDown={onPointerDown}
       onPointerMove={onPointerMove}
       onPointerUp={onPointerUp}
+      onPointerCancel={onPointerCancel}
       onKeyDown={(e) => {
         if (e.key === 'Enter' || e.key === ' ') {
           e.preventDefault()
