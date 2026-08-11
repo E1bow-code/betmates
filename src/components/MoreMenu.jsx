@@ -4,6 +4,17 @@ import { useAuth } from '../context/AuthContext.jsx'
 import { useActivity } from '../context/ActivityContext.jsx'
 import { useEscapeKey } from '../lib/useEscapeKey.js'
 import { MoreIcon } from './icons/NavIcons.jsx'
+import { MORE_MENU_ICONS } from './icons/MoreMenuIcons.jsx'
+
+// One-line "what's in here" blurbs for the three top-level destinations, so
+// the menu explains where each row goes rather than making the label do all
+// the work. Group children stay label-only - they're already grouped under a
+// heading that gives them context.
+const ITEM_DESC = {
+  '/odds': 'Best odds across the bookies',
+  '/messages': 'Chats with your mates',
+  '/coach': 'Ask the AI betting coach'
+}
 
 const EXPANDED_KEY = 'betmates:moreMenuExpanded'
 
@@ -114,20 +125,36 @@ export default function MoreMenu() {
   )
 }
 
+function MoreMenuItem({ to, label, desc, badge, onNavigate }) {
+  const Icon = MORE_MENU_ICONS[to]
+  return (
+    <Link to={to} className="more-menu-item" onClick={onNavigate}>
+      {Icon && (
+        <span className="more-menu-item-icon" aria-hidden="true">
+          <Icon />
+        </span>
+      )}
+      <span className="more-menu-item-text">
+        <span className="more-menu-item-label">
+          {label}
+          {badge && <span className="more-menu-badge" />}
+        </span>
+        {desc && <span className="more-menu-item-desc">{desc}</span>}
+      </span>
+      <span className="more-menu-chevron" aria-hidden="true">
+        ›
+      </span>
+    </Link>
+  )
+}
+
 function MoreMenuContents({ groups, expanded, onToggleGroup, onNavigate }) {
   const { hasUnseenMessages } = useActivity()
   return (
     <div className="more-menu-list">
-      <Link to="/odds" className="more-menu-item" onClick={onNavigate}>
-        Discover
-      </Link>
-      <Link to="/messages" className="more-menu-item" onClick={onNavigate}>
-        Messages
-        {hasUnseenMessages && <span className="more-menu-badge" />}
-      </Link>
-      <Link to="/coach" className="more-menu-item" onClick={onNavigate}>
-        CoachGPT
-      </Link>
+      <MoreMenuItem to="/odds" label="Discover" desc={ITEM_DESC['/odds']} onNavigate={onNavigate} />
+      <MoreMenuItem to="/messages" label="Messages" desc={ITEM_DESC['/messages']} badge={hasUnseenMessages} onNavigate={onNavigate} />
+      <MoreMenuItem to="/coach" label="CoachGPT" desc={ITEM_DESC['/coach']} onNavigate={onNavigate} />
       {groups.map((group) => (
         <div key={group.key} className="more-menu-group">
           <button type="button" className="more-menu-group-toggle" onClick={() => onToggleGroup(group.key)}>
@@ -137,9 +164,7 @@ function MoreMenuContents({ groups, expanded, onToggleGroup, onNavigate }) {
           {expanded.has(group.key) && (
             <div className="more-menu-group-items">
               {group.items.map((item) => (
-                <Link key={item.to} to={item.to} className="more-menu-item" onClick={onNavigate}>
-                  {item.label}
-                </Link>
+                <MoreMenuItem key={item.to} to={item.to} label={item.label} onNavigate={onNavigate} />
               ))}
             </div>
           )}
