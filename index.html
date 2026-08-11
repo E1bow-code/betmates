@@ -20,6 +20,25 @@
     <link rel="apple-touch-icon" href="/icons/icon-192.png" />
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <title>BetMates</title>
+    <!-- Structured data: BetMates is an app, not a local business, so it
+         describes itself as a WebApplication (the app-appropriate equivalent of
+         a "local business" schema) rather than a storefront with an address. -->
+    <script type="application/ld+json">
+      {
+        "@context": "https://schema.org",
+        "@type": "WebApplication",
+        "name": "BetMates",
+        "url": "https://betmates.org",
+        "applicationCategory": "SportsApplication",
+        "operatingSystem": "Web, iOS, Android",
+        "description": "Social betting tracker - compare bookmaker odds, log and share bet slips, and settle scores with your mates on group leaderboards. BetMates never places real bets.",
+        "offers": {
+          "@type": "Offer",
+          "price": "0",
+          "priceCurrency": "GBP"
+        }
+      }
+    </script>
   </head>
   <body>
     <div id="app"></div>

@@ -9,6 +9,7 @@ import ErrorBoundary from './components/ErrorBoundary.jsx'
 import BottomNav from './components/BottomNav.jsx'
 import MoreMenu from './components/MoreMenu.jsx'
 import AppHeader from './components/AppHeader.jsx'
+import RouteTitle from './components/RouteTitle.jsx'
 import InstallGuideBanner from './components/InstallGuideBanner.jsx'
 import FirstRunWizard from './components/FirstRunWizard.jsx'
 import RealityCheck from './components/RealityCheck.jsx'
@@ -41,6 +42,7 @@ const AccountPage = lazy(() => import('./pages/AccountPage.jsx'))
 const PublicProfilePage = lazy(() => import('./pages/PublicProfilePage.jsx'))
 const NotificationsPage = lazy(() => import('./pages/NotificationsPage.jsx'))
 const ResetPasswordPage = lazy(() => import('./pages/ResetPasswordPage.jsx'))
+const NotFoundPage = lazy(() => import('./pages/NotFoundPage.jsx'))
 const AchievementsPage = lazy(() => import('./pages/AchievementsPage.jsx'))
 const InsightsPage = lazy(() => import('./pages/InsightsPage.jsx'))
 const HallOfFamePage = lazy(() => import('./pages/HallOfFamePage.jsx'))
@@ -292,6 +294,7 @@ function Shell() {
   return (
     <ActivityProvider userId={user.id}>
       <BetSlipProvider>
+        <RouteTitle />
         <ScatteredSportPhotos />
         <NewsTickerBar headlines={newsHeadlines} />
         <div className="app-shell">
@@ -326,7 +329,7 @@ function Shell() {
                 <Route path="/hall-of-fame" element={<HallOfFamePage />} />
                 <Route path="/legal" element={<LegalPage />} />
                 <Route path="/help" element={<HelpPage />} />
-                <Route path="*" element={<Navigate to="/dashboard" replace />} />
+                <Route path="*" element={<NotFoundPage />} />
               </Routes>
             </Suspense>
           </div>

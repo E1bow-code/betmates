@@ -1,0 +1,6 @@
+# BetMates - allow everything; nothing here is private at the URL level
+# (the app is a single-page app, real data sits behind auth + Supabase RLS).
+User-agent: *
+Allow: /
+
+Sitemap: https://betmates.org/sitemap.xml
