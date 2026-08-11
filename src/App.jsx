@@ -18,6 +18,7 @@ import SlipBarSpacer from './components/SlipBarSpacer.jsx'
 import BetBuilderSheet from './components/BetBuilderSheet.jsx'
 import ManualEntrySheet from './components/ManualEntrySheet.jsx'
 import CoachLauncher from './components/CoachLauncher.jsx'
+import CookieConsent from './components/CookieConsent.jsx'
 // AuthPage is the one page kept as a regular (non-lazy) import - it's the
 // very first thing a logged-out visitor sees, so splitting it would add a
 // network round-trip to the app's most common cold-start path instead of
@@ -75,6 +76,7 @@ export default function App() {
           <ToastProvider>
             <HashRouter>
               <Shell />
+              <CookieConsent />
             </HashRouter>
           </ToastProvider>
         </OddsFormatProvider>

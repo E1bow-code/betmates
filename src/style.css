@@ -3652,3 +3652,28 @@ a.btn,
 .not-found-title { font-size: 1.4rem; margin: 12px 0 8px; }
 .not-found-body { color: var(--text-dim); margin: 0 0 20px; line-height: 1.5; }
 .not-found-actions { display: flex; flex-wrap: wrap; gap: 10px; justify-content: center; }
+
+/* Cookie consent bar (CookieConsent.jsx) - GA only ever loads after Accept,
+   see analytics.js. Sits above the bottom nav like .toast-stack, same
+   mobile-offset/880px-breakpoint convention so it never collides with it. */
+.cookie-consent {
+  position: fixed;
+  left: 50%;
+  transform: translateX(-50%);
+  bottom: calc(76px + env(safe-area-inset-bottom, 0));
+  z-index: 90;
+  width: min(520px, calc(100% - 32px));
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.35);
+  padding: 14px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.cookie-consent p { margin: 0; font-size: 0.85rem; color: var(--text-dim); line-height: 1.5; }
+.cookie-consent-actions { display: flex; gap: 10px; justify-content: flex-end; }
+@media (min-width: 880px) {
+  .cookie-consent { bottom: 24px; }
+}

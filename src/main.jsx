@@ -3,7 +3,6 @@ import { createRoot } from 'react-dom/client'
 import './style.css'
 import App from './App.jsx'
 import { applyTheme, getStoredTheme } from './lib/theme.js'
-import { initAnalytics } from './lib/analytics.js'
 // Side-effect import: attaches the beforeinstallprompt listener at startup so
 // the native install offer isn't missed (it fires once, early - see the file).
 import './lib/installPrompt.js'
@@ -12,9 +11,8 @@ import './lib/installPrompt.js'
 // light-mode preference doesn't flash dark for a frame on load.
 applyTheme(getStoredTheme())
 
-// No-op unless VITE_GA_ID is set - see analytics.js's compliance note before
-// enabling it in the UK/EU (needs cookie consent first).
-initAnalytics()
+// initAnalytics() is NOT called here - it only fires post-consent, from
+// CookieConsent.jsx (mounted in App.jsx). See src/lib/analytics.js.
 
 createRoot(document.getElementById('app')).render(
   <StrictMode>
