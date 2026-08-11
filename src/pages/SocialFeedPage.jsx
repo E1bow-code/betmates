@@ -93,8 +93,11 @@ export default function SocialFeedPage() {
 
   // A brand-new, groupless account landing here has nothing to anchor
   // Leaderboard/Tipsters/Bookmakers/News/Tips/FPL against yet, so those
-  // stay behind "More" until there's at least one group - or the user's
-  // already been deep-linked into one of them (e.g. Home's Tips pill).
+  // stay behind "More tabs" until there's at least one group - or the
+  // user's already been deep-linked into one of them (e.g. Home's Tips
+  // pill). Deliberately not labelled just "More" - that's MoreMenu.jsx's
+  // name for the unrelated app-wide nav drawer, and this page already
+  // renders both on screen at once.
   const EXTRA_SEGMENTS = ['leaderboard', 'tipsters', 'bookmakers', 'news', 'tips', 'fpl']
   const showAllSegments = moreSegmentsOpen || (groups && groups.length > 0) || EXTRA_SEGMENTS.includes(segment)
 
@@ -266,7 +269,7 @@ export default function SocialFeedPage() {
             </>
           ) : (
             <button className="sport-pill" onClick={() => setMoreSegmentsOpen(true)}>
-              More ▾
+              More tabs ▾
             </button>
           )}
         </div>

@@ -1,16 +1,18 @@
 import { Link, NavLink } from 'react-router-dom'
 import { useActivity } from '../context/ActivityContext.jsx'
-import { HomeIcon, SocialIcon, OddsIcon, AccountIcon, PlusIcon } from './icons/NavIcons.jsx'
+import { HomeIcon, SocialIcon, TrackerIcon, AccountIcon, PlusIcon } from './icons/NavIcons.jsx'
 
-// Home / Mates / + / Discover / You - Tracker and Alerts no longer get a
-// dedicated slot: Tracker is one tap from You (see AccountPage.jsx's P&L
-// teaser) and Alerts moved to the notification bell in AppHeader.jsx.
+// Home / Mates / + / Tracker / You - Alerts moved to the notification bell
+// in AppHeader.jsx. Tracker used to have no nav slot at all (only a teaser
+// link buried in Account) despite being the app's core "how am I doing"
+// view, so it takes the slot Discover previously held; Discover moved to
+// MoreMenu.jsx as a top-level item instead, one tap away either way.
 const LEFT_TABS = [
   { to: '/dashboard', label: 'Home', Icon: HomeIcon },
   { to: '/groups', label: 'Mates', Icon: SocialIcon }
 ]
 const RIGHT_TABS = [
-  { to: '/odds', label: 'Discover', Icon: OddsIcon },
+  { to: '/tracker', label: 'Tracker', Icon: TrackerIcon },
   { to: '/account', label: 'You', Icon: AccountIcon }
 ]
 

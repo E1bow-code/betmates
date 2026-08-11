@@ -20,45 +20,42 @@ const GROUPS = [
   {
     key: 'support',
     label: 'Support',
-    items: [{ to: '/help', label: 'Help & FAQ' }]
+    items: [
+      { to: '/help', label: 'Help & FAQ' },
+      { to: '/legal', label: 'Legal & Privacy' }
+    ]
   }
 ]
 
-function loadExpanded() {
+// Groups start expanded (nothing here should cost a 3rd tap to reach on
+// top of opening this menu) unless the user has actually collapsed one
+// themselves before - that choice is what EXPANDED_KEY remembers.
+function loadExpanded(allKeys) {
   try {
-    return new Set(JSON.parse(localStorage.getItem(EXPANDED_KEY) ?? '[]'))
+    const raw = localStorage.getItem(EXPANDED_KEY)
+    if (raw == null) return new Set(allKeys)
+    return new Set(JSON.parse(raw))
   } catch {
-    return new Set()
+    return new Set(allKeys)
   }
 }
 
-// Secondary nav for pages that don't belong on BottomNav's six primary tabs -
-// they used to be reachable only through one-off links buried on unrelated
+// Secondary nav for pages that don't belong on BottomNav's five primary tabs
+// - they used to be reachable only through one-off links buried on unrelated
 // pages (Achievements/Insights from Tracker, Hall of Fame from the
-// Leaderboard segment, Help from the bottom of Account). Mounted once at the
-// App shell level (there's no persistent per-page top bar to hang a trigger
-// off - every page builds its own .topbar independently) so it's present on
-// every screen. Renders twice - a mobile trigger + bottom sheet, and a
-// desktop block appended below BottomNav's sidebar rows - with CSS (not JS)
-// picking which one shows at the 880px breakpoint BottomNav already uses,
-// so there's no layout flash while resizing.
+// Leaderboard segment, Help from the bottom of Account) or, for Discover and
+// CoachGPT, only through a bottom-nav slot / a dismissible draggable FAB that
+// could be hidden with no way back in. Mounted once at the App shell level
+// (there's no persistent per-page top bar to hang a trigger off - every page
+// builds its own .topbar independently) so it's present on every screen.
+// Renders twice - a mobile trigger + bottom sheet, and a desktop block
+// appended below BottomNav's sidebar rows - with CSS (not JS) picking which
+// one shows at the 880px breakpoint BottomNav already uses, so there's no
+// layout flash while resizing.
 export default function MoreMenu() {
   const { user } = useAuth()
   const { hasUnseenMessages } = useActivity()
   const [open, setOpen] = useState(false)
-  const [expanded, setExpanded] = useState(loadExpanded)
-
-  useEscapeKey(() => setOpen(false), open)
-
-  function toggleGroup(key) {
-    setExpanded((prev) => {
-      const next = new Set(prev)
-      if (next.has(key)) next.delete(key)
-      else next.add(key)
-      localStorage.setItem(EXPANDED_KEY, JSON.stringify([...next]))
-      return next
-    })
-  }
 
   const groups = user.isAdmin
     ? [
@@ -74,6 +71,19 @@ export default function MoreMenu() {
         }
       ]
     : GROUPS
+  const [expanded, setExpanded] = useState(() => loadExpanded(groups.map((g) => g.key)))
+
+  useEscapeKey(() => setOpen(false), open)
+
+  function toggleGroup(key) {
+    setExpanded((prev) => {
+      const next = new Set(prev)
+      if (next.has(key)) next.delete(key)
+      else next.add(key)
+      localStorage.setItem(EXPANDED_KEY, JSON.stringify([...next]))
+      return next
+    })
+  }
 
   return (
     <>
@@ -108,9 +118,15 @@ function MoreMenuContents({ groups, expanded, onToggleGroup, onNavigate }) {
   const { hasUnseenMessages } = useActivity()
   return (
     <div className="more-menu-list">
+      <Link to="/odds" className="more-menu-item" onClick={onNavigate}>
+        Discover
+      </Link>
       <Link to="/messages" className="more-menu-item" onClick={onNavigate}>
         Messages
         {hasUnseenMessages && <span className="more-menu-badge" />}
+      </Link>
+      <Link to="/coach" className="more-menu-item" onClick={onNavigate}>
+        CoachGPT
       </Link>
       {groups.map((group) => (
         <div key={group.key} className="more-menu-group">
