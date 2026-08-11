@@ -813,6 +813,21 @@ body.slip-bar-open .app-content {
   resize: vertical;
 }
 
+/* Currency field: a fixed "£" sitting inside the input's left edge rather
+   than a placeholder that vanishes the moment you type. The input keeps its
+   normal .field styling and just gains left padding to clear the symbol. */
+.input-money { position: relative; display: block; width: 100%; }
+.input-money-prefix {
+  position: absolute;
+  left: 12px;
+  top: 50%;
+  transform: translateY(-50%);
+  color: var(--text-dim);
+  font-size: 0.95rem;
+  pointer-events: none;
+}
+.field .input-money input { width: 100%; box-sizing: border-box; padding-left: 24px; }
+
 .field-check {
   display: flex;
   align-items: flex-start;
@@ -1959,19 +1974,23 @@ button.conversation-row { width: 100%; background: none; border: none; border-bo
    accent-tinted card rather than a form row, so scanning reads as the fast
    path it is instead of a buried optional field. Same tint language as
    .limit-warning, as a standalone card rather than an inline banner. */
+/* Deliberately quiet: a plain surface panel with a soft accent tint, not a
+   full accent border. The only shouting-gold element in this sheet should be
+   the "Save to Tracker" primary button, so this optional shortcut sits back
+   with a secondary button (see .btn-secondary on .scan-cta-button). */
 .scan-cta {
   display: flex;
   flex-direction: column;
   align-items: center;
   gap: 6px;
   text-align: center;
-  padding: 18px 16px;
+  padding: 16px;
   margin-bottom: 4px;
-  border: 1px solid var(--accent);
+  border: 1px solid var(--border);
   border-radius: 10px;
-  background: color-mix(in srgb, var(--accent) 10%, transparent);
+  background: color-mix(in srgb, var(--accent) 5%, var(--surface-2));
 }
-.scan-cta-title { margin: 0; font-size: 1rem; font-weight: 700; }
+.scan-cta-title { margin: 0; font-size: 0.95rem; font-weight: 700; }
 .scan-cta-body { margin: 0; font-size: 0.85rem; color: var(--text-dim); max-width: 320px; }
 /* Ctrl+V/Cmd+V means nothing on a touch device with no keyboard - only
    show the paste hint where a real keyboard shortcut is plausible. Hidden
