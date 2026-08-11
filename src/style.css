@@ -3637,3 +3637,18 @@ a.btn,
 /* "Challenge a mate" CTA under the Tracker scoreboard. */
 .tracker-challenge-cta { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; margin: 10px 0 4px; }
 .tracker-challenge-cta .hint { margin: 0; }
+
+/* Custom 404 (NotFoundPage.jsx) - a real dead-end screen for unknown routes
+   rather than a silent redirect. */
+.not-found { text-align: center; padding: 48px 16px; max-width: 420px; margin: 0 auto; }
+.not-found-code {
+  font-family: Georgia, serif;
+  font-weight: 800;
+  font-size: 4.5rem;
+  line-height: 1;
+  color: var(--accent);
+  opacity: 0.9;
+}
+.not-found-title { font-size: 1.4rem; margin: 12px 0 8px; }
+.not-found-body { color: var(--text-dim); margin: 0 0 20px; line-height: 1.5; }
+.not-found-actions { display: flex; flex-wrap: wrap; gap: 10px; justify-content: center; }
