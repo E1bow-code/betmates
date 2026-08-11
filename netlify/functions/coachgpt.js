@@ -19,7 +19,7 @@ import { runCoachGptTurn } from '../../src/lib/coachgpt.js'
 import { matchFixtureQuery, matchRaceQuery } from '../../src/utils/matchFixtureQuery.js'
 import { computeBestValue } from '../../src/utils/bestValue.js'
 import { getPlayerProfile } from '../../src/lib/playerProfile.js'
-import { GENERIC_SPORTS } from '../../src/lib/sportsConfig.js'
+import { GENERIC_SPORTS, apiKeysForSport, sgoLeagueForSport } from '../../src/lib/sportsConfig.js'
 
 const SUPABASE_URL = process.env.VITE_SUPABASE_URL
 const ANON_KEY = process.env.VITE_SUPABASE_ANON_KEY
@@ -274,6 +274,29 @@ async function toolGetNews(siteUrl, { query } = {}) {
   }
 }
 
+// Recent completed results (final scores) for a sport over the last few days,
+// via /api/scores' completed-games path (the same data auto-settle reads) -
+// concrete recent form to reason about, not just prices. Resolves the sport to
+// its Odds API keys and/or SportsGameOdds league, exactly the way auto-settle
+// and the Results tab do. Defaults to football, this app's primary sport.
+async function toolGetResults(siteUrl, { sport } = {}) {
+  const key = sport && SPORT_ORDER.includes(sport) ? sport : 'football'
+  const params = new URLSearchParams()
+  const keys = apiKeysForSport(key)
+  if (keys.length) params.set('keys', keys.join(','))
+  const league = sgoLeagueForSport(key)
+  if (league) params.set('sgoLeague', league)
+  if (![...params.keys()].length) return { sport: key, results: [] }
+
+  const games = await fetchJson(siteUrl, `/api/scores?${params.toString()}`)
+  const results = (Array.isArray(games) ? games : []).slice(0, 12).map((g) => {
+    const home = g.scores?.find((s) => s.name === g.homeTeam)?.score
+    const away = g.scores?.find((s) => s.name === g.awayTeam)?.score
+    return { home: g.homeTeam, away: g.awayTeam, score: `${home}-${away}` }
+  })
+  return { sport: key, results }
+}
+
 // lock_in_recommendation's tool input carries bare identity fields
 // (eventId/marketKey/outcomeName, or raceId/horseId) - matched back
 // against the last grounding array (built from the RAW fixture/runner
@@ -339,6 +362,7 @@ export default async (req) => {
     }
     if (name === 'get_player_profile') return toolGetPlayerProfile(input.name)
     if (name === 'get_recent_news') return toolGetNews(siteUrl, input)
+    if (name === 'get_recent_results') return toolGetResults(siteUrl, input)
     return { error: `Unknown tool: ${name}` }
   }
 

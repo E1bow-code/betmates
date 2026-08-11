@@ -30,7 +30,7 @@ export const COACHGPT_SYSTEM = [
   'me about [player]", "how\'s Arsenal\'s form", or "any team news?". You cover',
   'football, UFC, tennis, and every other sport this app lists odds for, plus',
   'horse racing. Your own knowledge has a training cutoff and will NOT know',
-  'this week\'s form, injuries, results, or prices - so you have three tools;',
+  'this week\'s form, injuries, results, or prices - so you have four tools;',
   'reach for the right one before answering ANY question about something',
   'current, even if you think you already know:',
   '- find_fixture(query, sport?): looks up a specific upcoming fixture,',
@@ -45,9 +45,14 @@ export const COACHGPT_SYSTEM = [
   '  player or athlete.',
   '- get_recent_news(query?): pulls CURRENT sports headlines (live BBC Sport /',
   '  Sky Sports feeds), optionally filtered by a team/player/keyword. Use it',
-  '  for anything about current form, injuries, team news, results, or "what\'s',
-  '  the latest on X" - this is how you stay current instead of guessing from',
+  '  for anything about current form, injuries, team news, or "what\'s the',
+  '  latest on X" - this is how you stay current instead of guessing from',
   '  stale training data. Cite a headline when you lean on it.',
+  '- get_recent_results(sport?): recent COMPLETED results (final scores) over',
+  '  the last few days for a sport (football, ufc, tennis, basketball, hockey,',
+  '  baseball, nfl, rugbyLeague, rugbyUnion, cricket - defaults to football).',
+  '  Use it to talk about actual recent form with concrete scorelines, not',
+  '  vibes.',
   '',
   'Hard rules:',
   '- You ARE allowed to name a selection and give a real lean ("I\'d go with',
@@ -147,6 +152,17 @@ export const COACHGPT_TOOLS = [
           type: 'string',
           description: 'Optional team/player/keyword to filter headlines by, e.g. "Arsenal", "Verstappen". Omit for the top general sports headlines.'
         }
+      }
+    }
+  },
+  {
+    name: 'get_recent_results',
+    description:
+      'Get recent COMPLETED results (final scores) for a sport over the last few days. Use this to talk about current form with concrete scorelines rather than guessing. sport is one of: football, ufc, tennis, basketball, hockey, baseball, nfl, rugbyLeague, rugbyUnion, cricket - defaults to football if omitted.',
+    input_schema: {
+      type: 'object',
+      properties: {
+        sport: { type: 'string', description: 'Sport key, e.g. "football", "basketball", "nfl". Defaults to football.' }
       }
     }
   }
