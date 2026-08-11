@@ -339,13 +339,38 @@ body.slip-bar-open .app-content {
   position: relative;
   display: flex;
   align-items: center;
-  gap: 8px;
-  padding: 13px 18px;
+  gap: 12px;
+  padding: 12px 16px;
   color: var(--text);
   text-decoration: none;
   font-size: 0.92rem;
   border-bottom: 1px solid var(--border);
+  transition: background 0.12s ease;
 }
+.more-menu-item:active { background: var(--surface-2); }
+@media (hover: hover) {
+  .more-menu-item:hover { background: var(--surface-2); }
+}
+
+/* Leading glyph in a soft tile - gives each row a fixed-width anchor so the
+   labels line up in a column and the list scans vertically, the same shape
+   the bottom nav uses for its icons. */
+.more-menu-item-icon {
+  flex: none;
+  width: 34px;
+  height: 34px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 9px;
+  background: var(--surface-2);
+  color: var(--accent);
+}
+.more-menu-item-text { display: flex; flex-direction: column; gap: 1px; min-width: 0; flex: 1; }
+.more-menu-item-label { position: relative; display: inline-flex; align-items: center; gap: 6px; font-weight: 600; }
+.more-menu-item-desc { font-size: 0.76rem; color: var(--text-dim); }
+/* Quiet "leads somewhere" affordance on the trailing edge. */
+.more-menu-chevron { flex: none; color: var(--text-dim); font-size: 1.2rem; line-height: 1; }
 
 .more-menu-group { border-bottom: 1px solid var(--border); }
 
@@ -356,10 +381,12 @@ body.slip-bar-open .app-content {
   justify-content: space-between;
   background: none;
   border: none;
-  padding: 13px 18px;
-  font-size: 0.92rem;
+  padding: 12px 16px;
+  font-size: 0.72rem;
   font-weight: 700;
-  color: var(--text);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--text-dim);
   cursor: pointer;
   text-align: left;
 }
@@ -367,7 +394,8 @@ body.slip-bar-open .app-content {
 .more-menu-caret { color: var(--text-dim); font-size: 0.8rem; }
 
 .more-menu-group-items { display: flex; flex-direction: column; background: var(--surface-2); }
-.more-menu-group-items .more-menu-item { padding-left: 32px; font-size: 0.88rem; }
+.more-menu-group-items .more-menu-item { font-size: 0.9rem; }
+.more-menu-group-items .more-menu-item-icon { width: 30px; height: 30px; background: var(--surface); }
 .more-menu-group-items .more-menu-item:last-child { border-bottom: none; }
 
 .more-menu-desktop { display: none; }
@@ -1957,6 +1985,50 @@ button.conversation-row { width: 100%; background: none; border: none; border-bo
   .scan-cta-paste-hint { display: inline; }
 }
 .scan-cta-button { position: relative; margin-top: 6px; cursor: pointer; }
+
+/* Labelled hairline that splits the scan path from the type-it-in path -
+   centred caps label with a rule bleeding out to each side. */
+.sheet-or-divider {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 14px 0 10px;
+  color: var(--text-dim);
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+.sheet-or-divider::before,
+.sheet-or-divider::after {
+  content: '';
+  flex: 1;
+  height: 1px;
+  background: var(--border);
+}
+
+/* Running total for the manual log - the one number the user is really
+   after while typing, so it gets the ticket's mono/accent treatment instead
+   of disappearing into a grey hint line. */
+.return-preview {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-top: 4px;
+  padding: 10px 14px;
+  border: 1px solid var(--accent-dim);
+  border-radius: 10px;
+  background: color-mix(in srgb, var(--accent) 8%, transparent);
+}
+.return-preview-label { font-size: 0.8rem; color: var(--text-dim); font-weight: 600; }
+.return-preview-value {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+  font-weight: 700;
+  font-size: 1.15rem;
+  color: var(--accent);
+}
 /* Standard clip-based visually-hidden pattern - keeps the real <input>
    keyboard/screen-reader operable (unlike display:none), while the
    surrounding <label> carries the actual button styling. */
@@ -2090,7 +2162,7 @@ button.conversation-row { width: 100%; background: none; border: none; border-bo
 .bet-card-body { display: flex; flex-direction: column; gap: 10px; }
 .bet-card-author { font-weight: 700; font-size: 0.9rem; display: inline; }
 .bet-card-time { color: var(--text-dim); font-weight: 400; font-size: 0.8rem; margin-left: 6px; }
-.bet-card-group-tag { font-size: 0.75rem; color: var(--text-dim); }
+.bet-card-group-tag { font-size: 0.75rem; color: var(--text-dim); margin-left: 6px; }
 .bet-card .selection-odds { font-size: 1.1rem; }
 
 /* The nested bet-slip block within the post - its own rounded panel
@@ -2290,15 +2362,27 @@ button.conversation-row { width: 100%; background: none; border: none; border-bo
   font-size: 0.75rem;
   color: var(--text-dim);
   cursor: pointer;
+  transition: border-color 0.12s ease, background 0.12s ease, transform 0.08s ease;
 }
 .vote-btn.active { border-color: var(--accent-dim); color: var(--accent); background: rgba(224, 163, 57, 0.1); }
 .vote-count { font-weight: 700; font-family: var(--font-mono); }
 
+/* Tap feedback shared by the two feed action-button styles (public vote row
+   and group emoji row): a quick press-in and a hover tint on pointer
+   devices, so the card responds to touch instead of feeling inert. */
+.vote-btn:active,
+.reaction-btn:active { transform: scale(0.94); }
+.reaction-btn { transition: border-color 0.12s ease, color 0.12s ease, transform 0.08s ease; }
+@media (hover: hover) {
+  .vote-btn:hover,
+  .reaction-btn:hover { border-color: var(--accent-dim); }
+}
+
 .status-select {
   background: var(--surface-2);
   border: 1px solid var(--border);
-  border-radius: 3px;
-  padding: 6px 8px;
+  border-radius: 999px;
+  padding: 5px 12px;
   color: var(--text);
   font-size: 0.75rem;
 }

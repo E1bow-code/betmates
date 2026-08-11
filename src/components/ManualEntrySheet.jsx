@@ -175,7 +175,14 @@ export default function ManualEntrySheet({ userId, onClose, onSaved }) {
             </details>
           )}
         </div>
-        <p className="hint">Still need the event, market and selection below - scanning can't reliably read those off every slip.</p>
+
+        {/* A labelled rule rather than another sentence of hint text: it both
+            separates the two paths (scan vs. type) and carries the "you still
+            have to type the event/market/selection" note that used to be a
+            standalone paragraph above the form. */}
+        <div className="sheet-or-divider">
+          <span>or enter it by hand</span>
+        </div>
 
         <form onSubmit={handleSave}>
           {/* Short fields paired onto rows so the form reads as a tidy block
@@ -226,7 +233,12 @@ export default function ManualEntrySheet({ userId, onClose, onSaved }) {
               <input type="number" min="0" step="0.5" placeholder="£" value={stake} onChange={(e) => setStake(e.target.value)} />
             </label>
           </div>
-          {potentialReturn ? <p className="hint">Potential return: £{potentialReturn.toFixed(2)}</p> : null}
+          {potentialReturn ? (
+            <div className="return-preview">
+              <span className="return-preview-label">Potential return</span>
+              <span className="return-preview-value">£{potentialReturn.toFixed(2)}</span>
+            </div>
+          ) : null}
           {sanityCheckOn &&
             (bigStake ||
               lossChasing ||
