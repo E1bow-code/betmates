@@ -510,19 +510,19 @@ export async function joinGroupById(groupId, userId) {
   return mapGroup(group)
 }
 
-/** @param {string} groupId @returns {Promise<{id: string, displayName: string}[]>} */
+/** @param {string} groupId @returns {Promise<{id: string, displayName: string, avatarUrl: string|null}[]>} */
 export async function listGroupMembers(groupId) {
   if (!isSupabaseConfigured) return local.listGroupMembers(groupId)
   const { data, error } = await supabase
     .from('group_members')
-    .select('profiles(id, display_name, referral_count)')
+    .select('profiles(id, display_name, referral_count, avatar_url)')
     .eq('group_id', groupId)
   if (error) throw error
   return data.map((row) => {
-    const profile = /** @type {{id: string, display_name: string, referral_count: number}} */ (
+    const profile = /** @type {{id: string, display_name: string, referral_count: number, avatar_url: string|null}} */ (
       /** @type {unknown} */ (row.profiles)
     )
-    return { id: profile.id, displayName: profile.display_name, referralCount: profile.referral_count }
+    return { id: profile.id, displayName: profile.display_name, referralCount: profile.referral_count, avatarUrl: profile.avatar_url ?? null }
   })
 }
 
@@ -960,19 +960,20 @@ export async function listBetPostsByUser(userId) {
 // but when it's there, anyone the viewer has blocked is filtered out
 // client-side - simpler than a subquery in the select, and this list is
 // small enough per-user that it's not worth the query complexity.
-/** @param {string} [viewerId] @returns {Promise<(BetPost & {authorName: string, authorCode: string|null})[]>} */
+/** @param {string} [viewerId] @returns {Promise<(BetPost & {authorName: string, authorCode: string|null, authorAvatarUrl: string|null})[]>} */
 export async function listPublicFeed(viewerId) {
   if (!isSupabaseConfigured) return local.listPublicFeed(viewerId)
   const { data, error } = await supabase
     .from('bet_posts')
-    .select('*, profiles(display_name, friend_code)')
+    .select('*, profiles(display_name, friend_code, avatar_url)')
     .eq('visibility', 'public')
     .order('created_at', { ascending: false })
   if (error) throw error
   const posts = data.map((row) => ({
     ...mapBetPost(row),
     authorName: row.profiles?.display_name ?? 'Someone',
-    authorCode: row.profiles?.friend_code ?? null
+    authorCode: row.profiles?.friend_code ?? null,
+    authorAvatarUrl: row.profiles?.avatar_url ?? null
   }))
   if (!viewerId) return posts
   const blockedIds = await listBlockedUserIds(viewerId)
@@ -1772,7 +1773,8 @@ export async function listFeedForUser(userId) {
     groups.map(async (group) => {
       const [posts, members] = await Promise.all([listBetPosts(group.id), listGroupMembers(group.id)])
       const memberNames = Object.fromEntries(members.map((m) => [m.id, m.displayName]))
-      return posts.map((post) => ({ ...post, groupName: group.name, memberNames }))
+      const memberAvatars = Object.fromEntries(members.map((m) => [m.id, m.avatarUrl]))
+      return posts.map((post) => ({ ...post, groupName: group.name, memberNames, memberAvatars }))
     })
   )
   return perGroup.flat().sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())

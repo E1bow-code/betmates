@@ -321,7 +321,7 @@ export default function SocialFeedPage() {
           {feed && feed.length > 0 && (
             <div className="bet-feed">
               {feed.map((post) => (
-                <BetCard key={post.id} post={post} memberNames={post.memberNames} onChanged={refreshBets} />
+                <BetCard key={post.id} post={post} memberNames={post.memberNames} memberAvatars={post.memberAvatars} onChanged={refreshBets} />
               ))}
             </div>
           )}

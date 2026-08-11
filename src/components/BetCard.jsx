@@ -37,7 +37,7 @@ const REPORT_REASONS = [
 // report only make sense here too - group posts are already people you
 // chose to be around, not unsolicited exposure.
 
-export default function BetCard({ post, memberNames, variant = 'group', onBlocked, onChanged }) {
+export default function BetCard({ post, memberNames, memberAvatars, variant = 'group', onBlocked, onChanged }) {
   const { user } = useAuth()
   const { format } = useOddsFormat()
   const runAsync = useAsyncAction()
@@ -76,6 +76,7 @@ export default function BetCard({ post, memberNames, variant = 'group', onBlocke
 
   const isAuthor = post.userId === user.id
   const authorName = memberNames?.[post.userId] ?? post.authorName ?? 'Someone'
+  const authorAvatarUrl = memberAvatars?.[post.userId] ?? post.authorAvatarUrl ?? null
 
   async function toggleReaction(key) {
     const { action, reaction } = await dataStore.toggleReaction(post.id, user.id, key)
@@ -155,7 +156,7 @@ export default function BetCard({ post, memberNames, variant = 'group', onBlocke
     <div className={`bet-card status-${status}`}>
       <div className="bet-card-header">
         <div className="bet-card-who">
-          <Avatar name={authorName} />
+          <Avatar name={authorName} photoUrl={authorAvatarUrl} />
           <div>
             <span className="bet-card-author">{authorName}</span>
             <span className="bet-card-time">{formatRelativeTime(post.createdAt)}</span>
@@ -404,7 +405,7 @@ export default function BetCard({ post, memberNames, variant = 'group', onBlocke
           {comments.length === 0 && <div className="comment-empty">No comments yet — be the first to weigh in.</div>}
           {comments.map((c) => (
             <div key={c.id} className="comment-row">
-              <Avatar name={memberNames?.[c.userId] ?? 'Someone'} size={22} />
+              <Avatar name={memberNames?.[c.userId] ?? 'Someone'} photoUrl={memberAvatars?.[c.userId]} size={22} />
               <span className="comment-author">{memberNames?.[c.userId] ?? 'Someone'}</span>
               <span>{c.body}</span>
             </div>

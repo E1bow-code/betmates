@@ -32,6 +32,7 @@ export default function GroupFeedPage() {
   const [items, setItems] = useState(null) // bets + shared videos, merged and sorted
   const [members, setMembers] = useState([])
   const [memberNames, setMemberNames] = useState({})
+  const [memberAvatars, setMemberAvatars] = useState({})
   const [referralCounts, setReferralCounts] = useState({})
   const [error, setError] = useState(null)
   const [tab, setTab] = useState('feed')
@@ -54,6 +55,7 @@ export default function GroupFeedPage() {
         setPosts(betPosts)
         setMembers(groupMembers)
         setMemberNames(Object.fromEntries(groupMembers.map((m) => [m.id, m.displayName])))
+        setMemberAvatars(Object.fromEntries(groupMembers.map((m) => [m.id, m.avatarUrl])))
         setReferralCounts(Object.fromEntries(groupMembers.map((m) => [m.id, m.referralCount])))
         const merged = [
           ...betPosts.map((p) => ({ kind: 'bet', sortAt: p.createdAt, data: p })),
@@ -260,7 +262,7 @@ export default function GroupFeedPage() {
             <div className="bet-feed">
               {items.map((item) =>
                 item.kind === 'bet' ? (
-                  <BetCard key={`bet-${item.data.id}`} post={item.data} memberNames={memberNames} onChanged={refresh} />
+                  <BetCard key={`bet-${item.data.id}`} post={item.data} memberNames={memberNames} memberAvatars={memberAvatars} onChanged={refresh} />
                 ) : (
                   <VideoCard key={`video-${item.data.id}-${item.data.sharedAt}`} post={item.data} />
                 )

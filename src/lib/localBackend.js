@@ -368,7 +368,7 @@ export function joinGroupById(groupId, userId) {
   return delay(withMemberCount(db, group))
 }
 
-/** @param {string} groupId @returns {Promise<{id: string, displayName: string}[]>} */
+/** @param {string} groupId @returns {Promise<{id: string, displayName: string, avatarUrl: string|null}[]>} */
 export function listGroupMembers(groupId) {
   const db = readDb()
   const memberIds = db.groupMembers.filter((m) => m.groupId === groupId).map((m) => m.userId)
@@ -378,7 +378,8 @@ export function listGroupMembers(groupId) {
       .map((u) => ({
         id: u.id,
         displayName: u.displayName,
-        referralCount: db.users.filter((r) => r.referredBy === u.id).length
+        referralCount: db.users.filter((r) => r.referredBy === u.id).length,
+        avatarUrl: u.avatarUrl ?? null
       }))
   )
 }
@@ -738,11 +739,12 @@ export function deleteBetPost(betId) {
 // regardless of group membership (see BetBuilderSheet's "Post publicly").
 // Author names are resolved against every user, not just group members,
 // since a public post can come from - and be seen by - anyone.
-/** @param {string} [viewerId] @returns {Promise<(BetPost & {authorName: string, authorCode: string|null})[]>} */
+/** @param {string} [viewerId] @returns {Promise<(BetPost & {authorName: string, authorCode: string|null, authorAvatarUrl: string|null})[]>} */
 export function listPublicFeed(viewerId) {
   const db = readDb()
   const names = Object.fromEntries(db.users.map((u) => [u.id, u.displayName]))
   const codes = Object.fromEntries(db.users.map((u) => [u.id, u.friendCode ?? null]))
+  const avatars = Object.fromEntries(db.users.map((u) => [u.id, u.avatarUrl ?? null]))
   const blockedIds = viewerId ? db.blocks.filter((b) => b.blockerId === viewerId).map((b) => b.blockedId) : []
   // Mirrors schema.sql's "anyone signed in can read public bet posts" -
   // an auto-hidden post stays visible to its own author (and an admin
@@ -753,7 +755,12 @@ export function listPublicFeed(viewerId) {
     db.betPosts
       .filter((b) => b.visibility === 'public' && !blockedIds.includes(b.userId))
       .filter((b) => !b.autoHidden || b.userId === viewerId || viewerIsAdmin)
-      .map((b) => ({ ...b, authorName: names[b.userId] ?? 'Someone', authorCode: codes[b.userId] ?? null }))
+      .map((b) => ({
+        ...b,
+        authorName: names[b.userId] ?? 'Someone',
+        authorCode: codes[b.userId] ?? null,
+        authorAvatarUrl: avatars[b.userId] ?? null
+      }))
       .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
   )
 }
