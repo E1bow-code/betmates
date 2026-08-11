@@ -3378,6 +3378,14 @@ a.btn,
   touch-action: manipulation;
 }
 
+/* .coach-fab is a role="button" div, so the rule above (equal specificity,
+   later in the cascade) would otherwise silently win and put "manipulation"
+   back on it - re-losing the touch-action: none its own rule sets, which
+   is what stops a drag from being reinterpreted as a page scroll mid-gesture. */
+.coach-fab {
+  touch-action: none;
+}
+
 /* Tactile press feedback on buttons + the pill/tab controls. Because the app
    sets -webkit-tap-highlight-color: transparent (no default tap flash), the
    press state has to carry all the feedback - so a visible dim on top of the
