@@ -156,15 +156,19 @@ export default function ManualEntrySheet({ userId, onClose, onSaved }) {
       <div className="sheet" onClick={(e) => e.stopPropagation()}>
         <div className="sheet-handle" />
         <h2 className="sheet-title">Log a bet</h2>
-        <p className="hint">For anything that didn't come off the Odds tab - a real slip, an old bet, anything from elsewhere.</p>
 
+        {/* Quieter than the old gold-bordered panel: the one filled-gold
+            element in this sheet should be the primary "Save to Tracker"
+            action, not this optional shortcut. Scanning is a nice-to-have -
+            most bets get typed - so the card sits back with a soft tint and
+            a secondary button. */}
         <div className="scan-cta">
           <p className="scan-cta-title">📷 Scan your bet slip</p>
           <p className="scan-cta-body">
             Screenshot it, then choose it below
             <span className="scan-cta-paste-hint"> - or paste it, Ctrl+V / ⌘V</span>. We'll read off the odds and stake for you.
           </p>
-          <label className="btn btn-primary scan-cta-button">
+          <label className="btn btn-secondary scan-cta-button">
             {scanning ? 'Reading your slip…' : 'Choose a photo'}
             <input type="file" accept="image/*" onChange={handleScan} disabled={scanning} className="scan-cta-input" />
           </label>
@@ -230,7 +234,10 @@ export default function ManualEntrySheet({ userId, onClose, onSaved }) {
             </label>
             <label className="field">
               <span>Stake (optional)</span>
-              <input type="number" min="0" step="0.5" placeholder="£" value={stake} onChange={(e) => setStake(e.target.value)} />
+              <span className="input-money">
+                <span className="input-money-prefix" aria-hidden="true">£</span>
+                <input type="number" min="0" step="0.5" placeholder="0.00" value={stake} onChange={(e) => setStake(e.target.value)} />
+              </span>
             </label>
           </div>
           {potentialReturn ? (
