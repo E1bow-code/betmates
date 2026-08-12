@@ -1274,6 +1274,7 @@ button.conversation-row { width: 100%; background: none; border: none; border-bo
 .race-result-name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .race-result-jockey { color: var(--text-dim); font-size: 0.74rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .race-result-sp { flex-shrink: 0; font-family: var(--font-mono); font-variant-numeric: tabular-nums; color: var(--text-dim); }
+.race-result-spd { flex-shrink: 0; font-family: var(--font-mono); font-variant-numeric: tabular-nums; font-size: 0.7rem; color: var(--accent); }
 
 .result-card-tag {
   align-self: center;

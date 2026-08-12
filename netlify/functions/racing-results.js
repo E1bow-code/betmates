@@ -6,11 +6,15 @@
 // null for a non-finisher (fell, pulled up, etc.), which settlement treats
 // the same as finishing outside the paid places.
 //
-// Also carries course/raceName/offTime and each runner's jockey/trainer/sp -
-// settlement never reads these, but OddsListPage's Results tab (racing has
-// no "score" to show, so it needs the actual finishing order) does, via
-// src/api/racingClient.js's fetchRaceResults - same endpoint, same cache,
-// no second request.
+// Also carries course/raceName/offTime and each runner's jockey/trainer/sp/
+// speedRating - settlement never reads these, but OddsListPage's Results tab
+// (racing has no "score" to show, so it needs the actual finishing order)
+// does, via src/api/racingClient.js's fetchRaceResults - same endpoint, same
+// cache, no second request. speedRating is theracingapi's post-race speed
+// figure (`speed_rating`) - distinct from racecards.js's pre-race `ts`/
+// `topspeed` field (a different field the API doesn't populate on this
+// plan); only about half of runners get one from the API itself, so it's
+// left null rather than guessed at for the rest.
 import { cacheGet, cacheSet } from '../../src/lib/apiCache.js'
 
 const RESULTS_TTL = 15 * 60 * 1000
@@ -78,7 +82,8 @@ function reshapeResult(race) {
       position: Number.isFinite(Number(r.position)) ? Number(r.position) : null,
       jockey: r.jockey || null,
       trainer: r.trainer || null,
-      sp: r.sp || null
+      sp: r.sp || null,
+      speedRating: r.speed_rating && r.speed_rating !== '-' ? Number(r.speed_rating) : null
     }))
   }
 }

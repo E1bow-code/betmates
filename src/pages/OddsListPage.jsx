@@ -465,6 +465,7 @@ function RaceResultCard({ race }) {
             <span className="race-result-pos">{r.position ?? '-'}</span>
             <span className="race-result-name">{r.name}</span>
             <span className="race-result-jockey">{r.jockey}</span>
+            {r.speedRating != null && <span className="race-result-spd">SPD {r.speedRating}</span>}
             {r.sp && <span className="race-result-sp">{r.sp}</span>}
           </div>
         ))}
