@@ -366,7 +366,7 @@ export default async (req) => {
     return { error: `Unknown tool: ${name}` }
   }
 
-  const { text, recommendation } = await runCoachGptTurn({ apiKey, history: body?.history, message, callTool })
+  const { text, recommendation, error } = await runCoachGptTurn({ apiKey, history: body?.history, message, callTool })
   // A follow-up like "who do you like there?" often answers straight from
   // `history` without calling find_fixture again this turn, leaving
   // lastGrounding null even though the reply clearly leans on a fixture
@@ -380,6 +380,11 @@ export default async (req) => {
   return json({
     configured: true,
     reply: text,
+    // A short failure code when the Anthropic call itself failed (bad/expired
+    // key, model access, rate limit) rather than the model genuinely having
+    // nothing to say - lets the client show "the coach is down" instead of the
+    // misleading "couldn't get a straight answer, try rephrasing".
+    error: error ?? null,
     grounding: text ? lastGrounding : null,
     recommendation: matchRecommendation(recommendation, matchGrounding)
   })

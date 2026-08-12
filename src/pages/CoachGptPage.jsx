@@ -183,15 +183,22 @@ export default function CoachGptPage() {
         return
       }
       await dataStore.addCoachMessage({ userId: user.id, sessionId, role: 'user', body })
-      // res.reply can still come back empty on a genuine Anthropic failure
-      // (bad key, network blip) even though the request itself succeeded -
-      // that must never just vanish silently, or it reads exactly like the
-      // "coach isn't replying" bug this file used to have. Named replyBody,
-      // not body - shadowing the outer `body` param here throws a real
-      // "Cannot access before initialization" TDZ error the moment this
-      // block's first `body` reference (a few lines up) runs, since a
-      // const anywhere in a scope claims that name for the WHOLE scope.
-      const replyBody = res.reply || "Couldn't get a straight answer that time - mind trying again, maybe with a bit more detail?"
+      // res.reply can still come back empty even though the HTTP request
+      // succeeded. Two very different reasons, two very different messages:
+      // res.error set = the Anthropic call itself failed (expired/invalid key,
+      // model access, rate limit) - that's a system fault, so DON'T blame the
+      // user's phrasing the way the old single fallback did; res.error null but
+      // reply empty = the model genuinely returned nothing, where "try again
+      // with more detail" is the right nudge. Named replyBody, not body -
+      // shadowing the outer `body` param here throws a real "Cannot access
+      // before initialization" TDZ error the moment this block's first `body`
+      // reference (a few lines up) runs, since a const anywhere in a scope
+      // claims that name for the WHOLE scope.
+      const replyBody =
+        res.reply ||
+        (res.error
+          ? "I can't get to my playbook right now, champ - that's on my end, not your question. Give it a minute and run it back."
+          : "Couldn't get a straight answer that time - mind trying again, maybe with a bit more detail?")
       const assistantMessage = await dataStore.addCoachMessage({
         userId: user.id,
         sessionId,
