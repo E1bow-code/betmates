@@ -260,6 +260,19 @@ const RECOMMENDATION_TOOL = {
 // { error: { status, type, detail } } on any non-2xx / network failure -
 // callers distinguish "this model isn't available" (fall back) from "the key
 // is bad / we're rate limited" (stop and report) via the status/type.
+// Confirmed live: without this, CoachGPT's first move on a "this season"
+// question is often a real web_search just to establish today's date/season
+// (its training data has a cutoff and it has no other way to know) - slow
+// enough to trigger Anthropic's own long-search pause_turn behaviour, which
+// this turn loop doesn't specially handle, so the partial pre-search text
+// gets mistaken for a finished reply and cuts off mid-sentence. Telling it
+// the date directly removes the need for that search entirely. Computed
+// fresh per call (cheap) rather than baked into COACHGPT_SYSTEM at module
+// load, since a serverless module can stay warm across real calendar days.
+function systemPromptFor() {
+  return `${COACHGPT_SYSTEM}\n\nToday's date is ${new Date().toISOString().slice(0, 10)}.`
+}
+
 async function callClaudeModel(apiKey, model, messages, extra) {
   try {
     const res = await fetch('https://api.anthropic.com/v1/messages', {
@@ -271,10 +284,11 @@ async function callClaudeModel(apiKey, model, messages, extra) {
         // reply either blow the ~30s edge inactivity timeout or, worse, run
         // out of budget and cut off mid-sentence with no error (confirmed
         // live both ways). 950 leaves real margin under the timeout; the
-        // Format section below is what actually keeps a deep answer
-        // substantive AND complete rather than trying to fill the ceiling.
+        // Format section below and systemPromptFor's date are what actually
+        // keep a deep answer substantive AND complete rather than trying to
+        // fill the ceiling or burning a slow search on the calendar.
         max_tokens: 950,
-        system: COACHGPT_SYSTEM,
+        system: systemPromptFor(),
         messages,
         ...extra
       })
