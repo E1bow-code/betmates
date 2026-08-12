@@ -415,6 +415,7 @@ export async function runCoachGptTurn({ apiKey, history, message, callTool }) {
 
   let text = null
   let failure = null
+  let truncated = false
   for (let round = 0; round < MAX_TOOL_ROUNDS && text === null; round++) {
     const { data, error } = await call(messages, { tools: COACHGPT_TOOLS })
     if (error) {
@@ -425,6 +426,7 @@ export async function runCoachGptTurn({ apiKey, history, message, callTool }) {
     const content = data.content ?? []
     if (data.stop_reason !== 'tool_use') {
       text = extractText(content)
+      truncated = data.stop_reason === 'max_tokens'
       break
     }
 
@@ -453,10 +455,23 @@ export async function runCoachGptTurn({ apiKey, history, message, callTool }) {
   if (!failure && text === null) {
     const { data, error } = await call(messages, {})
     if (error) failure = error
-    else text = extractText(data?.content)
+    else {
+      text = extractText(data?.content)
+      truncated = data?.stop_reason === 'max_tokens'
+    }
   }
 
   if (failure) return { text: null, recommendation: null, error: classifyError(failure) }
+
+  // Confirmed live: a genuinely thorough multi-part deep-dive can still hit
+  // max_tokens mid-sentence despite the Format section's budget guidance -
+  // models don't track their own remaining length precisely, so prompt
+  // wording alone doesn't reliably self-enforce a hard cap. Rather than let
+  // a reply silently trail off looking broken, say so - stop_reason is the
+  // one signal that's actually reliable here.
+  if (truncated && text) {
+    text += "\n\n*(Ran long and got cut off there, champ - ask me to keep going and I'll pick up where I left off.)*"
+  }
 
   const recommendation = text ? await lockInRecommendation(call, messages, text) : null
   return { text, recommendation, error: null }
