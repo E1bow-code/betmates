@@ -3369,7 +3369,7 @@ a.race-card:hover, a.race-card:focus-visible { background: rgba(var(--accent-rgb
    Post / official rating (see pickRatingMetric). The track is fixed-width and
    the fill is scaled across the race's rating spread, so the longest bar is
    the best-rated horse. Tiers shade from accent (best) down to dim. */
-.rating-bar { display: flex; align-items: center; gap: 6px; margin-top: 5px; }
+.rating-bar { display: flex; align-items: center; gap: 6px; margin-top: 5px; flex-wrap: wrap; }
 .rating-bar-label {
   font-size: 0.6rem;
   font-weight: 700;
