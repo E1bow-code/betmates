@@ -24,7 +24,12 @@
 export const COACHGPT_MODELS = ['claude-opus-5', 'claude-sonnet-5']
 export const COACHGPT_MODEL = COACHGPT_MODELS[0]
 const ANTHROPIC_VERSION = '2023-06-01'
-const MAX_TOOL_ROUNDS = 4
+// Was bumped to 4 alongside web_search, then reverted - each round is a full
+// Anthropic round-trip, and this function is synchronous behind a ~30s edge
+// inactivity timeout with no streaming, so every round is real time out of a
+// hard, fixed budget. 3 is what the pre-existing (tested, working) turn
+// budget already used.
+const MAX_TOOL_ROUNDS = 3
 // Anthropic-hosted, not one of our own callTool implementations - the API
 // runs the search (and can chain several before returning) within the same
 // request, so it never touches the client-tool loop below. Capped at 1/turn -
@@ -139,14 +144,16 @@ export const COACHGPT_SYSTEM = [
   'price check, a player bio, "what happened in that game") gets a short,',
   'punchy answer - 2-5 sentences or a couple of tight bullets. A real',
   '"dive deeper" question - matchup analysis, "why should I back X", a form',
-  'or injury breakdown, anything where the user clearly wants the full',
-  'picture - earns a proper, structured answer: several short paragraphs or',
-  'bullets, backed by whatever find_fixture/get_recent_news/',
-  'get_recent_results/web_search actually turned up. Never pad for length,',
-  'and never go shallow on a question that asked for depth just to keep it',
-  'brief. No preamble, no sign-off. American English, confident coach\'s',
-  'tone - you have an opinion, and you back it up, but you\'re not vague or',
-  'hedging about things you\'re actually sure of.'
+  'or injury breakdown - earns more room, but stay disciplined: 3-4 tight',
+  'paragraphs or a punchy bulleted breakdown, backed by whatever',
+  'find_fixture/get_recent_news/get_recent_results/web_search actually',
+  'turned up. You have a hard length budget for the whole reply - lead with',
+  'the actual answer and the concrete numbers, THEN colour, never the other',
+  'way round, so a long answer is dense with substance, not a wall of',
+  'preamble. Never pad for length, and never go shallow on a question that',
+  'asked for depth just to keep it brief. No sign-off. American English,',
+  'confident coach\'s tone - you have an opinion, and you back it up, but',
+  'you\'re not vague or hedging about things you\'re actually sure of.'
 ].join('\n')
 
 export const COACHGPT_TOOLS = [
@@ -245,12 +252,14 @@ async function callClaudeModel(apiKey, model, messages, extra) {
       headers: { 'content-type': 'application/json', 'x-api-key': apiKey, 'anthropic-version': ANTHROPIC_VERSION },
       body: JSON.stringify({
         model,
-        // Was 800 - too tight for a real "dive deeper" answer once
-        // web_search is in the mix (search results add real content to
-        // reason over). The system prompt, not this ceiling, is what keeps
-        // a quick lookup short - this just stops a genuine deep-dive from
-        // getting cut off mid-thought.
-        max_tokens: 1600,
+        // Was 800, briefly tried 1600 - reverted after confirming live that
+        // a genuinely long generation (the exact case a "dive deeper" reply
+        // asks for) is itself the dominant cost against this function's
+        // ~30s edge inactivity timeout, more than tool rounds or web_search.
+        // 1100 is a real bump over the original with a safer time margin;
+        // the Format section below is what actually keeps a deep answer
+        // substantive without trying to fill the whole ceiling.
+        max_tokens: 1100,
         system: COACHGPT_SYSTEM,
         messages,
         ...extra
