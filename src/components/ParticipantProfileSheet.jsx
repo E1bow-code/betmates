@@ -1,9 +1,17 @@
 import { useEffect, useState } from 'react'
 import { getPlayerProfile } from '../lib/playerProfile.js'
+import { getFighterHistory } from '../lib/fighterHistory.js'
 import { useEscapeKey } from '../lib/useEscapeKey.js'
 import { useDelayedClose } from '../lib/useDelayedClose.js'
 import { abbreviatePosition, flagFor, ageFrom } from '../utils/playerCard.js'
 import TeamBadge from './TeamBadge.jsx'
+
+// dateEvent from TheSportsDB is also a plain "YYYY-MM-DD" string - see
+// formatBirthDate below for why this stays local instead of reusing
+// src/utils/format.js.
+function formatFightDate(dateStr) {
+  return new Date(`${dateStr}T00:00:00`).toLocaleDateString([], { year: 'numeric', month: 'short', day: 'numeric' })
+}
 
 // dateBorn from TheSportsDB is a plain "YYYY-MM-DD" string, not a full ISO
 // timestamp - src/utils/format.js's helpers all assume the latter, so this
@@ -23,6 +31,7 @@ function formatBirthDate(dateStr) {
 // below only renders if the field it needs actually came back.
 export default function ParticipantProfileSheet({ name, sport, onClose }) {
   const [profile, setProfile] = useState(undefined)
+  const [fights, setFights] = useState([])
   const { closing, requestClose } = useDelayedClose(onClose)
   useEscapeKey(requestClose)
 
@@ -31,6 +40,21 @@ export default function ParticipantProfileSheet({ name, sport, onClose }) {
     setProfile(undefined)
     getPlayerProfile(name, sport).then((p) => {
       if (!cancelled) setProfile(p)
+    })
+    return () => {
+      cancelled = true
+    }
+  }, [name, sport])
+
+  // Boxing shares TheSportsDB's "Fighting" strSport with UFC, but the user
+  // only asked for this on UFC cards - gated strictly to that rather than
+  // profile.sport === 'Fighting' so boxing doesn't silently pick it up too.
+  useEffect(() => {
+    let cancelled = false
+    setFights([])
+    if (sport !== 'ufc') return undefined
+    getFighterHistory(name).then((f) => {
+      if (!cancelled) setFights(f)
     })
     return () => {
       cancelled = true
@@ -120,6 +144,26 @@ export default function ParticipantProfileSheet({ name, sport, onClose }) {
                 </div>
               )}
             </div>
+
+            {fights.length > 0 && (
+              <div className="profile-sheet-fights">
+                <h3 className="profile-sheet-fights-title">Last {fights.length} fight{fights.length === 1 ? '' : 's'}</h3>
+                {fights.map((f, i) => (
+                  <div key={i} className="fight-history-row">
+                    <span className={`fight-history-result${f.result ? ` tone-${f.result === 'win' ? 'good' : 'bad'}` : ''}`}>
+                      {f.result === 'win' ? 'W' : f.result === 'loss' ? 'L' : '–'}
+                    </span>
+                    <span className="fight-history-main">
+                      <span className="fight-history-opponent">{f.opponent ? `vs ${f.opponent}` : f.event || 'Unknown event'}</span>
+                      <span className="fight-history-meta">
+                        {f.method || 'Method unknown'}
+                        {f.date ? ` · ${formatFightDate(f.date)}` : ''}
+                      </span>
+                    </span>
+                  </div>
+                ))}
+              </div>
+            )}
 
             {profile.bio && <p className="profile-sheet-bio">{profile.bio}</p>}
             {socials.length > 0 && (
