@@ -516,12 +516,12 @@ function FixtureCard({ fixture, bookmakerFilter, format }) {
       <div className="race-card-main">
         <div className="race-card-title fixture-teams-row">
           <span className="fixture-team">
-            <TeamBadge team={fixture.homeTeam} size={20} />
+            <TeamBadge team={fixture.homeTeam} sport="football" size={20} />
             <span>{fixture.homeTeam}</span>
           </span>
           <span className="fixture-vs">v</span>
           <span className="fixture-team">
-            <TeamBadge team={fixture.awayTeam} size={20} />
+            <TeamBadge team={fixture.awayTeam} sport="football" size={20} />
             <span>{fixture.awayTeam}</span>
           </span>
         </div>
@@ -645,12 +645,12 @@ function EventCard({ event, sportKey, config, bookmakerFilter, format }) {
       <div className="race-card-main">
         <div className="race-card-title fixture-teams-row">
           <span className="fixture-team">
-            <Photo {...{ [photoProp]: event.participantA }} size={20} />
+            <Photo {...{ [photoProp]: event.participantA }} sport={sportKey} size={20} />
             <span>{event.participantA}</span>
           </span>
           <span className="fixture-vs">v</span>
           <span className="fixture-team">
-            <Photo {...{ [photoProp]: event.participantB }} size={20} />
+            <Photo {...{ [photoProp]: event.participantB }} sport={sportKey} size={20} />
             <span>{event.participantB}</span>
           </span>
         </div>

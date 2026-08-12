@@ -98,7 +98,7 @@ export default function ParticipantProfileSheet({ name, sport, onClose }) {
               <h2 className="player-card-name">{name}</h2>
               {profile.team && (
                 <p className="player-card-subtitle">
-                  {isClub && <TeamBadge team={profile.team} size={16} />}
+                  {isClub && <TeamBadge team={profile.team} sport="football" size={16} />}
                   {profile.team}
                 </p>
               )}

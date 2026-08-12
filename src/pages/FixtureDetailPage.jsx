@@ -110,13 +110,13 @@ export default function FixtureDetailPage() {
       <div className="race-header">
         <h1 className="fixture-teams-row">
           <span className="fixture-team">
-            <TeamBadge team={fixture.homeTeam} size={26} />
+            <TeamBadge team={fixture.homeTeam} sport="football" size={26} />
             <span>{fixture.homeTeam}</span>
             <FollowParticipantButton sport="football" name={fixture.homeTeam} />
           </span>
           <span className="fixture-vs">v</span>
           <span className="fixture-team">
-            <TeamBadge team={fixture.awayTeam} size={26} />
+            <TeamBadge team={fixture.awayTeam} sport="football" size={26} />
             <span>{fixture.awayTeam}</span>
             <FollowParticipantButton sport="football" name={fixture.awayTeam} />
           </span>
@@ -197,7 +197,7 @@ export default function FixtureDetailPage() {
                           <span>{outcome.name}</span>
                         ) : outcome.name === 'Home' || outcome.name === 'Away' ? (
                           <span className="fixture-team">
-                            <TeamBadge team={outcome.name === 'Home' ? fixture.homeTeam : fixture.awayTeam} size={20} />
+                            <TeamBadge team={outcome.name === 'Home' ? fixture.homeTeam : fixture.awayTeam} sport="football" size={20} />
                             <span>{outcome.name === 'Home' ? fixture.homeTeam : fixture.awayTeam}</span>
                           </span>
                         ) : (

@@ -25,6 +25,27 @@ const HIT_TTL = 7 * 24 * 60 * 60 * 1000
 const MISS_TTL = 60 * 60 * 1000
 const FAILURE_TTL = 5 * 60 * 1000
 
+// Common English nicknames repeat across totally unrelated sports/leagues -
+// searching "Kings" (e.g. Sacramento Kings, NBA) turns up "Kingstonian", an
+// English non-league SOCCER club, as the top result; "Panthers" (Carolina/
+// Florida) turns up an Italian women's BASKETBALL team; "Giants" (NY/SF)
+// turns up an Australian NETBALL team. Same class of bug as
+// netlify/functions/player-photo.js, fixed the same way: when the caller
+// knows its sport, only trust a result that's actually that sport. Rugby
+// league and union share TheSportsDB's single "Rugby" strSport value - not
+// worth disambiguating further, since the goal here is just ruling out
+// wrong-sport matches, not wrong-code-of-rugby ones.
+const SPORT_MAP = {
+  football: 'Soccer',
+  basketball: 'Basketball',
+  hockey: 'Ice Hockey',
+  baseball: 'Baseball',
+  nfl: 'American Football',
+  rugbyLeague: 'Rugby',
+  rugbyUnion: 'Rugby',
+  cricket: 'Cricket'
+}
+
 // The odds feed and TheSportsDB don't always spell a club the same way, so
 // a raw lookup misses and the crest falls back to initials. Map the short
 // forms we actually see onto the name TheSportsDB indexes. Keyed lowercase;
@@ -57,13 +78,16 @@ function json(url, source) {
 }
 
 export default async (req) => {
-  const team = new URL(req.url).searchParams.get('team')
+  const params = new URL(req.url).searchParams
+  const team = params.get('team')
   if (!team) return json(null)
+  const sport = params.get('sport')
+  const wantedSport = SPORT_MAP[sport]
 
   // Cache and look up by the resolved name, so every spelling of a club
   // ("Man City", "Manchester City") shares one crest and one upstream call.
   const resolved = resolveTeam(team)
-  const key = `badge-${resolved.toLowerCase()}`
+  const key = wantedSport ? `badge-${sport}-${resolved.toLowerCase()}` : `badge-${resolved.toLowerCase()}`
   const cached = cacheGet(key)
   if (cached !== undefined) return json(cached, 'live-cached')
 
@@ -74,7 +98,10 @@ export default async (req) => {
     const res = await fetch(`https://www.thesportsdb.com/api/v1/json/${apiKey}/searchteams.php?t=${encodeURIComponent(resolved)}`)
     if (!res.ok) throw new Error(`TheSportsDB: ${res.status}`)
     const data = await res.json()
-    const badge = data?.teams?.[0]?.strBadge ?? null
+    // With a known sport, only trust a result that's actually that sport -
+    // no badge at all beats a confidently-wrong one from a different sport.
+    const match = wantedSport ? data?.teams?.find((t) => t.strSport === wantedSport) : data?.teams?.[0]
+    const badge = match?.strBadge ?? null
     cacheSet(key, badge, badge ? HIT_TTL : MISS_TTL)
     return json(badge, 'live')
   } catch (err) {

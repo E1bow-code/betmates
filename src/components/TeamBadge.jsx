@@ -7,7 +7,7 @@ function initialsFor(name) {
   return words.map((w) => w[0]).join('').slice(0, 3).toUpperCase()
 }
 
-export default function TeamBadge({ team, size = 24 }) {
+export default function TeamBadge({ team, sport, size = 24 }) {
   const [src, setSrc] = useState(null)
   const [failed, setFailed] = useState(false)
 
@@ -15,7 +15,7 @@ export default function TeamBadge({ team, size = 24 }) {
     let cancelled = false
     setSrc(null)
     setFailed(false)
-    getTeamBadge(team).then((url) => {
+    getTeamBadge(team, sport).then((url) => {
       if (cancelled) return
       if (url) setSrc(url)
       else setFailed(true)
@@ -23,7 +23,7 @@ export default function TeamBadge({ team, size = 24 }) {
     return () => {
       cancelled = true
     }
-  }, [team])
+  }, [team, sport])
 
   if (src && !failed) {
     return (

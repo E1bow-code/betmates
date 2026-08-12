@@ -9,16 +9,23 @@
 
 const cache = new Map()
 
-export async function getTeamBadge(teamName) {
-  if (cache.has(teamName)) return cache.get(teamName)
+// `sport` (football/basketball/hockey/baseball/nfl/rugbyLeague/rugbyUnion/
+// cricket) lets the server-side lookup reject a same-name match from the
+// wrong sport instead of confidently showing the wrong crest - see
+// netlify/functions/team-badge.js. Folded into the cache key since the same
+// name can resolve differently per sport.
+export async function getTeamBadge(teamName, sport) {
+  const cacheKey = sport ? `${sport}:${teamName}` : teamName
+  if (cache.has(cacheKey)) return cache.get(cacheKey)
 
-  const promise = fetch(`/api/team-badge?team=${encodeURIComponent(teamName)}`)
+  const query = sport ? `team=${encodeURIComponent(teamName)}&sport=${encodeURIComponent(sport)}` : `team=${encodeURIComponent(teamName)}`
+  const promise = fetch(`/api/team-badge?${query}`)
     .then((res) => (res.ok ? res.json() : null))
     .then((data) => data?.url ?? null)
     .catch(() => null)
 
-  cache.set(teamName, promise)
+  cache.set(cacheKey, promise)
   const badgeUrl = await promise
-  cache.set(teamName, badgeUrl) // replace the in-flight promise with the resolved value
+  cache.set(cacheKey, badgeUrl) // replace the in-flight promise with the resolved value
   return badgeUrl
 }
