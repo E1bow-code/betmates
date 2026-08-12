@@ -107,6 +107,11 @@ function reshapeRunner(runner) {
     form: orNull(runner.form),
     officialRating: orNull(runner.ofr),
     racingPostRating: orNull(runner.rpr),
+    // theracingapi's Topspeed figure - a speed rating (how fast the horse has
+    // actually run) rather than the handicapper's OR/RPR opinion. Field name
+    // falls back defensively; like every rating here it's orNull'd, so a race
+    // or plan without it just leaves the speed indicator unrendered.
+    speedFigure: orNull(runner.ts ?? runner.topspeed),
     daysSinceLastRun: orNull(runner.last_run),
     age: orNull(runner.age),
     weightLbs: orNull(runner.lbs),

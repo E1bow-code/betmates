@@ -3318,6 +3318,64 @@ a.race-card:hover, a.race-card:focus-visible { background: rgba(var(--accent-rgb
    behind an interaction most people won't guess exists on their own. */
 .runner-form-inline { font-variant-numeric: tabular-nums; color: var(--text); }
 
+/* Always-visible per-runner speed-figure bar (SpeedFigure.jsx) - sits under
+   the connections line so a whole race's pace compares at a glance without
+   tapping each horse open. The track is fixed-width and the fill is scaled
+   against the fastest figure in the race, so the longest bar = quickest
+   horse. Tiers shade from accent (fastest) down to dim (slowest). */
+.speed-fig { display: flex; align-items: center; gap: 6px; margin-top: 5px; }
+.speed-fig-label {
+  font-size: 0.6rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  color: var(--text-dim);
+  flex-shrink: 0;
+}
+.speed-fig-track {
+  position: relative;
+  width: 72px;
+  height: 6px;
+  border-radius: 3px;
+  background: var(--surface-2);
+  overflow: hidden;
+  flex-shrink: 0;
+}
+.speed-fig-fill { position: absolute; left: 0; top: 0; height: 100%; border-radius: 3px; }
+.speed-fig-top-fill,
+.speed-fig-fill.speed-fig-top { background: var(--accent); }
+.speed-fig-fill.speed-fig-high { background: var(--accent-dim); }
+.speed-fig-fill.speed-fig-mid { background: color-mix(in srgb, var(--accent) 45%, var(--text-dim)); }
+.speed-fig-fill.speed-fig-low { background: var(--text-dim); }
+.speed-fig-value {
+  font-size: 0.72rem;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  color: var(--text);
+  flex-shrink: 0;
+}
+.speed-fig-top {
+  font-size: 0.6rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--accent);
+  border: 1px solid rgba(var(--accent-rgb), 0.4);
+  border-radius: 999px;
+  padding: 1px 6px;
+  flex-shrink: 0;
+}
+
+/* Legend line above the runner list explaining the bar, only shown when the
+   race actually carries figures (see RaceDetailPage's maxSpeed gate). */
+.speed-fig-legend { display: flex; align-items: center; gap: 6px; }
+.speed-fig-legend-swatch {
+  width: 20px;
+  height: 6px;
+  border-radius: 3px;
+  background: linear-gradient(90deg, var(--text-dim), var(--accent));
+  flex-shrink: 0;
+}
+
 .runner-best { text-align: right; }
 
 /* The headline price is stamped in a bordered chip, same family as the

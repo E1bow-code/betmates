@@ -17,6 +17,7 @@ function formChips(form) {
 export default function RunnerForm({ runner }) {
   const chips = formChips(runner.form)
   const facts = [
+    runner.speedFigure && `Speed ${runner.speedFigure}`,
     runner.officialRating && `OR ${runner.officialRating}`,
     runner.racingPostRating && `RPR ${runner.racingPostRating}`,
     runner.age && `${runner.age}yo`,

@@ -12,6 +12,22 @@ function fractionToDecimal(fraction) {
   return Math.round((num / den + 1) * 100) / 100
 }
 
+// Deterministic mock speed figure so the demo shows a realistic spread
+// without hand-authoring one per runner. Anchored on the official rating
+// (real speed figures broadly track class) but nudged by a stable hash of
+// the horse's name, so the fastest figure is NOT always the market
+// favourite - which is the whole reason a punter looks at the indicator.
+// Horses with no rating at all (debutants) get none, mirroring the real
+// feed's patchiness and proving the bar hides itself. No Math.random, so the
+// figures are stable across reloads and safe for snapshot-style tests.
+function mockSpeedFigure(name, officialRating) {
+  const base = Number(officialRating)
+  if (!Number.isFinite(base)) return null
+  let hash = 0
+  for (let i = 0; i < name.length; i++) hash = (hash * 31 + name.charCodeAt(i)) % 23
+  return base + 1 + hash // OR + 1..23, enough spread to re-order vs. the odds
+}
+
 function makeRunner(id, number, name, jockey, trainer, priceOptions, form) {
   const allOdds = priceOptions.map((price, i) => ({
     bookmaker: BOOKMAKERS[i % BOOKMAKERS.length],
@@ -34,6 +50,11 @@ function makeRunner(id, number, name, jockey, trainer, priceOptions, form) {
     form: form?.form ?? null,
     officialRating: form?.officialRating ?? null,
     racingPostRating: form?.racingPostRating ?? null,
+    // Topspeed-style speed figure (see netlify/functions/racing.js) - drives
+    // RaceDetailPage's per-runner speed bar. Deliberately patchy in the mock
+    // (some runners null) to mirror the real feed and prove the indicator
+    // hides itself gracefully.
+    speedFigure: form?.speedFigure ?? mockSpeedFigure(name, form?.officialRating),
     daysSinceLastRun: form?.daysSinceLastRun ?? null,
     age: form?.age ?? null,
     weightLbs: form?.weightLbs ?? null,

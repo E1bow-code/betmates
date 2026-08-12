@@ -14,6 +14,7 @@ import LiveBadge from '../components/LiveBadge.jsx'
 import WatchLiveButton from '../components/WatchLiveButton.jsx'
 import FollowButton from '../components/FollowButton.jsx'
 import RunnerForm from '../components/RunnerForm.jsx'
+import SpeedFigure from '../components/SpeedFigure.jsx'
 import CoachGptLink from '../components/CoachGptLink.jsx'
 import SharpMoneyBadge from '../components/SharpMoneyBadge.jsx'
 
@@ -46,6 +47,13 @@ export default function RaceDetailPage() {
     const bBest = bestWithinFilter(b.allOdds, bookmakerFilter)
     return (aBest?.decimal ?? Infinity) - (bBest?.decimal ?? Infinity)
   })
+
+  // The fastest figure in this race - every runner's speed bar is scaled
+  // against it, so the longest bar in the list is the quickest horse. Coerced
+  // through Number() because the racing API returns figures as strings (mock
+  // data uses numbers); a race with none just leaves maxSpeed at 0 and the
+  // indicators render nothing.
+  const maxSpeed = race.runners.reduce((max, r) => Math.max(max, Number(r.speedFigure) || 0), 0)
 
   const raceEvent = `${race.course} ${formatKickoff(race.offTime)} · ${race.raceName}`
 
@@ -105,7 +113,13 @@ export default function RaceDetailPage() {
           />
           <span>My bookies only</span>
         </label>
-        <p className="hint">Tap more than one price to build an accumulator.</p>
+        {maxSpeed > 0 && (
+          <p className="hint speed-fig-legend">
+            <span className="speed-fig-legend-swatch" aria-hidden="true" /> Speed figures show how fast each horse has run - longer bars
+            are faster.
+          </p>
+        )}
+        <p className="hint">Tap a horse for full form, or tap more than one price to build an accumulator.</p>
       </div>
 
       <div className="runner-list">
@@ -136,6 +150,7 @@ export default function RaceDetailPage() {
                     {runner.jockey} · {runner.trainer}
                     {runner.form && <span className="runner-form-inline"> · Form {runner.form}</span>}
                   </div>
+                  <SpeedFigure value={runner.speedFigure} max={maxSpeed} />
                 </div>
                 {best ? (
                   <button
