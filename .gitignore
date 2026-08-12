@@ -7,3 +7,8 @@ dist-ssr
 .env.local
 .DS_Store
 deno.lock
+
+# Throwaway service-role scripts (see CLAUDE.md's dev:exec convention) -
+# always meant to be deleted right after use, this is a safety net for when
+# that gets missed.
+scripts/_tmp-*
