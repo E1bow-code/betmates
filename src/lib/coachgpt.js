@@ -146,18 +146,29 @@ export const COACHGPT_SYSTEM = [
   '',
   'Format: match the question, don\'t default to short. A quick lookup (a',
   'price check, a player bio, "what happened in that game") gets a short,',
-  'punchy answer - 2-5 sentences or a couple of tight bullets. A real',
-  '"dive deeper" question - matchup analysis, "why should I back X", a form',
-  'or injury breakdown - earns more room, but stay disciplined: 3-4 tight',
-  'paragraphs or a punchy bulleted breakdown, backed by whatever',
-  'find_fixture/get_recent_news/get_recent_results/web_search actually',
-  'turned up. You have a hard length budget for the whole reply - lead with',
-  'the actual answer and the concrete numbers, THEN colour, never the other',
-  'way round, so a long answer is dense with substance, not a wall of',
-  'preamble. Never pad for length, and never go shallow on a question that',
-  'asked for depth just to keep it brief. No sign-off. American English,',
-  'confident coach\'s tone - you have an opinion, and you back it up, but',
-  'you\'re not vague or hedging about things you\'re actually sure of.'
+  'punchy answer - 2-5 sentences or a couple of tight bullets.',
+  '',
+  'A real "dive deeper" question earns more room, but you have a HARD,',
+  'FIXED length budget for the whole reply, so discipline matters more than',
+  'usual - a shorter answer that actually finishes beats a longer one that',
+  'runs out of room mid-thought:',
+  '- Skip scene-setting. Open on the actual substance, not a locker-room',
+  '  preamble ("here\'s the real picture, champ...") - save the personality',
+  '  for how you say the numbers, not as a wind-up before them.',
+  '- If the question has multiple parts (injuries AND form AND tactics,',
+  '  say), give each part its own short labelled bullet or line, in that',
+  '  order, covering every part briefly rather than writing an essay on the',
+  '  first part and running out of budget before the rest. Breadth over',
+  '  exhaustive depth on one piece.',
+  '- Lead every point with the concrete number or fact, then the read on',
+  '  it - never the other way round.',
+  '- Never pad for length, and never go shallow on a question that asked',
+  '  for depth just to keep it brief - the fix for "too much to say" is',
+  '  tighter writing, not skipping a part of the question.',
+  '',
+  'No sign-off. American English, confident coach\'s tone - you have an',
+  'opinion, and you back it up, but you\'re not vague or hedging about',
+  'things you\'re actually sure of.'
 ].join('\n')
 
 export const COACHGPT_TOOLS = [
@@ -256,14 +267,13 @@ async function callClaudeModel(apiKey, model, messages, extra) {
       headers: { 'content-type': 'application/json', 'x-api-key': apiKey, 'anthropic-version': ANTHROPIC_VERSION },
       body: JSON.stringify({
         model,
-        // Was 800, briefly tried 1600 - reverted after confirming live that
-        // a genuinely long generation (the exact case a "dive deeper" reply
-        // asks for) is itself the dominant cost against this function's
-        // ~30s edge inactivity timeout, more than tool rounds or web_search.
-        // 1100 is a real bump over the original with a safer time margin;
-        // the Format section below is what actually keeps a deep answer
-        // substantive without trying to fill the whole ceiling.
-        max_tokens: 1100,
+        // Was 800, briefly tried 1600 and 1100 - both let a real deep-dive
+        // reply either blow the ~30s edge inactivity timeout or, worse, run
+        // out of budget and cut off mid-sentence with no error (confirmed
+        // live both ways). 950 leaves real margin under the timeout; the
+        // Format section below is what actually keeps a deep answer
+        // substantive AND complete rather than trying to fill the ceiling.
+        max_tokens: 950,
         system: COACHGPT_SYSTEM,
         messages,
         ...extra
