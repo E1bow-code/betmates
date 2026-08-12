@@ -16,6 +16,8 @@ import { useOddsMovement, movementKey } from '../lib/oddsMemory.js'
 import EmptyState from '../components/EmptyState.jsx'
 import OddsMoveIndicator from '../components/OddsMoveIndicator.jsx'
 import ValueFinder from '../components/ValueFinder.jsx'
+import HorseOfTheDayCard from '../components/HorseOfTheDayCard.jsx'
+import { computeHorseOfTheDay } from '../utils/horseOfTheDay.js'
 import TeamBadge from '../components/TeamBadge.jsx'
 import PlayerPhoto from '../components/PlayerPhoto.jsx'
 import SportHeroBanner from '../components/SportHeroBanner.jsx'
@@ -191,6 +193,7 @@ export default function OddsListPage() {
     myTeamsOnly && bySearch ? bySearch.filter((item) => participantNames(item, sport).some((n) => followedSet.has(`${sport}::${n}`))) : bySearch
   const loadedResults = filterBySearch(rawLoadedResults, search)
   const groupedLoaded = loaded && sport !== 'racing' ? groupByCompetition(loaded) : null
+  const horseOfTheDay = useMemo(() => (sport === 'racing' && loaded ? computeHorseOfTheDay(loaded) : null), [sport, loaded])
 
   const crossSportResults = useMemo(() => {
     if (!searchActive) return null
@@ -336,6 +339,8 @@ export default function OddsListPage() {
           )}
 
           {loaded && loaded.length > 0 && sport !== 'racing' && <ValueFinder items={loaded} sportKey={sport} format={format} />}
+
+          {loaded && loaded.length > 0 && sport === 'racing' && <HorseOfTheDayCard horse={horseOfTheDay} />}
 
           {loaded && loaded.length > 0 && sport === 'racing' && (
             <div className="race-list">

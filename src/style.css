@@ -3633,6 +3633,28 @@ a.btn,
 .value-row-price { font-family: var(--font-mono); font-variant-numeric: tabular-nums; font-weight: 700; color: var(--accent); font-size: 1.02rem; }
 .value-row-edge { font-size: 0.68rem; font-weight: 600; color: var(--accent-dim); white-space: nowrap; }
 
+/* "Horse of the Day" - today's single fastest-rated runner by speed
+   figure (src/utils/horseOfTheDay.js), racing's sibling to ValueFinder's
+   panel above (ValueFinder itself skips racing - no h2h market to find an
+   edge in). One pick, so no collapse/expand like ValueFinder has. */
+.horse-of-the-day {
+  display: block;
+  border: 1px solid var(--accent-dim);
+  border-radius: 10px;
+  margin: 4px 0 12px;
+  padding: 10px 12px;
+  background: linear-gradient(180deg, rgba(var(--accent-rgb), 0.08) 0%, transparent 60%), var(--surface);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.28), 0 6px 18px rgba(0, 0, 0, 0.18);
+  text-decoration: none;
+  color: inherit;
+}
+.horse-of-the-day-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 4px; }
+.horse-of-the-day-title { font-weight: 700; font-size: 0.9rem; }
+.horse-of-the-day-figure { font-size: 0.75rem; color: var(--text-dim); }
+.horse-of-the-day-body { display: flex; flex-direction: column; gap: 1px; }
+.horse-of-the-day-name { font-weight: 700; font-size: 1.02rem; color: var(--accent); }
+.horse-of-the-day-meta { font-size: 0.8rem; color: var(--text-dim); }
+
 /* Tipster reputation leaderboard (Social -> Tipsters). Ranked cards with the
    ROI as the hero number and a one-tap follow. */
 .tipster-list { display: flex; flex-direction: column; gap: 8px; margin-top: 8px; }
