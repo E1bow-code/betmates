@@ -11,18 +11,19 @@ import { findPlayer } from './sportsDbPlayerSearch.js'
 
 const cache = new Map()
 
-export async function getPlayerProfile(playerName) {
-  if (cache.has(playerName)) return cache.get(playerName)
+export async function getPlayerProfile(playerName, sport) {
+  const cacheKey = sport ? `${sport}:${playerName}` : playerName
+  if (cache.has(cacheKey)) return cache.get(cacheKey)
 
-  const promise = fetchProfile(playerName).catch(() => null)
-  cache.set(playerName, promise)
+  const promise = fetchProfile(playerName, sport).catch(() => null)
+  cache.set(cacheKey, promise)
   const profile = await promise
-  cache.set(playerName, profile)
+  cache.set(cacheKey, profile)
   return profile
 }
 
-async function fetchProfile(playerName) {
-  const match = await findPlayer(playerName)
+async function fetchProfile(playerName, sport) {
+  const match = await findPlayer(playerName, sport)
   if (!match?.idPlayer) return null
 
   const lookupRes = await fetch(`https://www.thesportsdb.com/api/v1/json/3/lookupplayer.php?id=${match.idPlayer}`)

@@ -20,6 +20,17 @@ const MISS_TTL = 60 * 60 * 1000
 // not an hour.
 const FAILURE_TTL = 5 * 60 * 1000
 
+// TheSportsDB's searchplayers.php does loose name matching across every
+// sport it covers, not just the one the caller actually wants - searching
+// "Jon Jones" (the UFC fighter) turns up no exact record and instead
+// fuzzy-matches "Kenwyne Jones", a retired footballer, as the top result.
+// Blindly taking data.player[0] then shows a confidently-wrong photo
+// (someone else entirely) rather than no photo, which is worse than a
+// blank initials avatar. Callers that know their sport (every one in
+// src/ does - see PlayerPhoto.jsx) pass it through so the result can be
+// checked against TheSportsDB's own strSport field first.
+const SPORT_MAP = { football: 'Soccer', tennis: 'Tennis', boxing: 'Fighting', ufc: 'Fighting' }
+
 function json(url, source) {
   const headers = { 'content-type': 'application/json' }
   if (source) headers['x-data-source'] = source
@@ -27,10 +38,13 @@ function json(url, source) {
 }
 
 export default async (req) => {
-  const name = new URL(req.url).searchParams.get('name')
+  const params = new URL(req.url).searchParams
+  const name = params.get('name')
   if (!name) return json(null)
+  const sport = params.get('sport')
+  const wantedSport = SPORT_MAP[sport]
 
-  const key = `player-${name.toLowerCase()}`
+  const key = wantedSport ? `player-${sport}-${name.toLowerCase()}` : `player-${name.toLowerCase()}`
   const cached = cacheGet(key)
   if (cached !== undefined) return json(cached, 'live-cached')
 
@@ -39,7 +53,11 @@ export default async (req) => {
     const res = await fetch(`https://www.thesportsdb.com/api/v1/json/${apiKey}/searchplayers.php?p=${encodeURIComponent(name)}`)
     if (!res.ok) throw new Error(`TheSportsDB: ${res.status}`)
     const data = await res.json()
-    const player = data?.player?.[0]
+    // With a known sport, only trust a result that's actually that sport -
+    // no match at all beats a confidently-wrong one. Without a sport (no
+    // caller passes none today, kept for backwards compatibility) fall
+    // back to the old first-result behaviour.
+    const player = wantedSport ? data?.player?.find((p) => p.strSport === wantedSport) : data?.player?.[0]
     const photo = player?.strThumb ?? player?.strCutout ?? null
     cacheSet(key, photo, photo ? HIT_TTL : MISS_TTL)
     return json(photo, 'live')

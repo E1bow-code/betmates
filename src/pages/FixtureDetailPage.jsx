@@ -188,7 +188,7 @@ export default function FixtureDetailPage() {
                           setProfileTarget(outcome.name)
                         }}
                       >
-                        <PlayerPhoto name={outcome.name} size={30} />
+                        <PlayerPhoto name={outcome.name} sport="football" size={30} />
                       </button>
                     )}
                     <button className="outcome-row-main" onClick={() => pick(market, outcome)} disabled={!best}>
@@ -277,7 +277,7 @@ export default function FixtureDetailPage() {
       })}
 
       {alertTarget && <OddsAlertSheet target={alertTarget} onClose={() => setAlertTarget(null)} />}
-      {profileTarget && <ParticipantProfileSheet name={profileTarget} onClose={() => setProfileTarget(null)} />}
+      {profileTarget && <ParticipantProfileSheet name={profileTarget} sport="football" onClose={() => setProfileTarget(null)} />}
     </div>
   )
 }

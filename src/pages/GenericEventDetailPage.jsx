@@ -111,12 +111,12 @@ export default function GenericEventDetailPage() {
           <span className="fixture-team">
             {config.participantType === 'player' ? (
               <button type="button" className="fixture-team-profile-btn" onClick={() => setProfileTarget(event.participantA)}>
-                <Photo {...{ [photoProp]: event.participantA }} size={26} />
+                <Photo {...{ [photoProp]: event.participantA }} sport={sportKey} size={26} />
                 <span>{event.participantA}</span>
               </button>
             ) : (
               <>
-                <Photo {...{ [photoProp]: event.participantA }} size={26} />
+                <Photo {...{ [photoProp]: event.participantA }} sport={sportKey} size={26} />
                 <span>{event.participantA}</span>
               </>
             )}
@@ -126,12 +126,12 @@ export default function GenericEventDetailPage() {
           <span className="fixture-team">
             {config.participantType === 'player' ? (
               <button type="button" className="fixture-team-profile-btn" onClick={() => setProfileTarget(event.participantB)}>
-                <Photo {...{ [photoProp]: event.participantB }} size={26} />
+                <Photo {...{ [photoProp]: event.participantB }} sport={sportKey} size={26} />
                 <span>{event.participantB}</span>
               </button>
             ) : (
               <>
-                <Photo {...{ [photoProp]: event.participantB }} size={26} />
+                <Photo {...{ [photoProp]: event.participantB }} sport={sportKey} size={26} />
                 <span>{event.participantB}</span>
               </>
             )}
@@ -198,7 +198,7 @@ export default function GenericEventDetailPage() {
                       <span className="outcome-name">
                         {outcome.team ? (
                           <span className="fixture-team">
-                            <Photo {...{ [photoProp]: outcome.team }} size={20} />
+                            <Photo {...{ [photoProp]: outcome.team }} sport={sportKey} size={20} />
                             <span>{name}</span>
                           </span>
                         ) : (
@@ -278,7 +278,7 @@ export default function GenericEventDetailPage() {
       })}
 
       {alertTarget && <OddsAlertSheet target={alertTarget} onClose={() => setAlertTarget(null)} />}
-      {profileTarget && <ParticipantProfileSheet name={profileTarget} onClose={() => setProfileTarget(null)} />}
+      {profileTarget && <ParticipantProfileSheet name={profileTarget} sport={sportKey} onClose={() => setProfileTarget(null)} />}
     </div>
   )
 }

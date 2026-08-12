@@ -99,7 +99,7 @@ export default function FightDetailPage() {
         <h1 className="fixture-teams-row">
           <span className="fixture-team">
             <button type="button" className="fixture-team-profile-btn" onClick={() => setProfileTarget(fight.fighterA)}>
-              <PlayerPhoto name={fight.fighterA} size={26} />
+              <PlayerPhoto name={fight.fighterA} sport="ufc" size={26} />
               <span>{fight.fighterA}</span>
             </button>
             <FollowParticipantButton sport="ufc" name={fight.fighterA} />
@@ -107,7 +107,7 @@ export default function FightDetailPage() {
           <span className="fixture-vs">v</span>
           <span className="fixture-team">
             <button type="button" className="fixture-team-profile-btn" onClick={() => setProfileTarget(fight.fighterB)}>
-              <PlayerPhoto name={fight.fighterB} size={26} />
+              <PlayerPhoto name={fight.fighterB} sport="ufc" size={26} />
               <span>{fight.fighterB}</span>
             </button>
             <FollowParticipantButton sport="ufc" name={fight.fighterB} />
@@ -166,7 +166,7 @@ export default function FightDetailPage() {
                     <button className="outcome-row-main" onClick={() => pick(market, outcome)} disabled={!best}>
                       <span className="outcome-name">
                         <span className="fixture-team">
-                          <PlayerPhoto name={outcome.name} size={22} />
+                          <PlayerPhoto name={outcome.name} sport="ufc" size={22} />
                           <span>{outcome.name}</span>
                         </span>
                         {backingCount > 0 && (
@@ -243,7 +243,7 @@ export default function FightDetailPage() {
       })}
 
       {alertTarget && <OddsAlertSheet target={alertTarget} onClose={() => setAlertTarget(null)} />}
-      {profileTarget && <ParticipantProfileSheet name={profileTarget} onClose={() => setProfileTarget(null)} />}
+      {profileTarget && <ParticipantProfileSheet name={profileTarget} sport="ufc" onClose={() => setProfileTarget(null)} />}
     </div>
   )
 }

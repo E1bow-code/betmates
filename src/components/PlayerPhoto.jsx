@@ -7,7 +7,7 @@ function initialsFor(name) {
   return (words[0][0] + words[words.length - 1][0]).toUpperCase()
 }
 
-export default function PlayerPhoto({ name, size = 28 }) {
+export default function PlayerPhoto({ name, sport, size = 28 }) {
   const [src, setSrc] = useState(null)
   const [failed, setFailed] = useState(false)
 
@@ -15,7 +15,7 @@ export default function PlayerPhoto({ name, size = 28 }) {
     let cancelled = false
     setSrc(null)
     setFailed(false)
-    getPlayerPhoto(name).then((url) => {
+    getPlayerPhoto(name, sport).then((url) => {
       if (cancelled) return
       if (url) setSrc(url)
       else setFailed(true)
@@ -23,7 +23,7 @@ export default function PlayerPhoto({ name, size = 28 }) {
     return () => {
       cancelled = true
     }
-  }, [name])
+  }, [name, sport])
 
   if (src && !failed) {
     return (

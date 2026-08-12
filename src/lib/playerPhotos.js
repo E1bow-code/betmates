@@ -5,16 +5,22 @@
 
 const cache = new Map()
 
-export async function getPlayerPhoto(playerName) {
-  if (cache.has(playerName)) return cache.get(playerName)
+// `sport` (football/tennis/boxing/ufc) lets the server-side lookup reject a
+// same-name match from the wrong sport instead of confidently showing the
+// wrong person - see netlify/functions/player-photo.js. Folded into the
+// cache key since the same name can resolve differently per sport.
+export async function getPlayerPhoto(playerName, sport) {
+  const cacheKey = sport ? `${sport}:${playerName}` : playerName
+  if (cache.has(cacheKey)) return cache.get(cacheKey)
 
-  const promise = fetch(`/api/player-photo?name=${encodeURIComponent(playerName)}`)
+  const query = sport ? `name=${encodeURIComponent(playerName)}&sport=${encodeURIComponent(sport)}` : `name=${encodeURIComponent(playerName)}`
+  const promise = fetch(`/api/player-photo?${query}`)
     .then((res) => (res.ok ? res.json() : null))
     .then((data) => data?.url ?? null)
     .catch(() => null)
 
-  cache.set(playerName, promise)
+  cache.set(cacheKey, promise)
   const photoUrl = await promise
-  cache.set(playerName, photoUrl)
+  cache.set(cacheKey, photoUrl)
   return photoUrl
 }

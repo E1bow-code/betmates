@@ -21,7 +21,7 @@ function formatBirthDate(dateStr) {
 // physical stats, age - rather than inventing numbers to fill a FUT-style
 // stat wheel. Coverage varies a lot person to person, so every section
 // below only renders if the field it needs actually came back.
-export default function ParticipantProfileSheet({ name, onClose }) {
+export default function ParticipantProfileSheet({ name, sport, onClose }) {
   const [profile, setProfile] = useState(undefined)
   const { closing, requestClose } = useDelayedClose(onClose)
   useEscapeKey(requestClose)
@@ -29,13 +29,13 @@ export default function ParticipantProfileSheet({ name, onClose }) {
   useEffect(() => {
     let cancelled = false
     setProfile(undefined)
-    getPlayerProfile(name).then((p) => {
+    getPlayerProfile(name, sport).then((p) => {
       if (!cancelled) setProfile(p)
     })
     return () => {
       cancelled = true
     }
-  }, [name])
+  }, [name, sport])
 
   const positionAbbr = profile ? abbreviatePosition(profile.position) : null
   const flag = profile ? flagFor(profile.nationality) : null
