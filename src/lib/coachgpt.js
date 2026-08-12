@@ -26,11 +26,17 @@ export const COACHGPT_MODEL = COACHGPT_MODELS[0]
 const ANTHROPIC_VERSION = '2023-06-01'
 const MAX_TOOL_ROUNDS = 4
 // Anthropic-hosted, not one of our own callTool implementations - the API
-// runs the search and hands back cited results within the same request, so
-// it never touches the client-tool loop below. Capped at 3/turn: this is a
-// sports-chat sidekick, not an open-ended research agent, and each search
-// is billed on top of normal token costs.
-const WEB_SEARCH_MAX_USES = 3
+// runs the search (and can chain several before returning) within the same
+// request, so it never touches the client-tool loop below. Capped at 1/turn -
+// NOT the 3 this started at: this Netlify function is synchronous behind a
+// ~30s edge inactivity timeout, and a single Anthropic call is free to chain
+// multiple sequential searches before responding, on top of the tool-round
+// loop and the always-on lock_in_recommendation follow-up call already in
+// this turn's budget. 3 chained searches plus everything else genuinely blew
+// past 30s and 504'd in production - confirmed live. One search per turn
+// still answers "what's the latest on X" for real; deeper multi-query
+// research isn't something a synchronous chat reply can safely support here.
+const WEB_SEARCH_MAX_USES = 1
 
 export const COACHGPT_SYSTEM = [
   'You are "CoachGPT" inside BetMates, a social betting tracker. Users log',
