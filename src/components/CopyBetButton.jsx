@@ -5,19 +5,18 @@ import { useOddsFormat } from '../context/OddsFormatContext.jsx'
 import { useToast } from '../context/ToastContext.jsx'
 import { formatOdds } from '../utils/oddsFormat.js'
 
-// Section 2B's Copy Bet button. Clipboard always; whether there's also an
-// "open the bookmaker" side depends on what The Odds API's includeLinks
-// feature actually returned for this exact selection (see
-// netlify/functions/odds.js/ufc.js/sport.js and src/lib/oddsLinks.js):
-//   - a real pre-filled bet slip (currently only Sky Bet ever returns one) -
-//     clicking Copy Bet itself also opens it, since the bet's already sat
-//     right there in the slip rather than needing a second click,
-//   - otherwise just the bookmaker's plain event page or homepage (falling
-//     back to src/lib/bookmakers.js's static links for racing/SportsGameOdds
-//     sports/mock data) - shown as a separate "Open {bookmaker}" link, since
-//     that's not worth auto-opening on every copy.
-// Never auto-submits anything; the user places the bet themselves, per the
-// legal note in Section 6.
+// Section 2B's Copy Bet button. One action, one click: copies the slip as
+// text and opens the bookmaker link in the same gesture, whenever a link
+// exists at all - a real pre-filled bet slip (currently only Sky Bet ever
+// returns one via The Odds API's includeLinks feature, see
+// netlify/functions/odds.js/ufc.js/sport.js and src/lib/oddsLinks.js) or
+// just the bookmaker's plain event page/homepage (falling back to
+// src/lib/bookmakers.js's static links for racing/SportsGameOdds sports/mock
+// data). This used to only auto-open for the real-prefilled-slip case and
+// made everything else a separate "Open {bookmaker}" link the user had to
+// notice and click themselves - inconsistent, and easy to miss when there
+// was no visible cue for which case you'd get. Never auto-submits anything;
+// the user places the bet themselves, per the legal note in Section 6.
 
 function formatBetSlip(post, format) {
   const lines = post.selections.map((s) => `${s.event} - ${s.market}: ${s.selection} @ ${formatOdds(s.odds, format)} (${s.bookmaker})`)
@@ -40,12 +39,9 @@ export default function CopyBetButton({ post, userId, copyCount = 0, onCopied })
   async function handleCopy() {
     // window.open() has to happen synchronously, before any await, or
     // Safari/most mobile browsers no longer treat it as part of the click
-    // gesture and silently block it as a popup. Only Sky Bet ever sets
-    // isBetslipLink today (see oddsLinks.js) - a real pre-filled slip, not
-    // just the bookmaker's homepage - so this is the one case worth
-    // auto-opening; the plain "Open {bookmaker}" link below still covers
-    // every other bookmaker for a manual click.
-    if (isBetslipLink && link) window.open(link, '_blank', 'noopener,noreferrer')
+    // gesture and silently block it as a popup. Opens for any known link
+    // now, not just a real pre-filled slip - see the header comment on why.
+    if (link) window.open(link, '_blank', 'noopener,noreferrer')
 
     // Clipboard writes can reject - permission denied, an unfocused page, a
     // browser that just doesn't support it - and this used to have no catch
@@ -61,6 +57,10 @@ export default function CopyBetButton({ post, userId, copyCount = 0, onCopied })
     setTimeout(() => setCopied(false), 2000)
     onCopied?.()
     dataStore.recordBetCopy(post.id, userId).catch(() => {})
+    // The button label already flips to "Copied!" for a couple of seconds,
+    // but that's silent about the tab that may have just opened behind it -
+    // this toast is what actually tells the user where their bet slip went.
+    showToast(isBetslipLink ? `Copied - opened your slip in ${bookmaker}` : link ? `Copied - opening ${bookmaker}` : 'Copied to your clipboard')
   }
 
   return (
@@ -71,16 +71,11 @@ export default function CopyBetButton({ post, userId, copyCount = 0, onCopied })
         aria-label={
           copied
             ? 'Copied to clipboard'
-            : `Copy bet${isBetslipLink ? ` and open in ${bookmaker}` : ''}${copyCount > 0 ? ` · copied ${copyCount} time${copyCount === 1 ? '' : 's'}` : ''}`
+            : `Copy bet${link ? ` and open ${bookmaker}` : ''}${copyCount > 0 ? ` · copied ${copyCount} time${copyCount === 1 ? '' : 's'}` : ''}`
         }
       >
         {copied ? 'Copied!' : copyCount > 0 ? `Copy Bet · ${copyCount}` : 'Copy Bet'}
       </button>
-      {link && !isBetslipLink && (
-        <a className="btn btn-ghost btn-small" href={link} target="_blank" rel="noreferrer">
-          Open {bookmaker}
-        </a>
-      )}
     </div>
   )
 }
