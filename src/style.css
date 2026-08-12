@@ -3362,20 +3362,21 @@ a.race-card:hover, a.race-card:focus-visible { background: rgba(var(--accent-rgb
    behind an interaction most people won't guess exists on their own. */
 .runner-form-inline { font-variant-numeric: tabular-nums; color: var(--text); }
 
-/* Always-visible per-runner speed-figure bar (SpeedFigure.jsx) - sits under
-   the connections line so a whole race's pace compares at a glance without
-   tapping each horse open. The track is fixed-width and the fill is scaled
-   against the fastest figure in the race, so the longest bar = quickest
-   horse. Tiers shade from accent (fastest) down to dim (slowest). */
-.speed-fig { display: flex; align-items: center; gap: 6px; margin-top: 5px; }
-.speed-fig-label {
+/* Always-visible per-runner rating bar (RatingBar.jsx) - sits under the
+   connections line so a whole race compares at a glance without tapping each
+   horse open. Shows a speed figure when the feed has one, else the Racing
+   Post / official rating (see pickRatingMetric). The track is fixed-width and
+   the fill is scaled across the race's rating spread, so the longest bar is
+   the best-rated horse. Tiers shade from accent (best) down to dim. */
+.rating-bar { display: flex; align-items: center; gap: 6px; margin-top: 5px; }
+.rating-bar-label {
   font-size: 0.6rem;
   font-weight: 700;
   letter-spacing: 0.06em;
   color: var(--text-dim);
   flex-shrink: 0;
 }
-.speed-fig-track {
+.rating-bar-track {
   position: relative;
   width: 72px;
   height: 6px;
@@ -3384,20 +3385,19 @@ a.race-card:hover, a.race-card:focus-visible { background: rgba(var(--accent-rgb
   overflow: hidden;
   flex-shrink: 0;
 }
-.speed-fig-fill { position: absolute; left: 0; top: 0; height: 100%; border-radius: 3px; }
-.speed-fig-top-fill,
-.speed-fig-fill.speed-fig-top { background: var(--accent); }
-.speed-fig-fill.speed-fig-high { background: var(--accent-dim); }
-.speed-fig-fill.speed-fig-mid { background: color-mix(in srgb, var(--accent) 45%, var(--text-dim)); }
-.speed-fig-fill.speed-fig-low { background: var(--text-dim); }
-.speed-fig-value {
+.rating-bar-fill { position: absolute; left: 0; top: 0; height: 100%; border-radius: 3px; }
+.rating-bar-fill.rating-bar-top { background: var(--accent); }
+.rating-bar-fill.rating-bar-high { background: var(--accent-dim); }
+.rating-bar-fill.rating-bar-mid { background: color-mix(in srgb, var(--accent) 45%, var(--text-dim)); }
+.rating-bar-fill.rating-bar-low { background: var(--text-dim); }
+.rating-bar-value {
   font-size: 0.72rem;
   font-weight: 700;
   font-variant-numeric: tabular-nums;
   color: var(--text);
   flex-shrink: 0;
 }
-.speed-fig-top {
+.rating-bar-top {
   font-size: 0.6rem;
   font-weight: 700;
   letter-spacing: 0.04em;
@@ -3410,9 +3410,9 @@ a.race-card:hover, a.race-card:focus-visible { background: rgba(var(--accent-rgb
 }
 
 /* Legend line above the runner list explaining the bar, only shown when the
-   race actually carries figures (see RaceDetailPage's maxSpeed gate). */
-.speed-fig-legend { display: flex; align-items: center; gap: 6px; }
-.speed-fig-legend-swatch {
+   race actually carries a rating (see RaceDetailPage's ratingMetric gate). */
+.rating-bar-legend { display: flex; align-items: center; gap: 6px; }
+.rating-bar-legend-swatch {
   width: 20px;
   height: 6px;
   border-radius: 3px;
@@ -3439,14 +3439,38 @@ a.race-card:hover, a.race-card:focus-visible { background: rgba(var(--accent-rgb
 }
 .best-bookmaker { font-size: 0.75rem; color: var(--text-dim); margin-top: 3px; display: inline-block; }
 
+/* Price comparison under a tapped-open runner. Conditionally rendered in
+   RaceDetailPage (only when expanded), so no CSS display gate is needed here -
+   and it's a labelled "Compare prices" block trimmed to the best few by
+   default, rather than an unlabelled wall of 25+ cells that read as broken
+   buttons. */
+.runner-odds { padding: 0 14px 12px; }
+.runner-odds-heading {
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--text-dim);
+  margin-bottom: 6px;
+}
 .runner-all-odds {
-  display: none;
+  display: grid;
   grid-template-columns: repeat(auto-fill, minmax(100px, 1fr));
   gap: 6px;
-  padding: 0 14px 14px;
 }
-
-.runner-row.expanded .runner-all-odds { display: grid; }
+.runner-odds-more {
+  margin-top: 8px;
+  background: none;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  padding: 5px 12px;
+  font-size: 0.78rem;
+  color: var(--accent);
+  cursor: pointer;
+}
+.runner-odds-more:active { background: var(--surface-2); }
+@media (hover: hover) {
+  .runner-odds-more:hover { border-color: var(--accent-dim); }
+}
 
 /* Recent form/ratings - same expand-on-tap gating as .runner-all-odds above. */
 .runner-form {

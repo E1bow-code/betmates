@@ -14,9 +14,17 @@ import LiveBadge from '../components/LiveBadge.jsx'
 import WatchLiveButton from '../components/WatchLiveButton.jsx'
 import FollowButton from '../components/FollowButton.jsx'
 import RunnerForm from '../components/RunnerForm.jsx'
-import SpeedFigure from '../components/SpeedFigure.jsx'
+import RatingBar from '../components/RatingBar.jsx'
+import { pickRatingMetric } from '../utils/ratingBar.js'
 import CoachGptLink from '../components/CoachGptLink.jsx'
 import SharpMoneyBadge from '../components/SharpMoneyBadge.jsx'
+
+// How many bookmaker prices to show under a tapped runner before the rest go
+// behind a "show all" toggle. A busy UK race can list 25+ books at only two
+// or three distinct prices - dumping every one made the tapped-open row a
+// wall to scroll past. The list is sorted best-first, so the top few are the
+// prices that actually matter.
+const VISIBLE_ODDS = 6
 
 export default function RaceDetailPage() {
   const { id } = useParams()
@@ -27,6 +35,10 @@ export default function RaceDetailPage() {
   const [error, setError] = useState(null)
   const [myBookiesOnly, setMyBookiesOnly] = useState(false)
   const [expandedRunner, setExpandedRunner] = useState(null)
+  // Reset when a different runner is opened, so every horse's price list
+  // starts collapsed to its best few rather than inheriting the last one's
+  // "show all" state.
+  const [showAllOdds, setShowAllOdds] = useState(false)
   // Only has data if this race is followed - see FixtureDetailPage.jsx's
   // identical fetch for the full reasoning.
   const [snapshotSeries, setSnapshotSeries] = useState({})
@@ -48,12 +60,11 @@ export default function RaceDetailPage() {
     return (aBest?.decimal ?? Infinity) - (bBest?.decimal ?? Infinity)
   })
 
-  // The fastest figure in this race - every runner's speed bar is scaled
-  // against it, so the longest bar in the list is the quickest horse. Coerced
-  // through Number() because the racing API returns figures as strings (mock
-  // data uses numbers); a race with none just leaves maxSpeed at 0 and the
-  // indicators render nothing.
-  const maxSpeed = race.runners.reduce((max, r) => Math.max(max, Number(r.speedFigure) || 0), 0)
+  // One rating metric for the whole race (a true speed figure if the feed has
+  // it, otherwise Racing Post / official rating) - drives every runner's bar,
+  // all scaled against the same yardstick. Null if the race carries nothing to
+  // rate, in which case the bars and legend simply don't render.
+  const ratingMetric = pickRatingMetric(race.runners)
 
   const raceEvent = `${race.course} ${formatKickoff(race.offTime)} · ${race.raceName}`
 
@@ -79,6 +90,11 @@ export default function RaceDetailPage() {
       marketKey: 'win',
       outcomeName: runner.name
     })
+  }
+
+  function toggleRunner(runnerId, isExpanded) {
+    setExpandedRunner(isExpanded ? null : runnerId)
+    setShowAllOdds(false)
   }
 
   return (
@@ -113,10 +129,10 @@ export default function RaceDetailPage() {
           />
           <span>My bookies only</span>
         </label>
-        {maxSpeed > 0 && (
-          <p className="hint speed-fig-legend">
-            <span className="speed-fig-legend-swatch" aria-hidden="true" /> Speed figures show how fast each horse has run - longer bars
-            are faster.
+        {ratingMetric && (
+          <p className="hint rating-bar-legend">
+            <span className="rating-bar-legend-swatch" aria-hidden="true" /> {ratingMetric.label} bars show each horse's{' '}
+            {ratingMetric.name} - longer is {ratingMetric.better}.
           </p>
         )}
         <p className="hint">Tap a horse for full form, or tap more than one price to build an accumulator.</p>
@@ -134,11 +150,11 @@ export default function RaceDetailPage() {
                 role="button"
                 tabIndex={0}
                 aria-expanded={isExpanded}
-                onClick={() => setExpandedRunner(isExpanded ? null : runner.id)}
+                onClick={() => toggleRunner(runner.id, isExpanded)}
                 onKeyDown={(e) => {
                   if (e.key !== 'Enter' && e.key !== ' ') return
                   e.preventDefault()
-                  setExpandedRunner(isExpanded ? null : runner.id)
+                  toggleRunner(runner.id, isExpanded)
                 }}
               >
                 <span className="runner-silk" style={{ background: runner.silkColor }}>
@@ -150,7 +166,7 @@ export default function RaceDetailPage() {
                     {runner.jockey} · {runner.trainer}
                     {runner.form && <span className="runner-form-inline"> · Form {runner.form}</span>}
                   </div>
-                  <SpeedFigure value={runner.speedFigure} max={maxSpeed} />
+                  <RatingBar value={ratingMetric && runner[ratingMetric.key]} metric={ratingMetric} />
                 </div>
                 {best ? (
                   <button
@@ -171,14 +187,24 @@ export default function RaceDetailPage() {
                 )}
               </div>
               <RunnerForm runner={runner} />
-              <div className="runner-all-odds">
-                {runner.allOdds.map((o) => (
-                  <div key={o.bookmaker} className={o.bookmaker === best?.bookmaker ? 'odds-cell is-best' : 'odds-cell'}>
-                    <span className="odds-bookmaker">{o.bookmaker}</span>
-                    <span className="odds-price">{formatOdds(o.decimal, format, o.price)}</span>
+              {isExpanded && runner.allOdds.length > 0 && (
+                <div className="runner-odds">
+                  <div className="runner-odds-heading">Compare prices</div>
+                  <div className="runner-all-odds">
+                    {(showAllOdds ? runner.allOdds : runner.allOdds.slice(0, VISIBLE_ODDS)).map((o) => (
+                      <div key={o.bookmaker} className={o.bookmaker === best?.bookmaker ? 'odds-cell is-best' : 'odds-cell'}>
+                        <span className="odds-bookmaker">{o.bookmaker}</span>
+                        <span className="odds-price">{formatOdds(o.decimal, format, o.price)}</span>
+                      </div>
+                    ))}
                   </div>
-                ))}
-              </div>
+                  {runner.allOdds.length > VISIBLE_ODDS && (
+                    <button type="button" className="runner-odds-more" onClick={() => setShowAllOdds((v) => !v)}>
+                      {showAllOdds ? 'Show fewer' : `Show all ${runner.allOdds.length} prices`}
+                    </button>
+                  )}
+                </div>
+              )}
             </div>
           )
         })}
