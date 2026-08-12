@@ -14,9 +14,23 @@
 // callTool, feed the results back, repeat until Claude stops asking for
 // tools.
 
-export const COACHGPT_MODEL = 'claude-opus-5'
+// Preferred model first, then a fallback the key is far more likely to have
+// access to. A turn tries the preferred model; if THAT model is the problem
+// (e.g. the configured ANTHROPIC_API_KEY isn't entitled to it - a 404
+// model-not-found), it drops to the next rather than failing the whole reply,
+// since a coach that silently says nothing is worse than one on a slightly
+// smaller model. A bad key or rate limit fails identically on every model, so
+// those stop immediately and surface as a real error instead (see makeCaller).
+export const COACHGPT_MODELS = ['claude-opus-5', 'claude-sonnet-5']
+export const COACHGPT_MODEL = COACHGPT_MODELS[0]
 const ANTHROPIC_VERSION = '2023-06-01'
-const MAX_TOOL_ROUNDS = 3
+const MAX_TOOL_ROUNDS = 4
+// Anthropic-hosted, not one of our own callTool implementations - the API
+// runs the search and hands back cited results within the same request, so
+// it never touches the client-tool loop below. Capped at 3/turn: this is a
+// sports-chat sidekick, not an open-ended research agent, and each search
+// is billed on top of normal token costs.
+const WEB_SEARCH_MAX_USES = 3
 
 export const COACHGPT_SYSTEM = [
   'You are "CoachGPT" inside BetMates, a social betting tracker. Users log',
@@ -30,7 +44,7 @@ export const COACHGPT_SYSTEM = [
   'me about [player]", "how\'s Arsenal\'s form", or "any team news?". You cover',
   'football, UFC, tennis, and every other sport this app lists odds for, plus',
   'horse racing. Your own knowledge has a training cutoff and will NOT know',
-  'this week\'s form, injuries, results, or prices - so you have four tools;',
+  'this week\'s form, injuries, results, or prices - so you have five tools;',
   'reach for the right one before answering ANY question about something',
   'current, even if you think you already know:',
   '- find_fixture(query, sport?): looks up a specific upcoming fixture,',
@@ -53,13 +67,23 @@ export const COACHGPT_SYSTEM = [
   '  baseball, nfl, rugbyLeague, rugbyUnion, cricket - defaults to football).',
   '  Use it to talk about actual recent form with concrete scorelines, not',
   '  vibes.',
+  '- web_search: real-time web search for anything the four tools above',
+  '  don\'t cover - head-to-head history, injury detail beyond a headline,',
+  '  tactical/matchup analysis, expert previews, weather at a venue, a',
+  '  stat that needs digging for. This is your knowledge-cutoff escape',
+  '  hatch - reach for it on a genuine "dive deeper" question instead of',
+  '  answering from stale training data. Don\'t narrate that you\'re',
+  '  searching ("let me look that up") - just search and answer.',
   '',
   'Hard rules:',
   '- You ARE allowed to name a selection and give a real lean ("I\'d go with',
   '  X here") - unlike the reflective Coach card elsewhere in this app.',
-  '- Every lean about a PRICE must cite the concrete numbers a tool actually',
-  '  returned (price, bookmaker, % edge). Never invent a number, a price, or',
-  '  odds - if a tool didn\'t hand you a figure, don\'t state one.',
+  '- Every lean about a PRICE must cite the concrete numbers find_fixture',
+  '  actually returned (price, bookmaker, % edge). Never invent a number, a',
+  '  price, or odds - if find_fixture didn\'t hand you a figure, don\'t state',
+  '  one. web_search is for context and analysis, never for a price - if a',
+  '  web result and find_fixture ever seem to disagree on anything',
+  '  price-related, find_fixture is the one that\'s live and correct.',
   '- Never claim certainty. Frame as "the value\'s on X" / "I\'d lean X", not',
   '  "X will win".',
   '- If find_fixture returns matches from genuinely different fixtures tied',
@@ -105,10 +129,18 @@ export const COACHGPT_SYSTEM = [
   'full coach\'s-speech energy for when you\'re actually giving a lean or',
   'reacting to how one landed.',
   '',
-  'Format: short, punchy replies (2-5 sentences, or a couple of tight bullets',
-  'for a multi-part answer). No preamble, no sign-off. American English,',
-  'confident coach\'s tone - you have an opinion, and you back it up, but',
-  'you\'re not vague or hedging about things you\'re actually sure of.'
+  'Format: match the question, don\'t default to short. A quick lookup (a',
+  'price check, a player bio, "what happened in that game") gets a short,',
+  'punchy answer - 2-5 sentences or a couple of tight bullets. A real',
+  '"dive deeper" question - matchup analysis, "why should I back X", a form',
+  'or injury breakdown, anything where the user clearly wants the full',
+  'picture - earns a proper, structured answer: several short paragraphs or',
+  'bullets, backed by whatever find_fixture/get_recent_news/',
+  'get_recent_results/web_search actually turned up. Never pad for length,',
+  'and never go shallow on a question that asked for depth just to keep it',
+  'brief. No preamble, no sign-off. American English, confident coach\'s',
+  'tone - you have an opinion, and you back it up, but you\'re not vague or',
+  'hedging about things you\'re actually sure of.'
 ].join('\n')
 
 export const COACHGPT_TOOLS = [
@@ -165,7 +197,11 @@ export const COACHGPT_TOOLS = [
         sport: { type: 'string', description: 'Sport key, e.g. "football", "basketball", "nfl". Defaults to football.' }
       }
     }
-  }
+  },
+  // Anthropic-hosted server tool, not one of ours - the API runs the actual
+  // search and hands the result (with citations) back inside the same
+  // response, so unlike the four tools above it never reaches callTool.
+  { type: 'web_search_20250305', name: 'web_search', max_uses: WEB_SEARCH_MAX_USES }
 ]
 
 // Not offered to the model as a free choice - see lockInRecommendation
@@ -192,14 +228,23 @@ const RECOMMENDATION_TOOL = {
   }
 }
 
-async function callClaude(apiKey, messages, extra) {
+// One request to a specific model. Returns { data } on success or
+// { error: { status, type, detail } } on any non-2xx / network failure -
+// callers distinguish "this model isn't available" (fall back) from "the key
+// is bad / we're rate limited" (stop and report) via the status/type.
+async function callClaudeModel(apiKey, model, messages, extra) {
   try {
     const res = await fetch('https://api.anthropic.com/v1/messages', {
       method: 'POST',
       headers: { 'content-type': 'application/json', 'x-api-key': apiKey, 'anthropic-version': ANTHROPIC_VERSION },
       body: JSON.stringify({
-        model: COACHGPT_MODEL,
-        max_tokens: 800,
+        model,
+        // Was 800 - too tight for a real "dive deeper" answer once
+        // web_search is in the mix (search results add real content to
+        // reason over). The system prompt, not this ceiling, is what keeps
+        // a quick lookup short - this just stops a genuine deep-dive from
+        // getting cut off mid-thought.
+        max_tokens: 1600,
         system: COACHGPT_SYSTEM,
         messages,
         ...extra
@@ -207,14 +252,75 @@ async function callClaude(apiKey, messages, extra) {
     })
     if (!res.ok) {
       const detail = await res.text().catch(() => '')
-      console.error(`coachgpt: Anthropic ${res.status}: ${detail.slice(0, 300)}`)
-      return null
+      let type = ''
+      try {
+        type = JSON.parse(detail)?.error?.type ?? ''
+      } catch {
+        // non-JSON error body (proxy/gateway HTML) - status alone classifies it
+      }
+      console.error(`coachgpt: Anthropic ${res.status} on ${model}: ${detail.slice(0, 300)}`)
+      return { error: { status: res.status, type, detail } }
     }
-    return await res.json()
+    return { data: await res.json() }
   } catch (err) {
-    console.error('coachgpt: request failed:', err.message)
-    return null
+    console.error(`coachgpt: request to ${model} failed:`, err.message)
+    return { error: { status: 0, type: 'network', detail: err.message } }
   }
+}
+
+// A model-not-available failure (only THAT model is the problem) - fall back
+// to the next model. Anything else (401 bad key, 429 rate limit, 5xx, network)
+// fails the same on every model, so it should stop and be reported, not mask
+// itself by cycling through models.
+function isModelAvailabilityError(error) {
+  return error.status === 404 || /not_found|model/i.test(error.type ?? '')
+}
+
+// Maps a hard failure to a short, stable code the UI can branch on without
+// leaking raw provider detail to end users.
+function classifyError(error) {
+  if (!error) return 'upstream'
+  if (error.status === 401 || error.status === 403) return 'auth'
+  if (isModelAvailabilityError(error)) return 'model'
+  if (error.status === 429) return 'rate_limit'
+  return 'upstream'
+}
+
+// Builds a caller bound to one API key that walks COACHGPT_MODELS. Once a
+// model answers, it's pinned for the rest of the turn so the (up to five)
+// sequential calls in a single turn don't each re-probe a dead preferred
+// model. Returns the same { data } | { error } shape as callClaudeModel.
+function makeCaller(apiKey) {
+  let chosen = null
+  return async (messages, extra) => {
+    const models = chosen ? [chosen] : COACHGPT_MODELS
+    let lastError = null
+    for (const model of models) {
+      const result = await callClaudeModel(apiKey, model, messages, extra)
+      if (result.data) {
+        chosen = model
+        return { data: result.data }
+      }
+      lastError = result.error
+      if (!isModelAvailabilityError(result.error)) break
+    }
+    return { error: lastError }
+  }
+}
+
+// web_search responses interleave multiple text blocks - e.g. a short
+// "I'll check that" before the server_tool_use/web_search_tool_result pair,
+// then the real cited answer after it (see Anthropic's web search tool
+// docs) - so the reply is every text block in order, not just the first
+// one. Plain-tool-only turns still have exactly one text block, so this is
+// a no-op for them.
+function extractText(content) {
+  const text = (content ?? [])
+    .filter((b) => b.type === 'text')
+    .map((b) => b.text)
+    .join('')
+    .trim()
+  return text || null
 }
 
 // A plain "call this tool whenever relevant" instruction turned out
@@ -227,7 +333,7 @@ async function callClaude(apiKey, messages, extra) {
 // hasPick: false, but it can no longer just forget to mention a pick.
 // Costs one extra Anthropic request per turn; only made when there's a
 // real answer to classify.
-async function lockInRecommendation(apiKey, messages, text) {
+async function lockInRecommendation(call, messages, text) {
   const followUp = [
     ...messages,
     { role: 'assistant', content: text },
@@ -237,7 +343,7 @@ async function lockInRecommendation(apiKey, messages, text) {
         'Call lock_in_recommendation now to record whether your reply above named one specific selection as your lean.'
     }
   ]
-  const data = await callClaude(apiKey, followUp, { tools: [RECOMMENDATION_TOOL], tool_choice: { type: 'tool', name: 'lock_in_recommendation' } })
+  const { data } = await call(followUp, { tools: [RECOMMENDATION_TOOL], tool_choice: { type: 'tool', name: 'lock_in_recommendation' } })
   const block = data?.content?.find((b) => b.type === 'tool_use' && b.name === 'lock_in_recommendation')
   return block?.input?.hasPick ? block.input : null
 }
@@ -245,26 +351,33 @@ async function lockInRecommendation(apiKey, messages, text) {
 // history: [{ role: 'user'|'assistant', content: string }] - prior turns
 // of this conversation, oldest first. message: the new user message.
 // callTool: async (name, input) => JSON-serialisable result.
-// Returns { text, recommendation } - text is the final assistant reply
-// (null only if the Anthropic request itself failed outright - bad key,
-// network error, etc; a vague/broad question that eats the whole
-// tool-round budget still gets a real answer, see the forced no-tools
-// call below). recommendation is lock_in_recommendation's raw input from
-// the forced follow-up call below, or null if it found no real pick (or
-// text itself is null).
+// Returns { text, recommendation, error }. text is the final assistant reply
+// (null only when the Anthropic request itself failed outright; a vague/broad
+// question that eats the whole tool-round budget still gets a real answer, see
+// the forced no-tools call below). error is null on success, otherwise a short
+// code ('auth' | 'model' | 'rate_limit' | 'upstream' | 'no_key') the UI can
+// use to tell "the coach is misconfigured / temporarily down" apart from
+// "answered fine" - critical because a swallowed API failure used to surface
+// as an empty reply that wrongly blamed the user's phrasing. recommendation is
+// lock_in_recommendation's raw input, or null if it found no real pick.
 export async function runCoachGptTurn({ apiKey, history, message, callTool }) {
-  if (!apiKey) return { text: null, recommendation: null }
+  if (!apiKey) return { text: null, recommendation: null, error: 'no_key' }
 
+  const call = makeCaller(apiKey)
   const messages = [...(history ?? []).map((m) => ({ role: m.role, content: m.content })), { role: 'user', content: message }]
 
   let text = null
+  let failure = null
   for (let round = 0; round < MAX_TOOL_ROUNDS && text === null; round++) {
-    const data = await callClaude(apiKey, messages, { tools: COACHGPT_TOOLS })
-    if (!data) return { text: null, recommendation: null }
+    const { data, error } = await call(messages, { tools: COACHGPT_TOOLS })
+    if (error) {
+      failure = error
+      break
+    }
 
     const content = data.content ?? []
     if (data.stop_reason !== 'tool_use') {
-      text = content.find((b) => b.type === 'text')?.text?.trim() ?? null
+      text = extractText(content)
       break
     }
 
@@ -290,11 +403,14 @@ export async function runCoachGptTurn({ apiKey, history, message, callTool }) {
   // horse to anchor a lookup on. Strip the tools and force one last call
   // so it has to answer in text from whatever it's already gathered,
   // rather than leaving the user with nothing.
-  if (text === null) {
-    const finalData = await callClaude(apiKey, messages, {})
-    text = finalData?.content?.find((b) => b.type === 'text')?.text?.trim() ?? null
+  if (!failure && text === null) {
+    const { data, error } = await call(messages, {})
+    if (error) failure = error
+    else text = extractText(data?.content)
   }
 
-  const recommendation = text ? await lockInRecommendation(apiKey, messages, text) : null
-  return { text, recommendation }
+  if (failure) return { text: null, recommendation: null, error: classifyError(failure) }
+
+  const recommendation = text ? await lockInRecommendation(call, messages, text) : null
+  return { text, recommendation, error: null }
 }
