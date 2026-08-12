@@ -14,7 +14,15 @@
 // callTool, feed the results back, repeat until Claude stops asking for
 // tools.
 
-export const COACHGPT_MODEL = 'claude-opus-5'
+// Preferred model first, then a fallback the key is far more likely to have
+// access to. A turn tries the preferred model; if THAT model is the problem
+// (e.g. the configured ANTHROPIC_API_KEY isn't entitled to it - a 404
+// model-not-found), it drops to the next rather than failing the whole reply,
+// since a coach that silently says nothing is worse than one on a slightly
+// smaller model. A bad key or rate limit fails identically on every model, so
+// those stop immediately and surface as a real error instead (see makeCaller).
+export const COACHGPT_MODELS = ['claude-opus-5', 'claude-sonnet-5']
+export const COACHGPT_MODEL = COACHGPT_MODELS[0]
 const ANTHROPIC_VERSION = '2023-06-01'
 const MAX_TOOL_ROUNDS = 3
 
@@ -192,13 +200,17 @@ const RECOMMENDATION_TOOL = {
   }
 }
 
-async function callClaude(apiKey, messages, extra) {
+// One request to a specific model. Returns { data } on success or
+// { error: { status, type, detail } } on any non-2xx / network failure -
+// callers distinguish "this model isn't available" (fall back) from "the key
+// is bad / we're rate limited" (stop and report) via the status/type.
+async function callClaudeModel(apiKey, model, messages, extra) {
   try {
     const res = await fetch('https://api.anthropic.com/v1/messages', {
       method: 'POST',
       headers: { 'content-type': 'application/json', 'x-api-key': apiKey, 'anthropic-version': ANTHROPIC_VERSION },
       body: JSON.stringify({
-        model: COACHGPT_MODEL,
+        model,
         max_tokens: 800,
         system: COACHGPT_SYSTEM,
         messages,
@@ -207,13 +219,59 @@ async function callClaude(apiKey, messages, extra) {
     })
     if (!res.ok) {
       const detail = await res.text().catch(() => '')
-      console.error(`coachgpt: Anthropic ${res.status}: ${detail.slice(0, 300)}`)
-      return null
+      let type = ''
+      try {
+        type = JSON.parse(detail)?.error?.type ?? ''
+      } catch {
+        // non-JSON error body (proxy/gateway HTML) - status alone classifies it
+      }
+      console.error(`coachgpt: Anthropic ${res.status} on ${model}: ${detail.slice(0, 300)}`)
+      return { error: { status: res.status, type, detail } }
     }
-    return await res.json()
+    return { data: await res.json() }
   } catch (err) {
-    console.error('coachgpt: request failed:', err.message)
-    return null
+    console.error(`coachgpt: request to ${model} failed:`, err.message)
+    return { error: { status: 0, type: 'network', detail: err.message } }
+  }
+}
+
+// A model-not-available failure (only THAT model is the problem) - fall back
+// to the next model. Anything else (401 bad key, 429 rate limit, 5xx, network)
+// fails the same on every model, so it should stop and be reported, not mask
+// itself by cycling through models.
+function isModelAvailabilityError(error) {
+  return error.status === 404 || /not_found|model/i.test(error.type ?? '')
+}
+
+// Maps a hard failure to a short, stable code the UI can branch on without
+// leaking raw provider detail to end users.
+function classifyError(error) {
+  if (!error) return 'upstream'
+  if (error.status === 401 || error.status === 403) return 'auth'
+  if (isModelAvailabilityError(error)) return 'model'
+  if (error.status === 429) return 'rate_limit'
+  return 'upstream'
+}
+
+// Builds a caller bound to one API key that walks COACHGPT_MODELS. Once a
+// model answers, it's pinned for the rest of the turn so the (up to five)
+// sequential calls in a single turn don't each re-probe a dead preferred
+// model. Returns the same { data } | { error } shape as callClaudeModel.
+function makeCaller(apiKey) {
+  let chosen = null
+  return async (messages, extra) => {
+    const models = chosen ? [chosen] : COACHGPT_MODELS
+    let lastError = null
+    for (const model of models) {
+      const result = await callClaudeModel(apiKey, model, messages, extra)
+      if (result.data) {
+        chosen = model
+        return { data: result.data }
+      }
+      lastError = result.error
+      if (!isModelAvailabilityError(result.error)) break
+    }
+    return { error: lastError }
   }
 }
 
@@ -227,7 +285,7 @@ async function callClaude(apiKey, messages, extra) {
 // hasPick: false, but it can no longer just forget to mention a pick.
 // Costs one extra Anthropic request per turn; only made when there's a
 // real answer to classify.
-async function lockInRecommendation(apiKey, messages, text) {
+async function lockInRecommendation(call, messages, text) {
   const followUp = [
     ...messages,
     { role: 'assistant', content: text },
@@ -237,7 +295,7 @@ async function lockInRecommendation(apiKey, messages, text) {
         'Call lock_in_recommendation now to record whether your reply above named one specific selection as your lean.'
     }
   ]
-  const data = await callClaude(apiKey, followUp, { tools: [RECOMMENDATION_TOOL], tool_choice: { type: 'tool', name: 'lock_in_recommendation' } })
+  const { data } = await call(followUp, { tools: [RECOMMENDATION_TOOL], tool_choice: { type: 'tool', name: 'lock_in_recommendation' } })
   const block = data?.content?.find((b) => b.type === 'tool_use' && b.name === 'lock_in_recommendation')
   return block?.input?.hasPick ? block.input : null
 }
@@ -245,22 +303,29 @@ async function lockInRecommendation(apiKey, messages, text) {
 // history: [{ role: 'user'|'assistant', content: string }] - prior turns
 // of this conversation, oldest first. message: the new user message.
 // callTool: async (name, input) => JSON-serialisable result.
-// Returns { text, recommendation } - text is the final assistant reply
-// (null only if the Anthropic request itself failed outright - bad key,
-// network error, etc; a vague/broad question that eats the whole
-// tool-round budget still gets a real answer, see the forced no-tools
-// call below). recommendation is lock_in_recommendation's raw input from
-// the forced follow-up call below, or null if it found no real pick (or
-// text itself is null).
+// Returns { text, recommendation, error }. text is the final assistant reply
+// (null only when the Anthropic request itself failed outright; a vague/broad
+// question that eats the whole tool-round budget still gets a real answer, see
+// the forced no-tools call below). error is null on success, otherwise a short
+// code ('auth' | 'model' | 'rate_limit' | 'upstream' | 'no_key') the UI can
+// use to tell "the coach is misconfigured / temporarily down" apart from
+// "answered fine" - critical because a swallowed API failure used to surface
+// as an empty reply that wrongly blamed the user's phrasing. recommendation is
+// lock_in_recommendation's raw input, or null if it found no real pick.
 export async function runCoachGptTurn({ apiKey, history, message, callTool }) {
-  if (!apiKey) return { text: null, recommendation: null }
+  if (!apiKey) return { text: null, recommendation: null, error: 'no_key' }
 
+  const call = makeCaller(apiKey)
   const messages = [...(history ?? []).map((m) => ({ role: m.role, content: m.content })), { role: 'user', content: message }]
 
   let text = null
+  let failure = null
   for (let round = 0; round < MAX_TOOL_ROUNDS && text === null; round++) {
-    const data = await callClaude(apiKey, messages, { tools: COACHGPT_TOOLS })
-    if (!data) return { text: null, recommendation: null }
+    const { data, error } = await call(messages, { tools: COACHGPT_TOOLS })
+    if (error) {
+      failure = error
+      break
+    }
 
     const content = data.content ?? []
     if (data.stop_reason !== 'tool_use') {
@@ -290,11 +355,14 @@ export async function runCoachGptTurn({ apiKey, history, message, callTool }) {
   // horse to anchor a lookup on. Strip the tools and force one last call
   // so it has to answer in text from whatever it's already gathered,
   // rather than leaving the user with nothing.
-  if (text === null) {
-    const finalData = await callClaude(apiKey, messages, {})
-    text = finalData?.content?.find((b) => b.type === 'text')?.text?.trim() ?? null
+  if (!failure && text === null) {
+    const { data, error } = await call(messages, {})
+    if (error) failure = error
+    else text = data?.content?.find((b) => b.type === 'text')?.text?.trim() ?? null
   }
 
-  const recommendation = text ? await lockInRecommendation(apiKey, messages, text) : null
-  return { text, recommendation }
+  if (failure) return { text: null, recommendation: null, error: classifyError(failure) }
+
+  const recommendation = text ? await lockInRecommendation(call, messages, text) : null
+  return { text, recommendation, error: null }
 }
