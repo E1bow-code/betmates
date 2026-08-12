@@ -53,12 +53,31 @@ export default function BetCard({ post, memberNames, memberAvatars, variant = 'g
   const [showEdit, setShowEdit] = useState(false)
   const [showMoreActions, setShowMoreActions] = useState(false)
   const [chatTarget, setChatTarget] = useState(null)
+  const [photoSrc, setPhotoSrc] = useState(null)
 
   useEffect(() => {
     dataStore.listReactions(post.id).then(setReactions)
     dataStore.listComments(post.id).then(setComments)
     dataStore.listBetCopies(post.id).then((copies) => setCopyCount(copies.length))
   }, [post.id])
+
+  useEffect(() => {
+    if (!post.photoUrl) {
+      setPhotoSrc(null)
+      return undefined
+    }
+    let url
+    dataStore.getPostPhotoUrl(post.photoUrl).then((resolvedUrl) => {
+      if (!resolvedUrl) return
+      url = resolvedUrl
+      setPhotoSrc(resolvedUrl)
+    })
+    return () => {
+      // Local mode returns a blob: object URL that needs revoking; Supabase
+      // Storage's signed URL is a plain https URL - nothing to revoke there.
+      if (url?.startsWith('blob:')) URL.revokeObjectURL(url)
+    }
+  }, [post.photoUrl])
 
   useEffect(() => {
     return dataStore.subscribeBetActivity(post.id, {
@@ -253,6 +272,7 @@ export default function BetCard({ post, memberNames, memberAvatars, variant = 'g
 
       <div className="bet-card-body">
         {post.caption && <p className="bet-card-caption">"{post.caption}"</p>}
+        {photoSrc && <img src={photoSrc} alt="" className="bet-card-photo" loading="lazy" />}
 
         <div className="bet-card-ticket">
           <div className="bet-card-ticket-header">

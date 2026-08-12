@@ -1416,3 +1416,35 @@ drop trigger if exists guard_premium_fields_on_profiles on profiles;
 create trigger guard_premium_fields_on_profiles
   before update on profiles
   for each row execute function guard_premium_fields();
+
+-- --- Post photos -------------------------------------------------------
+-- Optional photo attachment on a bet_posts row (src/lib/dataStore.js's
+-- uploadPostPhoto/getPostPhotoUrl) - Home's Facebook-style "share a pick"
+-- composer can attach one alongside the caption. Same private-bucket-plus-
+-- signed-URL approach as the videos bucket above, but the select policy
+-- mirrors bet_posts' own two-tier visibility (public vs. group-only)
+-- directly against photo_url, rather than videos' simpler author-or-friend
+-- check - a group pick's photo needs to stay exactly as private as the
+-- pick itself.
+
+alter table bet_posts add column if not exists photo_url text;
+
+insert into storage.buckets (id, name, public) values ('post-photos', 'post-photos', false)
+on conflict (id) do nothing;
+
+create policy "read post photos per bet_posts visibility" on storage.objects for select using (
+  bucket_id = 'post-photos' and exists (
+    select 1 from bet_posts p
+    where p.photo_url = name
+      and (
+        p.visibility = 'public'
+        or exists (select 1 from group_members m where m.group_id = p.group_id and m.user_id = auth.uid())
+      )
+  )
+);
+create policy "user uploads own post photo" on storage.objects for insert with check (
+  bucket_id = 'post-photos' and (storage.foldername(name))[1] = auth.uid()::text
+);
+create policy "user deletes own post photo" on storage.objects for delete using (
+  bucket_id = 'post-photos' and (storage.foldername(name))[1] = auth.uid()::text
+);

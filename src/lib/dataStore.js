@@ -68,6 +68,7 @@ import { freezesGranted, computeStreakTransition } from '../utils/dailyStreak.js
  * @property {string|null} settledAt
  * @property {any[]|null} outcomes
  * @property {string|null} caption
+ * @property {string|null} photoUrl
  * @property {boolean} autoHidden
  */
 /**
@@ -242,6 +243,7 @@ function mapBetPost(row) {
     settledAt: row.settled_at,
     outcomes: row.outcomes ?? null,
     caption: row.caption ?? null,
+    photoUrl: row.photo_url ?? null,
     autoHidden: row.auto_hidden ?? false
   }
 }
@@ -876,7 +878,7 @@ async function bumpDailyStreak(userId) {
 }
 
 /**
- * @param {{groupId: string|null, userId: string, sport: string, marketType: string, selections: any[], stake: number|null, stakeHidden?: boolean, potentialReturn: number|null, visibility?: 'group'|'public', caption?: string|null}} post
+ * @param {{groupId: string|null, userId: string, sport: string, marketType: string, selections: any[], stake: number|null, stakeHidden?: boolean, potentialReturn: number|null, visibility?: 'group'|'public', caption?: string|null, photoUrl?: string|null}} post
  * @returns {Promise<BetPost>}
  */
 export async function createBetPost(post) {
@@ -893,13 +895,40 @@ export async function createBetPost(post) {
       stake_hidden: post.stakeHidden,
       potential_return: post.potentialReturn,
       visibility: post.visibility ?? 'group',
-      caption: post.caption ?? null
+      caption: post.caption ?? null,
+      photo_url: post.photoUrl ?? null
     })
     .select()
     .single()
   if (error) throw error
   bumpDailyStreak(post.userId)
   return mapBetPost(data)
+}
+
+// Path prefixed with the uploader's own user id, same convention as
+// uploadAvatar/uploadVideoBlob. Private bucket (see schema.sql) since a
+// group pick's photo needs to stay exactly as private as the pick itself -
+// the key stored on bet_posts.photo_url is the object path, not a
+// resolved URL; getPostPhotoUrl below resolves a short-lived signed URL
+// per read, same as getVideoPlaybackUrl.
+const PHOTO_EXT_BY_MIME = { 'image/jpeg': 'jpg', 'image/png': 'png', 'image/webp': 'webp', 'image/gif': 'gif' }
+
+/** @param {string} userId @param {Blob} blob @returns {Promise<string>} */
+export async function uploadPostPhoto(userId, blob) {
+  if (!isSupabaseConfigured) return local.uploadPostPhoto(userId, blob)
+  const ext = PHOTO_EXT_BY_MIME[blob.type] || 'jpg'
+  const path = `${userId}/${Date.now()}.${ext}`
+  const { error } = await supabase.storage.from('post-photos').upload(path, blob)
+  if (error) throw error
+  return path
+}
+
+/** @param {string} photoKey @returns {Promise<string|null>} */
+export async function getPostPhotoUrl(photoKey) {
+  if (!isSupabaseConfigured) return local.getPostPhotoUrl(photoKey)
+  const { data, error } = await supabase.storage.from('post-photos').createSignedUrl(photoKey, 3600)
+  if (error) return null
+  return data.signedUrl
 }
 
 /**

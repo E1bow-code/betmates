@@ -36,6 +36,8 @@ export default function BetBuilderSheet() {
   const [stake, setStake] = useState('')
   const [stakeHidden, setStakeHidden] = useState(false)
   const [caption, setCaption] = useState('')
+  const [photoFile, setPhotoFile] = useState(null)
+  const [photoPreview, setPhotoPreview] = useState(null)
   const [eachWay, setEachWay] = useState(false)
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState(null)
@@ -102,6 +104,21 @@ export default function BetBuilderSheet() {
     if (!submitting) requestClose()
   }
 
+  function handlePhotoChange(e) {
+    const file = e.target.files?.[0]
+    e.target.value = '' // lets picking the same file again re-fire onChange
+    if (!file) return
+    if (photoPreview) URL.revokeObjectURL(photoPreview)
+    setPhotoFile(file)
+    setPhotoPreview(URL.createObjectURL(file))
+  }
+
+  function removePhoto() {
+    if (photoPreview) URL.revokeObjectURL(photoPreview)
+    setPhotoFile(null)
+    setPhotoPreview(null)
+  }
+
   // Hard spend limit (opt-in via Account): block posting/saving a bet once the
   // period is over the cap, rather than only warning. Shared by all three save
   // paths below. The soft warning still shows for everyone; this binds it.
@@ -120,6 +137,7 @@ export default function BetBuilderSheet() {
     setSubmitting(true)
     setError(null)
     try {
+      const photoUrl = photoFile ? await dataStore.uploadPostPhoto(user.id, photoFile) : null
       const post = await dataStore.createBetPost({
         groupId,
         userId: user.id,
@@ -130,7 +148,8 @@ export default function BetBuilderSheet() {
         stakeHidden,
         potentialReturn,
         visibility: 'group',
-        caption: caption.trim() || null
+        caption: caption.trim() || null,
+        photoUrl
       })
       const groupName = groups.find((g) => g.id === groupId)?.name ?? 'your group'
       notifyGroup(
@@ -143,6 +162,7 @@ export default function BetBuilderSheet() {
         user.id
       )
       clearSlip()
+      removePhoto()
       showToast(`Posted to ${groupName}`)
       navigate(`/groups/${groupId}`)
       return post
@@ -158,6 +178,7 @@ export default function BetBuilderSheet() {
     setSubmitting(true)
     setError(null)
     try {
+      const photoUrl = photoFile ? await dataStore.uploadPostPhoto(user.id, photoFile) : null
       await dataStore.createBetPost({
         groupId: null,
         userId: user.id,
@@ -168,10 +189,12 @@ export default function BetBuilderSheet() {
         stakeHidden,
         potentialReturn,
         visibility: 'public',
-        caption: caption.trim() || null
+        caption: caption.trim() || null,
+        photoUrl
       })
       notifyPublicFollowers()
       clearSlip()
+      removePhoto()
       showToast('Posted to everyone')
       navigate('/dashboard')
     } catch (err) {
@@ -272,6 +295,20 @@ export default function BetBuilderSheet() {
             onChange={(e) => setCaption(e.target.value)}
           />
         </label>
+
+        {photoPreview ? (
+          <div className="composer-photo-preview">
+            <img src={photoPreview} alt="" />
+            <button type="button" className="composer-photo-remove" onClick={removePhoto} aria-label="Remove photo">
+              ×
+            </button>
+          </div>
+        ) : (
+          <label className="btn btn-secondary composer-photo-button">
+            📷 Add a photo
+            <input type="file" accept="image/*" onChange={handlePhotoChange} className="scan-cta-input" />
+          </label>
+        )}
 
         <label className="field">
           <span>Stake (optional)</span>

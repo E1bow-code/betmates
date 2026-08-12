@@ -5,6 +5,7 @@ import { BetSlipProvider } from './context/BetSlipContext.jsx'
 import { ActivityProvider } from './context/ActivityContext.jsx'
 import { OddsFormatProvider } from './context/OddsFormatContext.jsx'
 import { ToastProvider } from './context/ToastContext.jsx'
+import { QuickAddProvider, useQuickAdd } from './context/QuickAddContext.jsx'
 import ErrorBoundary from './components/ErrorBoundary.jsx'
 import BottomNav from './components/BottomNav.jsx'
 import MoreMenu from './components/MoreMenu.jsx'
@@ -74,10 +75,12 @@ export default function App() {
       <AuthProvider>
         <OddsFormatProvider>
           <ToastProvider>
-            <HashRouter>
-              <Shell />
-              <CookieConsent />
-            </HashRouter>
+            <QuickAddProvider>
+              <HashRouter>
+                <Shell />
+                <CookieConsent />
+              </HashRouter>
+            </QuickAddProvider>
           </ToastProvider>
         </OddsFormatProvider>
       </AuthProvider>
@@ -162,11 +165,12 @@ function Shell() {
   const location = useLocation()
   const [showTour, setShowTour] = useState(false)
   const [newsHeadlines, setNewsHeadlines] = useState([])
-  // BottomNav's center "+" FAB opens this from anywhere in the app, not
-  // just Tracker (which keeps its own separate "+ Log a bet" trigger) -
-  // same self-contained sheet, just a second mount point with its own
-  // local open/close state.
-  const [showQuickAdd, setShowQuickAdd] = useState(false)
+  // BottomNav's center "+" FAB (and now HomePage's composer bar) open this
+  // from anywhere in the app, not just Tracker (which keeps its own
+  // separate "+ Log a bet" trigger) - same self-contained sheet, just a
+  // second mount point, open/close state lifted into QuickAddContext so a
+  // routed page can trigger it too, not just a prop passed to BottomNav.
+  const { showQuickAdd, openQuickAdd, closeQuickAdd } = useQuickAdd()
 
   useEffect(() => {
     if (user && !localStorage.getItem(ONBOARDED_PREFIX + user.id)) setShowTour(true)
@@ -348,15 +352,15 @@ function Shell() {
           {showQuickAdd && (
             <ManualEntrySheet
               userId={user.id}
-              onClose={() => setShowQuickAdd(false)}
+              onClose={closeQuickAdd}
               onSaved={() => {
-                setShowQuickAdd(false)
+                closeQuickAdd()
                 navigate('/tracker')
               }}
             />
           )}
           <div className="sidebar-nav">
-            <BottomNav onAddClick={() => setShowQuickAdd(true)} />
+            <BottomNav onAddClick={openQuickAdd} />
             <MoreMenu />
           </div>
           <NewsSidebar headlines={newsHeadlines} />

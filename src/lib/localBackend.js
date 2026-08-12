@@ -11,6 +11,7 @@ import { bucketByDay, distinctUsersSince } from '../utils/adminAnalyticsAgg.js'
 import { groupCoachSessions } from '../utils/coachSessions.js'
 import { freezesGranted, computeStreakTransition } from '../utils/dailyStreak.js'
 import { saveVideoBlob, getVideoBlob } from './videoStore.js'
+import { savePhotoBlob, getPhotoBlob } from './photoStore.js'
 
 // Records stored here use the same camelCase field names dataStore.js's
 // map* functions produce (this file *is* the shape the UI expects, not a
@@ -628,7 +629,7 @@ export function listBetPosts(groupId) {
 }
 
 /**
- * @param {{groupId: string|null, userId: string, sport: string, marketType: string, selections: any[], stake: number|null, stakeHidden?: boolean, potentialReturn: number|null, visibility?: 'group'|'public', caption?: string|null}} post
+ * @param {{groupId: string|null, userId: string, sport: string, marketType: string, selections: any[], stake: number|null, stakeHidden?: boolean, potentialReturn: number|null, visibility?: 'group'|'public', caption?: string|null, photoUrl?: string|null}} post
  * @returns {Promise<BetPost>}
  */
 export function createBetPost(post) {
@@ -643,6 +644,7 @@ export function createBetPost(post) {
     stakeHidden: false,
     visibility: 'group',
     caption: null,
+    photoUrl: null,
     autoHidden: false,
     ...post
   }
@@ -650,6 +652,23 @@ export function createBetPost(post) {
   writeDb(db)
   bumpDailyStreak(post.userId)
   return delay(record)
+}
+
+// Mirrors dataStore.js's uploadPostPhoto/getPostPhotoUrl - IndexedDB via
+// photoStore.js instead of Supabase Storage, same local-only limit as
+// uploadVideoBlob/getVideoPlaybackUrl below (a photo attached in local
+// mode won't sync anywhere either).
+/** @param {string} userId @param {Blob} blob @returns {Promise<string>} */
+export async function uploadPostPhoto(userId, blob) {
+  const photoKey = `photo_${userId}_${Date.now()}`
+  await savePhotoBlob(photoKey, blob)
+  return photoKey
+}
+
+/** @param {string} photoKey @returns {Promise<string|null>} */
+export async function getPostPhotoUrl(photoKey) {
+  const blob = await getPhotoBlob(photoKey)
+  return blob ? URL.createObjectURL(blob) : null
 }
 
 // Mirrors dataStore.js's bumpDailyStreak - same computeStreakTransition

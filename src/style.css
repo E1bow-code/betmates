@@ -2367,6 +2367,32 @@ button.conversation-row { width: 100%; background: none; border: none; border-bo
 .bet-status-pill.status-lost { border-color: var(--bad); color: var(--bad); }
 
 .bet-card-caption { font-size: 0.88rem; color: var(--text); margin: 0; }
+
+/* A posted pick's optional photo (src/lib/dataStore.js's uploadPostPhoto) -
+   full-card-width like a social feed's post image, not another bet-slip
+   ticket element. */
+.bet-card-photo { display: block; width: 100%; max-height: 320px; object-fit: cover; border-radius: 10px; margin: 6px 0 2px; }
+
+/* Photo picker on the "share a pick" composer (BetBuilderSheet.jsx) - same
+   visually-hidden-input-under-a-label pattern as .scan-cta-button/
+   .scan-cta-input in ManualEntrySheet.jsx. */
+.composer-photo-button { display: inline-flex; align-items: center; gap: 6px; position: relative; width: fit-content; margin: 4px 0; }
+.composer-photo-preview { position: relative; margin: 4px 0; border-radius: 10px; overflow: hidden; max-width: 240px; }
+.composer-photo-preview img { display: block; width: 100%; max-height: 220px; object-fit: cover; }
+.composer-photo-remove {
+  position: absolute;
+  top: 6px;
+  right: 6px;
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  border: none;
+  background: rgba(0, 0, 0, 0.6);
+  color: #fff;
+  font-size: 1rem;
+  line-height: 1;
+  cursor: pointer;
+}
 .bet-card-stake { font-size: 0.85rem; color: var(--text-dim); }
 .bet-card-stake strong { color: var(--text); font-family: var(--font-mono); }
 .bet-card-stake-hidden { font-style: italic; }
@@ -2864,6 +2890,65 @@ button.conversation-row { width: 100%; background: none; border: none; border-bo
 .home-highlight-title { font-size: 0.72rem; color: var(--text-dim); }
 .home-highlight-value { font-size: 0.85rem; font-weight: 600; }
 .home-highlight-card:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+/* Home page: Facebook-feed-shaped layout - a one-line greeting, a single
+   compact horizontal strip for glanceable signals instead of five
+   separate hero-sized blocks, then a tap-to-post composer bar right above
+   the feed. RankTeaser/HomeHighlights keep their own base rules above
+   (AccountPage's Tracker teaser reuses .rank-teaser too) - the overrides
+   below only apply inside this strip, folding both into one flex row. */
+.home-greeting-text { font-size: 1.4rem; margin: 6px 0 10px; text-wrap: balance; }
+
+.home-stats-strip {
+  display: flex;
+  align-items: stretch;
+  gap: 8px;
+  overflow-x: auto;
+  margin: 0 0 14px;
+  padding-bottom: 2px;
+  scrollbar-width: none;
+  -webkit-overflow-scrolling: touch;
+}
+.home-stats-strip::-webkit-scrollbar { display: none; }
+.home-stats-strip > * { flex: 0 0 auto; }
+.home-stats-strip .rank-teaser { margin: 0; min-width: 220px; max-width: 260px; }
+.home-stats-strip .home-highlights { display: contents; }
+
+.home-stat-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 12px;
+  background: rgba(var(--accent-rgb), 0.12);
+  border: 1px solid var(--accent-dim);
+  border-radius: 999px;
+  font-size: 0.78rem;
+  font-weight: 700;
+  color: var(--accent);
+  white-space: nowrap;
+}
+
+/* Tap-anywhere bar that opens the same "Log a bet" sheet as BottomNav's
+   "+" FAB (see QuickAddContext.jsx) - styled like a Facebook/social-app
+   "what's on your mind" post prompt, sitting right above the feed it
+   posts into. */
+.home-composer {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: var(--surface);
+  padding: 10px 16px 10px 10px;
+  margin: 4px 0 12px;
+  cursor: pointer;
+  text-align: left;
+  color: var(--text-dim);
+  font-size: 0.92rem;
+}
+.home-composer:hover, .home-composer:focus-visible { border-color: var(--accent-dim); outline: none; }
+.home-composer-placeholder { flex: 1; }
 
 .scoreboard-panel {
   border: 1px solid var(--border);
