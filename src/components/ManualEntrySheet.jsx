@@ -13,6 +13,7 @@ import { detectBigStake } from '../utils/bigStake.js'
 import { periodStart, sumStakesSince, wouldExceedLimit } from '../utils/spendLimit.js'
 import { useAsyncAction } from '../lib/useAsyncAction.js'
 import { useEscapeKey } from '../lib/useEscapeKey.js'
+import { useDelayedClose } from '../lib/useDelayedClose.js'
 
 const SPORT_OPTIONS = Object.entries(SPORT_LABEL).filter(([key]) => key !== 'multi')
 
@@ -41,7 +42,8 @@ export default function ManualEntrySheet({ userId, onClose, onSaved }) {
   const [error, setError] = useState(null)
   const [entries, setEntries] = useState(null)
   const runAsync = useAsyncAction()
-  useEscapeKey(onClose, !saving && !scanning)
+  const { closing, requestClose } = useDelayedClose(onClose)
+  useEscapeKey(requestClose, !saving && !scanning)
 
   useEffect(() => {
     Promise.all([dataStore.listBetPostsByUser(userId), dataStore.listManualEntries(userId)]).then(([posted, manual]) => {
@@ -152,8 +154,8 @@ export default function ManualEntrySheet({ userId, onClose, onSaved }) {
   }
 
   return (
-    <div className="sheet-backdrop" onClick={onClose}>
-      <div className="sheet" onClick={(e) => e.stopPropagation()}>
+    <div className={`sheet-backdrop${closing ? ' closing' : ''}`} onClick={requestClose}>
+      <div className={`sheet${closing ? ' closing' : ''}`} onClick={(e) => e.stopPropagation()}>
         <div className="sheet-handle" />
         <h2 className="sheet-title">Log a bet</h2>
 
@@ -283,7 +285,7 @@ export default function ManualEntrySheet({ userId, onClose, onSaved }) {
             <button className="btn btn-primary" type="submit" disabled={saving || scanning}>
               {saving ? 'Saving…' : 'Save to Tracker'}
             </button>
-            <button className="btn btn-ghost" type="button" onClick={onClose} disabled={saving}>
+            <button className="btn btn-ghost" type="button" onClick={requestClose} disabled={saving}>
               Cancel
             </button>
           </div>

@@ -4,6 +4,7 @@ import { useAuth } from '../context/AuthContext.jsx'
 import { useOddsFormat } from '../context/OddsFormatContext.jsx'
 import { formatOdds } from '../utils/oddsFormat.js'
 import { useEscapeKey } from '../lib/useEscapeKey.js'
+import { useDelayedClose } from '../lib/useDelayedClose.js'
 
 // Opened from the bell button on an outcome row (FixtureDetailPage,
 // FightDetailPage, GenericEventDetailPage - not RaceDetailPage, see
@@ -14,7 +15,8 @@ import { useEscapeKey } from '../lib/useEscapeKey.js'
 export default function OddsAlertSheet({ target, onClose, onCreated }) {
   const { user } = useAuth()
   const { format } = useOddsFormat()
-  useEscapeKey(onClose)
+  const { closing, requestClose } = useDelayedClose(onClose)
+  useEscapeKey(requestClose)
   const [targetPrice, setTargetPrice] = useState(target.currentDecimal.toFixed(2))
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState(null)
@@ -50,8 +52,8 @@ export default function OddsAlertSheet({ target, onClose, onCreated }) {
   }
 
   return (
-    <div className="sheet-backdrop" onClick={onClose}>
-      <div className="sheet" onClick={(e) => e.stopPropagation()}>
+    <div className={`sheet-backdrop${closing ? ' closing' : ''}`} onClick={requestClose}>
+      <div className={`sheet${closing ? ' closing' : ''}`} onClick={(e) => e.stopPropagation()}>
         <div className="sheet-handle" />
         <h2 className="sheet-title">Set a price alert</h2>
         <p className="hint">
@@ -75,7 +77,7 @@ export default function OddsAlertSheet({ target, onClose, onCreated }) {
             <button className="btn btn-primary" type="submit" disabled={saving}>
               {saving ? 'Saving…' : 'Set alert'}
             </button>
-            <button className="btn btn-ghost" type="button" onClick={onClose} disabled={saving}>
+            <button className="btn btn-ghost" type="button" onClick={requestClose} disabled={saving}>
               Cancel
             </button>
           </div>

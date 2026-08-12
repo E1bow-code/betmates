@@ -1,4 +1,5 @@
 import { useEscapeKey } from '../lib/useEscapeKey.js'
+import { useDelayedClose } from '../lib/useDelayedClose.js'
 import FixtureChatPanel from './FixtureChatPanel.jsx'
 
 // Opened by tapping a live BetCard's LIVE badge (see BetCard.jsx) - same
@@ -8,16 +9,17 @@ import FixtureChatPanel from './FixtureChatPanel.jsx'
 // collapsed-by-default toggle, since the whole point of this sheet is "show
 // me the chat" - a second tap to expand it here would be redundant.
 export default function FixtureChatSheet({ sport, eventId, eventLabel, onClose }) {
-  useEscapeKey(onClose)
+  const { closing, requestClose } = useDelayedClose(onClose)
+  useEscapeKey(requestClose)
 
   return (
-    <div className="sheet-backdrop" onClick={onClose}>
-      <div className="sheet" onClick={(e) => e.stopPropagation()}>
+    <div className={`sheet-backdrop${closing ? ' closing' : ''}`} onClick={requestClose}>
+      <div className={`sheet${closing ? ' closing' : ''}`} onClick={(e) => e.stopPropagation()}>
         <div className="sheet-handle" />
         <h2 className="sheet-title">{eventLabel}</h2>
         <FixtureChatPanel sport={sport} eventId={eventId} eventLabel={eventLabel} defaultOpen />
         <div className="sheet-actions">
-          <button className="btn btn-ghost" type="button" onClick={onClose}>
+          <button className="btn btn-ghost" type="button" onClick={requestClose}>
             Close
           </button>
         </div>

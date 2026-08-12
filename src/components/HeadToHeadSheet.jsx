@@ -3,6 +3,7 @@ import { useAuth } from '../context/AuthContext.jsx'
 import * as dataStore from '../lib/dataStore.js'
 import { computeStats } from '../utils/trackerStats.js'
 import { useEscapeKey } from '../lib/useEscapeKey.js'
+import { useDelayedClose } from '../lib/useDelayedClose.js'
 import ChallengeSection from './ChallengeSection.jsx'
 
 // Compares two people using only bets both of them could actually see -
@@ -16,7 +17,8 @@ import ChallengeSection from './ChallengeSection.jsx'
 export default function HeadToHeadSheet({ friend, onClose }) {
   const { user } = useAuth()
   const [posts, setPosts] = useState(null)
-  useEscapeKey(onClose)
+  const { closing, requestClose } = useDelayedClose(onClose)
+  useEscapeKey(requestClose)
 
   useEffect(() => {
     Promise.all([dataStore.listFeedForUser(user.id), dataStore.listPublicFeed()]).then(([feed, publicFeed]) => {
@@ -30,8 +32,8 @@ export default function HeadToHeadSheet({ friend, onClose }) {
   const rows = posts && { mine: computeStats(posts.mine), theirs: computeStats(posts.theirs) }
 
   return (
-    <div className="sheet-backdrop" onClick={onClose}>
-      <div className="sheet" onClick={(e) => e.stopPropagation()}>
+    <div className={`sheet-backdrop${closing ? ' closing' : ''}`} onClick={requestClose}>
+      <div className={`sheet${closing ? ' closing' : ''}`} onClick={(e) => e.stopPropagation()}>
         <div className="sheet-handle" />
         <h2 className="sheet-title">You vs {friend.displayName}</h2>
         <p className="hint">Only counts bets you'd both actually see - shared groups and the public feed.</p>
@@ -55,7 +57,7 @@ export default function HeadToHeadSheet({ friend, onClose }) {
           </>
         )}
 
-        <button className="btn btn-ghost" onClick={onClose}>
+        <button className="btn btn-ghost" onClick={requestClose}>
           Close
         </button>
       </div>

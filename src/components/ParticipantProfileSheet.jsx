@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { getPlayerProfile } from '../lib/playerProfile.js'
 import { useEscapeKey } from '../lib/useEscapeKey.js'
+import { useDelayedClose } from '../lib/useDelayedClose.js'
 import { abbreviatePosition, flagFor, ageFrom } from '../utils/playerCard.js'
 import TeamBadge from './TeamBadge.jsx'
 
@@ -22,7 +23,8 @@ function formatBirthDate(dateStr) {
 // below only renders if the field it needs actually came back.
 export default function ParticipantProfileSheet({ name, onClose }) {
   const [profile, setProfile] = useState(undefined)
-  useEscapeKey(onClose)
+  const { closing, requestClose } = useDelayedClose(onClose)
+  useEscapeKey(requestClose)
 
   useEffect(() => {
     let cancelled = false
@@ -62,8 +64,8 @@ export default function ParticipantProfileSheet({ name, onClose }) {
   const hasNothing = profile && !profile.bio && statTiles.length === 0 && socials.length === 0 && !profile.photo
 
   return (
-    <div className="sheet-backdrop" onClick={onClose}>
-      <div className="sheet profile-sheet" onClick={(e) => e.stopPropagation()}>
+    <div className={`sheet-backdrop${closing ? ' closing' : ''}`} onClick={requestClose}>
+      <div className={`sheet profile-sheet${closing ? ' closing' : ''}`} onClick={(e) => e.stopPropagation()}>
         <div className="sheet-handle" />
         {profile === undefined && <div className="loading">Loading…</div>}
         {profile === null && (
@@ -133,7 +135,7 @@ export default function ParticipantProfileSheet({ name, onClose }) {
           </>
         )}
         <div className="sheet-actions">
-          <button className="btn btn-ghost" type="button" onClick={onClose}>
+          <button className="btn btn-ghost" type="button" onClick={requestClose}>
             Close
           </button>
         </div>

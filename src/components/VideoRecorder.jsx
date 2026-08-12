@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import { useAuth } from '../context/AuthContext.jsx'
 import * as dataStore from '../lib/dataStore.js'
 import { useEscapeKey } from '../lib/useEscapeKey.js'
+import { useDelayedClose } from '../lib/useDelayedClose.js'
 
 const MAX_SECONDS = 60
 
@@ -22,6 +23,7 @@ export default function VideoRecorder({ onClose, onPosted }) {
   const [tag, setTag] = useState('')
   const [error, setError] = useState(null)
   const [submitting, setSubmitting] = useState(false)
+  const { closing, requestClose } = useDelayedClose(onClose)
   useEscapeKey(handleClose)
 
   const videoRef = useRef(null)
@@ -140,12 +142,12 @@ export default function VideoRecorder({ onClose, onPosted }) {
   function handleClose() {
     stopStream()
     if (previewUrl) URL.revokeObjectURL(previewUrl)
-    onClose()
+    requestClose()
   }
 
   return (
-    <div className="sheet-backdrop" onClick={handleClose}>
-      <div className="sheet" onClick={(e) => e.stopPropagation()}>
+    <div className={`sheet-backdrop${closing ? ' closing' : ''}`} onClick={handleClose}>
+      <div className={`sheet${closing ? ' closing' : ''}`} onClick={(e) => e.stopPropagation()}>
         <div className="sheet-handle" />
         <h2 className="sheet-title">Post a tip</h2>
 

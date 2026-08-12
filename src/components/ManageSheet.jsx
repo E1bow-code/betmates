@@ -4,6 +4,7 @@ import { useAuth } from '../context/AuthContext.jsx'
 import * as dataStore from '../lib/dataStore.js'
 import { shareOrCopy, groupInviteUrl } from '../lib/share.js'
 import { useEscapeKey } from '../lib/useEscapeKey.js'
+import { useDelayedClose } from '../lib/useDelayedClose.js'
 
 // Everything that isn't the feed itself - creating/joining a group, or
 // adding a friend by code - lives behind this sheet instead of sitting
@@ -12,7 +13,8 @@ import { useEscapeKey } from '../lib/useEscapeKey.js'
 
 export default function ManageSheet({ segment, groups, friends, onClose, onChanged }) {
   const { user } = useAuth()
-  useEscapeKey(onClose)
+  const { closing, requestClose } = useDelayedClose(onClose)
+  useEscapeKey(requestClose)
   const [name, setName] = useState('')
   const [code, setCode] = useState('')
   const [friendCode, setFriendCode] = useState('')
@@ -85,8 +87,8 @@ export default function ManageSheet({ segment, groups, friends, onClose, onChang
   }
 
   return (
-    <div className="sheet-backdrop" onClick={onClose}>
-      <div className="sheet" onClick={(e) => e.stopPropagation()}>
+    <div className={`sheet-backdrop${closing ? ' closing' : ''}`} onClick={requestClose}>
+      <div className={`sheet${closing ? ' closing' : ''}`} onClick={(e) => e.stopPropagation()}>
         <div className="sheet-handle" />
 
         {segment === 'bets' ? (
@@ -168,7 +170,7 @@ export default function ManageSheet({ segment, groups, friends, onClose, onChang
         {error && <div className="auth-error">{error}</div>}
         {shareStatus && <div className="hint">{shareStatus}</div>}
 
-        <button className="btn btn-ghost" onClick={onClose}>
+        <button className="btn btn-ghost" onClick={requestClose}>
           Done
         </button>
       </div>

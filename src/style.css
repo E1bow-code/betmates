@@ -1588,7 +1588,13 @@ button.conversation-row { width: 100%; background: none; border: none; border-bo
   display: flex;
   align-items: flex-end;
   z-index: 30;
+  animation: sheet-backdrop-in 0.18s ease-out;
 }
+/* .closing plays the mount animation in reverse, driven by
+   src/lib/useDelayedClose.js delaying the real onClose long enough for it
+   to finish - without that delay React unmounts the sheet before any exit
+   animation could ever paint. */
+.sheet-backdrop.closing { animation: sheet-backdrop-out 0.2s ease-in forwards; }
 
 .sheet {
   width: 100%;
@@ -1602,11 +1608,34 @@ button.conversation-row { width: 100%; background: none; border: none; border-bo
   gap: 14px;
   max-height: 90vh;
   overflow-y: auto;
+  animation: sheet-in 0.2s ease-out;
 }
+.sheet.closing { animation: sheet-out 0.2s ease-in forwards; }
+
+@keyframes sheet-backdrop-in { from { opacity: 0; } }
+@keyframes sheet-backdrop-out { to { opacity: 0; } }
+@keyframes sheet-in { from { transform: translateY(24px); opacity: 0; } }
+@keyframes sheet-out { to { transform: translateY(24px); opacity: 0; } }
 
 .sheet-handle { width: 36px; height: 4px; background: var(--border); border-radius: 2px; margin: 0 auto; }
 .sheet-title { margin: 0; font-size: 1.1rem; }
 .sheet-actions { display: flex; flex-direction: column; gap: 8px; }
+
+/* Route/page transition - the routed content in App.jsx's Shell() is keyed
+   by location.pathname so React remounts it (and replays this animation)
+   on every navigation, giving each page a soft settle instead of an
+   instant cut. Entry-only, same limitation .toast-in already accepts:
+   the outgoing page is gone before the DOM update paints, so there's
+   nothing left to play an exit animation on. */
+.route-page { animation: route-fade-in 0.18s ease-out; }
+@keyframes route-fade-in {
+  from { opacity: 0; transform: translateY(6px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .sheet-backdrop, .sheet-backdrop.closing, .sheet, .sheet.closing, .route-page { animation: none; }
+}
 
 /* Participant profile sheet - opened by tapping a name/photo on a detail
    page. The card-front (.player-card) is a trading-card treatment built

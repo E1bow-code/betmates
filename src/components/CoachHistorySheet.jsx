@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import * as dataStore from '../lib/dataStore.js'
 import { formatRelativeTime } from '../utils/format.js'
 import { useEscapeKey } from '../lib/useEscapeKey.js'
+import { useDelayedClose } from '../lib/useDelayedClose.js'
 
 // "New chat" clears CoachGptPage's active view but never deletes anything
 // (see supabase/schema.sql's coach_messages.session_id comment) - this is
@@ -12,7 +13,8 @@ import { useEscapeKey } from '../lib/useEscapeKey.js'
 export default function CoachHistorySheet({ userId, activeSessionId, onSelect, onClose }) {
   const [sessions, setSessions] = useState(null)
   const [error, setError] = useState(null)
-  useEscapeKey(onClose, true)
+  const { closing, requestClose } = useDelayedClose(onClose)
+  useEscapeKey(requestClose, true)
 
   useEffect(() => {
     dataStore
@@ -22,8 +24,8 @@ export default function CoachHistorySheet({ userId, activeSessionId, onSelect, o
   }, [userId])
 
   return (
-    <div className="sheet-backdrop" onClick={onClose}>
-      <div className="sheet" onClick={(e) => e.stopPropagation()}>
+    <div className={`sheet-backdrop${closing ? ' closing' : ''}`} onClick={requestClose}>
+      <div className={`sheet${closing ? ' closing' : ''}`} onClick={(e) => e.stopPropagation()}>
         <div className="sheet-handle" />
         <h2 className="sheet-title">Past conversations</h2>
         {error && <div className="error">Couldn't load your history: {error}</div>}
@@ -52,7 +54,7 @@ export default function CoachHistorySheet({ userId, activeSessionId, onSelect, o
           </div>
         )}
         <div className="sheet-actions">
-          <button className="btn btn-ghost" type="button" onClick={onClose}>
+          <button className="btn btn-ghost" type="button" onClick={requestClose}>
             Close
           </button>
         </div>

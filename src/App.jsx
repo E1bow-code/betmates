@@ -1,5 +1,5 @@
 import { Suspense, lazy, useEffect, useRef, useState } from 'react'
-import { HashRouter, Routes, Route, Navigate, useNavigate, useParams } from 'react-router-dom'
+import { HashRouter, Routes, Route, Navigate, useNavigate, useParams, useLocation } from 'react-router-dom'
 import { AuthProvider, useAuth } from './context/AuthContext.jsx'
 import { BetSlipProvider } from './context/BetSlipContext.jsx'
 import { ActivityProvider } from './context/ActivityContext.jsx'
@@ -159,6 +159,7 @@ const ONBOARDED_PREFIX = 'betmates:onboarded:'
 function Shell() {
   const { user, loading, passwordRecovery, recoveryFailed, signOut } = useAuth()
   const navigate = useNavigate()
+  const location = useLocation()
   const [showTour, setShowTour] = useState(false)
   const [newsHeadlines, setNewsHeadlines] = useState([])
   // BottomNav's center "+" FAB opens this from anywhere in the app, not
@@ -304,35 +305,41 @@ function Shell() {
             <AppHeader />
             <InstallGuideBanner />
             <Suspense fallback={<div className="loading">Loading…</div>}>
-              <Routes>
-                <Route path="/" element={<HomeRedirect />} />
-                <Route path="/dashboard" element={<HomePage />} />
-                <Route path="/odds" element={<OddsListPage />} />
-                <Route path="/odds/football/:id" element={<FixtureDetailPage />} />
-                <Route path="/odds/racing/:id" element={<RaceDetailPage />} />
-                <Route path="/odds/ufc/:id" element={<FightDetailPage />} />
-                <Route path="/odds/:sportKey/:id" element={<GenericEventDetailPage />} />
-                <Route path="/groups" element={<SocialFeedPage />} />
-                <Route path="/groups/:id" element={<GroupFeedPage />} />
-                <Route path="/join/:code" element={<JoinGroupPage />} />
-                <Route path="/challenge/:code" element={<ChallengePage />} />
-                <Route path="/messages" element={<MessagesInboxPage />} />
-                <Route path="/messages/:friendId" element={<DirectMessagePage />} />
-                <Route path="/tracker" element={<TrackerPage />} />
-                <Route path="/achievements" element={<AchievementsPage />} />
-                <Route path="/insights" element={<InsightsPage />} />
-                <Route path="/coach" element={<CoachGptPage />} />
-                <Route path="/alerts" element={<NotificationsPage />} />
-                <Route path="/account" element={<AccountPage />} />
-                <Route path="/admin/reports" element={<AdminReportsPage />} />
-                <Route path="/admin/errors" element={<AdminErrorLogsPage />} />
-                <Route path="/admin/analytics" element={<AdminAnalyticsPage />} />
-                <Route path="/u/:code" element={<PublicProfilePage />} />
-                <Route path="/hall-of-fame" element={<HallOfFamePage />} />
-                <Route path="/legal" element={<LegalPage />} />
-                <Route path="/help" element={<HelpPage />} />
-                <Route path="*" element={<NotFoundPage />} />
-              </Routes>
+              {/* Keyed by pathname so React remounts this wrapper - and
+                  replays its CSS mount animation - on every navigation,
+                  giving page changes a soft settle instead of an instant
+                  cut (see .route-page in style.css). */}
+              <div className="route-page" key={location.pathname}>
+                <Routes>
+                  <Route path="/" element={<HomeRedirect />} />
+                  <Route path="/dashboard" element={<HomePage />} />
+                  <Route path="/odds" element={<OddsListPage />} />
+                  <Route path="/odds/football/:id" element={<FixtureDetailPage />} />
+                  <Route path="/odds/racing/:id" element={<RaceDetailPage />} />
+                  <Route path="/odds/ufc/:id" element={<FightDetailPage />} />
+                  <Route path="/odds/:sportKey/:id" element={<GenericEventDetailPage />} />
+                  <Route path="/groups" element={<SocialFeedPage />} />
+                  <Route path="/groups/:id" element={<GroupFeedPage />} />
+                  <Route path="/join/:code" element={<JoinGroupPage />} />
+                  <Route path="/challenge/:code" element={<ChallengePage />} />
+                  <Route path="/messages" element={<MessagesInboxPage />} />
+                  <Route path="/messages/:friendId" element={<DirectMessagePage />} />
+                  <Route path="/tracker" element={<TrackerPage />} />
+                  <Route path="/achievements" element={<AchievementsPage />} />
+                  <Route path="/insights" element={<InsightsPage />} />
+                  <Route path="/coach" element={<CoachGptPage />} />
+                  <Route path="/alerts" element={<NotificationsPage />} />
+                  <Route path="/account" element={<AccountPage />} />
+                  <Route path="/admin/reports" element={<AdminReportsPage />} />
+                  <Route path="/admin/errors" element={<AdminErrorLogsPage />} />
+                  <Route path="/admin/analytics" element={<AdminAnalyticsPage />} />
+                  <Route path="/u/:code" element={<PublicProfilePage />} />
+                  <Route path="/hall-of-fame" element={<HallOfFamePage />} />
+                  <Route path="/legal" element={<LegalPage />} />
+                  <Route path="/help" element={<HelpPage />} />
+                  <Route path="*" element={<NotFoundPage />} />
+                </Routes>
+              </div>
             </Suspense>
           </div>
           <BetSlipBar />

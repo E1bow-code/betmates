@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext.jsx'
 import { useActivity } from '../context/ActivityContext.jsx'
 import { useEscapeKey } from '../lib/useEscapeKey.js'
+import { useDelayedClose } from '../lib/useDelayedClose.js'
 import { MoreIcon } from './icons/NavIcons.jsx'
 import { MORE_MENU_ICONS } from './icons/MoreMenuIcons.jsx'
 
@@ -84,7 +85,8 @@ export default function MoreMenu() {
     : GROUPS
   const [expanded, setExpanded] = useState(() => loadExpanded(groups.map((g) => g.key)))
 
-  useEscapeKey(() => setOpen(false), open)
+  const { closing, requestClose } = useDelayedClose(() => setOpen(false))
+  useEscapeKey(requestClose, open)
 
   function toggleGroup(key) {
     setExpanded((prev) => {
@@ -109,8 +111,8 @@ export default function MoreMenu() {
       </button>
 
       {open && (
-        <div className="sheet-backdrop" onClick={() => setOpen(false)}>
-          <div className="sheet" onClick={(e) => e.stopPropagation()}>
+        <div className={`sheet-backdrop${closing ? ' closing' : ''}`} onClick={requestClose}>
+          <div className={`sheet${closing ? ' closing' : ''}`} onClick={(e) => e.stopPropagation()}>
             <div className="sheet-handle" />
             <h2 className="sheet-title">More</h2>
             <MoreMenuContents groups={groups} expanded={expanded} onToggleGroup={toggleGroup} onNavigate={() => setOpen(false)} />

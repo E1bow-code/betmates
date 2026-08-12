@@ -14,6 +14,7 @@ import { stakingPlanWarning } from '../utils/stakingPlan.js'
 import { detectBigStake } from '../utils/bigStake.js'
 import { detectSameGameCorrelation } from '../utils/sameGameCorrelation.js'
 import { useEscapeKey } from '../lib/useEscapeKey.js'
+import { useDelayedClose } from '../lib/useDelayedClose.js'
 import { computeStats } from '../utils/trackerStats.js'
 import { tipsterBadge } from '../utils/tipsterBadge.js'
 
@@ -66,8 +67,10 @@ export default function BetBuilderSheet() {
     return sumStakesSince(entries, periodStart(user.stakeLimitPeriod))
   }, [entries, user.stakeLimitAmount, user.stakeLimitPeriod])
 
+  const { closing, requestClose } = useDelayedClose(closeSheet)
+
   useEscapeKey(() => {
-    if (!submitting) closeSheet()
+    if (!submitting) requestClose()
   }, sheetOpen && legs.length > 0)
 
   if (!sheetOpen || !legs.length) return null
@@ -96,7 +99,7 @@ export default function BetBuilderSheet() {
     : legs
 
   function onClose() {
-    if (!submitting) closeSheet()
+    if (!submitting) requestClose()
   }
 
   // Hard spend limit (opt-in via Account): block posting/saving a bet once the
@@ -222,8 +225,8 @@ export default function BetBuilderSheet() {
   }
 
   return (
-    <div className="sheet-backdrop" onClick={onClose}>
-      <div className="sheet" onClick={(e) => e.stopPropagation()}>
+    <div className={`sheet-backdrop${closing ? ' closing' : ''}`} onClick={onClose}>
+      <div className={`sheet${closing ? ' closing' : ''}`} onClick={(e) => e.stopPropagation()}>
         <div className="sheet-handle" />
         <h2 className="sheet-title">{legs.length > 1 ? `Your bet builder (${legs.length} legs)` : 'Your pick'}</h2>
 

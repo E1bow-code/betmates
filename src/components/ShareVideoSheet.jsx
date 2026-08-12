@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { useAuth } from '../context/AuthContext.jsx'
 import * as dataStore from '../lib/dataStore.js'
 import { useEscapeKey } from '../lib/useEscapeKey.js'
+import { useDelayedClose } from '../lib/useDelayedClose.js'
 
 // "If someone sees a video they think is good advice, send it to a group
 // or a friend" - forwards an existing video post without re-uploading
@@ -9,7 +10,8 @@ import { useEscapeKey } from '../lib/useEscapeKey.js'
 
 export default function ShareVideoSheet({ video, onClose }) {
   const { user } = useAuth()
-  useEscapeKey(onClose)
+  const { closing, requestClose } = useDelayedClose(onClose)
+  useEscapeKey(requestClose)
   const [groups, setGroups] = useState([])
   const [friends, setFriends] = useState([])
   const [sent, setSent] = useState(null)
@@ -35,8 +37,8 @@ export default function ShareVideoSheet({ video, onClose }) {
   }
 
   return (
-    <div className="sheet-backdrop" onClick={onClose}>
-      <div className="sheet" onClick={(e) => e.stopPropagation()}>
+    <div className={`sheet-backdrop${closing ? ' closing' : ''}`} onClick={requestClose}>
+      <div className={`sheet${closing ? ' closing' : ''}`} onClick={(e) => e.stopPropagation()}>
         <div className="sheet-handle" />
         <h2 className="sheet-title">Send this to…</h2>
 
@@ -78,7 +80,7 @@ export default function ShareVideoSheet({ video, onClose }) {
           </div>
         )}
 
-        <button className="btn btn-ghost" onClick={onClose}>
+        <button className="btn btn-ghost" onClick={requestClose}>
           Done
         </button>
       </div>

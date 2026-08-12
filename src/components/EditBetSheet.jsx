@@ -2,6 +2,7 @@ import { useState } from 'react'
 import * as dataStore from '../lib/dataStore.js'
 import { getEachWayTerms, computeEachWayReturn } from '../utils/eachWay.js'
 import { useEscapeKey } from '../lib/useEscapeKey.js'
+import { useDelayedClose } from '../lib/useDelayedClose.js'
 
 // Fixes a mis-typed stake, or gives up on a bet entirely - only ever shown
 // for the author's own bets while still open (see BetCard.jsx/TrackerPage.jsx
@@ -15,7 +16,8 @@ export default function EditBetSheet({ entry, onClose, onUpdated, onDeleted }) {
   const [saving, setSaving] = useState(false)
   const [deleting, setDeleting] = useState(false)
   const [error, setError] = useState(null)
-  useEscapeKey(onClose, !saving && !deleting)
+  const { closing, requestClose } = useDelayedClose(onClose)
+  useEscapeKey(requestClose, !saving && !deleting)
 
   const isGroupPost = entry.source === 'group'
   const combinedOdds = entry.selections.reduce((acc, s) => acc * s.odds, 1)
@@ -74,8 +76,8 @@ export default function EditBetSheet({ entry, onClose, onUpdated, onDeleted }) {
   }
 
   return (
-    <div className="sheet-backdrop" onClick={onClose}>
-      <div className="sheet" onClick={(e) => e.stopPropagation()}>
+    <div className={`sheet-backdrop${closing ? ' closing' : ''}`} onClick={requestClose}>
+      <div className={`sheet${closing ? ' closing' : ''}`} onClick={(e) => e.stopPropagation()}>
         <div className="sheet-handle" />
         <h2 className="sheet-title">Edit bet</h2>
         <p className="hint">
@@ -101,7 +103,7 @@ export default function EditBetSheet({ entry, onClose, onUpdated, onDeleted }) {
             <button className="btn btn-primary" type="submit" disabled={saving || deleting}>
               {saving ? 'Saving…' : 'Save changes'}
             </button>
-            <button className="btn btn-ghost" type="button" onClick={onClose} disabled={saving || deleting}>
+            <button className="btn btn-ghost" type="button" onClick={requestClose} disabled={saving || deleting}>
               Cancel
             </button>
             <button className="btn btn-danger-outline" type="button" onClick={handleDelete} disabled={saving || deleting}>

@@ -4,6 +4,7 @@ import { useAuth } from '../context/AuthContext.jsx'
 import { parseOddsInput } from '../utils/oddsFormat.js'
 import { kellyStake } from '../utils/kelly.js'
 import { useEscapeKey } from '../lib/useEscapeKey.js'
+import { useDelayedClose } from '../lib/useDelayedClose.js'
 import PremiumGate from './PremiumGate.jsx'
 
 const KELLY_FRACTIONS = [
@@ -33,7 +34,8 @@ export default function PayoutCalculatorButton() {
   const [bankroll, setBankroll] = useState('')
   const [probability, setProbability] = useState('')
   const [kellyFraction, setKellyFraction] = useState(0.25)
-  useEscapeKey(close, open)
+  const { closing, requestClose } = useDelayedClose(close)
+  useEscapeKey(requestClose, open)
 
   const decimal = parseOddsInput(oddsInput)
   const stakeNum = stake ? Number(stake) : null
@@ -61,8 +63,8 @@ export default function PayoutCalculatorButton() {
         🧮 Calculator
       </button>
       {open && (
-        <div className="sheet-backdrop" onClick={close}>
-          <div className="sheet" onClick={(e) => e.stopPropagation()}>
+        <div className={`sheet-backdrop${closing ? ' closing' : ''}`} onClick={requestClose}>
+          <div className={`sheet${closing ? ' closing' : ''}`} onClick={(e) => e.stopPropagation()}>
             <div className="sheet-handle" />
             <h2 className="sheet-title">Payout calculator</h2>
             <p className="hint">Plan a stake before you pick anything - this doesn't touch your bet slip.</p>
@@ -150,7 +152,7 @@ export default function PayoutCalculatorButton() {
               </PremiumGate>
             )}
 
-            <button className="btn btn-secondary" onClick={close} type="button">
+            <button className="btn btn-secondary" onClick={requestClose} type="button">
               Close
             </button>
           </div>
