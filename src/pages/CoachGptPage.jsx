@@ -163,6 +163,12 @@ export default function CoachGptPage() {
     setMessages((m) => [...(m ?? []), userMessage])
     setSending(true)
     setLimited(false)
+    // A single failed send (a timeout, a network blip) used to leave the
+    // "CoachGPT isn't set up on this environment" banner stuck true for the
+    // rest of the session even after a later message succeeded fine - this
+    // was only ever cleared by starting a brand new chat, so one transient
+    // failure made the whole feature look permanently broken.
+    setUnavailable(false)
 
     let blocked = false
     const ok = await runAsync(async () => {
