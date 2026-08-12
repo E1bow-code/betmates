@@ -343,7 +343,10 @@ export async function signIn({ email, password }) {
   if (!isSupabaseConfigured) return local.signIn({ email })
   const { data, error } = await supabase.auth.signInWithPassword({ email, password })
   if (error) throw error
-  const { data: profile } = await supabase.from('profiles').select('*').eq('id', data.user.id).single()
+  // maybeSingle, not single - same reasoning as getSession() above: an
+  // auth row can outlive its profiles row (a manual/partial deletion, not
+  // just the normal delete-account path, which removes both together).
+  const { data: profile } = await supabase.from('profiles').select('*').eq('id', data.user.id).maybeSingle()
   return mapProfile(profile)
 }
 
@@ -449,7 +452,11 @@ export async function listMyGroups(userId) {
 /** @param {string} groupId @returns {Promise<Group|null>} */
 export async function getGroup(groupId) {
   if (!isSupabaseConfigured) return local.getGroup(groupId)
-  const { data, error } = await supabase.from('groups').select('*').eq('id', groupId).single()
+  // maybeSingle, not single - a stale/deleted group link is a real, reachable
+  // path (GroupFeedPage's `group?.name ?? 'Group'` already renders sanely on
+  // null), not a bug worth a raw PostgREST error surfacing verbatim to the
+  // user. Matches localBackend.js's getGroup, which already just returns null.
+  const { data, error } = await supabase.from('groups').select('*').eq('id', groupId).maybeSingle()
   if (error) throw error
   return mapGroup(data)
 }
