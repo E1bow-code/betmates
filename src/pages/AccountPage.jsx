@@ -5,7 +5,7 @@ import { useOddsFormat } from '../context/OddsFormatContext.jsx'
 import { BOOKMAKERS } from '../lib/bookmakers.js'
 import * as dataStore from '../lib/dataStore.js'
 import { startPremiumCheckout } from '../api/premiumClient.js'
-import { isPushSupported, getPushSubscription, subscribeToPush, unsubscribeFromPush } from '../lib/push.js'
+import { isPushSupported, getPushSubscription, subscribeToPush, unsubscribeFromPush, refreshStaleSubscription } from '../lib/push.js'
 import { getStoredTheme, setTheme } from '../lib/theme.js'
 import { isIOS, isStandalone } from '../lib/platform.js'
 import { shareOrCopy, publicProfileUrl, referralUrl } from '../lib/share.js'
@@ -125,7 +125,11 @@ export default function AccountPage() {
 
   useEffect(() => {
     if (!isPushSupported()) return
-    getPushSubscription().then((sub) => setPushEnabled(!!sub))
+    refreshStaleSubscription()
+      .then((freshSub) => freshSub && dataStore.savePushSubscription(user.id, freshSub))
+      .catch(() => {}) // best-effort self-heal - a stale subscription just stays stale, same as before this existed
+      .then(() => getPushSubscription())
+      .then((sub) => setPushEnabled(!!sub))
   }, [])
 
   // Stripe redirects back here with ?upgraded=1 after a successful
