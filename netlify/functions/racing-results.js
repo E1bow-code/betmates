@@ -5,6 +5,12 @@
 // into [{ raceId, runners: [{ horseId, name, position }] }] - position is
 // null for a non-finisher (fell, pulled up, etc.), which settlement treats
 // the same as finishing outside the paid places.
+//
+// Also carries course/raceName/offTime and each runner's jockey/trainer/sp -
+// settlement never reads these, but OddsListPage's Results tab (racing has
+// no "score" to show, so it needs the actual finishing order) does, via
+// src/api/racingClient.js's fetchRaceResults - same endpoint, same cache,
+// no second request.
 import { cacheGet, cacheSet } from '../../src/lib/apiCache.js'
 
 const RESULTS_TTL = 15 * 60 * 1000
@@ -63,10 +69,16 @@ export default async (req) => {
 function reshapeResult(race) {
   return {
     raceId: race.race_id,
+    course: race.course,
+    raceName: race.race_name,
+    offTime: race.off_dt,
     runners: (race.runners ?? []).map((r) => ({
       horseId: r.horse_id,
       name: r.horse,
-      position: Number.isFinite(Number(r.position)) ? Number(r.position) : null
+      position: Number.isFinite(Number(r.position)) ? Number(r.position) : null,
+      jockey: r.jockey || null,
+      trainer: r.trainer || null,
+      sp: r.sp || null
     }))
   }
 }

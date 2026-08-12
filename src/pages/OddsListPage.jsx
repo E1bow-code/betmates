@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { fetchFixtures } from '../api/oddsClient.js'
-import { fetchRaces } from '../api/racingClient.js'
+import { fetchRaces, fetchRaceResults } from '../api/racingClient.js'
 import { fetchFights } from '../api/ufcClient.js'
 import { fetchEvents } from '../api/genericSportsClient.js'
 import { fetchResults } from '../api/resultsClient.js'
@@ -34,6 +34,15 @@ const FETCHERS = {
   racing: fetchRaces,
   ufc: fetchFights,
   ...Object.fromEntries(Object.keys(GENERIC_SPORTS).map((key) => [key, () => fetchEvents(key)]))
+}
+
+// Racing has no "score" for the generic Results path (resultsClient.js's
+// /api/scores has no racing mapping at all - it always comes back empty),
+// and a race result is a finishing order, not a two-team score - it needs
+// its own fetch and its own card. Every other sport keeps going through
+// fetchResults(sport).
+function resultsFetcherFor(sport) {
+  return sport === 'racing' ? fetchRaceResults : () => fetchResults(sport)
 }
 
 const NOUN = {
@@ -176,7 +185,7 @@ export default function OddsListPage() {
   useEffect(() => {
     if (mode !== 'results') return
     setResultsError(null)
-    fetchResults(sport)
+    resultsFetcherFor(sport)()
       .then((data) => {
         setResults(data)
         setResultsSport(sport)
@@ -212,7 +221,7 @@ export default function OddsListPage() {
 
   function refresh() {
     return mode === 'results'
-      ? fetchResults(sport).then((data) => {
+      ? resultsFetcherFor(sport)().then((data) => {
           setResults(data)
           setResultsSport(sport)
         })
@@ -390,9 +399,9 @@ export default function OddsListPage() {
           )}
           {loadedResults && loadedResults.length > 0 && (
             <div className="race-list">
-              {loadedResults.map((game, i) => (
-                <ResultCard key={i} game={game} />
-              ))}
+              {sport === 'racing'
+                ? loadedResults.map((race) => <RaceResultCard key={race.raceId} race={race} />)
+                : loadedResults.map((game, i) => <ResultCard key={i} game={game} />)}
             </div>
           )}
         </>
@@ -416,6 +425,51 @@ function CrossSportCard({ item, bookmakerFilter, format }) {
       bookmakerFilter={bookmakerFilter}
       format={format}
     />
+  )
+}
+
+// A race result is a finishing order, not a two-team score, so it gets its
+// own card rather than trying to bend ResultCard's home/away shape to fit.
+// <details> rather than local open/close state - the same disclosure
+// pattern ManualEntrySheet's scanned-text preview already uses - so tapping
+// the card reveals the full field (every position, jockey, SP) instead of
+// just the podium.
+function RaceResultCard({ race }) {
+  const ranked = [...race.runners]
+    .filter((r) => r.position != null)
+    .sort((a, b) => a.position - b.position)
+  const unplaced = race.runners.filter((r) => r.position == null)
+  const podium = ranked.slice(0, 3)
+  const ORDINAL = { 1: '1st', 2: '2nd', 3: '3rd' }
+
+  return (
+    <details className="race-result-card">
+      <summary className="race-result-summary">
+        <div className="race-result-head">
+          <span className="race-result-title">
+            {race.course} · {race.raceName}
+          </span>
+          <span className="race-result-meta">{formatKickoff(race.offTime)}</span>
+        </div>
+        <div className="race-result-podium">
+          {podium.map((r) => (
+            <span key={r.horseId} className={`race-result-place race-result-place-${r.position}`}>
+              {ORDINAL[r.position]} {r.name}
+            </span>
+          ))}
+        </div>
+      </summary>
+      <div className="race-result-full">
+        {[...ranked, ...unplaced].map((r) => (
+          <div key={r.horseId} className="race-result-row">
+            <span className="race-result-pos">{r.position ?? '-'}</span>
+            <span className="race-result-name">{r.name}</span>
+            <span className="race-result-jockey">{r.jockey}</span>
+            {r.sp && <span className="race-result-sp">{r.sp}</span>}
+          </div>
+        ))}
+      </div>
+    </details>
   )
 }
 

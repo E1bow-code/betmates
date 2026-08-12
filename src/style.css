@@ -1231,6 +1231,50 @@ button.conversation-row { width: 100%; background: none; border: none; border-bo
 .result-row-winner .result-score { color: var(--accent); }
 .result-row:not(.result-row-winner) > span:first-child { color: var(--text-dim); }
 
+/* Race results (Odds -> Racing -> Results): a finishing order, not a
+   two-team score, so it's a <details> disclosure rather than ResultCard -
+   the collapsed <summary> shows the podium, expanding reveals the full
+   field. Same collapsed/expanded shape as .race-card so it sits naturally
+   in the same .race-list, but built from <details>/<summary> rather than
+   an anchor since there's no separate page to link to. */
+.race-result-card {
+  border-bottom: 1px solid var(--border);
+}
+.race-list .race-result-card:last-child { border-bottom: none; }
+.race-result-summary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 10px 12px;
+  cursor: pointer;
+  list-style: none;
+}
+.race-result-summary::-webkit-details-marker { display: none; }
+.race-result-head { min-width: 0; display: flex; flex-direction: column; gap: 1px; }
+.race-result-title { font-weight: 600; font-size: 0.88rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.race-result-meta { font-size: 0.75rem; color: var(--text-dim); }
+.race-result-podium { flex-shrink: 0; text-align: right; display: flex; flex-direction: column; gap: 1px; }
+.race-result-place { font-size: 0.78rem; white-space: nowrap; }
+.race-result-place-1 { color: var(--accent); font-weight: 700; }
+.race-result-place-2,
+.race-result-place-3 { color: var(--text-dim); }
+
+.race-result-full { border-top: 1px dashed var(--border); padding: 4px 12px 10px; }
+.race-result-row {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  padding: 4px 0;
+  font-size: 0.8rem;
+  border-bottom: 1px solid var(--border);
+}
+.race-result-row:last-child { border-bottom: none; }
+.race-result-pos { width: 20px; flex-shrink: 0; font-family: var(--font-mono); font-variant-numeric: tabular-nums; color: var(--text-dim); }
+.race-result-name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.race-result-jockey { color: var(--text-dim); font-size: 0.74rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.race-result-sp { flex-shrink: 0; font-family: var(--font-mono); font-variant-numeric: tabular-nums; color: var(--text-dim); }
+
 .result-card-tag {
   align-self: center;
   flex-shrink: 0;

@@ -20,3 +20,17 @@ export async function fetchRace(id) {
   if (!res.ok) throw new Error(`Failed to load race: ${res.status}`)
   return res.json()
 }
+
+// A different endpoint from fetchRaces/fetchRace - racing has no "score" to
+// show on the Results tab, so it can't go through the generic /api/scores
+// path resultsClient.js uses for every other sport. netlify/functions/
+// racing-results.js is already live (it's what settlement.js auto-settles
+// racing bets against) - this just reuses it for browsing, same 3-day
+// lookback, same cache. No mock fallback: unlike racecards, results has
+// none today, and an empty list here degrades the same way missing keys
+// do everywhere else in the app.
+export async function fetchRaceResults() {
+  const res = await fetch('/api/racing-results')
+  if (!res.ok) throw new Error(`Failed to load results: ${res.status}`)
+  return res.json()
+}
