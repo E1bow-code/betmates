@@ -2120,6 +2120,24 @@ export async function listSharedWithMe(userId) {
   return data.map(mapSharedVideoRow)
 }
 
+// The merge SocialFeedPage's Tips segment and PublicFeedView's interleaved
+// Home feed both need: own+friends' posts and clips shared with the viewer
+// are two separate queries that can overlap (a friend shares their own
+// clip with you), deduped by id+sharedAt so a shared-and-own copy of the
+// same video never renders twice, sorted by whichever timestamp is more
+// recent for that copy.
+/** @param {string} userId @returns {Promise<ReturnType<typeof mapSharedVideoRow>[]>} */
+export async function listTipsFeed(userId) {
+  const [ownRaw, shared] = await Promise.all([listFriendsFeed(userId), listSharedWithMe(userId)])
+  // Normalized to mapSharedVideoRow's shape (sharedByName/sharedAt undefined
+  // for a viewer's own/friends' posts, only set for an explicit share) so
+  // the merged array is one consistent type instead of a union.
+  const own = ownRaw.map((v) => ({ ...v, sharedByName: undefined, sharedAt: undefined }))
+  const merged = new Map()
+  for (const v of [...own, ...shared]) merged.set(`${v.id}-${v.sharedAt ?? 'own'}`, v)
+  return [...merged.values()].sort((a, b) => new Date(b.sharedAt ?? b.createdAt).getTime() - new Date(a.sharedAt ?? a.createdAt).getTime())
+}
+
 /** @param {string} groupId @returns {Promise<ReturnType<typeof mapSharedVideoRow>[]>} */
 export async function listSharedInGroup(groupId) {
   if (!isSupabaseConfigured) return local.listSharedInGroup(groupId)

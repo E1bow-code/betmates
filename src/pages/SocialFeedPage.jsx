@@ -94,10 +94,14 @@ export default function SocialFeedPage() {
   // A brand-new, groupless account landing here has nothing to anchor
   // Leaderboard/Tipsters/Bookmakers/News/Tips/FPL against yet, so those
   // stay behind "More tabs" until there's at least one group - or the
-  // user's already been deep-linked into one of them (e.g. Home's Tips
-  // pill). Deliberately not labelled just "More" - that's MoreMenu.jsx's
-  // name for the unrelated app-wide nav drawer, and this page already
-  // renders both on screen at once.
+  // user's already been deep-linked into one of them (e.g. the "← Friends"/
+  // "← Social" back-links from Messages, which land on segment: 'tips').
+  // Home's own feed interleaves tips directly (see PublicFeedView.jsx) so
+  // it no longer links in here for browsing - this segment's still where
+  // recording/friend-compare for Tips lives when reached some other way.
+  // Deliberately not labelled just "More" - that's MoreMenu.jsx's name for
+  // the unrelated app-wide nav drawer, and this page already renders both
+  // on screen at once.
   const EXTRA_SEGMENTS = ['leaderboard', 'tipsters', 'bookmakers', 'news', 'tips', 'fpl']
   const showAllSegments = moreSegmentsOpen || (groups && groups.length > 0) || EXTRA_SEGMENTS.includes(segment)
 
@@ -161,14 +165,7 @@ export default function SocialFeedPage() {
   }
 
   function refreshTips() {
-    return Promise.all([
-      dataStore.listFriends(user.id).then(setFriends),
-      Promise.all([dataStore.listFriendsFeed(user.id), dataStore.listSharedWithMe(user.id)]).then(([own, shared]) => {
-        const merged = new Map()
-        for (const v of [...own, ...shared]) merged.set(`${v.id}-${v.sharedAt ?? 'own'}`, v)
-        setVideos([...merged.values()].sort((a, b) => new Date(b.sharedAt ?? b.createdAt) - new Date(a.sharedAt ?? a.createdAt)))
-      })
-    ])
+    return Promise.all([dataStore.listFriends(user.id).then(setFriends), dataStore.listTipsFeed(user.id).then(setVideos)])
   }
 
   function refreshPublicFeed() {

@@ -1,5 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
-import { Link } from 'react-router-dom'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { useAuth } from '../context/AuthContext.jsx'
 import { useBetSlip } from '../context/BetSlipContext.jsx'
 import * as dataStore from '../lib/dataStore.js'
@@ -10,6 +9,7 @@ import PublicFeedView from '../components/PublicFeedView.jsx'
 import RankTeaser from '../components/RankTeaser.jsx'
 import HomeHighlights from '../components/HomeHighlights.jsx'
 import HomeInviteNudge from '../components/HomeInviteNudge.jsx'
+import VideoRecorder from '../components/VideoRecorder.jsx'
 import Avatar from '../components/Avatar.jsx'
 
 // The front door post-login (see App.jsx's HomeRedirect) - Facebook-home-
@@ -24,6 +24,8 @@ export default function HomePage() {
   const [entries, setEntries] = useState(null)
   const [rankTeaser, setRankTeaser] = useState(null)
   const [feedFilter, setFeedFilter] = useState('all')
+  const [showRecorder, setShowRecorder] = useState(false)
+  const publicFeedViewRef = useRef(null)
 
   useEffect(() => {
     Promise.all([dataStore.listBetPostsByUser(user.id), dataStore.listManualEntries(user.id)])
@@ -106,10 +108,15 @@ export default function HomePage() {
 
       {entries && <HomeInviteNudge user={user} entryCount={entries.length} />}
 
-      <button type="button" className="home-composer" onClick={openSheet}>
-        <Avatar name={user.displayName} photoUrl={user.avatarUrl} size={36} />
-        <span className="home-composer-placeholder">Share your next pick…</span>
-      </button>
+      <div className="home-composer-row">
+        <button type="button" className="home-composer" onClick={openSheet}>
+          <Avatar name={user.displayName} photoUrl={user.avatarUrl} size={36} />
+          <span className="home-composer-placeholder">Share your next pick…</span>
+        </button>
+        <button type="button" className="home-record-tip-btn" onClick={() => setShowRecorder(true)} aria-label="Record a tip">
+          🎥
+        </button>
+      </div>
 
       <div className="mode-switcher">
         <button className={feedFilter === 'all' ? 'mode-tab active' : 'mode-tab'} onClick={() => setFeedFilter('all')}>
@@ -118,12 +125,19 @@ export default function HomePage() {
         <button className={feedFilter === 'following' ? 'mode-tab active' : 'mode-tab'} onClick={() => setFeedFilter('following')}>
           Following
         </button>
-        <Link to="/groups" state={{ segment: 'tips' }} className="mode-tab">
-          Tips
-        </Link>
       </div>
 
-      <PublicFeedView filter={feedFilter} />
+      <PublicFeedView ref={publicFeedViewRef} filter={feedFilter} />
+
+      {showRecorder && (
+        <VideoRecorder
+          onClose={() => setShowRecorder(false)}
+          onPosted={() => {
+            setShowRecorder(false)
+            publicFeedViewRef.current?.refresh()
+          }}
+        />
+      )}
     </div>
   )
 }

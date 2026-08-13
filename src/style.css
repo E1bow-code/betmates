@@ -2979,16 +2979,17 @@ button.conversation-row { width: 100%; background: none; border: none; border-bo
    "+" FAB (see QuickAddContext.jsx) - styled like a Facebook/social-app
    "what's on your mind" post prompt, sitting right above the feed it
    posts into. */
+.home-composer-row { display: flex; align-items: center; gap: 8px; margin: 4px 0 12px; }
 .home-composer {
   display: flex;
   align-items: center;
   gap: 10px;
-  width: 100%;
+  flex: 1;
+  min-width: 0;
   border: 1px solid var(--border);
   border-radius: 999px;
   background: var(--surface);
   padding: 10px 16px 10px 10px;
-  margin: 4px 0 12px;
   cursor: pointer;
   text-align: left;
   color: var(--text-dim);
@@ -2996,6 +2997,21 @@ button.conversation-row { width: 100%; background: none; border: none; border-bo
 }
 .home-composer:hover, .home-composer:focus-visible { border-color: var(--accent-dim); outline: none; }
 .home-composer-placeholder { flex: 1; }
+
+/* Record-a-tip entry point that used to live only on Social's Tips
+   segment - Home's own feed interleaves tips now (PublicFeedView.jsx), so
+   this is the new way in without leaving Home. */
+.home-record-tip-btn {
+  flex-shrink: 0;
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  border: 1px solid var(--border);
+  background: var(--surface);
+  font-size: 1.1rem;
+  cursor: pointer;
+}
+.home-record-tip-btn:hover, .home-record-tip-btn:focus-visible { border-color: var(--accent-dim); outline: none; }
 
 .scoreboard-panel {
   border: 1px solid var(--border);
