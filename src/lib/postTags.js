@@ -4,15 +4,19 @@
 // "racing tip"/"racing tips" as separate strings. Optional; a post with no
 // tag just shows none, same as caption/photo/video.
 export const POST_TAGS = [
-  { key: 'racing_tip', label: '🏇 Racing tip' },
-  { key: 'football_tip', label: '⚽ Football tip' },
-  { key: 'value_bet', label: '💎 Value bet' },
-  { key: 'long_shot', label: '🎯 Long shot' },
-  { key: 'lock', label: '🔒 Lock' },
-  { key: 'bad_beat', label: '💔 Bad beat' },
-  { key: 'hot_take', label: '🔥 Hot take' }
+  { key: 'racing_tip', icon: 'horse', label: 'Racing tip' },
+  { key: 'football_tip', icon: 'football', label: 'Football tip' },
+  { key: 'value_bet', icon: 'diamond', label: 'Value bet' },
+  { key: 'long_shot', icon: 'target', label: 'Long shot' },
+  { key: 'lock', icon: 'lock', label: 'Lock' },
+  { key: 'bad_beat', icon: 'brokenHeart', label: 'Bad beat' },
+  { key: 'hot_take', icon: 'flame', label: 'Hot take' }
 ]
 
 export function labelForTag(key) {
   return POST_TAGS.find((t) => t.key === key)?.label ?? null
+}
+
+export function iconForTag(key) {
+  return POST_TAGS.find((t) => t.key === key)?.icon ?? null
 }

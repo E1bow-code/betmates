@@ -4,6 +4,7 @@ import { useAuth } from '../context/AuthContext.jsx'
 import * as dataStore from '../lib/dataStore.js'
 import { formatRelativeTime } from '../utils/format.js'
 import EmptyState from '../components/EmptyState.jsx'
+import { CheckIcon } from '../components/icons/Icons.jsx'
 
 // Companion to AdminReportsPage.jsx - same is_admin gating (client-side for
 // UX, "admins read/delete error logs" RLS policies in schema.sql for the
@@ -48,7 +49,9 @@ export default function AdminErrorLogsPage() {
 
       {error && <div className="error">Couldn't load error logs: {error}</div>}
       {!error && logs === null && <div className="loading">Loading error logs…</div>}
-      {logs && !logs.length && <EmptyState icon="✅" title="No errors logged" subtitle="Nothing's crashed for anyone recently." />}
+      {logs && !logs.length && (
+        <EmptyState icon={<CheckIcon width={26} height={26} />} title="No errors logged" subtitle="Nothing's crashed for anyone recently." />
+      )}
 
       {logs && logs.length > 0 && (
         <div className="report-list">

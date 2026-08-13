@@ -21,6 +21,9 @@ import Avatar from '../components/Avatar.jsx'
 import InstallGuide from '../components/InstallGuide.jsx'
 import SportHeroBanner from '../components/SportHeroBanner.jsx'
 import { useAsyncAction } from '../lib/useAsyncAction.js'
+import { FlameIcon, SparkIcon, LockIcon, HandshakeIcon, MegaphoneIcon, TargetIcon, CrownIcon } from '../components/icons/Icons.jsx'
+
+const TIER_ICON = { handshake: HandshakeIcon, megaphone: MegaphoneIcon, target: TargetIcon, crown: CrownIcon }
 
 const EXPANDED_KEY = 'betmates:accountExpanded'
 
@@ -475,7 +478,9 @@ export default function AccountPage() {
               <div className="stat-tile-label">{xp} XP total</div>
             </div>
             <div className="stat-tile">
-              <div className="stat-tile-value">🔥 {user.streakCurrentCount}</div>
+              <div className="stat-tile-value icon-row">
+                <FlameIcon width={18} height={18} /> {user.streakCurrentCount}
+              </div>
               <div className="stat-tile-label">day streak</div>
             </div>
           </div>
@@ -675,7 +680,10 @@ export default function AccountPage() {
               checked={user.notificationPrefs?.valueEdgeAlerts ?? false}
               onChange={() => toggleNotification('valueEdgeAlerts')}
             />
-            <span>🧠 CoachGPT spots real value on a team or fighter you follow</span>
+            <span>
+              <SparkIcon width={15} height={15} className="icon-lead" />
+              CoachGPT spots real value on a team or fighter you follow
+            </span>
           </label>
           <p className="hint">
             {isPushSupported()
@@ -697,7 +705,10 @@ export default function AccountPage() {
               checked={user.notificationPrefs?.preBetSanityCheck ?? false}
               onChange={() => toggleNotification('preBetSanityCheck')}
             />
-            <span>🧠 Show a heads-up when logging a bet (unusually big stake, chasing a loss, over your staking plan or spend limit)</span>
+            <span>
+              <SparkIcon width={15} height={15} className="icon-lead" />
+              Show a heads-up when logging a bet (unusually big stake, chasing a loss, over your staking plan or spend limit)
+            </span>
           </label>
           <p className="hint">Off by default - opt in if you'd find the nudge useful. Never blocks you from posting.</p>
           <form className="inline-form" onSubmit={handleSaveStakingPlan}>
@@ -810,7 +821,10 @@ export default function AccountPage() {
                   checked={user.notificationPrefs?.stakeLimitHard ?? false}
                   onChange={() => toggleNotification('stakeLimitHard')}
                 />
-                <span>🔒 Make this a hard limit — stop me logging new bets once I've hit it (otherwise it only warns).</span>
+                <span>
+                  <LockIcon width={15} height={15} className="icon-lead" />
+                  Make this a hard limit — stop me logging new bets once I've hit it (otherwise it only warns).
+                </span>
               </label>
 
               <label className="field">
@@ -933,19 +947,26 @@ export default function AccountPage() {
               <>
                 {rewards.earned.length > 0 && (
                   <div className="badge-row">
-                    {rewards.earned.map((tier) => (
-                      <span key={tier.threshold} className="badge">
-                        {tier.icon} {tier.label}
-                      </span>
-                    ))}
+                    {rewards.earned.map((tier) => {
+                      const Icon = TIER_ICON[tier.icon]
+                      return (
+                        <span key={tier.threshold} className="badge icon-row">
+                          {Icon && <Icon width={14} height={14} />} {tier.label}
+                        </span>
+                      )
+                    })}
                   </div>
                 )}
-                {rewards.next && (
-                  <p className="hint">
-                    {rewards.toNext} more {rewards.toNext === 1 ? 'mate' : 'mates'} to unlock {rewards.next.icon}{' '}
-                    {rewards.next.label}.
-                  </p>
-                )}
+                {rewards.next &&
+                  (() => {
+                    const NextIcon = TIER_ICON[rewards.next.icon]
+                    return (
+                      <p className="hint">
+                        {rewards.toNext} more {rewards.toNext === 1 ? 'mate' : 'mates'} to unlock{' '}
+                        {NextIcon && <NextIcon width={14} height={14} className="icon-lead" />} {rewards.next.label}.
+                      </p>
+                    )
+                  })()}
               </>
             )
           })()}

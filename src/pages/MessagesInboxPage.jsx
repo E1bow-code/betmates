@@ -5,6 +5,7 @@ import { useActivity } from '../context/ActivityContext.jsx'
 import * as dataStore from '../lib/dataStore.js'
 import Avatar from '../components/Avatar.jsx'
 import PullToRefresh from '../components/PullToRefresh.jsx'
+import { SparkIcon } from '../components/icons/Icons.jsx'
 
 // All of a user's DM threads in one place, sorted by most recent message -
 // the only other way to reach a thread is one friend at a time from the
@@ -55,8 +56,8 @@ export default function MessagesInboxPage() {
           a badge instead of an Avatar photo/initials. */}
       <div className="conversation-list">
         <Link to="/coach" className="conversation-row">
-          <span className="avatar conversation-row-coach-avatar" style={{ width: 40, height: 40, fontSize: 18 }}>
-            🧠
+          <span className="avatar conversation-row-coach-avatar" style={{ width: 40, height: 40 }}>
+            <SparkIcon width={20} height={20} />
           </span>
           <div className="conversation-row-main">
             <div className="conversation-row-name">CoachGPT</div>

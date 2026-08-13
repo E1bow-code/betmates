@@ -5,6 +5,7 @@ import * as dataStore from '../lib/dataStore.js'
 import EmptyState from '../components/EmptyState.jsx'
 import Avatar from '../components/Avatar.jsx'
 import AdminTimeSeriesChart from '../components/AdminTimeSeriesChart.jsx'
+import { ChartBarIcon } from '../components/icons/Icons.jsx'
 
 // Same is_admin gating as AdminReportsPage.jsx/AdminErrorLogsPage.jsx -
 // client-side here is UX only, real enforcement is netlify/functions/
@@ -67,7 +68,11 @@ export default function AdminAnalyticsPage() {
       {error && <div className="error">Couldn't load analytics: {error}</div>}
       {!error && data === null && <div className="loading">Loading analytics…</div>}
       {data && !data.overview.totalUsers && (
-        <EmptyState icon="📊" title="Nothing to show yet" subtitle="Numbers show up here once people start using the app." />
+        <EmptyState
+        icon={<ChartBarIcon width={26} height={26} />}
+        title="Nothing to show yet"
+        subtitle="Numbers show up here once people start using the app."
+      />
       )}
 
       {data && data.overview.totalUsers > 0 && (

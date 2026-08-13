@@ -1,4 +1,5 @@
 import Sparkline from './Sparkline.jsx'
+import { MoneyIcon } from './icons/Icons.jsx'
 
 // A retrospective "what if you'd cashed out early" tag for a settled
 // single-leg bet - same inline-tag slot as ClvTag/LineValueTag on
@@ -9,8 +10,11 @@ export default function CashOutReplay({ replay, actualReturn }) {
   if (!replay || replay.points.length < 2) return null
   const betterThanActual = actualReturn != null && replay.best.value > actualReturn
   return (
-    <div className="line-value" title="Simplified estimate from recorded pre-kickoff prices - not a real cash-out offer">
-      💷 Best cash-out point was £{replay.best.value.toFixed(2)}
+    <div
+      className="line-value icon-row"
+      title="Simplified estimate from recorded pre-kickoff prices - not a real cash-out offer"
+    >
+      <MoneyIcon width={14} height={14} /> Best cash-out point was £{replay.best.value.toFixed(2)}
       {betterThanActual && ` (£${(replay.best.value - actualReturn).toFixed(2)} more than you got)`}
       <Sparkline points={replay.points.map((p) => ({ p: p.value }))} />
     </div>

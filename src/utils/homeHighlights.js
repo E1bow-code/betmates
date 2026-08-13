@@ -24,14 +24,14 @@ export function computeHomeHighlights(entries) {
     hasLoss &&
       disciplineStreak >= 3 && {
         key: 'discipline',
-        icon: '🧊',
+        icon: 'shield',
         title: 'Staying disciplined',
         value: `${disciplineStreak} bets without chasing a loss`,
         to: '/tracker'
       },
     bettingStyle && {
       key: 'volatility',
-      icon: '🎢',
+      icon: 'pulse',
       title: 'Your betting style',
       value: `${bettingStyle.style} · £${bettingStyle.stdev.toFixed(2)} swing per bet`,
       to: '/insights'
@@ -39,14 +39,14 @@ export function computeHomeHighlights(entries) {
     leftOnTable &&
       leftOnTable.total > 0 && {
         key: 'moneyLeftOnTable',
-        icon: '🪙',
+        icon: 'money',
         title: 'Money left on the table',
         value: `£${leftOnTable.total.toFixed(2)} across ${leftOnTable.sample} bet${leftOnTable.sample === 1 ? '' : 's'}`,
         to: '/insights'
       },
     worstBeat && {
       key: 'badBeat',
-      icon: '💔',
+      icon: 'brokenHeart',
       title: 'The one that got away',
       value: `${worstBeat.legCount - 1} of ${worstBeat.legCount} legs came in - missed ${worstBeat.missedLeg.selection}`,
       to: '/insights'

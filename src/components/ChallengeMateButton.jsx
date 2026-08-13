@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { shareChallengeInviteImage } from '../lib/shareImage.js'
 import { challengeUrl } from '../lib/share.js'
+import { SwordsIcon } from './icons/Icons.jsx'
 
 // "Challenge a mate to beat this" - fires off a gauntlet card (the sender's
 // headline record + a challenge deep-link) via the native share sheet. The
@@ -24,8 +25,18 @@ export default function ChallengeMateButton({ name, friendCode, statLabel, statV
   }
 
   return (
-    <button className={className} onClick={handleClick} disabled={status === 'working' || !friendCode}>
-      {status === 'working' ? 'Rendering…' : status === 'downloaded' ? 'Saved!' : status === 'shared' ? 'Shared!' : '⚔️ Challenge a mate'}
+    <button className={`${className} icon-row`} onClick={handleClick} disabled={status === 'working' || !friendCode}>
+      {status === 'working' ? (
+        'Rendering…'
+      ) : status === 'downloaded' ? (
+        'Saved!'
+      ) : status === 'shared' ? (
+        'Shared!'
+      ) : (
+        <>
+          <SwordsIcon width={14} height={14} /> Challenge a mate
+        </>
+      )}
     </button>
   )
 }

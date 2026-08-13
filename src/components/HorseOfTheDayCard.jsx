@@ -1,5 +1,6 @@
 import { Link } from 'react-router-dom'
 import { formatKickoff } from '../utils/format.js'
+import { HorseIcon } from './icons/Icons.jsx'
 
 // Racing's own featured callout, sibling to ValueFinder.jsx's "value on
 // the board" panel - ValueFinder explicitly skips racing (no h2h market
@@ -11,7 +12,9 @@ export default function HorseOfTheDayCard({ horse }) {
   return (
     <Link className="horse-of-the-day" to={`/odds/racing/${horse.raceId}`}>
       <div className="horse-of-the-day-head">
-        <span className="horse-of-the-day-title">🏇 Horse of the Day</span>
+        <span className="horse-of-the-day-title icon-row">
+          <HorseIcon width={16} height={16} /> Horse of the Day
+        </span>
         <span className="horse-of-the-day-figure">Speed figure {horse.speedFigure}</span>
       </div>
       <div className="horse-of-the-day-body">

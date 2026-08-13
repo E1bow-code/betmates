@@ -21,6 +21,7 @@ import CoachGptLink from '../components/CoachGptLink.jsx'
 import { startConnectOnboarding } from '../api/groupBillingClient.js'
 import { computeGroupEarnings } from '../utils/groupEarnings.js'
 import { groupSubscribersToCsv, downloadCsv } from '../lib/csvExport.js'
+import { CommentIcon } from '../components/icons/Icons.jsx'
 
 export default function GroupFeedPage() {
   const { id } = useParams()
@@ -301,7 +302,7 @@ export default function GroupFeedPage() {
           )}
           {items && !items.length && (
             <EmptyState
-              icon="💬"
+              icon={<CommentIcon width={26} height={26} />}
               title="Nothing posted here yet"
               subtitle="Head to the Odds tab and tap a price to get things started."
             />
@@ -328,7 +329,7 @@ export default function GroupFeedPage() {
           </div>
           {messages === null && <div className="loading">Loading chat…</div>}
           {messages && !messages.length && (
-            <EmptyState icon="💬" title="No messages yet" subtitle="Say something to get the chat going." />
+            <EmptyState icon={<CommentIcon width={26} height={26} />} title="No messages yet" subtitle="Say something to get the chat going." />
           )}
           {messages && messages.length > 0 && (
             <div className="chat-messages">

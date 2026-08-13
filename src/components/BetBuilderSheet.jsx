@@ -18,9 +18,35 @@ import { useDelayedClose } from '../lib/useDelayedClose.js'
 import { computeStats } from '../utils/trackerStats.js'
 import { tipsterBadge } from '../utils/tipsterBadge.js'
 import { PICKER_SPORTS, SPORT_LABEL, loadItemsForSport, labelFor, normalizeItem, groupByCompetition } from '../lib/quickPick.js'
-import { LinkIcon, CameraIcon, VideoIcon, SparkIcon, WarningIcon, EyesIcon, RulerIcon, TrendUpIcon } from './icons/Icons.jsx'
+import {
+  LinkIcon,
+  CameraIcon,
+  VideoIcon,
+  SparkIcon,
+  WarningIcon,
+  EyesIcon,
+  RulerIcon,
+  TrendUpIcon,
+  HorseIcon,
+  FootballIcon,
+  DiamondIcon,
+  TargetIcon,
+  LockIcon,
+  BrokenHeartIcon,
+  FlameIcon
+} from './icons/Icons.jsx'
 import { POST_TAGS } from '../lib/postTags.js'
 import PostPreview from './PostPreview.jsx'
+
+const POST_TAG_ICON = {
+  horse: HorseIcon,
+  football: FootballIcon,
+  diamond: DiamondIcon,
+  target: TargetIcon,
+  lock: LockIcon,
+  brokenHeart: BrokenHeartIcon,
+  flame: FlameIcon
+}
 
 // The bet slip: reads its legs from BetSlipContext rather than a single
 // `selection` prop, so tapping outcomes across different fixtures builds
@@ -488,16 +514,19 @@ export default function BetBuilderSheet() {
         <div className="post-tag-section">
           <span className="post-tag-label">Tag it (optional)</span>
           <div className="post-tag-row">
-            {POST_TAGS.map((t) => (
-              <button
-                key={t.key}
-                type="button"
-                className={tag === t.key ? 'post-tag-chip active' : 'post-tag-chip'}
-                onClick={() => setTag(tag === t.key ? null : t.key)}
-              >
-                {t.label}
-              </button>
-            ))}
+            {POST_TAGS.map((t) => {
+              const Icon = POST_TAG_ICON[t.icon]
+              return (
+                <button
+                  key={t.key}
+                  type="button"
+                  className={tag === t.key ? 'post-tag-chip active icon-row' : 'post-tag-chip icon-row'}
+                  onClick={() => setTag(tag === t.key ? null : t.key)}
+                >
+                  {Icon && <Icon width={14} height={14} />} {t.label}
+                </button>
+              )
+            })}
           </div>
         </div>
 

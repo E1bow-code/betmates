@@ -3,6 +3,7 @@ import { buildCoachSummary } from '../utils/coachSummary.js'
 import { fetchCoachTake } from '../api/coachClient.js'
 import { shareCoachImage } from '../lib/shareImage.js'
 import { useAuth } from '../context/AuthContext.jsx'
+import { SparkIcon } from './icons/Icons.jsx'
 
 // "Coach's take" - a short, AI-written read on the user's own record. Renders
 // nothing at all until it has something to say, so an unconfigured backend
@@ -50,7 +51,9 @@ export default function CoachTake({ entries }) {
   return (
     <div className="coach-card">
       <div className="coach-card-head">
-        <span className="coach-card-badge">🧠</span>
+        <span className="coach-card-badge">
+          <SparkIcon width={16} height={16} />
+        </span>
         <h2 className="coach-card-title">Coach's take</h2>
       </div>
       <p className="coach-card-body">{state.take}</p>

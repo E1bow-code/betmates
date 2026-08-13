@@ -5,6 +5,35 @@ import * as dataStore from '../lib/dataStore.js'
 import { computeAchievements } from '../utils/achievements.js'
 import { REFERRAL_TIERS } from '../utils/referralRewards.js'
 import SportHeroBanner from '../components/SportHeroBanner.jsx'
+import {
+  TargetIcon,
+  BookIcon,
+  MoneyIcon,
+  FlameIcon,
+  BadgeCheckIcon,
+  TrophyIcon,
+  GlobeIcon,
+  DiamondIcon,
+  HorseIcon,
+  HandshakeIcon,
+  MegaphoneIcon,
+  CrownIcon
+} from '../components/icons/Icons.jsx'
+
+const ICON = {
+  target: TargetIcon,
+  book: BookIcon,
+  money: MoneyIcon,
+  flame: FlameIcon,
+  perfect: BadgeCheckIcon,
+  trophy: TrophyIcon,
+  globe: GlobeIcon,
+  diamond: DiamondIcon,
+  horse: HorseIcon,
+  handshake: HandshakeIcon,
+  megaphone: MegaphoneIcon,
+  crown: CrownIcon
+}
 
 export default function AchievementsPage() {
   const { user } = useAuth()
@@ -50,13 +79,16 @@ export default function AchievementsPage() {
       </div>
 
       <div className="achievements-grid">
-        {achievements.map((a) => (
-          <div key={a.id} className={a.earned ? 'achievement-card earned' : 'achievement-card'}>
-            <div className="achievement-icon">{a.icon}</div>
-            <div className="achievement-label">{a.label}</div>
-            <div className="achievement-hint">{a.earned ? 'Unlocked' : a.hint}</div>
-          </div>
-        ))}
+        {achievements.map((a) => {
+          const Icon = ICON[a.icon]
+          return (
+            <div key={a.id} className={a.earned ? 'achievement-card earned' : 'achievement-card'}>
+              <div className="achievement-icon">{Icon && <Icon width={22} height={22} />}</div>
+              <div className="achievement-label">{a.label}</div>
+              <div className="achievement-hint">{a.earned ? 'Unlocked' : a.hint}</div>
+            </div>
+          )
+        })}
       </div>
 
       <h2 className="market-title achievements-subhead">Referral rewards</h2>
@@ -65,9 +97,10 @@ export default function AchievementsPage() {
         {REFERRAL_TIERS.map((tier) => {
           const earned = referralCount !== null && referralCount >= tier.threshold
           const remaining = referralCount === null ? tier.threshold : tier.threshold - referralCount
+          const Icon = ICON[tier.icon]
           return (
             <div key={tier.threshold} className={earned ? 'achievement-card earned' : 'achievement-card'}>
-              <div className="achievement-icon">{tier.icon}</div>
+              <div className="achievement-icon">{Icon && <Icon width={22} height={22} />}</div>
               <div className="achievement-label">{tier.label}</div>
               <div className="achievement-hint">
                 {earned

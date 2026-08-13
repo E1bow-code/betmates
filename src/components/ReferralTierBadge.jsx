@@ -1,4 +1,7 @@
 import { topReferralTier } from '../utils/referralRewards.js'
+import { HandshakeIcon, MegaphoneIcon, TargetIcon, CrownIcon } from './icons/Icons.jsx'
+
+const TIER_ICON = { handshake: HandshakeIcon, megaphone: MegaphoneIcon, target: TargetIcon, crown: CrownIcon }
 
 // Compact icon-only version of the referral tier badge (see
 // AccountPage.jsx/AchievementsPage.jsx for the full earned/next breakdown)
@@ -11,9 +14,10 @@ import { topReferralTier } from '../utils/referralRewards.js'
 export default function ReferralTierBadge({ count }) {
   const tier = topReferralTier(count)
   if (!tier) return null
+  const Icon = TIER_ICON[tier.icon]
   return (
-    <span className="tipster-badge" title={`${tier.label} - brought ${tier.threshold}+ mates to BetMates`}>
-      {tier.icon} {tier.label}
+    <span className="tipster-badge icon-row" title={`${tier.label} - brought ${tier.threshold}+ mates to BetMates`}>
+      {Icon && <Icon width={13} height={13} />} {tier.label}
     </span>
   )
 }

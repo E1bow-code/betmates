@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { getRealityCheckMins, REALITY_CHECK_EVENT } from '../lib/realityCheck.js'
+import { StopwatchIcon } from './icons/Icons.jsx'
 
 // Periodic "you've been here a while" prompt, shown every N minutes when the
 // user has opted into a reality-check interval in Account (off by default).
@@ -45,7 +46,9 @@ export default function RealityCheck() {
   return (
     <div className="onboarding-overlay">
       <div className="onboarding-card">
-        <div className="onboarding-icon">⏱️</div>
+        <div className="onboarding-icon">
+          <StopwatchIcon width={28} height={28} />
+        </div>
         <h2 className="onboarding-title">Reality check</h2>
         <p className="onboarding-body">
           You’ve been on BetMates for about {elapsed} minute{elapsed === 1 ? '' : 's'}. A good moment to take a breath — remember

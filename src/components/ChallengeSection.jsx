@@ -5,6 +5,7 @@ import { computeChallengeStats, pickChallengeWinner, formatChallengeValue } from
 import { shareChallengeImage } from '../lib/shareImage.js'
 import { shareOrCopy, challengeUrl } from '../lib/share.js'
 import { useAsyncAction } from '../lib/useAsyncAction.js'
+import { SwordsIcon, LinkIcon } from './icons/Icons.jsx'
 
 const DURATIONS = [
   { days: 3, label: '3d' },
@@ -117,9 +118,21 @@ export default function ChallengeSection({ user, friend, myPosts, theirPosts }) 
   return (
     <div className="challenge-section">
       <div className="challenge-history-row">
-        <p className="h2h-name">⚔️ Challenges</p>
-        <button className="btn btn-ghost btn-small" onClick={handleShareLink} disabled={linkStatus === 'working'}>
-          {linkStatus === 'working' ? 'Working…' : linkStatus === 'copied' ? 'Link copied!' : linkStatus === 'shared' ? 'Shared!' : '🔗 Send link'}
+        <p className="h2h-name icon-row">
+          <SwordsIcon width={16} height={16} /> Challenges
+        </p>
+        <button className="btn btn-ghost btn-small icon-row" onClick={handleShareLink} disabled={linkStatus === 'working'}>
+          {linkStatus === 'working' ? (
+            'Working…'
+          ) : linkStatus === 'copied' ? (
+            'Link copied!'
+          ) : linkStatus === 'shared' ? (
+            'Shared!'
+          ) : (
+            <>
+              <LinkIcon width={14} height={14} /> Send link
+            </>
+          )}
         </button>
       </div>
 

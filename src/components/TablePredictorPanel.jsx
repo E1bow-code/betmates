@@ -3,6 +3,7 @@ import * as dataStore from '../lib/dataStore.js'
 import { rankPredictions } from '../utils/tablePredictor.js'
 import { useAsyncAction } from '../lib/useAsyncAction.js'
 import EmptyState from './EmptyState.jsx'
+import { ClipboardIcon } from './icons/Icons.jsx'
 
 // A slower-burn group game than Pick'em (single match, weekly) - predict a
 // whole competition's final order at any point, scored against a snapshot
@@ -141,7 +142,7 @@ export default function TablePredictorPanel({ groupId, userId, memberNames }) {
             </ol>
           ) : (
             <EmptyState
-              icon="📋"
+              icon={<ClipboardIcon width={26} height={26} />}
               title="No standings entered yet"
               subtitle="Any member can enter the real current table to start scoring."
             />

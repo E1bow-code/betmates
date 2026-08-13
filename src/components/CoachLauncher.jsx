@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
+import { SparkIcon } from './icons/Icons.jsx'
 
 // Persistent entry point into CoachGPT (src/pages/CoachGptPage.jsx) - a
 // floating button rather than a 7th BottomNav icon. It used to be pinned to a
@@ -119,7 +120,7 @@ export default function CoachLauncher() {
         }
       }}
     >
-      🧠
+      <SparkIcon width={20} height={20} />
       <button className="coach-fab-x" type="button" aria-label="Hide the Coach button" onClick={dismiss}>
         ×
       </button>

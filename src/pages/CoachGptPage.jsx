@@ -9,6 +9,7 @@ import { formatRelativeTime } from '../utils/format.js'
 import { computeCoachRecord } from '../utils/coachRecord.js'
 import EmptyState from '../components/EmptyState.jsx'
 import CoachHistorySheet from '../components/CoachHistorySheet.jsx'
+import { PencilIcon, SparkIcon } from '../components/icons/Icons.jsx'
 
 // Active session id lives in localStorage, not React state alone, so it
 // survives a reload rather than silently starting a new chat every visit -
@@ -64,10 +65,10 @@ function LogThisRow({ legs, onPick }) {
       {legs.map((leg) => (
         <button
           key={`${leg.selection}-${leg.eventId ?? leg.horseId ?? leg.event}`}
-          className="btn btn-secondary btn-small"
+          className="btn btn-secondary btn-small icon-row"
           onClick={() => onPick(leg)}
         >
-          📝 {leg.selection} @ {leg.odds.toFixed(2)}
+          <PencilIcon width={13} height={13} /> {leg.selection} @ {leg.odds.toFixed(2)}
         </button>
       ))}
     </div>
@@ -273,7 +274,7 @@ export default function CoachGptPage() {
         {messages === null && !error && <div className="loading">Loading your conversation…</div>}
         {messages && !messages.length && (
           <EmptyState
-            icon="🧠"
+            icon={<SparkIcon width={26} height={26} />}
             title="Ask CoachGPT anything"
             subtitle={`Try: "${EXAMPLE_PROMPTS[0]}" or "${EXAMPLE_PROMPTS[1]}"`}
           />
@@ -284,7 +285,11 @@ export default function CoachGptPage() {
               const mine = m.role === 'user'
               return (
                 <div key={m.id} className={mine ? 'chat-message chat-message-mine' : 'chat-message'}>
-                  {!mine && <span className="coach-card-badge">🧠</span>}
+                  {!mine && (
+                    <span className="coach-card-badge">
+                      <SparkIcon width={16} height={16} />
+                    </span>
+                  )}
                   <div>
                     <div className={mine ? 'chat-bubble' : 'chat-bubble coach-chat-bubble'}>
                       <div>{m.body}</div>
@@ -297,7 +302,9 @@ export default function CoachGptPage() {
             })}
             {sending && (
               <div className="chat-message">
-                <span className="coach-card-badge">🧠</span>
+                <span className="coach-card-badge">
+                  <SparkIcon width={16} height={16} />
+                </span>
                 <div className="chat-bubble coach-chat-bubble">
                   <div>Thinking…</div>
                 </div>

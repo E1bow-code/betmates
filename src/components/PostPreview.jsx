@@ -1,6 +1,17 @@
 import Avatar from './Avatar.jsx'
 import { formatOdds } from '../utils/oddsFormat.js'
-import { labelForTag } from '../lib/postTags.js'
+import { labelForTag, iconForTag } from '../lib/postTags.js'
+import { HorseIcon, FootballIcon, DiamondIcon, TargetIcon, LockIcon, BrokenHeartIcon, FlameIcon } from './icons/Icons.jsx'
+
+const POST_TAG_ICON = {
+  horse: HorseIcon,
+  football: FootballIcon,
+  diamond: DiamondIcon,
+  target: TargetIcon,
+  lock: LockIcon,
+  brokenHeart: BrokenHeartIcon,
+  flame: FlameIcon
+}
 
 // Read-only "here's how this'll look" card for the composer (BetBuilderSheet).
 // Deliberately mirrors BetCard's body/ticket markup and class names so the
@@ -45,7 +56,15 @@ export default function PostPreview({
         </div>
 
         <div className="bet-card-body">
-          {tag && <span className="post-tag-chip post-tag-chip-readonly">{labelForTag(tag)}</span>}
+          {tag &&
+            (() => {
+              const TagIcon = POST_TAG_ICON[iconForTag(tag)]
+              return (
+                <span className="post-tag-chip post-tag-chip-readonly icon-row">
+                  {TagIcon && <TagIcon width={13} height={13} />} {labelForTag(tag)}
+                </span>
+              )
+            })()}
           {trimmedCaption && <p className="bet-card-caption">"{trimmedCaption}"</p>}
           {photoPreview && <img src={photoPreview} alt="" className="bet-card-photo" />}
           {videoPreview && <video src={videoPreview} className="bet-card-photo" muted />}

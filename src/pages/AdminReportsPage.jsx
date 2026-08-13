@@ -3,6 +3,7 @@ import { Link, Navigate } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext.jsx'
 import * as dataStore from '../lib/dataStore.js'
 import EmptyState from '../components/EmptyState.jsx'
+import { CheckIcon } from '../components/icons/Icons.jsx'
 
 // Gated on profiles.is_admin (see schema.sql) - this project has one
 // operator, not a team with roles, so a single boolean flag is enough.
@@ -70,7 +71,7 @@ export default function AdminReportsPage() {
       {error && <div className="error">Couldn't load reports: {error}</div>}
       {!error && grouped === null && <div className="loading">Loading reports…</div>}
       {grouped && !grouped.length && (
-        <EmptyState icon="✅" title="Nothing reported" subtitle="No open reports on the public feed right now." />
+        <EmptyState icon={<CheckIcon width={26} height={26} />} title="Nothing reported" subtitle="No open reports on the public feed right now." />
       )}
 
       {grouped && grouped.length > 0 && (

@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { fetchBetReview } from '../api/coachClient.js'
+import { SparkIcon } from './icons/Icons.jsx'
 
 // "Ask Coach" - an on-request AI reaction to ONE settled Tracker bet (the
 // pick, the price, the result). Unlike CoachTake.jsx's silent "render
@@ -28,12 +29,16 @@ export default function BetReviewButton({ entry }) {
 
   return (
     <div className="bet-review">
-      <button className="btn btn-ghost btn-small" onClick={handleClick} disabled={state.status === 'loading'}>
-        {state.status === 'loading'
-          ? 'Asking…'
-          : state.status === 'ready' || state.status === 'empty'
-            ? 'Hide Coach'
-            : '🧠 Ask Coach'}
+      <button className="btn btn-ghost btn-small icon-row" onClick={handleClick} disabled={state.status === 'loading'}>
+        {state.status === 'loading' ? (
+          'Asking…'
+        ) : state.status === 'ready' || state.status === 'empty' ? (
+          'Hide Coach'
+        ) : (
+          <>
+            <SparkIcon width={14} height={14} /> Ask Coach
+          </>
+        )}
       </button>
       {state.status === 'ready' && <p className="bet-review-take">{state.take}</p>}
       {state.status === 'empty' && <p className="bet-review-empty">Coach has nothing to add on this one.</p>}

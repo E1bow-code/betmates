@@ -1,6 +1,7 @@
 import { Link, NavLink } from 'react-router-dom'
 import { useActivity } from '../context/ActivityContext.jsx'
 import { HomeIcon, SocialIcon, TrackerIcon, AccountIcon, PlusIcon } from './icons/NavIcons.jsx'
+import { FlameIcon } from './icons/Icons.jsx'
 
 // Home / Mates / + / Tracker / You - Alerts moved to the notification bell
 // in AppHeader.jsx. Tracker used to have no nav slot at all (only a teaser
@@ -25,7 +26,12 @@ function renderTab(tab, hasNewActivity, hasUnseenMessages, showStreak, streak) {
       </span>
       <span className="bottom-nav-label">
         {tab.label}
-        {tab.to === '/groups' && showStreak && <span className="bottom-nav-streak">🔥{streak.count}</span>}
+        {tab.to === '/groups' && showStreak && (
+          <span className="bottom-nav-streak icon-row">
+            <FlameIcon width={11} height={11} />
+            {streak.count}
+          </span>
+        )}
       </span>
     </NavLink>
   )

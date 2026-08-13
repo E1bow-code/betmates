@@ -472,3 +472,111 @@ export function BrokenHeartIcon(props) {
     </svg>
   )
 }
+
+// Football - the "football tip" post tag.
+export function FootballIcon(props) {
+  return (
+    <svg {...base} {...props}>
+      <circle cx="12" cy="12" r="8.5" />
+      <path d="M12 8.5 15.5 11l-1.3 4h-4.4L8.5 11 12 8.5Z" />
+      <path d="M12 3.5V6M12 18v2.5M4.5 8.5l2 1.3M17.5 8.5l-2 1.3M4.5 15.5l2-1.3M17.5 15.5l-2-1.3" />
+    </svg>
+  )
+}
+
+// Padlock - locks/limits/premium gates.
+export function LockIcon(props) {
+  return (
+    <svg {...base} {...props}>
+      <rect x="5" y="11" width="14" height="9.5" rx="1.8" />
+      <path d="M8 11V7.5a4 4 0 0 1 8 0V11" />
+    </svg>
+  )
+}
+
+// Crown - the top referral tier.
+export function CrownIcon(props) {
+  return (
+    <svg {...base} {...props}>
+      <path d="M4 18h16M4.5 18l-1-9 5 3.5L12 6l3.5 6.5 5-3.5-1 9" />
+    </svg>
+  )
+}
+
+// Globe - multi-sport / worldwide.
+export function GlobeIcon(props) {
+  return (
+    <svg {...base} {...props}>
+      <circle cx="12" cy="12" r="8.5" />
+      <path d="M3.5 12h17M12 3.5c2.5 2.3 4 5.3 4 8.5s-1.5 6.2-4 8.5c-2.5-2.3-4-5.3-4-8.5s1.5-6.2 4-8.5Z" />
+    </svg>
+  )
+}
+
+// Pencil - quick-log a suggested leg.
+export function PencilIcon(props) {
+  return (
+    <svg {...base} {...props}>
+      <path d="M4 20 4.8 16 15.5 5.3a1.8 1.8 0 0 1 2.5 0l.7.7a1.8 1.8 0 0 1 0 2.5L8 19.2 4 20Z" />
+      <path d="M13.5 7.5l3 3" />
+    </svg>
+  )
+}
+
+// Plain checkmark - won/settled-good status.
+export function CheckIcon(props) {
+  return (
+    <svg {...base} {...props}>
+      <path d="M4.5 12.5 9.5 17.5 19.5 6.5" />
+    </svg>
+  )
+}
+
+// X - lost/settled-bad status.
+export function XIcon(props) {
+  return (
+    <svg {...base} {...props}>
+      <path d="M5 5 19 19M19 5 5 19" />
+    </svg>
+  )
+}
+
+// Dash - void/no-result status.
+export function MinusIcon(props) {
+  return (
+    <svg {...base} {...props}>
+      <path d="M5 12h14" />
+    </svg>
+  )
+}
+
+// Download into a tray - install to home screen.
+export function DownloadIcon(props) {
+  return (
+    <svg {...base} {...props}>
+      <path d="M12 3v12M7.5 10.5 12 15l4.5-4.5" />
+      <path d="M4 16v2.5A1.5 1.5 0 0 0 5.5 20h13a1.5 1.5 0 0 0 1.5-1.5V16" />
+    </svg>
+  )
+}
+
+// Stopwatch - time-based reminders (reality check).
+export function StopwatchIcon(props) {
+  return (
+    <svg {...base} {...props}>
+      <circle cx="12" cy="13" r="8" />
+      <path d="M12 13V9M9.5 3.5h5M12 3.5V5.5" />
+    </svg>
+  )
+}
+
+// Clipboard - entering/tracking standings data.
+export function ClipboardIcon(props) {
+  return (
+    <svg {...base} {...props}>
+      <rect x="5" y="4.5" width="14" height="17" rx="1.8" />
+      <rect x="9" y="3" width="6" height="3" rx="1" />
+      <path d="M8.5 11h7M8.5 14.5h7M8.5 18h4.5" />
+    </svg>
+  )
+}

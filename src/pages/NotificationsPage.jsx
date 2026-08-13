@@ -8,6 +8,9 @@ import { formatRelativeTime } from '../utils/format.js'
 import { formatOdds } from '../utils/oddsFormat.js'
 import EmptyState from '../components/EmptyState.jsx'
 import SportHeroBanner from '../components/SportHeroBanner.jsx'
+import { BellIcon, CommentIcon, CheckIcon, XIcon, MinusIcon } from '../components/icons/Icons.jsx'
+
+const SETTLED_ICON = { won: CheckIcon, lost: XIcon, void: MinusIcon }
 
 // A real tab rather than a floating bell dropdown - matches how the rest of
 // the app navigates (Odds/Social/Tracker/Account are all pages, not
@@ -51,7 +54,7 @@ export default function NotificationsPage() {
 
       {notifications && !notifications.length && (
         <EmptyState
-          icon="🔔"
+          icon={<BellIcon width={26} height={26} />}
           title="Nothing new"
           subtitle="Bets posted in your groups or the public feed, and results on your own bets, show up here."
         />
@@ -68,11 +71,16 @@ export default function NotificationsPage() {
       {priceAlerts && priceAlerts.length > 0 && (
         <div className="account-section">
           <h2 className="market-title">My price alerts</h2>
-          <p className="hint">Set from the 🔔 button on any outcome's price. Checked every 15 minutes while pending.</p>
+          <p className="hint">
+            Set from the <BellIcon width={13} height={13} className="icon-lead" /> button on any outcome's price. Checked every 15
+            minutes while pending.
+          </p>
           <div className="tracker-list">
             {priceAlerts.map((a) => (
               <div key={a.id} className={a.triggeredAt ? 'tracker-row icon-row status-triggered' : 'tracker-row icon-row'}>
-                <span className="icon-row-badge">🔔</span>
+                <span className="icon-row-badge">
+                  <BellIcon width={18} height={18} />
+                </span>
                 <div className="tracker-row-main">
                   <div className="selection-event">
                     {a.eventLabel} · {a.marketLabel}: {a.selectionLabel}
@@ -95,8 +103,6 @@ export default function NotificationsPage() {
   )
 }
 
-const SETTLED_ICON = { won: '✅', lost: '❌', void: '➖' }
-
 function NotificationRow({ item }) {
   const rowClass =
     item.kind === 'settled'
@@ -104,7 +110,12 @@ function NotificationRow({ item }) {
       : 'tracker-row icon-row notification-row'
   const content = (
     <>
-      <span className="icon-row-badge">{item.kind === 'posted' ? '💬' : SETTLED_ICON[item.status]}</span>
+      <span className="icon-row-badge">
+        {(() => {
+          const Icon = item.kind === 'posted' ? CommentIcon : SETTLED_ICON[item.status]
+          return Icon && <Icon width={18} height={18} />
+        })()}
+      </span>
       <div className="tracker-row-main">
         <div className="selection-event">
           {item.kind === 'posted' ? (

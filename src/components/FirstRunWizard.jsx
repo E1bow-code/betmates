@@ -4,6 +4,7 @@ import { useAuth } from '../context/AuthContext.jsx'
 import { useAsyncAction } from '../lib/useAsyncAction.js'
 import { BOOKMAKERS } from '../lib/bookmakers.js'
 import ManualEntrySheet from './ManualEntrySheet.jsx'
+import { CelebrateIcon } from './icons/Icons.jsx'
 
 // A handful of well-known Premier League clubs to offer as a starting point
 // - not the full fixture list (that's what the Odds tab is for), just
@@ -146,7 +147,9 @@ export default function FirstRunWizard({ onDone }) {
         {step === 2 && (
           <div className="first-run-log-bet">
             {firstBetLogged ? (
-              <p className="tone-good">Nice - your first bet's on the Tracker. 🎉</p>
+              <p className="tone-good icon-row">
+                Nice - your first bet's on the Tracker. <CelebrateIcon width={16} height={16} />
+              </p>
             ) : (
               <button className="btn btn-primary" type="button" onClick={() => setShowManualEntry(true)}>
                 Log a bet

@@ -3,6 +3,7 @@ import { isIOS, isStandalone } from '../lib/platform.js'
 import { useInstallPrompt } from '../lib/useInstallPrompt.js'
 import { promptInstall } from '../lib/installPrompt.js'
 import InstallGuide from './InstallGuide.jsx'
+import { DownloadIcon } from './icons/Icons.jsx'
 
 const DISMISSED_KEY = 'betmates:installBannerDismissed'
 
@@ -35,7 +36,15 @@ export default function InstallGuideBanner() {
   return (
     <div className="install-banner">
       <div className="install-banner-header">
-        <strong>{showNative ? '📲 Install BetMates' : 'Add BetMates to your Home Screen'}</strong>
+        <strong className={showNative ? 'icon-row' : undefined}>
+          {showNative ? (
+            <>
+              <DownloadIcon width={16} height={16} /> Install BetMates
+            </>
+          ) : (
+            'Add BetMates to your Home Screen'
+          )}
+        </strong>
         <button className="install-banner-close" onClick={dismiss} aria-label="Dismiss">
           ✕
         </button>

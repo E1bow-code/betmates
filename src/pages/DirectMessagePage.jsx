@@ -10,6 +10,7 @@ import Avatar from '../components/Avatar.jsx'
 import EmptyState from '../components/EmptyState.jsx'
 import PullToRefresh from '../components/PullToRefresh.jsx'
 import CoachGptLink from '../components/CoachGptLink.jsx'
+import { CommentIcon } from '../components/icons/Icons.jsx'
 
 // 1:1 chat with a friend - same free-text shape as GroupFeedPage's Chat
 // tab, just between two people instead of a group's members. Reached from
@@ -84,7 +85,11 @@ export default function DirectMessagePage() {
       <div className="group-chat">
         {messages === null && !error && <div className="loading">Loading messages…</div>}
         {messages && !messages.length && (
-          <EmptyState icon="💬" title="No messages yet" subtitle={`Say something to ${friend?.displayName ?? 'your friend'}.`} />
+          <EmptyState
+          icon={<CommentIcon width={26} height={26} />}
+          title="No messages yet"
+          subtitle={`Say something to ${friend?.displayName ?? 'your friend'}.`}
+        />
         )}
         {messages && messages.length > 0 && (
           <div className="chat-messages">

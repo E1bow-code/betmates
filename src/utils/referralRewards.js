@@ -4,10 +4,10 @@
 // other badges/achievements. Thresholds are the number of people who signed
 // up from your link (profiles.referred_by = you; see dataStore.countReferrals).
 export const REFERRAL_TIERS = [
-  { threshold: 1, icon: '🤝', label: 'First mate' },
-  { threshold: 3, icon: '📣', label: 'Connector' },
-  { threshold: 5, icon: '🎯', label: 'Ringleader' },
-  { threshold: 10, icon: '👑', label: 'Kingpin' }
+  { threshold: 1, icon: 'handshake', label: 'First mate' },
+  { threshold: 3, icon: 'megaphone', label: 'Connector' },
+  { threshold: 5, icon: 'target', label: 'Ringleader' },
+  { threshold: 10, icon: 'crown', label: 'Kingpin' }
 ]
 
 // Given a referral count, which tiers are earned, the next one to chase, and

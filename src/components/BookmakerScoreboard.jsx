@@ -1,5 +1,6 @@
 import { MIN_SETTLED_TO_RANK } from '../utils/bookmakerScoreboard.js'
 import EmptyState from './EmptyState.jsx'
+import { BankIcon } from './icons/Icons.jsx'
 
 // Reuses Leaderboard.jsx's row markup (rank/name/pnl/meta, no Avatar since
 // a bookmaker isn't a person) so this reads as the same kind of scoreboard
@@ -16,7 +17,7 @@ export default function BookmakerScoreboard({ rows }) {
       {rows === null && <div className="loading">Adding it all up…</div>}
       {rows && !rows.length && (
         <EmptyState
-          icon="🏦"
+          icon={<BankIcon width={26} height={26} />}
           title="No bookmakers ranked yet"
           subtitle={`Settle at least ${MIN_SETTLED_TO_RANK} single-leg bets with the same bookmaker to make the board.`}
         />

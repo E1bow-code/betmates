@@ -3,6 +3,7 @@ import * as dataStore from '../lib/dataStore.js'
 import { formatRelativeTime } from '../utils/format.js'
 import { useEscapeKey } from '../lib/useEscapeKey.js'
 import { useDelayedClose } from '../lib/useDelayedClose.js'
+import { SparkIcon } from './icons/Icons.jsx'
 
 // "New chat" clears CoachGptPage's active view but never deletes anything
 // (see supabase/schema.sql's coach_messages.session_id comment) - this is
@@ -40,8 +41,8 @@ export default function CoachHistorySheet({ userId, activeSessionId, onSelect, o
                 className={s.sessionId === activeSessionId ? 'conversation-row conversation-row-active' : 'conversation-row'}
                 onClick={() => onSelect(s.sessionId)}
               >
-                <span className="avatar conversation-row-coach-avatar" style={{ width: 40, height: 40, fontSize: 18 }}>
-                  🧠
+                <span className="avatar conversation-row-coach-avatar" style={{ width: 40, height: 40 }}>
+                  <SparkIcon width={20} height={20} />
                 </span>
                 <div className="conversation-row-main">
                   <div className="conversation-row-name">{s.title}</div>
