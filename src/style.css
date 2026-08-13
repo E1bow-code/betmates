@@ -1926,6 +1926,11 @@ button.conversation-row { width: 100%; background: none; border: none; border-bo
    ticket - a hair rounder than the square badge so a crest reads as a token
    next to the name rather than a photo. */
 .selection-pick .team-badge { border-radius: 4px; }
+
+/* Tracker history rows carry the same participant badge, leading the fixture
+   line. Flex so the badge, event text and any live-score tag sit on one row. */
+.tracker-row .selection-event { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+.tracker-row .selection-event .team-badge { border-radius: 4px; }
 .selection-odds-row { display: flex; justify-content: space-between; align-items: baseline; }
 .selection-odds { color: var(--accent); font-weight: 700; font-size: 1.2rem; }
 .selection-bookmaker { color: var(--text-dim); font-size: 0.8rem; }
