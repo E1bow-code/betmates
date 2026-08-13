@@ -2100,6 +2100,50 @@ button.conversation-row { width: 100%; background: none; border: none; border-bo
 
 .fixture-vs { color: var(--text-dim); font-size: 0.75rem; flex-shrink: 0; }
 
+/* Card-level face-off banner (src/components/MatchupBanner.jsx) - the same
+   photo+name/"v"/photo+name shape as .fixture-teams-row above, scaled up
+   and boxed as its own header inside a bet-card ticket rather than sitting
+   inline in a list row. */
+.matchup-banner {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  padding: 12px 8px;
+  margin-bottom: 10px;
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+}
+.matchup-banner-side {
+  display: flex;
+  flex: 1 1 0;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+  text-align: center;
+  font-weight: 600;
+  font-size: 0.85rem;
+}
+.matchup-banner-side span:last-child {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 100%;
+}
+.matchup-banner-vs {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  flex-shrink: 0;
+  color: var(--accent);
+  font-weight: 700;
+  font-size: 0.75rem;
+  letter-spacing: 0.04em;
+}
+
 .follow-participant-btn {
   flex-shrink: 0;
   background: none;
