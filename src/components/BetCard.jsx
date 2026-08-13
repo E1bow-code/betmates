@@ -78,6 +78,7 @@ export default function BetCard({ post, memberNames, memberAvatars, variant = 'g
   const [status, setStatus] = useState(post.status)
   const [following, setFollowing] = useState(false)
   const [showCardMenu, setShowCardMenu] = useState(false)
+  const [showReport, setShowReport] = useState(false)
   const [reported, setReported] = useState(false)
   const [showEdit, setShowEdit] = useState(false)
   const [showMoreActions, setShowMoreActions] = useState(false)
@@ -246,7 +247,10 @@ export default function BetCard({ post, memberNames, memberAvatars, variant = 'g
           {variant === 'public' && (
             <button
               className="moderation-toggle"
-              onClick={() => setShowCardMenu((v) => !v)}
+              onClick={() => {
+                setShowCardMenu((v) => !v)
+                setShowReport(false)
+              }}
               aria-label="More options"
               aria-expanded={showCardMenu}
             >
@@ -301,17 +305,25 @@ export default function BetCard({ post, memberNames, memberAvatars, variant = 'g
               <button className="btn btn-ghost btn-small" onClick={handleBlock}>
                 Block {authorName}
               </button>
+              {/* The report reasons stay hidden behind a single "Report"
+                  button until it's tapped - opening the ⋯ menu shouldn't
+                  dump every reason on screen at once (reporting a mate's post
+                  is the rare action here, not the default one). */}
               {reported ? (
                 <span className="hint">Reported, thanks.</span>
-              ) : (
+              ) : showReport ? (
                 <>
-                  <span className="hint">Report:</span>
+                  <span className="hint">Report for:</span>
                   {REPORT_REASONS.map((r) => (
                     <button key={r.key} className="btn btn-ghost btn-small" onClick={() => handleReport(r.key)}>
                       {r.label}
                     </button>
                   ))}
                 </>
+              ) : (
+                <button className="btn btn-ghost btn-small" onClick={() => setShowReport(true)}>
+                  Report
+                </button>
               )}
             </>
           )}
