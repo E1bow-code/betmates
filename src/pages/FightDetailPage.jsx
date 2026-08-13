@@ -5,7 +5,7 @@ import * as dataStore from '../lib/dataStore.js'
 import { formatDateTime, formatCountdown } from '../utils/format.js'
 import { bestWithinFilter } from '../utils/oddsUtils.js'
 import { formatOdds } from '../utils/oddsFormat.js'
-import { isLive } from '../utils/liveStatus.js'
+import { isLive, hasFinished } from '../utils/liveStatus.js'
 import { useAuth } from '../context/AuthContext.jsx'
 import { useBetSlip } from '../context/BetSlipContext.jsx'
 import { useOddsFormat } from '../context/OddsFormatContext.jsx'
@@ -19,6 +19,7 @@ import Sparkline from '../components/Sparkline.jsx'
 import SportHeroBanner from '../components/SportHeroBanner.jsx'
 import LiveBadge from '../components/LiveBadge.jsx'
 import WatchLiveButton from '../components/WatchLiveButton.jsx'
+import WatchHighlightsButton from '../components/WatchHighlightsButton.jsx'
 import OddsAlertSheet from '../components/OddsAlertSheet.jsx'
 import FollowButton from '../components/FollowButton.jsx'
 import FixtureChatPanel from '../components/FixtureChatPanel.jsx'
@@ -118,11 +119,17 @@ export default function FightDetailPage() {
         </div>
         <FollowButton sport="ufc" eventId={fight.id} eventLabel={`${fight.fighterA} v ${fight.fighterB}`} kickoff={fight.kickoff} />
         <CoachGptLink question={`What's the best bet for ${fight.fighterA} v ${fight.fighterB}?`} />
-        {isLive(fight.kickoff, 'ufc') && (
+        {isLive(fight.kickoff, 'ufc') ? (
           <div className="race-header-live">
             <LiveBadge />
             <WatchLiveButton leagueKey="ufc" participants={[fight.fighterA, fight.fighterB]} kickoff={fight.kickoff} />
           </div>
+        ) : (
+          hasFinished(fight.kickoff, 'ufc') && (
+            <div className="race-header-live">
+              <WatchHighlightsButton query={`${fight.fighterA} vs ${fight.fighterB} highlights`} />
+            </div>
+          )
         )}
         <label className="filter-toggle">
           <input

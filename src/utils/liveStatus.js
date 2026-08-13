@@ -27,3 +27,14 @@ export function isLive(iso, sport) {
   const duration = (DURATION_MINUTES[sport] ?? 150) * 60000
   return now >= start && now < start + duration
 }
+
+// The other side of isLive's window - once the estimated duration has
+// elapsed, treat it as over rather than leaving it in limbo. Same
+// estimate-not-verified caveat applies (no in-play/full-time feed wired up).
+export function hasFinished(iso, sport) {
+  if (!iso) return false
+  const start = new Date(iso).getTime()
+  const now = Date.now()
+  const duration = (DURATION_MINUTES[sport] ?? 150) * 60000
+  return now >= start + duration
+}

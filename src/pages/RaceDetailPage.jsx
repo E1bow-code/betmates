@@ -5,13 +5,14 @@ import * as dataStore from '../lib/dataStore.js'
 import { formatKickoff, formatCountdown } from '../utils/format.js'
 import { bestWithinFilter } from '../utils/oddsUtils.js'
 import { formatOdds } from '../utils/oddsFormat.js'
-import { isLive } from '../utils/liveStatus.js'
+import { isLive, hasFinished } from '../utils/liveStatus.js'
 import { useAuth } from '../context/AuthContext.jsx'
 import { useBetSlip } from '../context/BetSlipContext.jsx'
 import { useOddsFormat } from '../context/OddsFormatContext.jsx'
 import SportHeroBanner from '../components/SportHeroBanner.jsx'
 import LiveBadge from '../components/LiveBadge.jsx'
 import WatchLiveButton from '../components/WatchLiveButton.jsx'
+import WatchHighlightsButton from '../components/WatchHighlightsButton.jsx'
 import FollowButton from '../components/FollowButton.jsx'
 import RunnerForm from '../components/RunnerForm.jsx'
 import RatingBar from '../components/RatingBar.jsx'
@@ -114,11 +115,17 @@ export default function RaceDetailPage() {
         </div>
         <FollowButton sport="racing" eventId={race.id} eventLabel={`${race.course} · ${race.raceName}`} kickoff={race.offTime} />
         <CoachGptLink question={`What's the best value in the ${race.raceName} at ${race.course}?`} />
-        {isLive(race.offTime, 'racing') && (
+        {isLive(race.offTime, 'racing') ? (
           <div className="race-header-live">
             <LiveBadge />
             <WatchLiveButton />
           </div>
+        ) : (
+          hasFinished(race.offTime, 'racing') && (
+            <div className="race-header-live">
+              <WatchHighlightsButton query={`${race.raceName} ${race.course} replay`} />
+            </div>
+          )
         )}
         <label className="filter-toggle">
           <input
