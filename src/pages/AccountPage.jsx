@@ -4,7 +4,7 @@ import { useAuth } from '../context/AuthContext.jsx'
 import { useOddsFormat } from '../context/OddsFormatContext.jsx'
 import { BOOKMAKERS } from '../lib/bookmakers.js'
 import * as dataStore from '../lib/dataStore.js'
-import { startPremiumCheckout } from '../api/premiumClient.js'
+import { startPremiumCheckout, startBillingPortal } from '../api/premiumClient.js'
 import { isPushSupported, getPushSubscription, subscribeToPush, unsubscribeFromPush, refreshStaleSubscription } from '../lib/push.js'
 import { getStoredTheme, setTheme } from '../lib/theme.js'
 import { isIOS, isStandalone } from '../lib/platform.js'
@@ -103,6 +103,8 @@ export default function AccountPage() {
   const [exclusionSaving, setExclusionSaving] = useState(false)
   const [checkoutBusy, setCheckoutBusy] = useState(null)
   const [checkoutError, setCheckoutError] = useState(null)
+  const [billingBusy, setBillingBusy] = useState(false)
+  const [billingError, setBillingError] = useState(null)
   const [expandedGroups, setExpandedGroups] = useState(loadExpandedGroups)
   const [trackerStats, setTrackerStats] = useState(null)
   const [xpCounts, setXpCounts] = useState(null)
@@ -157,6 +159,19 @@ export default function AccountPage() {
     }
     setCheckoutBusy(null)
     setCheckoutError(res.configured === false ? "Payments aren't set up yet - check back soon." : res.error || 'Something went wrong - try again.')
+  }
+
+  async function handleManageBilling() {
+    setBillingBusy(true)
+    setBillingError(null)
+    const accessToken = await dataStore.getAccessToken()
+    const res = await startBillingPortal({ accessToken })
+    if (res.url) {
+      window.location.href = res.url
+      return
+    }
+    setBillingBusy(false)
+    setBillingError(res.configured === false ? "Payments aren't set up yet - check back soon." : res.error || 'Something went wrong - try again.')
   }
 
   useEffect(() => {
@@ -507,6 +522,10 @@ export default function AccountPage() {
 
       <div className="account-section" id="plus">
         <h2 className="market-title">BetMates Plus</h2>
+        <button className="btn btn-ghost btn-small" disabled={billingBusy} onClick={handleManageBilling}>
+          {billingBusy ? 'Redirecting…' : 'Manage billing'}
+        </button>
+        {billingError && <p className="error">{billingError}</p>}
         {user.isPremium ? (
           <p className="hint">
             You&apos;re on Plus{user.premiumUntil ? ` - renews ${new Date(user.premiumUntil).toLocaleDateString()}` : ''}. Unlimited

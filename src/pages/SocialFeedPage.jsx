@@ -6,6 +6,7 @@ import { useToast } from '../context/ToastContext.jsx'
 import * as dataStore from '../lib/dataStore.js'
 import { fetchSportsNews } from '../api/newsClient.js'
 import { computeStats } from '../utils/trackerStats.js'
+import { tipsterBadge } from '../utils/tipsterBadge.js'
 import { formatRelativeTime } from '../utils/format.js'
 import { LEADERBOARD_WINDOWS, isWithinWindow } from '../utils/dateWindows.js'
 import BetCard from '../components/BetCard.jsx'
@@ -69,6 +70,9 @@ export default function SocialFeedPage() {
   const [segment, setSegment] = useState(location.state?.segment ?? 'bets')
   const [groups, setGroups] = useState(null)
   const [discoverGroups, setDiscoverGroups] = useState(null)
+  // Tipster badge per priced Discover row, keyed by group id (not owner id -
+  // two priced groups could share an owner). Free groups never get an entry.
+  const [ownerBadges, setOwnerBadges] = useState({})
   const [discoverSearch, setDiscoverSearch] = useState('')
   const [joiningId, setJoiningId] = useState(null)
   const [feed, setFeed] = useState(null)
@@ -190,7 +194,24 @@ export default function SocialFeedPage() {
   }
 
   function refreshDiscover() {
-    return dataStore.listDiscoverableGroups(user.id).then(setDiscoverGroups)
+    return dataStore.listDiscoverableGroups(user.id).then((groups) => {
+      setDiscoverGroups(groups)
+      const priced = groups.filter((g) => g.priceAmount)
+      if (!priced.length) return
+      // Same fetch -> filter-to-public -> computeStats -> tipsterBadge pattern
+      // BetBuilderSheet's notifyPublicFollowers() uses to badge a push
+      // notification, applied here to a group owner instead of the poster -
+      // re-filtered client-side rather than trusting RLS alone, so a badge
+      // never reflects group-private picks.
+      Promise.all(
+        priced.map((g) =>
+          dataStore.listBetPostsByUser(g.createdBy).then((posts) => {
+            const stats = computeStats(posts.filter((p) => p.visibility === 'public' && !p.stakeHidden))
+            return [g.id, tipsterBadge(stats)]
+          })
+        )
+      ).then((entries) => setOwnerBadges(Object.fromEntries(entries.filter(([, badge]) => badge))))
+    })
   }
 
   async function handleJoinDiscoverable(group) {
@@ -365,6 +386,11 @@ export default function SocialFeedPage() {
                       <div className="discover-group-row-name">
                         {g.name}
                         {g.priceAmount && <span className="discover-group-price-badge">£{Number(g.priceAmount).toFixed(2)}/mo</span>}
+                        {ownerBadges[g.id] && (
+                          <span className="discover-group-tipster-badge">
+                            {ownerBadges[g.id].icon} {ownerBadges[g.id].label}
+                          </span>
+                        )}
                       </div>
                       <div className="discover-group-row-meta">
                         {g.memberCount} member{g.memberCount === 1 ? '' : 's'}

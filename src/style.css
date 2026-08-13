@@ -936,6 +936,18 @@ button.conversation-row { width: 100%; background: none; border: none; border-bo
   color: var(--accent);
 }
 
+/* Same pill shape as the price badge, but neutral - it's a track-record
+   signal, not the thing being sold, so it shouldn't compete with price for
+   attention. */
+.discover-group-tipster-badge {
+  font-size: 0.7rem;
+  font-weight: 700;
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: var(--surface-2);
+  color: var(--text-dim);
+}
+
 /* Owner-only paid-group settings (GroupFeedPage.jsx's Members tab) - price
    field + Connect-payouts CTA, same bordered-card convention as .scan-cta/
    .sanity-check rather than bare inline controls, since this is a

@@ -22,3 +22,22 @@ export async function startPremiumCheckout({ accessToken, plan }) {
     return { configured: false }
   }
 }
+
+// Fetch wrapper for netlify/functions/stripe-billing-portal.js - one portal
+// covers Plus and any paid groups, since they share one Stripe Customer.
+// Same not-configured-without-a-real-backend reasoning as
+// startPremiumCheckout above, so no local-mode twin here either.
+/** @param {{accessToken: string|null}} params @returns {Promise<{configured: boolean, url?: string, error?: string}>} */
+export async function startBillingPortal({ accessToken }) {
+  if (!accessToken) return { configured: false }
+  try {
+    const res = await fetch('/api/stripe-billing-portal', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ accessToken })
+    })
+    return await res.json()
+  } catch {
+    return { configured: false }
+  }
+}
