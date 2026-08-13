@@ -1,5 +1,8 @@
 import Avatar from './Avatar.jsx'
+import TeamBadge from './TeamBadge.jsx'
+import PlayerPhoto from './PlayerPhoto.jsx'
 import { formatOdds } from '../utils/oddsFormat.js'
+import { participantBadge } from '../utils/participantBadge.js'
 import { labelForTag, iconForTag } from '../lib/postTags.js'
 import { HorseIcon, FootballIcon, DiamondIcon, TargetIcon, LockIcon, BrokenHeartIcon, FlameIcon } from './icons/Icons.jsx'
 
@@ -76,19 +79,30 @@ export default function PostPreview({
                 <span className="bet-status-pill status-open">Pending</span>
               </div>
 
-              {legs.map((leg, i) => (
+              {legs.map((leg, i) => {
+                const badge = participantBadge(leg, null)
+                return (
                 <div key={i} className={legs.length > 1 ? 'bet-card-leg' : undefined}>
                   <div className="selection-event">{leg.event}</div>
                   <div className="selection-row">
                     <span>{leg.market}</span>
-                    <span className="selection-pick">{leg.selection}</span>
+                    <span className="selection-pick">
+                      {badge &&
+                        (badge.type === 'team' ? (
+                          <TeamBadge team={badge.name} sport={badge.sport} size={18} />
+                        ) : (
+                          <PlayerPhoto name={badge.name} sport={badge.sport} size={18} />
+                        ))}
+                      {leg.selection}
+                    </span>
                   </div>
                   <div className="selection-odds-row">
                     <span className="selection-odds">{formatOdds(leg.odds, format)}</span>
                     <span className="selection-bookmaker">{leg.bookmaker}</span>
                   </div>
                 </div>
-              ))}
+                )
+              })}
 
               {stakeHidden ? (
                 <div className="bet-card-stake bet-card-stake-hidden">Stake kept private</div>
