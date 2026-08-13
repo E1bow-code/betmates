@@ -1448,3 +1448,47 @@ create policy "user uploads own post photo" on storage.objects for insert with c
 create policy "user deletes own post photo" on storage.objects for delete using (
   bucket_id = 'post-photos' and (storage.foldername(name))[1] = auth.uid()::text
 );
+
+-- --- Post tags, video attachments, and pick-less posts ------------------
+-- tag: optional Reddit-style flair (src/lib/postTags.js's fixed list -
+-- "Racing tip", "Value bet", etc.), same free-text-but-app-constrained
+-- shape as caption.
+--
+-- video_url: same idea as photo_url immediately above - a second optional
+-- attachment type, mutually exclusive with photo_url in practice (the
+-- composer only lets you attach one media item), same private-bucket-
+-- plus-signed-URL approach via a dedicated post-videos bucket rather than
+-- the existing `videos` bucket above, because that one is deliberately
+-- friend-scoped for the separate Tips video feed - a bet_posts row needs
+-- the group/public visibility check instead, same as post-photos.
+--
+-- sport/market_type/selections stay NOT NULL (dropping that would ripple
+-- into every place that already assumes a bet_posts row is a real pick -
+-- settlement.js, trackerStats.js, achievements.js, csvExport.js, the
+-- Insights per-sport breakdown). A pick-less post (just text/photo/video)
+-- instead writes the sentinel sport='post', market_type='Post',
+-- selections='[]' - it never matches any settlement candidate (nothing to
+-- iterate), never resolves off 'open', and reads exactly like the
+-- existing "free pick, no stake" case every other stat already handles.
+alter table bet_posts add column if not exists tag text;
+alter table bet_posts add column if not exists video_url text;
+
+insert into storage.buckets (id, name, public) values ('post-videos', 'post-videos', false)
+on conflict (id) do nothing;
+
+create policy "read post videos per bet_posts visibility" on storage.objects for select using (
+  bucket_id = 'post-videos' and exists (
+    select 1 from bet_posts p
+    where p.video_url = name
+      and (
+        p.visibility = 'public'
+        or exists (select 1 from group_members m where m.group_id = p.group_id and m.user_id = auth.uid())
+      )
+  )
+);
+create policy "user uploads own post video" on storage.objects for insert with check (
+  bucket_id = 'post-videos' and (storage.foldername(name))[1] = auth.uid()::text
+);
+create policy "user deletes own post video" on storage.objects for delete using (
+  bucket_id = 'post-videos' and (storage.foldername(name))[1] = auth.uid()::text
+);

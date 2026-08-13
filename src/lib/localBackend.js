@@ -629,7 +629,7 @@ export function listBetPosts(groupId) {
 }
 
 /**
- * @param {{groupId: string|null, userId: string, sport: string, marketType: string, selections: any[], stake: number|null, stakeHidden?: boolean, potentialReturn: number|null, visibility?: 'group'|'public', caption?: string|null, photoUrl?: string|null}} post
+ * @param {{groupId: string|null, userId: string, sport: string, marketType: string, selections: any[], stake: number|null, stakeHidden?: boolean, potentialReturn: number|null, visibility?: 'group'|'public', caption?: string|null, photoUrl?: string|null, videoUrl?: string|null, tag?: string|null}} post
  * @returns {Promise<BetPost>}
  */
 export function createBetPost(post) {
@@ -645,6 +645,8 @@ export function createBetPost(post) {
     visibility: 'group',
     caption: null,
     photoUrl: null,
+    videoUrl: null,
+    tag: null,
     autoHidden: false,
     ...post
   }
@@ -668,6 +670,24 @@ export async function uploadPostPhoto(userId, blob) {
 /** @param {string} photoKey @returns {Promise<string|null>} */
 export async function getPostPhotoUrl(photoKey) {
   const blob = await getPhotoBlob(photoKey)
+  return blob ? URL.createObjectURL(blob) : null
+}
+
+// Mirrors dataStore.js's uploadPostVideo/getPostVideoUrl - reuses
+// videoStore.js's IndexedDB store (same 'clips' object store the Tips
+// feed's own video blobs live in) since it's already a generic
+// string-keyed blob store; the `postvideo_` prefix is all that
+// distinguishes a bet_posts video from a Tips clip in there.
+/** @param {string} userId @param {Blob} blob @returns {Promise<string>} */
+export async function uploadPostVideo(userId, blob) {
+  const videoKey = `postvideo_${userId}_${Date.now()}`
+  await saveVideoBlob(videoKey, blob)
+  return videoKey
+}
+
+/** @param {string} videoKey @returns {Promise<string|null>} */
+export async function getPostVideoUrl(videoKey) {
+  const blob = await getVideoBlob(videoKey)
   return blob ? URL.createObjectURL(blob) : null
 }
 

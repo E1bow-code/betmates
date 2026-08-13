@@ -17,6 +17,8 @@ import { useEscapeKey } from '../lib/useEscapeKey.js'
 import { useDelayedClose } from '../lib/useDelayedClose.js'
 import { computeStats } from '../utils/trackerStats.js'
 import { tipsterBadge } from '../utils/tipsterBadge.js'
+import { PICKER_SPORTS, SPORT_LABEL, loadItemsForSport, labelFor, normalizeItem } from '../lib/quickPick.js'
+import { POST_TAGS } from '../lib/postTags.js'
 
 // The bet slip: reads its legs from BetSlipContext rather than a single
 // `selection` prop, so tapping outcomes across different fixtures builds
@@ -24,11 +26,18 @@ import { tipsterBadge } from '../utils/tipsterBadge.js'
 // slip is just the simple "share this bet" flow from before; more legs
 // makes it a real bet builder, with combined odds = the product of each
 // leg's price (standard accumulator math).
+//
+// Also the entry point for a pick-less post (Home's composer bar calls
+// useBetSlip().openSheet() directly, with zero legs) - hasPick below
+// switches between the inline Sport/Event/Market/Selection picker (see
+// src/lib/quickPick.js) and the normal leg-list view once something's
+// been picked, either through that picker or by tapping a price on the
+// Odds tab same as before.
 
 export default function BetBuilderSheet() {
   const { user } = useAuth()
   const navigate = useNavigate()
-  const { legs, removeLeg, clearSlip, sheetOpen, closeSheet } = useBetSlip()
+  const { legs, toggleLeg, removeLeg, clearSlip, sheetOpen, closeSheet } = useBetSlip()
   const { format } = useOddsFormat()
   const { showToast } = useToast()
   const [groups, setGroups] = useState([])
@@ -36,12 +45,22 @@ export default function BetBuilderSheet() {
   const [stake, setStake] = useState('')
   const [stakeHidden, setStakeHidden] = useState(false)
   const [caption, setCaption] = useState('')
+  const [tag, setTag] = useState(null)
   const [photoFile, setPhotoFile] = useState(null)
   const [photoPreview, setPhotoPreview] = useState(null)
+  const [videoFile, setVideoFile] = useState(null)
+  const [videoPreview, setVideoPreview] = useState(null)
   const [eachWay, setEachWay] = useState(false)
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState(null)
   const [entries, setEntries] = useState(null)
+  const [pickerSport, setPickerSport] = useState('football')
+  const [pickerItems, setPickerItems] = useState(null)
+  const [pickerLoading, setPickerLoading] = useState(false)
+  const [pickerEventId, setPickerEventId] = useState('')
+  const [pickerMarketKey, setPickerMarketKey] = useState('')
+
+  const hasPick = legs.length > 0
 
   useEffect(() => {
     dataStore.listMyGroups(user.id).then((gs) => {
@@ -49,6 +68,34 @@ export default function BetBuilderSheet() {
       if (gs.length) setGroupId(gs[0].id)
     })
   }, [user.id])
+
+  // Loads the Event dropdown's options whenever the sheet is showing the
+  // picker (zero legs) and either just opened or the Sport dropdown
+  // changed. Reset on every load so a stale Event/Market selection from a
+  // previous sport never lingers - see quickPick.js for why this is a
+  // single list-fetch per sport with no further network calls needed to
+  // populate Market/Selection.
+  useEffect(() => {
+    if (hasPick || !sheetOpen) return
+    let cancelled = false
+    setPickerLoading(true)
+    setPickerItems(null)
+    setPickerEventId('')
+    setPickerMarketKey('')
+    loadItemsForSport(pickerSport)
+      .then((items) => {
+        if (!cancelled) setPickerItems(items)
+      })
+      .catch(() => {
+        if (!cancelled) setPickerItems([])
+      })
+      .finally(() => {
+        if (!cancelled) setPickerLoading(false)
+      })
+    return () => {
+      cancelled = true
+    }
+  }, [pickerSport, hasPick, sheetOpen])
 
   // Fetched unconditionally now - both the spend-limit heads-up below and
   // the loss-chasing nudge need the same recent history, and neither is a
@@ -73,9 +120,9 @@ export default function BetBuilderSheet() {
 
   useEscapeKey(() => {
     if (!submitting) requestClose()
-  }, sheetOpen && legs.length > 0)
+  }, sheetOpen)
 
-  if (!sheetOpen || !legs.length) return null
+  if (!sheetOpen) return null
 
   const combinedOdds = legs.reduce((acc, leg) => acc * leg.odds, 1)
   const stakeNum = stake ? Number(stake) : null
@@ -94,11 +141,23 @@ export default function BetBuilderSheet() {
       ? Math.round(computeEachWayReturn(stakeNum, combinedOdds, eachWayTerms, 'win') * 100) / 100
       : Math.round(stakeNum * combinedOdds * 100) / 100
     : null
-  const marketType = legs.length > 1 ? `${legs.length}-leg Bet Builder` : applyEachWay ? 'Each-way' : legs[0].market
-  const sport = legs.every((leg) => leg.sport === legs[0].sport) ? legs[0].sport : 'multi'
+  // A pick-less post (hasPick false) writes the sentinel sport='post'/
+  // market_type='Post' - see schema.sql's comment on why that beats making
+  // the columns nullable.
+  const marketType = !hasPick ? 'Post' : legs.length > 1 ? `${legs.length}-leg Bet Builder` : applyEachWay ? 'Each-way' : legs[0].market
+  const sport = !hasPick ? 'post' : legs.every((leg) => leg.sport === legs[0].sport) ? legs[0].sport : 'multi'
   const submittedLegs = applyEachWay
     ? [{ ...legs[0], market: 'Each-way', eachWay: true, eachWayFraction: eachWayTerms.fraction, eachWayPlaces: eachWayTerms.places }]
     : legs
+  const canSubmit = hasPick || caption.trim() || photoFile || videoFile
+
+  const pickerItem = pickerItems?.find((i) => i.id === pickerEventId) ?? null
+  const pickerNormalized = pickerItem ? normalizeItem(pickerSport, pickerItem) : null
+  const pickerMarket = pickerNormalized?.markets.find((m) => m.key === pickerMarketKey) ?? null
+
+  function pickOutcome(outcome) {
+    toggleLeg(outcome.leg)
+  }
 
   function onClose() {
     if (!submitting) requestClose()
@@ -119,6 +178,21 @@ export default function BetBuilderSheet() {
     setPhotoPreview(null)
   }
 
+  function handleVideoChange(e) {
+    const file = e.target.files?.[0]
+    e.target.value = ''
+    if (!file) return
+    if (videoPreview) URL.revokeObjectURL(videoPreview)
+    setVideoFile(file)
+    setVideoPreview(URL.createObjectURL(file))
+  }
+
+  function removeVideo() {
+    if (videoPreview) URL.revokeObjectURL(videoPreview)
+    setVideoFile(null)
+    setVideoPreview(null)
+  }
+
   // Hard spend limit (opt-in via Account): block posting/saving a bet once the
   // period is over the cap, rather than only warning. Shared by all three save
   // paths below. The soft warning still shows for everyone; this binds it.
@@ -132,12 +206,22 @@ export default function BetBuilderSheet() {
     return false
   }
 
+  // Shared by handlePost/handlePostPublic - a pick-less post has nothing
+  // to summarise from legs[0], so the notification falls back to the
+  // caption (or a generic line if there's no caption either, e.g. a
+  // photo/video-only post).
+  function activitySummary() {
+    if (hasPick) return `${legs[0].event} - ${legs[0].market}: ${legs[0].selection}${legs.length > 1 ? ` +${legs.length - 1} more` : ''}`
+    return caption.trim() || 'Check it out'
+  }
+
   async function handlePost() {
     if (hardLimitBlocked()) return
     setSubmitting(true)
     setError(null)
     try {
       const photoUrl = photoFile ? await dataStore.uploadPostPhoto(user.id, photoFile) : null
+      const videoUrl = videoFile ? await dataStore.uploadPostVideo(user.id, videoFile) : null
       const post = await dataStore.createBetPost({
         groupId,
         userId: user.id,
@@ -149,20 +233,23 @@ export default function BetBuilderSheet() {
         potentialReturn,
         visibility: 'group',
         caption: caption.trim() || null,
-        photoUrl
+        photoUrl,
+        videoUrl,
+        tag
       })
       const groupName = groups.find((g) => g.id === groupId)?.name ?? 'your group'
       notifyGroup(
         groupId,
         {
           title: `${user.displayName} posted a bet in ${groupName}`,
-          body: `${legs[0].event} - ${legs[0].market}: ${legs[0].selection}${legs.length > 1 ? ` +${legs.length - 1} more` : ''}`,
+          body: activitySummary(),
           url: `/#/groups/${groupId}`
         },
         user.id
       )
       clearSlip()
       removePhoto()
+      removeVideo()
       showToast(`Posted to ${groupName}`)
       navigate(`/groups/${groupId}`)
       return post
@@ -179,6 +266,7 @@ export default function BetBuilderSheet() {
     setError(null)
     try {
       const photoUrl = photoFile ? await dataStore.uploadPostPhoto(user.id, photoFile) : null
+      const videoUrl = videoFile ? await dataStore.uploadPostVideo(user.id, videoFile) : null
       await dataStore.createBetPost({
         groupId: null,
         userId: user.id,
@@ -190,11 +278,14 @@ export default function BetBuilderSheet() {
         potentialReturn,
         visibility: 'public',
         caption: caption.trim() || null,
-        photoUrl
+        photoUrl,
+        videoUrl,
+        tag
       })
       notifyPublicFollowers()
       clearSlip()
       removePhoto()
+      removeVideo()
       showToast('Posted to everyone')
       navigate('/dashboard')
     } catch (err) {
@@ -212,7 +303,7 @@ export default function BetBuilderSheet() {
   // another "X posted" - same single notification as before, no new opt-in.
   function notifyPublicFollowers() {
     const title = `${user.displayName} posted a new pick`
-    const body = `${legs[0].event} - ${legs[0].market}: ${legs[0].selection}${legs.length > 1 ? ` +${legs.length - 1} more` : ''}`
+    const body = activitySummary()
     const url = '/#/groups'
     dataStore
       .listBetPostsByUser(user.id)
@@ -251,26 +342,96 @@ export default function BetBuilderSheet() {
     <div className={`sheet-backdrop${closing ? ' closing' : ''}`} onClick={onClose}>
       <div className={`sheet${closing ? ' closing' : ''}`} onClick={(e) => e.stopPropagation()}>
         <div className="sheet-handle" />
-        <h2 className="sheet-title">{legs.length > 1 ? `Your bet builder (${legs.length} legs)` : 'Your pick'}</h2>
+        <h2 className="sheet-title">
+          {legs.length > 1 ? `Your bet builder (${legs.length} legs)` : legs.length === 1 ? 'Your pick' : 'New post'}
+        </h2>
 
-        <div className="bet-slip-legs">
-          {legs.map((leg) => (
-            <div key={`${leg.event}|${leg.market}|${leg.selection}`} className="selection-summary bet-slip-leg">
-              <button className="bet-slip-leg-remove" onClick={() => removeLeg(leg)} aria-label="Remove leg">
-                &times;
-              </button>
-              <div className="selection-event">{leg.event}</div>
-              <div className="selection-row">
-                <span>{leg.market}</span>
-                <span className="selection-pick">{leg.selection}</span>
+        {hasPick ? (
+          <div className="bet-slip-legs">
+            {legs.map((leg) => (
+              <div key={`${leg.event}|${leg.market}|${leg.selection}`} className="selection-summary bet-slip-leg">
+                <button className="bet-slip-leg-remove" onClick={() => removeLeg(leg)} aria-label="Remove leg">
+                  &times;
+                </button>
+                <div className="selection-event">{leg.event}</div>
+                <div className="selection-row">
+                  <span>{leg.market}</span>
+                  <span className="selection-pick">{leg.selection}</span>
+                </div>
+                <div className="selection-odds-row">
+                  <span className="selection-odds">{formatOdds(leg.odds, format)}</span>
+                  <span className="selection-bookmaker">{leg.bookmaker}</span>
+                </div>
               </div>
-              <div className="selection-odds-row">
-                <span className="selection-odds">{formatOdds(leg.odds, format)}</span>
-                <span className="selection-bookmaker">{leg.bookmaker}</span>
-              </div>
-            </div>
-          ))}
-        </div>
+            ))}
+          </div>
+        ) : (
+          <div className="quick-pick">
+            <p className="quick-pick-title">Attach a pick (optional)</p>
+            <label className="field">
+              <span>Sport</span>
+              <select value={pickerSport} onChange={(e) => setPickerSport(e.target.value)}>
+                {PICKER_SPORTS.map((key) => (
+                  <option key={key} value={key}>
+                    {SPORT_LABEL[key]}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <label className="field">
+              <span>Event</span>
+              <select
+                value={pickerEventId}
+                onChange={(e) => {
+                  setPickerEventId(e.target.value)
+                  setPickerMarketKey('')
+                }}
+                disabled={pickerLoading || !pickerItems?.length}
+              >
+                <option value="">
+                  {pickerLoading ? 'Loading…' : pickerItems && !pickerItems.length ? 'No upcoming events' : 'Choose an event'}
+                </option>
+                {pickerItems?.map((item) => (
+                  <option key={item.id} value={item.id}>
+                    {labelFor(pickerSport, item)}
+                  </option>
+                ))}
+              </select>
+            </label>
+            {pickerNormalized && (
+              <label className="field">
+                <span>Market</span>
+                <select value={pickerMarketKey} onChange={(e) => setPickerMarketKey(e.target.value)}>
+                  <option value="">Choose a market</option>
+                  {pickerNormalized.markets.map((m) => (
+                    <option key={m.key} value={m.key}>
+                      {m.label}
+                    </option>
+                  ))}
+                </select>
+              </label>
+            )}
+            {pickerMarket && (
+              <label className="field">
+                <span>Selection</span>
+                <select
+                  value=""
+                  onChange={(e) => {
+                    const outcome = pickerMarket.outcomes.find((o) => o.name === e.target.value)
+                    if (outcome) pickOutcome(outcome)
+                  }}
+                >
+                  <option value="">Choose a selection</option>
+                  {pickerMarket.outcomes.map((o) => (
+                    <option key={o.name} value={o.name} disabled={!o.best}>
+                      {o.name} {o.best ? `· ${formatOdds(o.best.decimal, format)}` : '(no price)'}
+                    </option>
+                  ))}
+                </select>
+              </label>
+            )}
+          </div>
+        )}
 
         {legs.length > 1 && (
           <div className="potential-return">
@@ -296,46 +457,80 @@ export default function BetBuilderSheet() {
           />
         </label>
 
-        {photoPreview ? (
+        <div className="post-tag-row">
+          {POST_TAGS.map((t) => (
+            <button
+              key={t.key}
+              type="button"
+              className={tag === t.key ? 'post-tag-chip active' : 'post-tag-chip'}
+              onClick={() => setTag(tag === t.key ? null : t.key)}
+            >
+              {t.label}
+            </button>
+          ))}
+        </div>
+
+        {photoPreview && (
           <div className="composer-photo-preview">
             <img src={photoPreview} alt="" />
             <button type="button" className="composer-photo-remove" onClick={removePhoto} aria-label="Remove photo">
               ×
             </button>
           </div>
-        ) : (
-          <label className="btn btn-secondary composer-photo-button">
-            📷 Add a photo
-            <input type="file" accept="image/*" onChange={handlePhotoChange} className="scan-cta-input" />
-          </label>
+        )}
+        {videoPreview && (
+          <div className="composer-photo-preview">
+            <video src={videoPreview} controls className="composer-video-preview" />
+            <button type="button" className="composer-photo-remove" onClick={removeVideo} aria-label="Remove video">
+              ×
+            </button>
+          </div>
+        )}
+        {!photoFile && !videoFile && (
+          <div className="composer-media-buttons">
+            <label className="btn btn-secondary composer-photo-button">
+              📷 Add a photo
+              <input type="file" accept="image/*" onChange={handlePhotoChange} className="scan-cta-input" />
+            </label>
+            <label className="btn btn-secondary composer-photo-button">
+              🎥 Add a video
+              <input type="file" accept="video/*" onChange={handleVideoChange} className="scan-cta-input" />
+            </label>
+          </div>
         )}
 
-        <label className="field">
-          <span>Stake (optional)</span>
-          <input type="number" min="0" step="0.5" placeholder="£" value={stake} onChange={(e) => setStake(e.target.value)} />
-        </label>
-        {!stakeNum && groups.length > 0 && <p className="hint">No stake - this posts as a free pick and counts toward this week's Pick'em leaderboard.</p>}
-
-        {eachWayTerms && (
+        {hasPick && (
           <>
-            <label className="field-check">
-              <input type="checkbox" checked={eachWay} onChange={(e) => setEachWay(e.target.checked)} />
-              <span>Each-way (win + place)</span>
+            <label className="field">
+              <span>Stake (optional)</span>
+              <input type="number" min="0" step="0.5" placeholder="£" value={stake} onChange={(e) => setStake(e.target.value)} />
             </label>
-            {eachWay && (
-              <p className="hint">
-                Terms: {eachWayTerms.fraction === 0.25 ? '1/4' : '1/5'} odds, {eachWayTerms.places} places. Half your stake rides on
-                each part.
-              </p>
+            {!stakeNum && groups.length > 0 && (
+              <p className="hint">No stake - this posts as a free pick and counts toward this week's Pick'em leaderboard.</p>
+            )}
+
+            {eachWayTerms && (
+              <>
+                <label className="field-check">
+                  <input type="checkbox" checked={eachWay} onChange={(e) => setEachWay(e.target.checked)} />
+                  <span>Each-way (win + place)</span>
+                </label>
+                {eachWay && (
+                  <p className="hint">
+                    Terms: {eachWayTerms.fraction === 0.25 ? '1/4' : '1/5'} odds, {eachWayTerms.places} places. Half your stake rides on
+                    each part.
+                  </p>
+                )}
+              </>
+            )}
+
+            {stakeNum > 0 && (
+              <label className="field-check">
+                <input type="checkbox" checked={stakeHidden} onChange={(e) => setStakeHidden(e.target.checked)} />
+                <span>Hide stake amount from the group</span>
+              </label>
             )}
           </>
-        )}
-
-        {stakeNum > 0 && (
-          <label className="field-check">
-            <input type="checkbox" checked={stakeHidden} onChange={(e) => setStakeHidden(e.target.checked)} />
-            <span>Hide stake amount from the group</span>
-          </label>
         )}
 
         {sanityCheckOn && (bigStake || lossChasing || stakingWarning || (user.stakeLimitAmount && periodSpend !== null && stakeNum > 0 && periodSpend + stakeNum > user.stakeLimitAmount)) && (
@@ -393,18 +588,20 @@ export default function BetBuilderSheet() {
 
         <div className="sheet-actions">
           {groups.length > 0 && (
-            <button className="btn btn-primary" onClick={handlePost} disabled={submitting}>
+            <button className="btn btn-primary" onClick={handlePost} disabled={submitting || !canSubmit}>
               {submitting ? 'Posting…' : 'Share with the group'}
             </button>
           )}
-          <button className="btn btn-secondary" onClick={handlePostPublic} disabled={submitting}>
+          <button className="btn btn-secondary" onClick={handlePostPublic} disabled={submitting || !canSubmit}>
             {submitting ? 'Posting…' : 'Post to everyone'}
           </button>
-          <button className="btn btn-secondary" onClick={handleSaveToTracker} disabled={submitting}>
-            Keep it to myself
-          </button>
+          {hasPick && (
+            <button className="btn btn-secondary" onClick={handleSaveToTracker} disabled={submitting}>
+              Keep it to myself
+            </button>
+          )}
           <button className="btn btn-ghost" onClick={onClose} disabled={submitting}>
-            Keep adding picks
+            {hasPick ? 'Keep adding picks' : 'Cancel'}
           </button>
         </div>
 

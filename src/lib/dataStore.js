@@ -69,6 +69,8 @@ import { freezesGranted, computeStreakTransition } from '../utils/dailyStreak.js
  * @property {any[]|null} outcomes
  * @property {string|null} caption
  * @property {string|null} photoUrl
+ * @property {string|null} videoUrl
+ * @property {string|null} tag
  * @property {boolean} autoHidden
  */
 /**
@@ -244,6 +246,8 @@ function mapBetPost(row) {
     outcomes: row.outcomes ?? null,
     caption: row.caption ?? null,
     photoUrl: row.photo_url ?? null,
+    videoUrl: row.video_url ?? null,
+    tag: row.tag ?? null,
     autoHidden: row.auto_hidden ?? false
   }
 }
@@ -878,7 +882,7 @@ async function bumpDailyStreak(userId) {
 }
 
 /**
- * @param {{groupId: string|null, userId: string, sport: string, marketType: string, selections: any[], stake: number|null, stakeHidden?: boolean, potentialReturn: number|null, visibility?: 'group'|'public', caption?: string|null, photoUrl?: string|null}} post
+ * @param {{groupId: string|null, userId: string, sport: string, marketType: string, selections: any[], stake: number|null, stakeHidden?: boolean, potentialReturn: number|null, visibility?: 'group'|'public', caption?: string|null, photoUrl?: string|null, videoUrl?: string|null, tag?: string|null}} post
  * @returns {Promise<BetPost>}
  */
 export async function createBetPost(post) {
@@ -896,7 +900,9 @@ export async function createBetPost(post) {
       potential_return: post.potentialReturn,
       visibility: post.visibility ?? 'group',
       caption: post.caption ?? null,
-      photo_url: post.photoUrl ?? null
+      photo_url: post.photoUrl ?? null,
+      video_url: post.videoUrl ?? null,
+      tag: post.tag ?? null
     })
     .select()
     .single()
@@ -927,6 +933,28 @@ export async function uploadPostPhoto(userId, blob) {
 export async function getPostPhotoUrl(photoKey) {
   if (!isSupabaseConfigured) return local.getPostPhotoUrl(photoKey)
   const { data, error } = await supabase.storage.from('post-photos').createSignedUrl(photoKey, 3600)
+  if (error) return null
+  return data.signedUrl
+}
+
+// Same shape as uploadPostPhoto/getPostPhotoUrl above, a separate
+// post-videos bucket rather than the `videos` bucket used for the Tips
+// feed - see schema.sql's comment on why bet_posts video needs the
+// group/public visibility check instead of that bucket's friend-scoped one.
+/** @param {string} userId @param {Blob} blob @returns {Promise<string>} */
+export async function uploadPostVideo(userId, blob) {
+  if (!isSupabaseConfigured) return local.uploadPostVideo(userId, blob)
+  const ext = VIDEO_EXT_BY_MIME[blob.type] || 'webm'
+  const path = `${userId}/${Date.now()}.${ext}`
+  const { error } = await supabase.storage.from('post-videos').upload(path, blob)
+  if (error) throw error
+  return path
+}
+
+/** @param {string} videoKey @returns {Promise<string|null>} */
+export async function getPostVideoUrl(videoKey) {
+  if (!isSupabaseConfigured) return local.getPostVideoUrl(videoKey)
+  const { data, error } = await supabase.storage.from('post-videos').createSignedUrl(videoKey, 3600)
   if (error) return null
   return data.signedUrl
 }

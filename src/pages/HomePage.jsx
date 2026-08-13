@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext.jsx'
-import { useQuickAdd } from '../context/QuickAddContext.jsx'
+import { useBetSlip } from '../context/BetSlipContext.jsx'
 import * as dataStore from '../lib/dataStore.js'
 import { computeStreak } from '../utils/trackerStats.js'
 import { computeGroupLeaderboard, computeGroupClvLeaderboard } from '../utils/groupLeaderboard.js'
@@ -20,7 +20,7 @@ import Avatar from '../components/Avatar.jsx'
 // aren't repeated here - they already live one tap away on Tracker/Alerts.
 export default function HomePage() {
   const { user } = useAuth()
-  const { openQuickAdd } = useQuickAdd()
+  const { openSheet } = useBetSlip()
   const [entries, setEntries] = useState(null)
   const [rankTeaser, setRankTeaser] = useState(null)
   const [feedFilter, setFeedFilter] = useState('all')
@@ -106,7 +106,7 @@ export default function HomePage() {
 
       {entries && <HomeInviteNudge user={user} entryCount={entries.length} />}
 
-      <button type="button" className="home-composer" onClick={openQuickAdd}>
+      <button type="button" className="home-composer" onClick={openSheet}>
         <Avatar name={user.displayName} photoUrl={user.avatarUrl} size={36} />
         <span className="home-composer-placeholder">Share your next pick…</span>
       </button>

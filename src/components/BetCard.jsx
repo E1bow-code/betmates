@@ -8,6 +8,7 @@ import { computeEachWayReturn } from '../utils/eachWay.js'
 import { isLive } from '../utils/liveStatus.js'
 import { notifyBetAuthor } from '../lib/notify.js'
 import { useAsyncAction } from '../lib/useAsyncAction.js'
+import { labelForTag } from '../lib/postTags.js'
 import CopyBetButton from './CopyBetButton.jsx'
 import BackBetButton from './BackBetButton.jsx'
 import ShareImageButton from './ShareImageButton.jsx'
@@ -54,6 +55,7 @@ export default function BetCard({ post, memberNames, memberAvatars, variant = 'g
   const [showMoreActions, setShowMoreActions] = useState(false)
   const [chatTarget, setChatTarget] = useState(null)
   const [photoSrc, setPhotoSrc] = useState(null)
+  const [videoSrc, setVideoSrc] = useState(null)
 
   useEffect(() => {
     dataStore.listReactions(post.id).then(setReactions)
@@ -78,6 +80,22 @@ export default function BetCard({ post, memberNames, memberAvatars, variant = 'g
       if (url?.startsWith('blob:')) URL.revokeObjectURL(url)
     }
   }, [post.photoUrl])
+
+  useEffect(() => {
+    if (!post.videoUrl) {
+      setVideoSrc(null)
+      return undefined
+    }
+    let url
+    dataStore.getPostVideoUrl(post.videoUrl).then((resolvedUrl) => {
+      if (!resolvedUrl) return
+      url = resolvedUrl
+      setVideoSrc(resolvedUrl)
+    })
+    return () => {
+      if (url?.startsWith('blob:')) URL.revokeObjectURL(url)
+    }
+  }, [post.videoUrl])
 
   useEffect(() => {
     return dataStore.subscribeBetActivity(post.id, {
@@ -236,17 +254,19 @@ export default function BetCard({ post, memberNames, memberAvatars, variant = 'g
               >
                 Edit
               </button>
-              <select className="status-select" defaultValue="open" onChange={handleStatusChange}>
-                <option value="open">Mark result</option>
-                <option value="won">Won</option>
-                {selections.length === 1 && selections[0].eachWay && <option value="placed">Placed (not won)</option>}
-                <option value="lost">Lost</option>
-                <option value="void">Void</option>
-              </select>
+              {selections.length > 0 && (
+                <select className="status-select" defaultValue="open" onChange={handleStatusChange}>
+                  <option value="open">Mark result</option>
+                  <option value="won">Won</option>
+                  {selections.length === 1 && selections[0].eachWay && <option value="placed">Placed (not won)</option>}
+                  <option value="lost">Lost</option>
+                  <option value="void">Void</option>
+                </select>
+              )}
             </>
           )}
-          {!isAuthor && <BackBetButton post={post} />}
-          <ShareImageButton post={post} />
+          {selections.length > 0 && !isAuthor && <BackBetButton post={post} />}
+          {selections.length > 0 && <ShareImageButton post={post} />}
           {!isAuthor && (
             <>
               <div className="moderation-menu-divider" />
@@ -271,55 +291,59 @@ export default function BetCard({ post, memberNames, memberAvatars, variant = 'g
       )}
 
       <div className="bet-card-body">
+        {post.tag && <span className="post-tag-chip post-tag-chip-readonly">{labelForTag(post.tag)}</span>}
         {post.caption && <p className="bet-card-caption">"{post.caption}"</p>}
         {photoSrc && <img src={photoSrc} alt="" className="bet-card-photo" loading="lazy" />}
+        {videoSrc && <video src={videoSrc} controls className="bet-card-photo" />}
 
-        <div className="bet-card-ticket">
-          <div className="bet-card-ticket-header">
-            <span className="bet-card-ticket-tag">{post.marketType}</span>
-            <span className={`bet-status-pill status-${status}`}>{STATUS_LABEL[status]}</span>
-          </div>
-
-          {selections.map((selection, i) => (
-            <div key={i} className={selections.length > 1 ? 'bet-card-leg' : undefined}>
-              <div className="selection-event">{selection.event}</div>
-              <div className="selection-row">
-                <span>{selection.market}</span>
-                <span className="selection-pick">{selection.selection}</span>
-              </div>
-              <div className="selection-odds-row">
-                <span className="selection-odds">{formatOdds(selection.odds, format)}</span>
-                <span className="selection-bookmaker">{selection.bookmaker}</span>
-              </div>
+        {selections.length > 0 && (
+          <div className="bet-card-ticket">
+            <div className="bet-card-ticket-header">
+              <span className="bet-card-ticket-tag">{post.marketType}</span>
+              <span className={`bet-status-pill status-${status}`}>{STATUS_LABEL[status]}</span>
             </div>
-          ))}
 
-          {post.stakeHidden ? (
-            <div className="bet-card-stake bet-card-stake-hidden">Stake kept private</div>
-          ) : (
-            <>
-              <div className="bet-card-ticket-divider" />
-              <div className="bet-card-stats">
-                {post.stake ? (
-                  <div className="bet-card-stat">
-                    <span className="bet-card-stat-label">Stake</span>
-                    <span className="bet-card-stat-value">£{post.stake}</span>
-                  </div>
-                ) : null}
-                <div className="bet-card-stat">
-                  <span className="bet-card-stat-label">Odds</span>
-                  <span className="bet-card-stat-value">{formatOdds(combinedOdds ?? selections[0].odds, format)}</span>
+            {selections.map((selection, i) => (
+              <div key={i} className={selections.length > 1 ? 'bet-card-leg' : undefined}>
+                <div className="selection-event">{selection.event}</div>
+                <div className="selection-row">
+                  <span>{selection.market}</span>
+                  <span className="selection-pick">{selection.selection}</span>
                 </div>
-                {post.stake && post.potentialReturn ? (
-                  <div className="bet-card-stat">
-                    <span className="bet-card-stat-label">Returns</span>
-                    <span className="bet-card-stat-value accent">£{post.potentialReturn.toFixed(2)}</span>
-                  </div>
-                ) : null}
+                <div className="selection-odds-row">
+                  <span className="selection-odds">{formatOdds(selection.odds, format)}</span>
+                  <span className="selection-bookmaker">{selection.bookmaker}</span>
+                </div>
               </div>
-            </>
-          )}
-        </div>
+            ))}
+
+            {post.stakeHidden ? (
+              <div className="bet-card-stake bet-card-stake-hidden">Stake kept private</div>
+            ) : (
+              <>
+                <div className="bet-card-ticket-divider" />
+                <div className="bet-card-stats">
+                  {post.stake ? (
+                    <div className="bet-card-stat">
+                      <span className="bet-card-stat-label">Stake</span>
+                      <span className="bet-card-stat-value">£{post.stake}</span>
+                    </div>
+                  ) : null}
+                  <div className="bet-card-stat">
+                    <span className="bet-card-stat-label">Odds</span>
+                    <span className="bet-card-stat-value">{formatOdds(combinedOdds ?? selections[0].odds, format)}</span>
+                  </div>
+                  {post.stake && post.potentialReturn ? (
+                    <div className="bet-card-stat">
+                      <span className="bet-card-stat-label">Returns</span>
+                      <span className="bet-card-stat-value accent">£{post.potentialReturn.toFixed(2)}</span>
+                    </div>
+                  ) : null}
+                </div>
+              </>
+            )}
+          </div>
+        )}
       </div>
 
       <div className="bet-card-footer">
@@ -375,19 +399,23 @@ export default function BetCard({ post, memberNames, memberAvatars, variant = 'g
           >
             💬 {comments.length > 0 && comments.length}
           </button>
-          <CopyBetButton post={post} userId={user.id} copyCount={copyCount} onCopied={() => setCopyCount((c) => c + 1)} />
+          {selections.length > 0 && (
+            <CopyBetButton post={post} userId={user.id} copyCount={copyCount} onCopied={() => setCopyCount((c) => c + 1)} />
+          )}
           {variant === 'group' && isAuthor && status === 'open' && (
             <>
               <button className="btn btn-ghost btn-small" type="button" onClick={() => setShowEdit(true)}>
                 Edit
               </button>
-              <select className="status-select" defaultValue="open" onChange={handleStatusChange}>
-                <option value="open">Mark result</option>
-                <option value="won">Won</option>
-                {selections.length === 1 && selections[0].eachWay && <option value="placed">Placed (not won)</option>}
-                <option value="lost">Lost</option>
-                <option value="void">Void</option>
-              </select>
+              {selections.length > 0 && (
+                <select className="status-select" defaultValue="open" onChange={handleStatusChange}>
+                  <option value="open">Mark result</option>
+                  <option value="won">Won</option>
+                  {selections.length === 1 && selections[0].eachWay && <option value="placed">Placed (not won)</option>}
+                  <option value="lost">Lost</option>
+                  <option value="void">Void</option>
+                </select>
+              )}
             </>
           )}
           {variant === 'group' && (
@@ -403,8 +431,8 @@ export default function BetCard({ post, memberNames, memberAvatars, variant = 'g
         </div>
         {variant === 'group' && showMoreActions && (
           <div className="bet-card-more-menu">
-            {!isAuthor && <BackBetButton post={post} />}
-            <ShareImageButton post={post} />
+            {selections.length > 0 && !isAuthor && <BackBetButton post={post} />}
+            {selections.length > 0 && <ShareImageButton post={post} />}
           </div>
         )}
       </div>

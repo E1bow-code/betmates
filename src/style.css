@@ -2393,6 +2393,53 @@ button.conversation-row { width: 100%; background: none; border: none; border-bo
   line-height: 1;
   cursor: pointer;
 }
+/* .composer-photo-preview's video twin - same frame, just a controls bar
+   instead of a plain <img>. */
+.composer-video-preview { display: block; width: 100%; max-height: 220px; background: #000; }
+.composer-media-buttons { display: flex; gap: 8px; margin: 4px 0; }
+.composer-media-buttons .composer-photo-button { margin: 0; }
+
+/* The Sport -> Event -> Market -> Selection picker that replaces manual
+   typing in BetBuilderSheet.jsx (src/lib/quickPick.js) when the slip has no
+   legs yet - a bordered card so it reads as one attach-a-pick unit rather
+   than four floating fields. */
+.quick-pick {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 14px;
+  margin-bottom: 4px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: var(--surface);
+}
+.quick-pick-title { margin: 0; font-size: 0.8rem; font-weight: 600; color: var(--text-dim); }
+
+/* Reddit-style post tags (src/lib/postTags.js) - a row of toggleable pill
+   chips in the composer, and a single read-only pill (post-tag-chip-readonly)
+   on a posted card. */
+.post-tag-row { display: flex; flex-wrap: wrap; gap: 6px; margin: 2px 0; }
+.post-tag-chip {
+  display: inline-flex;
+  align-items: center;
+  padding: 6px 12px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  color: var(--text-dim);
+  font-size: 0.78rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+.post-tag-chip.active { background: rgba(var(--accent-rgb), 0.16); border-color: var(--accent-dim); color: var(--accent); }
+.post-tag-chip-readonly {
+  width: fit-content;
+  margin-bottom: 2px;
+  background: rgba(var(--accent-rgb), 0.12);
+  border-color: var(--accent-dim);
+  color: var(--accent);
+  cursor: default;
+}
 .bet-card-stake { font-size: 0.85rem; color: var(--text-dim); }
 .bet-card-stake strong { color: var(--text); font-family: var(--font-mono); }
 .bet-card-stake-hidden { font-style: italic; }
