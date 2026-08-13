@@ -6,7 +6,7 @@ import * as dataStore from '../lib/dataStore.js'
 import { formatDateTime, formatCountdown } from '../utils/format.js'
 import { bestWithinFilter } from '../utils/oddsUtils.js'
 import { formatOdds } from '../utils/oddsFormat.js'
-import { isLive } from '../utils/liveStatus.js'
+import { isLive, hasFinished } from '../utils/liveStatus.js'
 import { useAuth } from '../context/AuthContext.jsx'
 import { useBetSlip } from '../context/BetSlipContext.jsx'
 import { useOddsFormat } from '../context/OddsFormatContext.jsx'
@@ -21,6 +21,7 @@ import Sparkline from '../components/Sparkline.jsx'
 import SportHeroBanner from '../components/SportHeroBanner.jsx'
 import LiveBadge from '../components/LiveBadge.jsx'
 import WatchLiveButton from '../components/WatchLiveButton.jsx'
+import WatchHighlightsButton from '../components/WatchHighlightsButton.jsx'
 import OddsAlertSheet from '../components/OddsAlertSheet.jsx'
 import FollowButton from '../components/FollowButton.jsx'
 import FixtureChatPanel from '../components/FixtureChatPanel.jsx'
@@ -131,11 +132,17 @@ export default function FixtureDetailPage() {
           kickoff={fixture.kickoff}
         />
         <CoachGptLink question={`What's the best bet for ${fixture.homeTeam} v ${fixture.awayTeam}?`} />
-        {isLive(fixture.kickoff, 'football') && (
+        {isLive(fixture.kickoff, 'football') ? (
           <div className="race-header-live">
             <LiveBadge />
             <WatchLiveButton leagueKey={fixture.sportKey} participants={[fixture.homeTeam, fixture.awayTeam]} kickoff={fixture.kickoff} />
           </div>
+        ) : (
+          hasFinished(fixture.kickoff, 'football') && (
+            <div className="race-header-live">
+              <WatchHighlightsButton query={`${fixture.homeTeam} v ${fixture.awayTeam} highlights`} />
+            </div>
+          )
         )}
         <label className="filter-toggle">
           <input

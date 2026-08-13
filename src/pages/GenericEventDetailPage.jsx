@@ -6,7 +6,7 @@ import { GENERIC_SPORTS } from '../lib/sportsConfig.js'
 import { formatDateTime, formatCountdown } from '../utils/format.js'
 import { bestWithinFilter } from '../utils/oddsUtils.js'
 import { formatOdds } from '../utils/oddsFormat.js'
-import { isLive } from '../utils/liveStatus.js'
+import { isLive, hasFinished } from '../utils/liveStatus.js'
 import { useAuth } from '../context/AuthContext.jsx'
 import { useBetSlip } from '../context/BetSlipContext.jsx'
 import { useOddsFormat } from '../context/OddsFormatContext.jsx'
@@ -21,6 +21,7 @@ import Sparkline from '../components/Sparkline.jsx'
 import SportHeroBanner from '../components/SportHeroBanner.jsx'
 import LiveBadge from '../components/LiveBadge.jsx'
 import WatchLiveButton from '../components/WatchLiveButton.jsx'
+import WatchHighlightsButton from '../components/WatchHighlightsButton.jsx'
 import OddsAlertSheet from '../components/OddsAlertSheet.jsx'
 import FollowButton from '../components/FollowButton.jsx'
 import FixtureChatPanel from '../components/FixtureChatPanel.jsx'
@@ -148,11 +149,17 @@ export default function GenericEventDetailPage() {
           kickoff={event.kickoff}
         />
         <CoachGptLink question={`What's the best bet for ${event.participantA} v ${event.participantB}?`} />
-        {isLive(event.kickoff, sportKey) && (
+        {isLive(event.kickoff, sportKey) ? (
           <div className="race-header-live">
             <LiveBadge />
             <WatchLiveButton leagueKey={sportKey} participants={[event.participantA, event.participantB]} kickoff={event.kickoff} />
           </div>
+        ) : (
+          hasFinished(event.kickoff, sportKey) && (
+            <div className="race-header-live">
+              <WatchHighlightsButton query={`${event.participantA} v ${event.participantB} highlights`} />
+            </div>
+          )
         )}
         <label className="filter-toggle">
           <input
