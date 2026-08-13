@@ -18,11 +18,14 @@
 // once "listen to events on connected accounts" is enabled on it.
 import Stripe from 'stripe'
 import { createClient } from '@supabase/supabase-js'
+import webpush from 'web-push'
 
 const SUPABASE_URL = process.env.VITE_SUPABASE_URL
 const SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY
 const STRIPE_SECRET_KEY = process.env.STRIPE_SECRET_KEY
 const WEBHOOK_SECRET = process.env.STRIPE_WEBHOOK_SECRET
+const VAPID_PUBLIC_KEY = process.env.VITE_VAPID_PUBLIC_KEY
+const VAPID_PRIVATE_KEY = process.env.VAPID_PRIVATE_KEY
 
 // Mirrors what the Stripe dashboard itself treats as "customer has access" -
 // trialing counts, incomplete/past_due/canceled/unpaid don't. current_period_end
@@ -93,6 +96,33 @@ async function syncGroupSubscription(admin, subscription) {
   console.log('syncGroupSubscription ok', groupId, userId, subscription.status, subscription.id)
 }
 
+// Congratulates the group owner the moment a subscription is actually
+// created - callers only invoke this on customer.subscription.created, not
+// .updated, so a renewal or payment-method change doesn't re-notify the
+// owner every billing period. No notification_prefs gate, matching the
+// reaction/comment pushes elsewhere (send-push.js) - this is an inherently
+// opt-in-worthy business event without an existing dedicated toggle.
+async function notifyNewGroupSubscriber(admin, groupId, subscriberId) {
+  if (!VAPID_PUBLIC_KEY || !VAPID_PRIVATE_KEY) return
+  const { data: group, error: groupError } = await admin.from('groups').select('name, created_by').eq('id', groupId).single()
+  if (groupError || !group || group.created_by === subscriberId) return
+  const { data: subscriber } = await admin.from('profiles').select('display_name').eq('id', subscriberId).single()
+  const { data: subs, error: subsError } = await admin.from('push_subscriptions').select('*').eq('user_id', group.created_by)
+  if (subsError || !subs?.length) return
+
+  webpush.setVapidDetails('mailto:betmates@example.com', VAPID_PUBLIC_KEY, VAPID_PRIVATE_KEY)
+  const payload = JSON.stringify({
+    title: '🎉 New paying member!',
+    body: `${subscriber?.display_name ?? 'Someone'} just joined ${group.name}`,
+    url: `/#/groups/${groupId}`
+  })
+  await Promise.allSettled(
+    subs.map((sub) =>
+      webpush.sendNotification({ endpoint: sub.endpoint, keys: { p256dh: sub.p256dh, auth: sub.auth_key } }, payload).catch(() => null)
+    )
+  )
+}
+
 async function syncConnectAccount(admin, account) {
   if (!account.charges_enabled || !account.details_submitted) return
   const { error } = await admin
@@ -125,8 +155,14 @@ export default async (req) => {
   try {
     if (event.type === 'customer.subscription.created' || event.type === 'customer.subscription.updated') {
       const subscription = event.data.object
-      if (subscription.metadata?.groupId) await syncGroupSubscription(admin, subscription)
-      else await syncPlusSubscription(admin, subscription)
+      if (subscription.metadata?.groupId) {
+        await syncGroupSubscription(admin, subscription)
+        if (event.type === 'customer.subscription.created' && isActiveStatus(subscription.status)) {
+          await notifyNewGroupSubscriber(admin, subscription.metadata.groupId, subscription.metadata.userId)
+        }
+      } else {
+        await syncPlusSubscription(admin, subscription)
+      }
     } else if (event.type === 'customer.subscription.deleted') {
       const subscription = event.data.object
       if (subscription.metadata?.groupId) {
