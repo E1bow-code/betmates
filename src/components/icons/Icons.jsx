@@ -310,3 +310,53 @@ export function CelebrateIcon(props) {
     </svg>
   )
 }
+
+// Bell - price/odds alerts.
+export function BellIcon(props) {
+  return (
+    <svg {...base} {...props}>
+      <path d="M6 10.5a6 6 0 0 1 12 0c0 3.2 1.1 4.7 1.5 5.2H4.5S6 14.3 6 10.5Z" />
+      <path d="M10.2 19a1.9 1.9 0 0 0 3.6 0" />
+    </svg>
+  )
+}
+
+// Diamond - best-value edges.
+export function DiamondIcon(props) {
+  return (
+    <svg {...base} {...props}>
+      <path d="M7 4h10l4 5.5L12 21 3 9.5 7 4Z" />
+      <path d="M3 9.5h18M9.5 4 8 9.5 12 21M14.5 4 16 9.5 12 21" />
+    </svg>
+  )
+}
+
+// Film reel - watch highlights.
+export function FilmIcon(props) {
+  return (
+    <svg {...base} {...props}>
+      <rect x="3.5" y="5" width="17" height="14" rx="1.8" />
+      <path d="M8 5v14M16 5v14M3.5 9.5H8M16 9.5h4.5M3.5 14.5H8M16 14.5h4.5" />
+    </svg>
+  )
+}
+
+// TV screen - watch live.
+export function TvIcon(props) {
+  return (
+    <svg {...base} {...props}>
+      <rect x="3" y="6.5" width="18" height="12.5" rx="1.8" />
+      <path d="M8 3.5 12 6.5 16 3.5" />
+    </svg>
+  )
+}
+
+// Outbound arrow - external profile/social links.
+export function ArrowUpRightIcon(props) {
+  return (
+    <svg {...base} {...props}>
+      <path d="M7 17 17 7" />
+      <path d="M9 7h8v8" />
+    </svg>
+  )
+}

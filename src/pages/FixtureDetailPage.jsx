@@ -27,6 +27,7 @@ import FollowButton from '../components/FollowButton.jsx'
 import FixtureChatPanel from '../components/FixtureChatPanel.jsx'
 import FollowParticipantButton from '../components/FollowParticipantButton.jsx'
 import ParticipantProfileSheet from '../components/ParticipantProfileSheet.jsx'
+import { FlameIcon, BellIcon } from '../components/icons/Icons.jsx'
 
 const PLAYER_MARKET_KEYS = ['player_goal_scorer_anytime', 'player_first_goal_scorer', 'player_last_goal_scorer']
 
@@ -211,8 +212,8 @@ export default function FixtureDetailPage() {
                           outcome.name
                         )}
                         {backingCount > 0 && (
-                          <span className="backing-badge">
-                            🔥 {backingCount} backing
+                          <span className="backing-badge icon-row">
+                            <FlameIcon width={14} height={14} /> {backingCount} backing
                           </span>
                         )}
                       </span>
@@ -254,7 +255,7 @@ export default function FixtureDetailPage() {
                         ))}
                       </div>
                       <button
-                        className="btn btn-ghost btn-small outcome-alert-link"
+                        className="btn btn-ghost btn-small outcome-alert-link icon-row"
                         type="button"
                         onClick={() =>
                           setAlertTarget({
@@ -270,7 +271,7 @@ export default function FixtureDetailPage() {
                           })
                         }
                       >
-                        🔔 Set a price alert
+                        <BellIcon width={14} height={14} /> Set a price alert
                       </button>
                     </div>
                   )}

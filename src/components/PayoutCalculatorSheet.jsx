@@ -6,6 +6,7 @@ import { kellyStake } from '../utils/kelly.js'
 import { useEscapeKey } from '../lib/useEscapeKey.js'
 import { useDelayedClose } from '../lib/useDelayedClose.js'
 import PremiumGate from './PremiumGate.jsx'
+import { RulerIcon } from './icons/Icons.jsx'
 
 const KELLY_FRACTIONS = [
   { value: 0.25, label: 'Quarter' },
@@ -59,8 +60,8 @@ export default function PayoutCalculatorButton() {
 
   return (
     <>
-      <button className="btn btn-ghost btn-small" onClick={() => setOpen(true)} type="button">
-        🧮 Calculator
+      <button className="btn btn-ghost btn-small icon-row" onClick={() => setOpen(true)} type="button">
+        <RulerIcon width={14} height={14} /> Calculator
       </button>
       {open && (
         <div className={`sheet-backdrop${closing ? ' closing' : ''}`} onClick={requestClose}>

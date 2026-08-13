@@ -2,6 +2,7 @@ import { useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { findBoardValue } from '../utils/valueFinder.js'
 import { formatOdds } from '../utils/oddsFormat.js'
+import { DiamondIcon } from './icons/Icons.jsx'
 
 // "Value on the board" - the standout best-price edges across the fixtures
 // currently loaded, so there's a reason to open the app even before you know
@@ -16,7 +17,9 @@ export default function ValueFinder({ items, sportKey, format }) {
   return (
     <div className="value-finder">
       <button className="value-finder-head" onClick={() => setOpen((o) => !o)} type="button" aria-expanded={open}>
-        <span className="value-finder-title">💎 Value on the board</span>
+        <span className="value-finder-title icon-row">
+          <DiamondIcon width={16} height={16} /> Value on the board
+        </span>
         <span className="value-finder-meta">
           {value.length} {open ? '▴' : '▾'}
         </span>

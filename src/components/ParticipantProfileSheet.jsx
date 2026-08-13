@@ -5,6 +5,7 @@ import { useEscapeKey } from '../lib/useEscapeKey.js'
 import { useDelayedClose } from '../lib/useDelayedClose.js'
 import { abbreviatePosition, flagFor, ageFrom } from '../utils/playerCard.js'
 import TeamBadge from './TeamBadge.jsx'
+import { ArrowUpRightIcon } from './icons/Icons.jsx'
 
 // dateEvent from TheSportsDB is also a plain "YYYY-MM-DD" string - see
 // formatBirthDate below for why this stays local instead of reusing
@@ -169,8 +170,8 @@ export default function ParticipantProfileSheet({ name, sport, onClose }) {
             {socials.length > 0 && (
               <div className="profile-sheet-socials">
                 {socials.map((s) => (
-                  <a key={s.label} href={s.href} target="_blank" rel="noreferrer" className="btn btn-ghost">
-                    {s.label} ↗
+                  <a key={s.label} href={s.href} target="_blank" rel="noreferrer" className="btn btn-ghost icon-row">
+                    {s.label} <ArrowUpRightIcon width={14} height={14} />
                   </a>
                 ))}
               </div>

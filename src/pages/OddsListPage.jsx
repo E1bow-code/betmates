@@ -25,6 +25,7 @@ import PullToRefresh from '../components/PullToRefresh.jsx'
 import SportIcon from '../components/icons/SportIcons.jsx'
 import LiveBadge from '../components/LiveBadge.jsx'
 import PayoutCalculatorButton from '../components/PayoutCalculatorSheet.jsx'
+import { SearchIcon } from '../components/icons/Icons.jsx'
 import * as dataStore from '../lib/dataStore.js'
 
 const SPORTS = ['football', 'racing', 'ufc', ...Object.keys(GENERIC_SPORTS)].map((key) => ({ key, label: SPORT_LABEL[key] }))
@@ -303,7 +304,7 @@ export default function OddsListPage() {
 
           {crossSportLoading && !crossSportResults?.length && <div className="loading">Searching…</div>}
           {!crossSportLoading && crossSportResults && !crossSportResults.length && (
-            <EmptyState icon="🔎" title="No matches" subtitle={`Nothing found for "${search.trim()}" anywhere.`} />
+            <EmptyState icon={<SearchIcon width={26} height={26} />} title="No matches" subtitle={`Nothing found for "${search.trim()}" anywhere.`} />
           )}
 
           {crossSportResults &&

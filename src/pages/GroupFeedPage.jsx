@@ -324,7 +324,7 @@ export default function GroupFeedPage() {
       {tab === 'chat' && (
         <div className="group-chat">
           <div className="topbar-actions group-chat-actions">
-            <CoachGptLink label="🧠 Ask CoachGPT" />
+            <CoachGptLink />
           </div>
           {messages === null && <div className="loading">Loading chat…</div>}
           {messages && !messages.length && (

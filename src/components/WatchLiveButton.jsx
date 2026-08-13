@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { BOOKMAKER_LINKS } from '../lib/bookmakers.js'
 import { getBroadcastInfo } from '../lib/broadcastLookup.js'
+import { TvIcon } from './icons/Icons.jsx'
 
 // Points at Bet365's own site by default rather than trying to construct a
 // link to a specific match - no UK bookmaker publishes a public URL scheme
@@ -33,8 +34,8 @@ export default function WatchLiveButton({ leagueKey, participants, kickoff }) {
   const label = broadcast ? `Watch on ${broadcast.broadcaster}` : 'Watch on Bet365'
 
   return (
-    <a className="btn btn-secondary btn-small watch-live-btn" href={href} target="_blank" rel="noreferrer">
-      📺 {label}
+    <a className="btn btn-secondary btn-small watch-live-btn icon-row" href={href} target="_blank" rel="noreferrer">
+      <TvIcon width={15} height={15} /> {label}
     </a>
   )
 }

@@ -3,6 +3,7 @@ import { useAuth } from '../context/AuthContext.jsx'
 import * as dataStore from '../lib/dataStore.js'
 import { useAsyncAction } from '../lib/useAsyncAction.js'
 import Avatar from './Avatar.jsx'
+import { CommentIcon } from './icons/Icons.jsx'
 
 // A chat room scoped to one fixture/fight/event, open to any signed-in user
 // rather than a group - for mates watching the same game live who aren't
@@ -49,8 +50,8 @@ export default function FixtureChatPanel({ sport, eventId, eventLabel, defaultOp
 
   return (
     <div className="fixture-chat">
-      <button className="leaderboard-toggle" onClick={() => setOpen((v) => !v)} aria-expanded={open}>
-        💬 Match chat {open ? '▲' : '▼'}
+      <button className="leaderboard-toggle icon-row" onClick={() => setOpen((v) => !v)} aria-expanded={open}>
+        <CommentIcon width={16} height={16} /> Match chat {open ? '▲' : '▼'}
       </button>
       {open && (
         <div className="group-chat">

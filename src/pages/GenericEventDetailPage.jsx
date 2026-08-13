@@ -28,6 +28,7 @@ import FixtureChatPanel from '../components/FixtureChatPanel.jsx'
 import FollowParticipantButton from '../components/FollowParticipantButton.jsx'
 import ParticipantProfileSheet from '../components/ParticipantProfileSheet.jsx'
 import CoachGptLink from '../components/CoachGptLink.jsx'
+import { FlameIcon, BellIcon } from '../components/icons/Icons.jsx'
 
 export default function GenericEventDetailPage() {
   const { sportKey, id } = useParams()
@@ -212,8 +213,8 @@ export default function GenericEventDetailPage() {
                           name
                         )}
                         {backingCount > 0 && (
-                          <span className="backing-badge">
-                            🔥 {backingCount} backing
+                          <span className="backing-badge icon-row">
+                            <FlameIcon width={14} height={14} /> {backingCount} backing
                           </span>
                         )}
                       </span>
@@ -255,7 +256,7 @@ export default function GenericEventDetailPage() {
                         ))}
                       </div>
                       <button
-                        className="btn btn-ghost btn-small outcome-alert-link"
+                        className="btn btn-ghost btn-small outcome-alert-link icon-row"
                         type="button"
                         onClick={() =>
                           setAlertTarget({
@@ -271,7 +272,7 @@ export default function GenericEventDetailPage() {
                           })
                         }
                       >
-                        🔔 Set a price alert
+                        <BellIcon width={14} height={14} /> Set a price alert
                       </button>
                     </div>
                   )}

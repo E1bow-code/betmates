@@ -75,7 +75,7 @@ export default function DirectMessagePage() {
             {friend && <Avatar name={friend.displayName} photoUrl={friend.avatarUrl} size={30} />}
             <h1>{friend?.displayName ?? 'Message'}</h1>
           </div>
-          <CoachGptLink label="🧠" />
+          <CoachGptLink iconOnly />
         </div>
       </div>
 
