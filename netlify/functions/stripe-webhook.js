@@ -96,13 +96,13 @@ async function syncGroupSubscription(admin, subscription) {
   console.log('syncGroupSubscription ok', groupId, userId, subscription.status, subscription.id)
 }
 
-// Congratulates the group owner the moment a subscription is actually
-// created - callers only invoke this on customer.subscription.created, not
-// .updated, so a renewal or payment-method change doesn't re-notify the
-// owner every billing period. No notification_prefs gate, matching the
-// reaction/comment pushes elsewhere (send-push.js) - this is an inherently
-// opt-in-worthy business event without an existing dedicated toggle.
-async function notifyNewGroupSubscriber(admin, groupId, subscriberId) {
+// Shared owner-facing push for group subscription lifecycle events - looks
+// up the group/owner, the subscriber's display name, and the owner's push
+// subscriptions once; callers just supply the title/body copy. No
+// notification_prefs gate, matching the reaction/comment pushes elsewhere
+// (send-push.js) - these are inherently opt-in-worthy business events
+// without an existing dedicated toggle.
+async function notifyGroupOwner(admin, groupId, subscriberId, buildMessage) {
   if (!VAPID_PUBLIC_KEY || !VAPID_PRIVATE_KEY) return
   const { data: group, error: groupError } = await admin.from('groups').select('name, created_by').eq('id', groupId).single()
   if (groupError || !group || group.created_by === subscriberId) return
@@ -112,8 +112,7 @@ async function notifyNewGroupSubscriber(admin, groupId, subscriberId) {
 
   webpush.setVapidDetails('mailto:betmates@example.com', VAPID_PUBLIC_KEY, VAPID_PRIVATE_KEY)
   const payload = JSON.stringify({
-    title: '🎉 New paying member!',
-    body: `${subscriber?.display_name ?? 'Someone'} just joined ${group.name}`,
+    ...buildMessage(subscriber?.display_name ?? 'Someone', group.name),
     url: `/#/groups/${groupId}`
   })
   await Promise.allSettled(
@@ -121,6 +120,26 @@ async function notifyNewGroupSubscriber(admin, groupId, subscriberId) {
       webpush.sendNotification({ endpoint: sub.endpoint, keys: { p256dh: sub.p256dh, auth: sub.auth_key } }, payload).catch(() => null)
     )
   )
+}
+
+// Callers only invoke this on customer.subscription.created, not .updated,
+// so a renewal or payment-method change doesn't re-notify the owner every
+// billing period.
+function notifyNewGroupSubscriber(admin, groupId, subscriberId) {
+  return notifyGroupOwner(admin, groupId, subscriberId, (name, groupName) => ({
+    title: '🎉 New paying member!',
+    body: `${name} just joined ${groupName}`
+  }))
+}
+
+// customer.subscription.deleted fires once per cancellation (immediate or
+// end-of-period), so this doesn't need the same created-vs-updated
+// event-type guard the new-subscriber push does.
+function notifyGroupSubscriberLeft(admin, groupId, subscriberId) {
+  return notifyGroupOwner(admin, groupId, subscriberId, (name, groupName) => ({
+    title: 'A member left',
+    body: `${name} cancelled their subscription to ${groupName}`
+  }))
 }
 
 async function syncConnectAccount(admin, account) {
@@ -169,6 +188,7 @@ export default async (req) => {
         const { groupId, userId } = subscription.metadata
         await admin.from('group_subscriptions').update({ status: subscription.status }).eq('group_id', groupId).eq('subscriber_id', userId)
         await admin.from('group_members').delete().eq('group_id', groupId).eq('user_id', userId)
+        await notifyGroupSubscriberLeft(admin, groupId, userId)
       } else {
         const userId = await findUserId(admin, subscription)
         if (userId) await admin.from('profiles').update({ is_premium: false }).eq('id', userId)
