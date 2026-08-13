@@ -1394,6 +1394,16 @@ alter table profiles add column if not exists is_premium boolean not null defaul
 alter table profiles add column if not exists premium_until timestamptz;
 alter table profiles add column if not exists stripe_customer_id text;
 alter table profiles add column if not exists stripe_subscription_id text;
+-- Raw Stripe subscription status ('trialing', 'active', ...), synced
+-- alongside is_premium/premium_until by stripe-webhook.js. is_premium alone
+-- can't tell a free trial apart from a paid renewal (both count as active
+-- access), which alert-checks.js's runTrialReminders needs to know so it
+-- doesn't send "your trial ends" copy to someone who's already paying.
+-- trial_reminder_sent_at is that check's own watermark, same
+-- kickoff_reminder_sent_at pattern used elsewhere in that file - it only
+-- fires once per trial since a trial only ever ends once.
+alter table profiles add column if not exists premium_status text;
+alter table profiles add column if not exists trial_reminder_sent_at timestamptz;
 
 create or replace function guard_premium_fields()
 returns trigger
@@ -1407,6 +1417,8 @@ begin
     new.premium_until := old.premium_until;
     new.stripe_customer_id := old.stripe_customer_id;
     new.stripe_subscription_id := old.stripe_subscription_id;
+    new.premium_status := old.premium_status;
+    new.trial_reminder_sent_at := old.trial_reminder_sent_at;
   end if;
   return new;
 end;

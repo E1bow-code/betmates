@@ -7,8 +7,9 @@
 // against Netlify's usage credits. Nobody's signed in when a cron job
 // fires, so this runs on the service-role key rather than working within
 // RLS - the one place in this project that does. A fourth check
-// (runLimitBuddyAlerts) and a fifth (runValueEdgeAlerts, CoachGPT's
-// proactive value-alert push) joined the same invocation later for the
+// (runLimitBuddyAlerts), a fifth (runValueEdgeAlerts, CoachGPT's
+// proactive value-alert push), and a sixth (runTrialReminders, BetMates
+// Plus's trial-ending push) joined the same invocation later for the
 // same reason - one more independent check, same cost as zero extra crons.
 // @ts-check
 import { createClient } from '@supabase/supabase-js'
@@ -70,6 +71,12 @@ import { findBoardValue } from '../../src/utils/valueFinder.js'
  * @property {'weekly'|'monthly'} stake_limit_period
  * @property {string} limit_buddy_id
  * @property {string|null} limit_alert_sent_at
+ */
+/**
+ * @typedef {object} TrialProfileRow
+ * @property {string} id
+ * @property {string} premium_until
+ * @property {string|null} trial_reminder_sent_at
  */
 
 const SUPABASE_URL = process.env.VITE_SUPABASE_URL
@@ -412,6 +419,49 @@ async function runLimitBuddyAlerts(supabase) {
   return { checked: limited.length, due: due.length, sent }
 }
 
+// --- BetMates Plus trial-ending reminder --------------------------------
+// A day's warning before a free trial's card auto-charges (see the trial
+// commit's own note: card is collected at checkout, so it converts
+// automatically rather than needing a second action). premium_status is
+// checked rather than is_premium, since is_premium alone can't distinguish
+// a trial from an ordinary paid renewal - only trialing subscribers should
+// see "your trial ends" copy. Treated as transactional (no notification_prefs
+// gate), same as the app never gating "bet settled" behind an opt-in - it's
+// telling someone about their own upcoming charge, not a marketing nudge.
+const TRIAL_REMINDER_WINDOW_MS = 24 * 60 * 60 * 1000
+
+/** @param {Supabase} supabase */
+async function runTrialReminders(supabase) {
+  const { data } = await supabase
+    .from('profiles')
+    .select('id,premium_until,trial_reminder_sent_at')
+    .eq('premium_status', 'trialing')
+    .not('premium_until', 'is', null)
+    .is('trial_reminder_sent_at', null)
+  const trialing = /** @type {TrialProfileRow[]} */ (/** @type {unknown} */ (data ?? []))
+  if (!trialing.length) return { checked: 0 }
+
+  const now = Date.now()
+  const due = trialing.filter((p) => {
+    const endsAt = new Date(p.premium_until).getTime()
+    return endsAt > now && endsAt <= now + TRIAL_REMINDER_WINDOW_MS
+  })
+  if (!due.length) return { checked: trialing.length, due: 0 }
+
+  // Marked up front, same reasoning as every other watermark in this file -
+  // a slow send can't cause the next 15-minute run to double-fire.
+  await Promise.all(
+    due.map((p) => supabase.from('profiles').update({ trial_reminder_sent_at: new Date().toISOString() }).eq('id', p.id))
+  )
+
+  const sent = await sendAll(supabase, due.map((p) => ({ ...p, user_id: p.id })), () => ({
+    title: '⏳ Your free trial ends tomorrow',
+    body: "BetMates Plus renews automatically at the end of your trial - manage or cancel any time from Account.",
+    url: '/#/account'
+  }))
+  return { checked: trialing.length, due: due.length, sent }
+}
+
 // --- Value-edge alerts (CoachGPT round 2) -------------------------------
 // Proactive half of CoachGPT: pushes when a followed team/fighter has a
 // real price edge on the board, rather than only answering when asked in
@@ -523,11 +573,12 @@ export default async (req) => {
   // Independent of each other (different tables, different push copy), so
   // they run concurrently rather than one after another - and one throwing
   // doesn't stop the others from still doing their job.
-  const [kickoffReminders, oddsAlerts, followedResults, limitBuddyAlerts, valueEdgeAlerts] = await Promise.allSettled([
+  const [kickoffReminders, oddsAlerts, followedResults, limitBuddyAlerts, trialReminders, valueEdgeAlerts] = await Promise.allSettled([
     runKickoffReminders(supabase),
     runOddsAlerts(supabase),
     runFollowedResults(supabase),
     runLimitBuddyAlerts(supabase),
+    runTrialReminders(supabase),
     runValueEdgeAlerts(supabase)
   ])
 
@@ -539,6 +590,7 @@ export default async (req) => {
       oddsAlerts: settle(oddsAlerts),
       followedResults: settle(followedResults),
       limitBuddyAlerts: settle(limitBuddyAlerts),
+      trialReminders: settle(trialReminders),
       valueEdgeAlerts: settle(valueEdgeAlerts)
     }),
     { status: 200, headers: { 'content-type': 'application/json' } }

@@ -54,6 +54,7 @@ async function syncPlusSubscription(admin, subscription) {
     .update({
       is_premium: isActiveStatus(subscription.status),
       premium_until: periodEnd,
+      premium_status: subscription.status,
       stripe_subscription_id: subscription.id
     })
     .eq('id', userId)
