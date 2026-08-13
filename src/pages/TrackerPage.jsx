@@ -31,6 +31,9 @@ import ChallengeMateButton from '../components/ChallengeMateButton.jsx'
 import ShareImageButton from '../components/ShareImageButton.jsx'
 import SportHeroBanner from '../components/SportHeroBanner.jsx'
 import SportIcon from '../components/icons/SportIcons.jsx'
+import TeamBadge from '../components/TeamBadge.jsx'
+import PlayerPhoto from '../components/PlayerPhoto.jsx'
+import { participantBadge } from '../utils/participantBadge.js'
 import LiveBadge from '../components/LiveBadge.jsx'
 import { useLiveScores } from '../lib/liveScores.js'
 import { betLineValue, beatTheLineRate } from '../utils/lineValue.js'
@@ -416,9 +419,16 @@ export default function TrackerPage() {
                   {selections.length > 1 && <div className="bet-card-leg-count">{selections.length}-leg bet builder</div>}
                   {selections.map((selection, i) => {
                     const live = entry.status === 'open' ? liveByEvent.get(selection.event) : null
+                    const badge = participantBadge(selection, entry.sport)
                     return (
                       <div key={i}>
                         <div className="selection-event">
+                          {badge &&
+                            (badge.type === 'team' ? (
+                              <TeamBadge team={badge.name} sport={badge.sport} size={18} />
+                            ) : (
+                              <PlayerPhoto name={badge.name} sport={badge.sport} size={18} />
+                            ))}
                           {selection.event}
                           {live && <LiveScoreTag game={live} />}
                         </div>
