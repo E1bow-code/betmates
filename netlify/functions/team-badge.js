@@ -52,19 +52,45 @@ const SPORT_MAP = {
 // only list a club when the two genuinely differ - a wrong alias is worse
 // than none. Extend as more mismatches turn up.
 const TEAM_ALIASES = {
+  // English - short forms and nicknames that don't match TheSportsDB raw.
   'man city': 'Manchester City',
   'man utd': 'Manchester United',
   'man united': 'Manchester United',
   spurs: 'Tottenham Hotspur',
   wolves: 'Wolverhampton Wanderers',
+  villa: 'Aston Villa',
+  palace: 'Crystal Palace',
+  forest: 'Nottingham Forest',
   'nottm forest': 'Nottingham Forest',
   "nott'm forest": 'Nottingham Forest',
+  leeds: 'Leeds United',
+  'west brom': 'West Bromwich Albion',
+  wba: 'West Bromwich Albion',
+  qpr: 'Queens Park Rangers',
   'sheffield utd': 'Sheffield United',
+  'sheff utd': 'Sheffield United',
+  'sheffield wed': 'Sheffield Wednesday',
+  'sheff wed': 'Sheffield Wednesday',
+  // The Odds API sends the full "Brighton and Hove Albion"; TheSportsDB
+  // indexes it as "Brighton".
+  'brighton and hove albion': 'Brighton',
+  'brighton & hove albion': 'Brighton',
+  // European - nicknames/abbreviations that would never resolve on their own.
   psg: 'Paris Saint-Germain',
   'paris saint germain': 'Paris Saint-Germain',
   inter: 'Inter Milan',
+  roma: 'AS Roma',
+  juve: 'Juventus',
   'bayern munich': 'Bayern Munich',
-  'atletico madrid': 'Atlético Madrid'
+  'atletico madrid': 'Atlético Madrid',
+  atleti: 'Atlético Madrid',
+  barca: 'Barcelona',
+  dortmund: 'Borussia Dortmund',
+  bvb: 'Borussia Dortmund',
+  gladbach: 'Borussia Mönchengladbach',
+  leverkusen: 'Bayer Leverkusen',
+  psv: 'PSV Eindhoven',
+  porto: 'FC Porto'
 }
 
 function resolveTeam(name) {
