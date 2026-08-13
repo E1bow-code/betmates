@@ -341,10 +341,20 @@ export default function BetBuilderSheet() {
   return (
     <div className={`sheet-backdrop${closing ? ' closing' : ''}`} onClick={onClose}>
       <div className={`sheet${closing ? ' closing' : ''}`} onClick={(e) => e.stopPropagation()}>
-        <div className="sheet-handle" />
-        <h2 className="sheet-title">
-          {legs.length > 1 ? `Your bet builder (${legs.length} legs)` : legs.length === 1 ? 'Your pick' : 'New post'}
-        </h2>
+        {/* Sticky header so the close button is always reachable - the sheet
+            scrolls, and a tall one left no backdrop to tap and no visible way
+            out but scrolling to a buried Cancel button. */}
+        <div className="sheet-header">
+          <div className="sheet-handle" />
+          <div className="sheet-header-row">
+            <h2 className="sheet-title">
+              {legs.length > 1 ? `Your bet builder (${legs.length} legs)` : legs.length === 1 ? 'Your pick' : 'New post'}
+            </h2>
+            <button type="button" className="sheet-close" onClick={onClose} disabled={submitting} aria-label="Close">
+              &times;
+            </button>
+          </div>
+        </div>
 
         {hasPick ? (
           <div className="bet-slip-legs">
@@ -457,17 +467,20 @@ export default function BetBuilderSheet() {
           />
         </label>
 
-        <div className="post-tag-row">
-          {POST_TAGS.map((t) => (
-            <button
-              key={t.key}
-              type="button"
-              className={tag === t.key ? 'post-tag-chip active' : 'post-tag-chip'}
-              onClick={() => setTag(tag === t.key ? null : t.key)}
-            >
-              {t.label}
-            </button>
-          ))}
+        <div className="post-tag-section">
+          <span className="post-tag-label">Tag it (optional)</span>
+          <div className="post-tag-row">
+            {POST_TAGS.map((t) => (
+              <button
+                key={t.key}
+                type="button"
+                className={tag === t.key ? 'post-tag-chip active' : 'post-tag-chip'}
+                onClick={() => setTag(tag === t.key ? null : t.key)}
+              >
+                {t.label}
+              </button>
+            ))}
+          </div>
         </div>
 
         {photoPreview && (
@@ -505,9 +518,7 @@ export default function BetBuilderSheet() {
               <span>Stake (optional)</span>
               <input type="number" min="0" step="0.5" placeholder="£" value={stake} onChange={(e) => setStake(e.target.value)} />
             </label>
-            {!stakeNum && groups.length > 0 && (
-              <p className="hint">No stake - this posts as a free pick and counts toward this week's Pick'em leaderboard.</p>
-            )}
+            {!stakeNum && groups.length > 0 && <p className="hint">No stake? It posts as a free pick for the Pick'em leaderboard.</p>}
 
             {eachWayTerms && (
               <>
@@ -586,23 +597,30 @@ export default function BetBuilderSheet() {
 
         {error && <div className="auth-error">{error}</div>}
 
+        {/* One clear primary action, not four equal buttons. With a group you
+            share to it; without one, posting to everyone is the primary. Saving
+            privately is the quiet tertiary, and closing is the × up top - no
+            need for a fourth full-width Cancel button down here. */}
         <div className="sheet-actions">
-          {groups.length > 0 && (
-            <button className="btn btn-primary" onClick={handlePost} disabled={submitting || !canSubmit}>
-              {submitting ? 'Posting…' : 'Share with the group'}
+          {groups.length > 0 ? (
+            <>
+              <button className="btn btn-primary" onClick={handlePost} disabled={submitting || !canSubmit}>
+                {submitting ? 'Posting…' : 'Share with the group'}
+              </button>
+              <button className="btn btn-secondary" onClick={handlePostPublic} disabled={submitting || !canSubmit}>
+                {submitting ? 'Posting…' : 'Post to everyone'}
+              </button>
+            </>
+          ) : (
+            <button className="btn btn-primary" onClick={handlePostPublic} disabled={submitting || !canSubmit}>
+              {submitting ? 'Posting…' : 'Post to everyone'}
             </button>
           )}
-          <button className="btn btn-secondary" onClick={handlePostPublic} disabled={submitting || !canSubmit}>
-            {submitting ? 'Posting…' : 'Post to everyone'}
-          </button>
           {hasPick && (
-            <button className="btn btn-secondary" onClick={handleSaveToTracker} disabled={submitting}>
+            <button className="btn btn-ghost" onClick={handleSaveToTracker} disabled={submitting}>
               Keep it to myself
             </button>
           )}
-          <button className="btn btn-ghost" onClick={onClose} disabled={submitting}>
-            {hasPick ? 'Keep adding picks' : 'Cancel'}
-          </button>
         </div>
 
         {!groups.length && <p className="hint">Tip: join or create a group to share with just your mates instead of everyone.</p>}

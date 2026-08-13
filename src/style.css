@@ -1659,6 +1659,45 @@ button.conversation-row { width: 100%; background: none; border: none; border-bo
 .sheet-title { margin: 0; font-size: 1.1rem; }
 .sheet-actions { display: flex; flex-direction: column; gap: 8px; }
 
+/* Sticky sheet header (used by the post composer) - keeps the title and the
+   close button pinned while the sheet body scrolls, so there's always a
+   visible way out. Negative margins bleed the surface background over the
+   sheet's own top/side padding so scrolled content passes cleanly underneath. */
+.sheet-header {
+  position: sticky;
+  top: 0;
+  z-index: 3;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin: -12px -18px 0;
+  padding: 12px 18px 10px;
+  background: var(--surface);
+  border-bottom: 1px solid var(--border);
+}
+.sheet-header .sheet-handle { margin: 0 auto; }
+.sheet-header-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.sheet-close {
+  flex: none;
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: var(--surface-2);
+  color: var(--text-dim);
+  font-size: 1.4rem;
+  line-height: 1;
+  cursor: pointer;
+}
+.sheet-close:active { background: var(--border); }
+@media (hover: hover) {
+  .sheet-close:hover { color: var(--text); border-color: var(--text-dim); }
+}
+.sheet-close:disabled { opacity: 0.5; cursor: default; }
+
 /* Route/page transition - the routed content in App.jsx's Shell() is keyed
    by location.pathname so React remounts it (and replays this animation)
    on every navigation, giving each page a soft settle instead of an
@@ -2456,6 +2495,8 @@ button.conversation-row { width: 100%; background: none; border: none; border-bo
 /* Reddit-style post tags (src/lib/postTags.js) - a row of toggleable pill
    chips in the composer, and a single read-only pill (post-tag-chip-readonly)
    on a posted card. */
+.post-tag-section { display: flex; flex-direction: column; gap: 6px; }
+.post-tag-label { font-size: 0.8rem; color: var(--text-dim); }
 .post-tag-row { display: flex; flex-wrap: wrap; gap: 6px; margin: 2px 0; }
 .post-tag-chip {
   display: inline-flex;
