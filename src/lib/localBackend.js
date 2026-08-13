@@ -446,7 +446,7 @@ export function getGroupSubscription(groupId, userId) {
   return delay(null)
 }
 
-/** @param {string} groupId @returns {Promise<{id: string, displayName: string, status: string}[]>} */
+/** @param {string} groupId @returns {Promise<{id: string, displayName: string, status: string, since: string}[]>} */
 export function listGroupSubscribers(groupId) {
   return delay([])
 }

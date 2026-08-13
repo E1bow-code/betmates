@@ -632,9 +632,11 @@ export async function getGroupSubscription(groupId, userId) {
   return mapGroupSubscription(data)
 }
 
-// Owner-only (RLS-scoped) - just a count + names for the settings panel,
-// not a full billing dashboard.
-/** @param {string} groupId @returns {Promise<{id: string, displayName: string, status: string}[]>} */
+// Owner-only (RLS-scoped) - backs both the earnings-dashboard tiles/list on
+// GroupFeedPage.jsx and the CSV export (see csvExport.js's
+// groupSubscribersToCsv), so `since` is included even though only the CSV
+// currently uses it.
+/** @param {string} groupId @returns {Promise<{id: string, displayName: string, status: string, since: string}[]>} */
 export async function listGroupSubscribers(groupId) {
   if (!isSupabaseConfigured) return local.listGroupSubscribers(groupId)
   const { data, error } = await supabase
@@ -643,7 +645,12 @@ export async function listGroupSubscribers(groupId) {
     .eq('group_id', groupId)
     .in('status', ['active', 'trialing'])
   if (error) throw error
-  return data.map((row) => ({ id: row.subscriber_id, displayName: row.profiles?.display_name ?? 'Someone', status: row.status }))
+  return data.map((row) => ({
+    id: row.subscriber_id,
+    displayName: row.profiles?.display_name ?? 'Someone',
+    status: row.status,
+    since: row.created_at
+  }))
 }
 
 /** @param {string} groupId @param {string} memberId @param {string} requesterId @returns {Promise<true>} */

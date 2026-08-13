@@ -1,6 +1,6 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { trackerEntriesToCsv } from './csvExport.js'
+import { trackerEntriesToCsv, groupSubscribersToCsv } from './csvExport.js'
 
 function entry(over) {
   return {
@@ -68,4 +68,21 @@ test('trackerEntriesToCsv quotes and escapes commas, quotes, and newlines', () =
   })
   const csv = trackerEntriesToCsv([e])
   assert.ok(csv.includes('"Team ""A"", the champs\nround 2 - M: X @ 2.00 (Bet365)"'))
+})
+
+test('groupSubscribersToCsv includes a header row', () => {
+  assert.equal(groupSubscribersToCsv([]), 'Name,Status,Subscribed since')
+})
+
+test('groupSubscribersToCsv formats a subscriber row', () => {
+  const s = { displayName: 'Reece', status: 'active', since: '2026-01-05T12:00:00Z' }
+  const [, row] = groupSubscribersToCsv([s]).split('\n')
+  const expectedSince = new Date(s.since).toLocaleDateString()
+  assert.equal(row, `Reece,active,${expectedSince}`)
+})
+
+test('groupSubscribersToCsv escapes a comma in a display name', () => {
+  const s = { displayName: 'Smith, Jane', status: 'trialing', since: '2026-01-05T12:00:00Z' }
+  const [, row] = groupSubscribersToCsv([s]).split('\n')
+  assert.ok(row.startsWith('"Smith, Jane",trialing,'))
 })

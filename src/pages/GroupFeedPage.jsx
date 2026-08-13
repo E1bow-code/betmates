@@ -20,6 +20,7 @@ import SportHeroBanner from '../components/SportHeroBanner.jsx'
 import CoachGptLink from '../components/CoachGptLink.jsx'
 import { startConnectOnboarding } from '../api/groupBillingClient.js'
 import { computeGroupEarnings } from '../utils/groupEarnings.js'
+import { groupSubscribersToCsv, downloadCsv } from '../lib/csvExport.js'
 
 export default function GroupFeedPage() {
   const { id } = useParams()
@@ -117,6 +118,11 @@ export default function GroupFeedPage() {
     }
     setConnecting(false)
     setConnectError(res.configured === false ? "Payouts aren't set up yet - check back soon." : res.error || 'Something went wrong - try again.')
+  }
+
+  function handleExportSubscribers() {
+    const date = new Date().toISOString().slice(0, 10)
+    downloadCsv(`betmates-${group.name.replace(/[^a-z0-9]+/gi, '-').toLowerCase()}-subscribers-${date}.csv`, groupSubscribersToCsv(subscribers))
   }
 
   async function handleSavePrice(e) {
@@ -443,13 +449,18 @@ export default function GroupFeedPage() {
                               </div>
                               <p className="hint">After BetMates' 10% fee - excludes Stripe's own processing fee.</p>
                               {subscribers.length > 0 && (
-                                <div className="manage-list">
-                                  {subscribers.map((s) => (
-                                    <div key={s.id} className="manage-list-row">
-                                      <span>{s.displayName}</span>
-                                    </div>
-                                  ))}
-                                </div>
+                                <>
+                                  <div className="manage-list">
+                                    {subscribers.map((s) => (
+                                      <div key={s.id} className="manage-list-row">
+                                        <span>{s.displayName}</span>
+                                      </div>
+                                    ))}
+                                  </div>
+                                  <button className="btn btn-ghost btn-small" onClick={handleExportSubscribers}>
+                                    Export as CSV
+                                  </button>
+                                </>
                               )}
                             </>
                           )

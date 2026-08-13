@@ -29,6 +29,16 @@ export function trackerEntriesToCsv(entries) {
   return [header, ...rows].map((row) => row.map(csvEscape).join(',')).join('\n')
 }
 
+// Same idea as trackerEntriesToCsv, for a paid group owner's earnings
+// dashboard (GroupFeedPage.jsx) - one row per currently-paying subscriber,
+// so an owner has something to keep outside the app (accounting, tax
+// records) beyond the tiles/list already shown in-app.
+export function groupSubscribersToCsv(subscribers) {
+  const header = ['Name', 'Status', 'Subscribed since']
+  const rows = subscribers.map((s) => [s.displayName, s.status, new Date(s.since).toLocaleDateString()])
+  return [header, ...rows].map((row) => row.map(csvEscape).join(',')).join('\n')
+}
+
 export function downloadCsv(filename, csv) {
   const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' })
   const url = URL.createObjectURL(blob)
