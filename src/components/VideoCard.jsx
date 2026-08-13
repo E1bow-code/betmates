@@ -4,7 +4,9 @@ import ShareVideoSheet from './ShareVideoSheet.jsx'
 import * as dataStore from '../lib/dataStore.js'
 import { computeStats } from '../utils/trackerStats.js'
 import { tipsterBadge } from '../utils/tipsterBadge.js'
-import { PinIcon, ShareIcon } from './icons/Icons.jsx'
+import { PinIcon, ShareIcon, TargetIcon, BadgeCheckIcon } from './icons/Icons.jsx'
+
+const TIPSTER_BADGE_ICON = { sharp: TargetIcon, reliable: BadgeCheckIcon }
 
 function timeAgo(iso) {
   const diffMs = Date.now() - new Date(iso).getTime()
@@ -55,6 +57,7 @@ export default function VideoCard({ post }) {
   }, [post.authorId])
 
   const badge = tipsterBadge(authorStats)
+  const BadgeIcon = badge && TIPSTER_BADGE_ICON[badge.icon]
 
   return (
     <div className="video-card">
@@ -65,8 +68,11 @@ export default function VideoCard({ post }) {
             <span className="bet-card-author">
               {post.authorName}
               {badge && (
-                <span className="tipster-badge" title={`${badge.label} - ${authorStats.decidedCount}+ decided public picks`}>
-                  {badge.icon} {badge.label}
+                <span
+                  className="tipster-badge icon-row"
+                  title={`${badge.label} - ${authorStats.decidedCount}+ decided public picks`}
+                >
+                  {BadgeIcon && <BadgeIcon width={13} height={13} />} {badge.label}
                 </span>
               )}
             </span>

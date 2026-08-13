@@ -12,6 +12,29 @@ import CoachTake from '../components/CoachTake.jsx'
 import CrowdWisdomPanel from '../components/CrowdWisdomPanel.jsx'
 import PremiumGate from '../components/PremiumGate.jsx'
 import EmptyState from '../components/EmptyState.jsx'
+import {
+  SearchIcon,
+  CalendarIcon,
+  MedalIcon,
+  BankIcon,
+  TargetIcon,
+  MoneyIcon,
+  DiamondIcon,
+  PulseIcon,
+  TrendDownIcon,
+  BrokenHeartIcon
+} from '../components/icons/Icons.jsx'
+
+const INSIGHT_ICON = {
+  calendar: CalendarIcon,
+  medal: MedalIcon,
+  bank: BankIcon,
+  target: TargetIcon,
+  money: MoneyIcon,
+  diamond: DiamondIcon,
+  pulse: PulseIcon,
+  trendDown: TrendDownIcon
+}
 
 export default function InsightsPage() {
   const { user } = useAuth()
@@ -57,27 +80,36 @@ export default function InsightsPage() {
       <CoachTake entries={entries} />
 
       {!insights.length && (
-        <EmptyState icon="🔍" title="Not enough history yet" subtitle="Settle a few more bets and your patterns will start showing up here." />
+        <EmptyState
+          icon={<SearchIcon width={26} height={26} />}
+          title="Not enough history yet"
+          subtitle="Settle a few more bets and your patterns will start showing up here."
+        />
       )}
 
       {insights.length > 0 && (
         <>
           <div className="tracker-list">
-            {freeInsights.map((i) => (
-              <div key={i.key} className="tracker-row icon-row">
-                <span className="icon-row-badge">{i.icon}</span>
-                <div className="tracker-row-main">
-                  <div className="selection-event">{i.title}</div>
-                  <div className="race-card-meta">{i.value}</div>
+            {freeInsights.map((i) => {
+              const Icon = INSIGHT_ICON[i.icon]
+              return (
+                <div key={i.key} className="tracker-row icon-row">
+                  <span className="icon-row-badge">{Icon && <Icon />}</span>
+                  <div className="tracker-row-main">
+                    <div className="selection-event">{i.title}</div>
+                    <div className="race-card-meta">{i.value}</div>
+                  </div>
                 </div>
-              </div>
-            ))}
+              )
+            })}
           </div>
           {moneyLeftInsight && (
             <PremiumGate isPremium={user.isPremium} label="Money left on the table">
               <div className="tracker-list">
                 <div className="tracker-row icon-row">
-                  <span className="icon-row-badge">{moneyLeftInsight.icon}</span>
+                  <span className="icon-row-badge">
+                    <MoneyIcon />
+                  </span>
                   <div className="tracker-row-main">
                     <div className="selection-event">{moneyLeftInsight.title}</div>
                     <div className="race-card-meta">{moneyLeftInsight.value}</div>
@@ -99,7 +131,9 @@ export default function InsightsPage() {
           <div className="tracker-list">
             {badBeats.map((b) => (
               <div key={b.id} className="tracker-row icon-row">
-                <span className="icon-row-badge">💔</span>
+                <span className="icon-row-badge">
+                  <BrokenHeartIcon />
+                </span>
                 <div className="tracker-row-main">
                   <div className="selection-event">
                     {b.legCount - 1} of {b.legCount} legs came in

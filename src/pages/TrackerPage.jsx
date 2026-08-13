@@ -38,6 +38,32 @@ import { betClv, clvSummary } from '../utils/clv.js'
 import { computeCashOutReplay } from '../utils/cashOutReplay.js'
 import CashOutReplay from '../components/CashOutReplay.jsx'
 import BetReviewButton from '../components/BetReviewButton.jsx'
+import {
+  FlameIcon,
+  SnowflakeIcon,
+  TrophyIcon,
+  BadgeCheckIcon,
+  TargetIcon,
+  TrendUpIcon,
+  TrendDownIcon,
+  ShieldIcon,
+  BookIcon,
+  MoneyIcon,
+  CalendarIcon,
+  ChartBarIcon
+} from '../components/icons/Icons.jsx'
+
+const BADGE_ICON = {
+  flame: FlameIcon,
+  snowflake: SnowflakeIcon,
+  trophy: TrophyIcon,
+  perfect: BadgeCheckIcon,
+  target: TargetIcon,
+  trendUp: TrendUpIcon,
+  shield: ShieldIcon,
+  book: BookIcon,
+  money: MoneyIcon
+}
 
 const STATUS_LABEL = { open: 'Pending', won: 'Won', lost: 'Lost', void: 'Void' }
 
@@ -183,16 +209,16 @@ export default function TrackerPage() {
   const perfectWeek = computePerfectWeek(entries)
   const badges = [
     streak.count >= 2 && {
-      icon: streak.type === 'won' ? '🔥' : '🥶',
+      icon: streak.type === 'won' ? 'flame' : 'snowflake',
       label: `${streak.count}-${streak.type === 'won' ? 'win' : 'loss'} streak`
     },
     bestWeek &&
       bestWeek.profit > 0 && {
-        icon: '🏆',
+        icon: 'trophy',
         label: `Best week +£${bestWeek.profit.toFixed(2)} (${new Date(bestWeek.weekStart).toLocaleDateString([], { month: 'short', day: 'numeric' })})`
       },
     perfectWeek && {
-      icon: '💯',
+      icon: 'perfect',
       label: `Perfect week, ${perfectWeek.count}-0 (${new Date(perfectWeek.weekStart).toLocaleDateString([], { month: 'short', day: 'numeric' })})`
     },
     ...computeMilestoneBadges(entries),
@@ -200,9 +226,9 @@ export default function TrackerPage() {
       // Prefer real Closing Line Value once snapshots exist; otherwise fall back
       // to the device-local "beat the line" rate.
       const clv = clvSummary(entries, closes)
-      if (clv) return { icon: '🎯', label: `Closing line value ${clv.avgPct >= 0 ? '+' : ''}${clv.avgPct}% (${clv.sample})` }
+      if (clv) return { icon: 'target', label: `Closing line value ${clv.avgPct >= 0 ? '+' : ''}${clv.avgPct}% (${clv.sample})` }
       const lv = beatTheLineRate(entries)
-      return lv && { icon: '📈', label: `Beat the line ${lv.rate}% (${lv.sample})` }
+      return lv && { icon: 'trendUp', label: `Beat the line ${lv.rate}% (${lv.sample})` }
     })(),
     (() => {
       // The positive twin of the loss-chasing nudge (BetBuilderSheet/
@@ -211,7 +237,7 @@ export default function TrackerPage() {
       // credited for discipline it's never been tested on.
       const disciplineStreak = computeDisciplineStreak(entries)
       const hasLoss = entries.some((e) => e.status === 'lost')
-      return user.isPremium && hasLoss && disciplineStreak >= 3 && { icon: '🧊', label: `${disciplineStreak} bets without chasing a loss` }
+      return user.isPremium && hasLoss && disciplineStreak >= 3 && { icon: 'shield', label: `${disciplineStreak} bets without chasing a loss` }
     })()
   ].filter(Boolean)
 
@@ -293,11 +319,14 @@ export default function TrackerPage() {
 
       {badges.length > 0 && (
         <div className="badge-row">
-          {badges.map((b) => (
-            <span key={b.label} className="badge">
-              {b.icon} {b.label}
-            </span>
-          ))}
+          {badges.map((b) => {
+            const Icon = BADGE_ICON[b.icon]
+            return (
+              <span key={b.label} className="badge icon-row">
+                {Icon && <Icon width={14} height={14} />} {b.label}
+              </span>
+            )
+          })}
         </div>
       )}
       <div className="tracker-links-row">
@@ -311,7 +340,9 @@ export default function TrackerPage() {
 
       {onThisDay.length > 0 && (
         <div className="account-section">
-          <h2 className="market-title">📅 On this day</h2>
+          <h2 className="market-title icon-row">
+            <CalendarIcon width={17} height={17} /> On this day
+          </h2>
           <div className="docket-list">
             {onThisDay.slice(0, 3).map((entry) => (
               <div key={entry.id} className="docket">
@@ -357,7 +388,7 @@ export default function TrackerPage() {
 
       {!entries.length && (
         <EmptyState
-          icon="📊"
+          icon={<ChartBarIcon width={26} height={26} />}
           title="Nothing logged yet"
           subtitle="Post a bet to a group, save one privately from the Odds tab, or log a bet from elsewhere with the button above."
         />
@@ -476,8 +507,9 @@ function LineValueTag({ lv }) {
   const pct = Math.abs(lv.deltaPct)
   if (pct < 0.5) return null // effectively no movement - not worth a badge
   return (
-    <div className={`line-value ${lv.beat ? 'line-value-good' : 'line-value-bad'}`}>
-      {lv.beat ? '📈 Beat the line' : '📉 Below the line'} by {pct.toFixed(1)}%
+    <div className={`line-value icon-row ${lv.beat ? 'line-value-good' : 'line-value-bad'}`}>
+      {lv.beat ? <TrendUpIcon width={14} height={14} /> : <TrendDownIcon width={14} height={14} />}{' '}
+      {lv.beat ? 'Beat the line' : 'Below the line'} by {pct.toFixed(1)}%
       <span className="line-value-detail">
         {' '}
         (you {lv.bet.toFixed(2)} vs {lv.line.toFixed(2)})
@@ -494,8 +526,8 @@ function ClvTag({ clv }) {
   const pct = Math.abs(clv.deltaPct)
   if (pct < 0.5) return null // effectively the close - not worth a badge
   return (
-    <div className={`line-value ${clv.beat ? 'line-value-good' : 'line-value-bad'}`}>
-      {clv.beat ? '🎯 Beat the close' : '🎯 Below the close'} by {pct.toFixed(1)}%
+    <div className={`line-value icon-row ${clv.beat ? 'line-value-good' : 'line-value-bad'}`}>
+      <TargetIcon width={14} height={14} /> {clv.beat ? 'Beat the close' : 'Below the close'} by {pct.toFixed(1)}%
       <span className="line-value-detail">
         {' '}
         (you {clv.bet.toFixed(2)} vs close {clv.close.toFixed(2)})

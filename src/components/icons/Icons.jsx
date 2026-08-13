@@ -360,3 +360,115 @@ export function ArrowUpRightIcon(props) {
     </svg>
   )
 }
+
+// Coin stack - money milestones (profit, stake, biggest win).
+export function MoneyIcon(props) {
+  return (
+    <svg {...base} {...props}>
+      <ellipse cx="12" cy="6" rx="7" ry="2.8" />
+      <path d="M5 6v5.5c0 1.5 3.1 2.8 7 2.8s7-1.3 7-2.8V6" />
+      <path d="M5 11.5V17c0 1.5 3.1 2.8 7 2.8s7-1.3 7-2.8v-5.5" />
+    </svg>
+  )
+}
+
+// Horse head - underdog racing win.
+export function HorseIcon(props) {
+  return (
+    <svg {...base} {...props}>
+      <path d="M6 20v-5.5c0-4 2.5-7 6-8.5 1.5-.6 2.5-1.8 2.5-3.5 1.5 1 2.5 2.7 2.5 4.5 0 1.8-.9 2.8-2 3.5l2 1.5-2 1.5.5 3-2.5 1v2.5" />
+      <circle cx="14.5" cy="6" r=".8" fill="currentColor" stroke="none" />
+    </svg>
+  )
+}
+
+// Handshake - referrals brought in.
+export function HandshakeIcon(props) {
+  return (
+    <svg {...base} {...props}>
+      <path d="M2.5 12.5 6 9l3 2 3-2 3 2 3.5-2.5" />
+      <path d="M9 11l3.5 3.5a1.6 1.6 0 0 1-2.3 2.3L7 13.5" />
+      <path d="M12.5 14.5 14 16a1.6 1.6 0 0 0 2.3-2.3" />
+      <path d="M2.5 12.5 5 17M21.5 12.5 19 17" />
+    </svg>
+  )
+}
+
+// Bar chart - stats/breakdowns.
+export function ChartBarIcon(props) {
+  return (
+    <svg {...base} {...props}>
+      <path d="M4 20V10M10 20V4M16 20v-7M4 20h16" />
+    </svg>
+  )
+}
+
+// Shield - discipline/restraint streaks.
+export function ShieldIcon(props) {
+  return (
+    <svg {...base} {...props}>
+      <path d="M12 3.5 19 6.5v5c0 5-3 8-7 9.5-4-1.5-7-4.5-7-9.5v-5Z" />
+    </svg>
+  )
+}
+
+// Check in a rosette - perfect record / verified reliable badge.
+export function BadgeCheckIcon(props) {
+  return (
+    <svg {...base} {...props}>
+      <circle cx="12" cy="12" r="8.5" />
+      <path d="M8.5 12.3l2.3 2.3 4.7-4.9" />
+    </svg>
+  )
+}
+
+// Open book - bets logged milestones.
+export function BookIcon(props) {
+  return (
+    <svg {...base} {...props}>
+      <path d="M12 5.5c-1.5-1-4-1.5-6.5-1v13c2.5-.5 5 0 6.5 1" />
+      <path d="M12 5.5c1.5-1 4-1.5 6.5-1v13c-2.5-.5-5 0-6.5 1v-13Z" />
+    </svg>
+  )
+}
+
+// Medal - top-performer callouts.
+export function MedalIcon(props) {
+  return (
+    <svg {...base} {...props}>
+      <path d="M8.5 3.5 11 9M15.5 3.5 13 9" />
+      <circle cx="12" cy="14.5" r="6" />
+      <path d="M12 11.5v6M9.5 14.5h5" />
+    </svg>
+  )
+}
+
+// Heartbeat line - betting-style volatility.
+export function PulseIcon(props) {
+  return (
+    <svg {...base} {...props}>
+      <path d="M3 12h4l2-6 4 12 2-6h6" />
+    </svg>
+  )
+}
+
+// Ballot box - crowd-vote calibration.
+export function BallotIcon(props) {
+  return (
+    <svg {...base} {...props}>
+      <rect x="4" y="9" width="16" height="11" rx="1.5" />
+      <path d="M9 9V6a3 3 0 0 1 6 0v3" />
+      <path d="M12 12.5v4M9.5 15h5" />
+    </svg>
+  )
+}
+
+// Broken heart - agony-column near-misses.
+export function BrokenHeartIcon(props) {
+  return (
+    <svg {...base} {...props}>
+      <path d="M12 20s-7.5-4.5-9-10.5C2.2 5.8 4.3 3.5 7 3.5c2 0 3.5 1.2 4 2.5l-1.8 3.2L11.5 12 9.7 15l2.3 5Z" />
+      <path d="M12 6c.5-1.3 2-2.5 4-2.5 2.7 0 4.8 2.3 4 5.9-.6 2.7-2.6 5-4.6 6.8" />
+    </svg>
+  )
+}

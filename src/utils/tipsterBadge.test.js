@@ -3,12 +3,12 @@ import assert from 'node:assert/strict'
 import { tipsterBadge } from './tipsterBadge.js'
 
 test('tipsterBadge awards Sharp Bettor at 20+ decided and 55%+ win rate', () => {
-  assert.deepEqual(tipsterBadge({ decidedCount: 20, winRate: 55 }), { icon: '🎯', label: 'Sharp Bettor' })
+  assert.deepEqual(tipsterBadge({ decidedCount: 20, winRate: 55 }), { icon: 'sharp', label: 'Sharp Bettor' })
 })
 
 test('tipsterBadge awards Reliable Tipster at 10+ decided and 50%+ win rate, below Sharp Bettor', () => {
-  assert.deepEqual(tipsterBadge({ decidedCount: 10, winRate: 50 }), { icon: '✅', label: 'Reliable Tipster' })
-  assert.deepEqual(tipsterBadge({ decidedCount: 19, winRate: 90 }), { icon: '✅', label: 'Reliable Tipster' })
+  assert.deepEqual(tipsterBadge({ decidedCount: 10, winRate: 50 }), { icon: 'reliable', label: 'Reliable Tipster' })
+  assert.deepEqual(tipsterBadge({ decidedCount: 19, winRate: 90 }), { icon: 'reliable', label: 'Reliable Tipster' })
 })
 
 test('tipsterBadge is null below both thresholds or with too small a sample', () => {

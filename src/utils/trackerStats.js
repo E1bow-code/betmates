@@ -126,13 +126,13 @@ export function computeMilestoneBadges(entries) {
   const { profit } = computeStats(entries)
   const badges = []
 
-  if (wins === 1) badges.push({ icon: '🎯', label: 'First win logged' })
+  if (wins === 1) badges.push({ icon: 'target', label: 'First win logged' })
 
   const loggedTier = [100, 50, 10].find((t) => entries.length >= t)
-  if (loggedTier) badges.push({ icon: '📒', label: `${loggedTier} bets logged` })
+  if (loggedTier) badges.push({ icon: 'book', label: `${loggedTier} bets logged` })
 
   const profitTier = [500, 250, 100, 50].find((t) => profit >= t)
-  if (profitTier) badges.push({ icon: '💰', label: `+£${profitTier} lifetime profit` })
+  if (profitTier) badges.push({ icon: 'money', label: `+£${profitTier} lifetime profit` })
 
   return badges
 }

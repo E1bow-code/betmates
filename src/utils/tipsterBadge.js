@@ -6,7 +6,7 @@
 // this high sustained over a real sample is a genuinely good signal.
 export function tipsterBadge(stats) {
   if (!stats || stats.winRate === null) return null
-  if (stats.decidedCount >= 20 && stats.winRate >= 55) return { icon: '🎯', label: 'Sharp Bettor' }
-  if (stats.decidedCount >= 10 && stats.winRate >= 50) return { icon: '✅', label: 'Reliable Tipster' }
+  if (stats.decidedCount >= 20 && stats.winRate >= 55) return { icon: 'sharp', label: 'Sharp Bettor' }
+  if (stats.decidedCount >= 10 && stats.winRate >= 50) return { icon: 'reliable', label: 'Reliable Tipster' }
   return null
 }

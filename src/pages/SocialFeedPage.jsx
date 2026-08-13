@@ -33,12 +33,15 @@ import {
   PeopleIcon,
   SwordsIcon,
   BellOffIcon,
-  VideoIcon
+  VideoIcon,
+  BadgeCheckIcon
 } from '../components/icons/Icons.jsx'
 import { computeTipsterRankings } from '../utils/tipsters.js'
 import TipsterLeaderboard from '../components/TipsterLeaderboard.jsx'
 import BookmakerScoreboard from '../components/BookmakerScoreboard.jsx'
 import { computeBookmakerScoreboard } from '../utils/bookmakerScoreboard.js'
+
+const TIPSTER_BADGE_ICON = { sharp: TargetIcon, reliable: BadgeCheckIcon }
 
 // Landing view for the Social tab. The feed is the main attraction - group/
 // friend management (create, join, invite codes) lives behind the Manage
@@ -417,11 +420,15 @@ export default function SocialFeedPage() {
                       <div className="discover-group-row-name">
                         {g.name}
                         {g.priceAmount && <span className="discover-group-price-badge">£{Number(g.priceAmount).toFixed(2)}/mo</span>}
-                        {ownerBadges[g.id] && (
-                          <span className="discover-group-tipster-badge">
-                            {ownerBadges[g.id].icon} {ownerBadges[g.id].label}
-                          </span>
-                        )}
+                        {ownerBadges[g.id] &&
+                          (() => {
+                            const BadgeIcon = TIPSTER_BADGE_ICON[ownerBadges[g.id].icon]
+                            return (
+                              <span className="discover-group-tipster-badge icon-row">
+                                {BadgeIcon && <BadgeIcon width={13} height={13} />} {ownerBadges[g.id].label}
+                              </span>
+                            )
+                          })()}
                       </div>
                       <div className="discover-group-row-meta">
                         {g.memberCount} member{g.memberCount === 1 ? '' : 's'}

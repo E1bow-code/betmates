@@ -1,5 +1,6 @@
 import { computeGroupRecap } from '../utils/groupRecap.js'
 import ShareRecapButton from './ShareRecapButton.jsx'
+import { MedalIcon, MoneyIcon } from './icons/Icons.jsx'
 
 // "This week" summary at the top of a group feed: how the group did over the
 // last seven days, who's the week's top tipster, and the biggest win. Renders
@@ -47,7 +48,9 @@ export default function GroupRecapCard({ posts, memberNames }) {
       <div className="group-recap-highlights">
         {recap.topTipster && (
           <div className="group-recap-line">
-            <span className="group-recap-line-icon">🏅</span>
+            <span className="group-recap-line-icon">
+              <MedalIcon width={16} height={16} />
+            </span>
             <span>
               <strong>{recap.topTipster.name}</strong> is top tipster —{' '}
               <span className={recap.topTipster.profit >= 0 ? 'tone-good' : 'tone-bad'}>
@@ -60,7 +63,9 @@ export default function GroupRecapCard({ posts, memberNames }) {
         )}
         {recap.biggestWin && (
           <div className="group-recap-line">
-            <span className="group-recap-line-icon">💰</span>
+            <span className="group-recap-line-icon">
+              <MoneyIcon width={16} height={16} />
+            </span>
             <span>
               Biggest win: <strong>{recap.biggestWin.name}</strong> +£{recap.biggestWin.profit.toFixed(2)}
               {recap.biggestWin.event ? ` on ${recap.biggestWin.legs > 1 ? `a ${recap.biggestWin.legs}-leg bet` : recap.biggestWin.event}` : ''}

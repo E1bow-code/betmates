@@ -4,6 +4,7 @@ import { notifyGroup } from '../lib/notify.js'
 import { computeTournamentStandings } from '../utils/groupTournament.js'
 import { useAsyncAction } from '../lib/useAsyncAction.js'
 import Avatar from './Avatar.jsx'
+import { TrophyIcon } from './icons/Icons.jsx'
 
 const DURATIONS = [
   { days: 7, label: '1w' },
@@ -75,8 +76,8 @@ export default function GroupTournamentSection({ groupId, groupName, posts, memb
 
   return (
     <div className="leaderboard">
-      <button className="leaderboard-toggle" onClick={() => setExpanded((v) => !v)}>
-        🏆 Tournaments {expanded ? '▲' : '▼'}
+      <button className="leaderboard-toggle icon-row" onClick={() => setExpanded((v) => !v)}>
+        <TrophyIcon width={16} height={16} /> Tournaments {expanded ? '▲' : '▼'}
       </button>
       {expanded && (
         <>
@@ -133,7 +134,15 @@ export default function GroupTournamentSection({ groupId, groupName, posts, memb
                     <span className="challenge-history-label">
                       {t.name} · {METRIC_LABEL[t.metric]}
                     </span>
-                    <span className="challenge-history-score">{champion ? `🏆 ${champion.name}` : 'No result'}</span>
+                    <span className="challenge-history-score icon-row">
+                      {champion ? (
+                        <>
+                          <TrophyIcon width={13} height={13} /> {champion.name}
+                        </>
+                      ) : (
+                        'No result'
+                      )}
+                    </span>
                   </div>
                 )
               })}

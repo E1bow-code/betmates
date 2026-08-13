@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import * as dataStore from '../lib/dataStore.js'
 import { calibrateCrowdWisdom, tallyVotes } from '../utils/crowdWisdom.js'
+import { BallotIcon } from './icons/Icons.jsx'
 
 const VOTE_LABEL = { lock_in: 'Lock in', not_sure: 'Not sure', not_happening: 'Not happening' }
 
@@ -35,7 +36,9 @@ export default function CrowdWisdomPanel({ userId }) {
       <div className="tracker-list">
         {calibration.map((c) => (
           <div key={c.key} className="tracker-row icon-row">
-            <span className="icon-row-badge">🗳️</span>
+            <span className="icon-row-badge">
+              <BallotIcon width={18} height={18} />
+            </span>
             <div className="tracker-row-main">
               <div className="selection-event">&quot;{VOTE_LABEL[c.key]}&quot;</div>
               <div className="race-card-meta">

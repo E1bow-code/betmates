@@ -6,6 +6,9 @@ import * as dataStore from '../lib/dataStore.js'
 import { LEADERBOARD_WINDOWS } from '../utils/dateWindows.js'
 import { MIN_SETTLED_TO_RANK } from '../utils/tipsters.js'
 import { useAsyncAction } from '../lib/useAsyncAction.js'
+import { TargetIcon, BadgeCheckIcon, FlameIcon } from './icons/Icons.jsx'
+
+const TIPSTER_BADGE_ICON = { sharp: TargetIcon, reliable: BadgeCheckIcon }
 
 // Discovery surface for the app's sharpest public tipsters (see
 // src/utils/tipsters.js). Ranked by verified ROI, with a one-tap follow so
@@ -50,8 +53,8 @@ export default function TipsterLeaderboard({ rows, window, onWindowChange, curre
     <>
       <p className="hint">
         The sharpest public tipsters, ranked by ROI on verified picks (min {MIN_SETTLED_TO_RANK} settled). Every pick is logged with
-        its odds locked in, so a record here can't be faked. 🎯 CLV shows how much they beat the closing line by — skill that,
-        unlike profit, can't be fluked.
+        its odds locked in, so a record here can't be faked. CLV shows how much they beat the closing line by — skill that, unlike
+        profit, can't be fluked.
       </p>
 
       <div className="mode-switcher">
@@ -65,7 +68,7 @@ export default function TipsterLeaderboard({ rows, window, onWindowChange, curre
       {rows === null && <div className="loading">Ranking the tipsters…</div>}
       {rows && !rows.length && (
         <EmptyState
-          icon="🎯"
+          icon={<TargetIcon width={26} height={26} />}
           title="No ranked tipsters yet"
           subtitle={`Post picks publicly and settle at least ${MIN_SETTLED_TO_RANK} to make the board.`}
         />
@@ -87,15 +90,30 @@ export default function TipsterLeaderboard({ rows, window, onWindowChange, curre
                     <span className="tipster-name">{row.name}</span>
                   )}
                   {row.badge && (
-                    <span className="tipster-badge">
-                      {row.badge.icon} {row.badge.label}
+                    <span className="tipster-badge icon-row">
+                      {(() => {
+                        const BadgeIcon = TIPSTER_BADGE_ICON[row.badge.icon]
+                        return BadgeIcon && <BadgeIcon width={13} height={13} />
+                      })()}{' '}
+                      {row.badge.label}
                     </span>
                   )}
                 </div>
                 <div className="tipster-meta">
                   {row.winRate === null ? '-' : `${row.winRate}% WR`} · {row.settledCount} picks
-                  {row.streak >= 2 ? ` · 🔥 ${row.streak}` : ''}
-                  {row.clv ? ` · 🎯 ${row.clv.avgPct >= 0 ? '+' : ''}${row.clv.avgPct}% CLV` : ''}
+                  {row.streak >= 2 && (
+                    <>
+                      {' · '}
+                      <FlameIcon width={12} height={12} className="icon-lead" /> {row.streak}
+                    </>
+                  )}
+                  {row.clv && (
+                    <>
+                      {' · '}
+                      <TargetIcon width={12} height={12} className="icon-lead" /> {row.clv.avgPct >= 0 ? '+' : ''}
+                      {row.clv.avgPct}% CLV
+                    </>
+                  )}
                 </div>
               </div>
               <div className="tipster-numbers">

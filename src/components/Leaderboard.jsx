@@ -7,6 +7,7 @@ import Avatar from './Avatar.jsx'
 import ShareLeaderboardButton from './ShareLeaderboardButton.jsx'
 import ReferralTierBadge from './ReferralTierBadge.jsx'
 import PremiumGate from './PremiumGate.jsx'
+import { TargetIcon, TrophyIcon } from './icons/Icons.jsx'
 
 // Section 2C's "aggregate group leaderboard" - ranks members of a single
 // group by P&L using the same computeStats math as the personal Tracker,
@@ -56,8 +57,8 @@ export default function Leaderboard({ posts, memberNames, currentUserId, closes 
             <button className={metric === 'profit' ? 'mode-tab active' : 'mode-tab'} onClick={() => setMetric('profit')}>
               Profit
             </button>
-            <button className={metric === 'clv' ? 'mode-tab active' : 'mode-tab'} onClick={() => setMetric('clv')}>
-              🎯 CLV
+            <button className={metric === 'clv' ? 'mode-tab active icon-row' : 'mode-tab icon-row'} onClick={() => setMetric('clv')}>
+              <TargetIcon width={14} height={14} /> CLV
             </button>
           </div>
           <div className="mode-switcher">
@@ -132,7 +133,9 @@ export default function Leaderboard({ posts, memberNames, currentUserId, closes 
           )}
           {seasons && seasons.length > 0 && (
             <div className="season-champions">
-              <p className="season-champions-title">🏆 Past champions</p>
+              <p className="season-champions-title icon-row">
+                <TrophyIcon width={16} height={16} /> Past champions
+              </p>
               <div className="season-champions-list">
                 {seasons.map((s) => (
                   <div key={s.period} className="season-champions-entry">
@@ -144,8 +147,8 @@ export default function Leaderboard({ posts, memberNames, currentUserId, closes 
                       </span>
                     </div>
                     {s.clvWinnerName && (
-                      <div className="season-champions-clv">
-                        🎯 Sharpest: {s.clvWinnerName} · {s.clvAvgPct >= 0 ? '+' : ''}
+                      <div className="season-champions-clv icon-row">
+                        <TargetIcon width={13} height={13} /> Sharpest: {s.clvWinnerName} · {s.clvAvgPct >= 0 ? '+' : ''}
                         {s.clvAvgPct}% CLV
                       </div>
                     )}

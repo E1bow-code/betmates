@@ -6,6 +6,7 @@ import { formatOdds } from '../utils/oddsFormat.js'
 import SportHeroBanner from '../components/SportHeroBanner.jsx'
 import EmptyState from '../components/EmptyState.jsx'
 import Avatar from '../components/Avatar.jsx'
+import { MoneyIcon, FlameIcon, TrophyIcon, CalendarIcon, HorseIcon, MegaphoneIcon, HandshakeIcon, TargetIcon } from '../components/icons/Icons.jsx'
 
 // Works fully logged out, same as PublicProfilePage - reachable as a "look
 // what's possible" hook for people who don't have an account yet. Backed
@@ -13,23 +14,28 @@ import Avatar from '../components/Avatar.jsx'
 // posts (same rule as the public feed), so these are records among what's
 // been shared publicly, not literally every bet anyone's ever placed.
 const RECORDS = [
-  { key: 'biggestWin', icon: '💰', title: 'Biggest single win', render: (r) => `+£${r.profit.toFixed(2)} on ${r.event}` },
-  { key: 'longestStreak', icon: '🔥', title: 'Longest win streak', render: (r) => `${r.count} in a row` },
-  { key: 'topProfit', icon: '🏆', title: 'Top all-time profit', render: (r) => `+£${r.profit.toFixed(2)}` },
+  { key: 'biggestWin', icon: <MoneyIcon />, title: 'Biggest single win', render: (r) => `+£${r.profit.toFixed(2)} on ${r.event}` },
+  { key: 'longestStreak', icon: <FlameIcon />, title: 'Longest win streak', render: (r) => `${r.count} in a row` },
+  { key: 'topProfit', icon: <TrophyIcon />, title: 'Top all-time profit', render: (r) => `+£${r.profit.toFixed(2)}` },
   {
     key: 'monthTopProfit',
-    icon: '🗓️',
+    icon: <CalendarIcon />,
     title: `Top profit this month`,
     render: (r) => `+£${r.profit.toFixed(2)} - resets next month`
   },
-  { key: 'underdog', icon: '🐎', title: 'Biggest underdog win', render: (r, format) => `${formatOdds(r.odds, format)} odds on ${r.event}` },
-  { key: 'mostActive', icon: '📣', title: 'Most public picks shared', render: (r) => `${r.count} picks` },
-  { key: 'topRecruiter', icon: '🤝', title: 'Brought in the most mates', render: (r) => `${r.count} invited` },
+  {
+    key: 'underdog',
+    icon: <HorseIcon />,
+    title: 'Biggest underdog win',
+    render: (r, format) => `${formatOdds(r.odds, format)} odds on ${r.event}`
+  },
+  { key: 'mostActive', icon: <MegaphoneIcon />, title: 'Most public picks shared', render: (r) => `${r.count} picks` },
+  { key: 'topRecruiter', icon: <HandshakeIcon />, title: 'Brought in the most mates', render: (r) => `${r.count} invited` },
   {
     key: 'sharpestTipster',
-    icon: '🎯',
+    icon: <TargetIcon />,
     title: 'Sharpest tipster',
-    render: (r) => `${r.badge.icon} ${r.badge.label} · ${r.winRate}% win rate (${r.decidedCount}+ picks)`
+    render: (r) => `${r.badge.label} · ${r.winRate}% win rate (${r.decidedCount}+ picks)`
   }
 ]
 
@@ -66,7 +72,7 @@ export default function HallOfFamePage() {
       {data === undefined && !error && <div className="loading">Tallying the records…</div>}
 
       {data && !rows.length && (
-        <EmptyState icon="🏆" title="No records yet" subtitle="Once public picks start settling, the records fill in here." />
+        <EmptyState icon={<TrophyIcon width={26} height={26} />} title="No records yet" subtitle="Once public picks start settling, the records fill in here." />
       )}
 
       {rows.length > 0 && (

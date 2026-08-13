@@ -63,7 +63,7 @@ export function computeInsights(entries, closes = {}) {
   if (bestDay && bestDay.profit > 0) {
     insights.push({
       key: 'bestDay',
-      icon: '📅',
+      icon: 'calendar',
       title: 'Best day to bet',
       value: `${DAY_NAMES[bestDay.day]} · +£${bestDay.profit.toFixed(2)}`
     })
@@ -85,7 +85,7 @@ export function computeInsights(entries, closes = {}) {
   if (topSport && topSport.profit > 0) {
     insights.push({
       key: 'topSport',
-      icon: '🏅',
+      icon: 'medal',
       title: 'Most profitable sport',
       value: `${SPORT_LABEL[topSport.sport] ?? topSport.sport} · +£${topSport.profit.toFixed(2)}`
     })
@@ -108,7 +108,7 @@ export function computeInsights(entries, closes = {}) {
   if (topBookmaker) {
     insights.push({
       key: 'topBookmaker',
-      icon: '🏦',
+      icon: 'bank',
       title: 'Most used bookmaker',
       value: `${topBookmaker.bookmaker} · ${topBookmaker.count} pick${topBookmaker.count === 1 ? '' : 's'}`
     })
@@ -132,7 +132,7 @@ export function computeInsights(entries, closes = {}) {
   if (bestMarket && bestMarket.winRate > 0) {
     insights.push({
       key: 'bestMarket',
-      icon: '🎯',
+      icon: 'target',
       title: 'Best market',
       value: `${bestMarket.market} · ${bestMarket.winRate}% win rate`
     })
@@ -143,7 +143,7 @@ export function computeInsights(entries, closes = {}) {
   const staked = entries.filter((e) => e.stake)
   if (staked.length >= 2) {
     const avg = staked.reduce((sum, e) => sum + Number(e.stake), 0) / staked.length
-    insights.push({ key: 'avgStake', icon: '💷', title: 'Average stake', value: `£${avg.toFixed(2)}` })
+    insights.push({ key: 'avgStake', icon: 'money', title: 'Average stake', value: `£${avg.toFixed(2)}` })
   }
 
   // Best value pick - single highest-odds LEG among won bets, i.e. the
@@ -157,7 +157,7 @@ export function computeInsights(entries, closes = {}) {
     }
   }
   if (valuePick) {
-    insights.push({ key: 'valuePick', icon: '💎', title: 'Best value pick', value: `${valuePick.odds.toFixed(2)} on ${valuePick.event}` })
+    insights.push({ key: 'valuePick', icon: 'diamond', title: 'Best value pick', value: `${valuePick.odds.toFixed(2)} on ${valuePick.event}` })
   }
 
   // Betting style - how "swingy" results are, not just what they average
@@ -167,7 +167,7 @@ export function computeInsights(entries, closes = {}) {
   if (bettingStyle) {
     insights.push({
       key: 'volatility',
-      icon: '🎢',
+      icon: 'pulse',
       title: 'Betting style',
       value: `${bettingStyle.style} · £${bettingStyle.stdev.toFixed(2)} swing per bet`
     })
@@ -182,7 +182,7 @@ export function computeInsights(entries, closes = {}) {
   if (leftOnTable && leftOnTable.total > 0) {
     insights.push({
       key: 'moneyLeftOnTable',
-      icon: '🪙',
+      icon: 'money',
       title: 'Money left on the table',
       value: `£${leftOnTable.total.toFixed(2)} (${leftOnTable.sample} bet${leftOnTable.sample === 1 ? '' : 's'})`
     })
@@ -198,7 +198,7 @@ export function computeInsights(entries, closes = {}) {
   if (clv) {
     insights.push({
       key: 'clv',
-      icon: '📉',
+      icon: 'trendDown',
       title: 'Beating the market',
       value: `${clv.avgPct >= 0 ? '+' : ''}${clv.avgPct}% vs. closing line · beat it ${clv.beatRate}% of the time (${clv.sample})`
     })

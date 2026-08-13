@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { computePickemLeaderboard } from '../utils/pickem.js'
 import Avatar from './Avatar.jsx'
+import { TargetIcon } from './icons/Icons.jsx'
 
 // Separate from the real-money Leaderboard above it on GroupFeedPage - this
 // one only ever counts free (no-stake) picks, resets every week, and is
@@ -14,8 +15,8 @@ export default function PickemLeaderboard({ posts, memberNames }) {
 
   return (
     <div className="leaderboard">
-      <button className="leaderboard-toggle" onClick={() => setExpanded((v) => !v)}>
-        🎯 Pick'em this week {expanded ? '▲' : '▼'}
+      <button className="leaderboard-toggle icon-row" onClick={() => setExpanded((v) => !v)}>
+        <TargetIcon width={16} height={16} /> Pick'em this week {expanded ? '▲' : '▼'}
       </button>
       {expanded && (
         <div className="leaderboard-list">

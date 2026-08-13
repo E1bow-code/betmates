@@ -8,6 +8,9 @@ import SportHeroBanner from '../components/SportHeroBanner.jsx'
 import { tipsterBadge } from '../utils/tipsterBadge.js'
 import ReferralTierBadge from '../components/ReferralTierBadge.jsx'
 import { useAsyncAction } from '../lib/useAsyncAction.js'
+import { TargetIcon, BadgeCheckIcon } from '../components/icons/Icons.jsx'
+
+const TIPSTER_BADGE_ICON = { sharp: TargetIcon, reliable: BadgeCheckIcon }
 
 // The one route in this app that works fully logged out - reachable from a
 // "Share my profile" link (see AccountPage) without the visitor needing an
@@ -79,11 +82,16 @@ export default function PublicProfilePage() {
               <div>
                 <span className="account-name">
                   {data.displayName}
-                  {tipsterBadge(data.stats) && (
-                    <span className="tipster-badge" title={`${tipsterBadge(data.stats).label} - ${data.stats.decidedCount}+ decided public picks`}>
-                      {tipsterBadge(data.stats).icon} {tipsterBadge(data.stats).label}
-                    </span>
-                  )}
+                  {(() => {
+                    const badge = tipsterBadge(data.stats)
+                    if (!badge) return null
+                    const BadgeIcon = TIPSTER_BADGE_ICON[badge.icon]
+                    return (
+                      <span className="tipster-badge icon-row" title={`${badge.label} - ${data.stats.decidedCount}+ decided public picks`}>
+                        {BadgeIcon && <BadgeIcon width={13} height={13} />} {badge.label}
+                      </span>
+                    )
+                  })()}
                   <ReferralTierBadge count={data.referralCount} />
                 </span>
                 <div className="race-card-meta">
