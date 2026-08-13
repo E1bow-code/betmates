@@ -2,6 +2,8 @@ import { useEffect, useState } from 'react'
 import Avatar from './Avatar.jsx'
 import ShareVideoSheet from './ShareVideoSheet.jsx'
 import * as dataStore from '../lib/dataStore.js'
+import { computeStats } from '../utils/trackerStats.js'
+import { tipsterBadge } from '../utils/tipsterBadge.js'
 
 function timeAgo(iso) {
   const diffMs = Date.now() - new Date(iso).getTime()
@@ -17,6 +19,7 @@ export default function VideoCard({ post }) {
   const [src, setSrc] = useState(null)
   const [missing, setMissing] = useState(false)
   const [sharing, setSharing] = useState(false)
+  const [authorStats, setAuthorStats] = useState(null)
 
   useEffect(() => {
     let url
@@ -35,13 +38,37 @@ export default function VideoCard({ post }) {
     }
   }, [post.videoKey])
 
+  // Same fetch -> filter-to-public -> computeStats -> tipsterBadge pattern
+  // already used for the Discover paid-group badge and PublicProfilePage -
+  // one call site here covers every place VideoCard renders (Tips segment,
+  // the merged Home/Feed view, and shared-in-group videos).
+  useEffect(() => {
+    let cancelled = false
+    dataStore.listBetPostsByUser(post.authorId).then((posts) => {
+      if (cancelled) return
+      setAuthorStats(computeStats(posts.filter((p) => p.visibility === 'public' && !p.stakeHidden)))
+    })
+    return () => {
+      cancelled = true
+    }
+  }, [post.authorId])
+
+  const badge = tipsterBadge(authorStats)
+
   return (
     <div className="video-card">
       <div className="bet-card-header">
         <div className="bet-card-who">
           <Avatar name={post.authorName} />
           <div>
-            <span className="bet-card-author">{post.authorName}</span>
+            <span className="bet-card-author">
+              {post.authorName}
+              {badge && (
+                <span className="tipster-badge" title={`${badge.label} - ${authorStats.decidedCount}+ decided public picks`}>
+                  {badge.icon} {badge.label}
+                </span>
+              )}
+            </span>
             <span className="bet-card-group-tag">
               {post.sharedByName ? `shared by ${post.sharedByName} · ` : ''}
               {timeAgo(post.sharedAt ?? post.createdAt)}
