@@ -2514,6 +2514,7 @@ button.conversation-row { width: 100%; background: none; border: none; border-bo
    itself reuses .bet-card's exact feed styling on purpose - the whole point is
    a faithful preview - so only the caption above it needs styling, plus a
    default cursor so the static card doesn't read as tappable. */
+.preview-toggle { align-self: center; }
 .post-preview { display: flex; flex-direction: column; gap: 6px; }
 .post-preview-label {
   font-size: 0.72rem;

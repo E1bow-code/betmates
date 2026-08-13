@@ -18,6 +18,23 @@ import { formatKickoff } from '../utils/format.js'
 export const PICKER_SPORTS = ['football', 'racing', 'ufc', ...Object.keys(GENERIC_SPORTS)]
 export { SPORT_LABEL }
 
+// Same grouping OddsListPage.jsx's own groupByCompetition already does for
+// the Odds tab's league-header sections - the Event dropdown was listing
+// every fixture for a sport in one flat list (e.g. football mixes Premier
+// League, Championship, and MLS together), so finding your own match meant
+// scrolling past dozens of unrelated ones. Racing has no `competition`
+// field (course/raceName instead) and isn't grouped this way, same carve-out
+// as the Odds tab.
+export function groupByCompetition(items) {
+  const groups = new Map()
+  for (const item of items) {
+    const key = item.competition ?? 'Other'
+    if (!groups.has(key)) groups.set(key, [])
+    groups.get(key).push(item)
+  }
+  return [...groups.entries()].map(([competition, items]) => ({ competition, items }))
+}
+
 export async function loadItemsForSport(sportKey) {
   if (sportKey === 'football') return fetchFixtures()
   if (sportKey === 'racing') return fetchRaces()

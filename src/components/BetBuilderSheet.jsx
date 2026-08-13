@@ -17,7 +17,7 @@ import { useEscapeKey } from '../lib/useEscapeKey.js'
 import { useDelayedClose } from '../lib/useDelayedClose.js'
 import { computeStats } from '../utils/trackerStats.js'
 import { tipsterBadge } from '../utils/tipsterBadge.js'
-import { PICKER_SPORTS, SPORT_LABEL, loadItemsForSport, labelFor, normalizeItem } from '../lib/quickPick.js'
+import { PICKER_SPORTS, SPORT_LABEL, loadItemsForSport, labelFor, normalizeItem, groupByCompetition } from '../lib/quickPick.js'
 import { POST_TAGS } from '../lib/postTags.js'
 import PostPreview from './PostPreview.jsx'
 
@@ -55,6 +55,7 @@ export default function BetBuilderSheet() {
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState(null)
   const [entries, setEntries] = useState(null)
+  const [showPreview, setShowPreview] = useState(false)
   const [pickerSport, setPickerSport] = useState('football')
   const [pickerItems, setPickerItems] = useState(null)
   const [pickerLoading, setPickerLoading] = useState(false)
@@ -151,6 +152,10 @@ export default function BetBuilderSheet() {
     ? [{ ...legs[0], market: 'Each-way', eachWay: true, eachWayFraction: eachWayTerms.fraction, eachWayPlaces: eachWayTerms.places }]
     : legs
   const canSubmit = hasPick || caption.trim() || photoFile || videoFile
+
+  // Racing carries no `competition` field (course/raceName instead), same
+  // carve-out OddsListPage.jsx's own grouping makes.
+  const pickerGroups = pickerItems && pickerSport !== 'racing' ? groupByCompetition(pickerItems) : null
 
   const pickerItem = pickerItems?.find((i) => i.id === pickerEventId) ?? null
   const pickerNormalized = pickerItem ? normalizeItem(pickerSport, pickerItem) : null
@@ -402,11 +407,21 @@ export default function BetBuilderSheet() {
                 <option value="">
                   {pickerLoading ? 'Loading…' : pickerItems && !pickerItems.length ? 'No upcoming events' : 'Choose an event'}
                 </option>
-                {pickerItems?.map((item) => (
-                  <option key={item.id} value={item.id}>
-                    {labelFor(pickerSport, item)}
-                  </option>
-                ))}
+                {pickerGroups
+                  ? pickerGroups.map((group) => (
+                      <optgroup key={group.competition} label={group.competition}>
+                        {group.items.map((item) => (
+                          <option key={item.id} value={item.id}>
+                            {labelFor(pickerSport, item)}
+                          </option>
+                        ))}
+                      </optgroup>
+                    ))
+                  : pickerItems?.map((item) => (
+                      <option key={item.id} value={item.id}>
+                        {labelFor(pickerSport, item)}
+                      </option>
+                    ))}
               </select>
             </label>
             {pickerNormalized && (
@@ -596,24 +611,35 @@ export default function BetBuilderSheet() {
           </label>
         )}
 
-        {/* Exactly what mates will see - built from the same values that go
-            into createBetPost (submittedLegs/marketType/potentialReturn), so
-            the preview and the posted card can never drift apart. */}
-        <PostPreview
-          authorName={user.displayName}
-          authorAvatarUrl={user.avatarUrl}
-          caption={caption}
-          tag={tag}
-          legs={submittedLegs}
-          marketType={marketType}
-          stake={stakeNum}
-          stakeHidden={stakeHidden}
-          combinedOdds={combinedOdds}
-          potentialReturn={potentialReturn}
-          photoPreview={photoPreview}
-          videoPreview={videoPreview}
-          format={format}
-        />
+        {/* Collapsed by default - the pick/caption/tag/media are already
+            visible above as you fill them in, so showing the full "as it'll
+            post" card unprompted just duplicated all of that a second time
+            before you'd even reached the post button. Still built from the
+            same values as createBetPost (submittedLegs/marketType/
+            potentialReturn) when opened, so the preview and the posted card
+            can never drift apart. */}
+        {canSubmit && (
+          <button type="button" className="btn btn-ghost btn-small preview-toggle" onClick={() => setShowPreview((v) => !v)}>
+            {showPreview ? 'Hide preview ▴' : 'Preview post ▾'}
+          </button>
+        )}
+        {showPreview && (
+          <PostPreview
+            authorName={user.displayName}
+            authorAvatarUrl={user.avatarUrl}
+            caption={caption}
+            tag={tag}
+            legs={submittedLegs}
+            marketType={marketType}
+            stake={stakeNum}
+            stakeHidden={stakeHidden}
+            combinedOdds={combinedOdds}
+            potentialReturn={potentialReturn}
+            photoPreview={photoPreview}
+            videoPreview={videoPreview}
+            format={format}
+          />
+        )}
 
         {error && <div className="auth-error">{error}</div>}
 
