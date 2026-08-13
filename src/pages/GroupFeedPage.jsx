@@ -19,6 +19,7 @@ import PullToRefresh from '../components/PullToRefresh.jsx'
 import SportHeroBanner from '../components/SportHeroBanner.jsx'
 import CoachGptLink from '../components/CoachGptLink.jsx'
 import { startConnectOnboarding } from '../api/groupBillingClient.js'
+import { computeGroupEarnings } from '../utils/groupEarnings.js'
 
 export default function GroupFeedPage() {
   const { id } = useParams()
@@ -51,7 +52,7 @@ export default function GroupFeedPage() {
   const [savingPrice, setSavingPrice] = useState(false)
   const [connecting, setConnecting] = useState(false)
   const [connectError, setConnectError] = useState(null)
-  const [subscriberCount, setSubscriberCount] = useState(null)
+  const [subscribers, setSubscribers] = useState(null)
   const runAsync = useAsyncAction()
 
   function refresh() {
@@ -98,7 +99,7 @@ export default function GroupFeedPage() {
   const isCreator = group?.createdBy === user.id
 
   useEffect(() => {
-    if (isCreator && group?.priceAmount) dataStore.listGroupSubscribers(id).then((s) => setSubscriberCount(s.length))
+    if (isCreator && group?.priceAmount) dataStore.listGroupSubscribers(id).then(setSubscribers)
   }, [isCreator, group?.priceAmount, id])
 
   useEffect(() => {
@@ -418,10 +419,42 @@ export default function GroupFeedPage() {
                     </button>
                   </form>
                   {group?.priceAmount ? (
-                    <p className="hint">
-                      £{Number(group.priceAmount).toFixed(2)}/month
-                      {subscriberCount !== null && ` · ${subscriberCount} paying member${subscriberCount === 1 ? '' : 's'}`}
-                    </p>
+                    <>
+                      <p className="hint">£{Number(group.priceAmount).toFixed(2)}/month</p>
+                      {subscribers !== null &&
+                        (() => {
+                          const { grossMrr, netMrr } = computeGroupEarnings(subscribers.length, group.priceAmount)
+                          return (
+                            <>
+                              <h2 className="market-title">Earnings</h2>
+                              <div className="stat-tiles">
+                                <div className="stat-tile">
+                                  <div className="stat-tile-value">{subscribers.length}</div>
+                                  <div className="stat-tile-label">Paying members</div>
+                                </div>
+                                <div className="stat-tile">
+                                  <div className="stat-tile-value">£{grossMrr.toFixed(2)}</div>
+                                  <div className="stat-tile-label">Gross revenue</div>
+                                </div>
+                                <div className="stat-tile">
+                                  <div className="stat-tile-value">£{netMrr.toFixed(2)}</div>
+                                  <div className="stat-tile-label">Your est. earnings</div>
+                                </div>
+                              </div>
+                              <p className="hint">After BetMates' 10% fee - excludes Stripe's own processing fee.</p>
+                              {subscribers.length > 0 && (
+                                <div className="manage-list">
+                                  {subscribers.map((s) => (
+                                    <div key={s.id} className="manage-list-row">
+                                      <span>{s.displayName}</span>
+                                    </div>
+                                  ))}
+                                </div>
+                              )}
+                            </>
+                          )
+                        })()}
+                    </>
                   ) : (
                     <p className="hint">This group is free to join.</p>
                   )}
