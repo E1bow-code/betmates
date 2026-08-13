@@ -925,8 +925,46 @@ button.conversation-row { width: 100%; background: none; border: none; border-bo
 }
 .discover-group-list .discover-group-row:last-child { border-bottom: none; }
 .discover-group-row-main { flex: 1; min-width: 0; }
-.discover-group-row-name { font-weight: 600; font-size: 0.92rem; }
+.discover-group-row-name { font-weight: 600; font-size: 0.92rem; display: flex; align-items: center; gap: 6px; }
 .discover-group-row-meta { font-size: 0.8rem; color: var(--text-dim); }
+.discover-group-price-badge {
+  font-size: 0.7rem;
+  font-weight: 700;
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: rgba(var(--accent-rgb), 0.16);
+  color: var(--accent);
+}
+
+/* Owner-only paid-group settings (GroupFeedPage.jsx's Members tab) - price
+   field + Connect-payouts CTA, same bordered-card convention as .scan-cta/
+   .sanity-check rather than bare inline controls, since this is a
+   distinct, higher-stakes settings group. */
+.group-billing-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 12px;
+  margin-bottom: 4px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--surface);
+}
+
+/* JoinGroupPage.jsx's paywall for a priced group's invite link - the
+   only place in the app that asks someone to pay for something, so it
+   gets its own card rather than reusing .auth-error/.hint inline. */
+.paywall-card {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  align-items: flex-start;
+  padding: 20px 16px;
+  margin-top: 12px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: var(--surface);
+}
 
 .report-list { display: flex; flex-direction: column; gap: 10px; }
 .report-card { border: 1px solid var(--border); border-radius: 4px; padding: 12px; background: var(--surface); }

@@ -1492,3 +1492,78 @@ create policy "user uploads own post video" on storage.objects for insert with c
 create policy "user deletes own post video" on storage.objects for delete using (
   bucket_id = 'post-videos' and (storage.foldername(name))[1] = auth.uid()::text
 );
+
+-- --- Paid tipster groups (Stripe Connect) --------------------------------
+-- price_amount/price_currency are ordinary owner-settable fields, already
+-- covered by the existing "creator renames their group" update policy
+-- (row-scoped to created_by = auth.uid(), no column restriction) - only
+-- the two Stripe-derived columns below need guarding, same reasoning as
+-- guard_premium_fields above: "update own group" has no with check, so a
+-- plain column add would let a raw API call self-grant a fake connected
+-- account / charges-enabled flag. Only stripe-connect-onboarding.js
+-- (service role, to stash the account id) and stripe-webhook.js (service
+-- role, driven by a Stripe-signed account.updated event) ever touch these.
+alter table groups add column if not exists price_amount numeric;
+alter table groups add column if not exists price_currency text not null default 'gbp';
+alter table groups add column if not exists stripe_connect_account_id text;
+alter table groups add column if not exists stripe_connect_charges_enabled boolean not null default false;
+
+create or replace function guard_group_connect_fields()
+returns trigger
+language plpgsql
+security definer
+set search_path = public
+as $$
+begin
+  if auth.role() in ('anon', 'authenticated') then
+    new.stripe_connect_account_id := old.stripe_connect_account_id;
+    new.stripe_connect_charges_enabled := old.stripe_connect_charges_enabled;
+  end if;
+  return new;
+end;
+$$;
+
+drop trigger if exists guard_group_connect_fields_on_groups on groups;
+create trigger guard_group_connect_fields_on_groups
+  before update on groups
+  for each row execute function guard_group_connect_fields();
+
+-- One row per active-or-lapsed paid membership. season_results-shaped:
+-- select-only for client roles, no insert/update/delete policy at all -
+-- the only writer is stripe-webhook.js's service-role client, driven by
+-- Stripe-signed subscription events. Destination charges (see
+-- create-group-checkout-session.js) keep the Customer/Subscription on the
+-- platform account, so this is synced from the same webhook endpoint
+-- Plus already uses, not a separate Connect-specific one.
+create table group_subscriptions (
+  id uuid primary key default gen_random_uuid(),
+  group_id uuid not null references groups(id) on delete cascade,
+  subscriber_id uuid not null references profiles(id) on delete cascade,
+  stripe_subscription_id text not null,
+  stripe_customer_id text not null,
+  status text not null,
+  current_period_end timestamptz,
+  created_at timestamptz not null default now(),
+  unique (group_id, subscriber_id)
+);
+alter table group_subscriptions enable row level security;
+create policy "subscriber reads own subscription" on group_subscriptions for select using (auth.uid() = subscriber_id);
+create policy "group owner reads their group's subscriptions" on group_subscriptions for select using (
+  exists (select 1 from groups g where g.id = group_id and g.created_by = auth.uid())
+);
+
+-- Tightened from the original unconditional "any signed-in user can add
+-- themselves" - a paid group can now only be self-joined with an active
+-- subscription already on record. Service-role inserts (the webhook,
+-- after a successful checkout) bypass RLS entirely, so this only blocks
+-- a client trying to skip payment by calling the insert directly.
+drop policy if exists "user joins a group as themselves" on group_members;
+create policy "user joins a group as themselves" on group_members for insert with check (
+  auth.uid() = user_id and (
+    not exists (select 1 from groups g where g.id = group_id and g.price_amount is not null)
+    or exists (
+      select 1 from group_subscriptions s
+      where s.group_id = group_members.group_id and s.subscriber_id = auth.uid() and s.status in ('active', 'trialing')
+    )
+  )
+);

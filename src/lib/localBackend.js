@@ -328,7 +328,11 @@ export function createGroup(name, userId) {
     createdBy: userId,
     createdAt: new Date().toISOString(),
     isDiscoverable: false,
-    memberCount: 0
+    memberCount: 0,
+    priceAmount: null,
+    priceCurrency: 'gbp',
+    stripeConnectAccountId: null,
+    stripeConnectChargesEnabled: false
   }
   db.groups.push(group)
   db.groupMembers.push({ groupId: group.id, userId, joinedAt: group.createdAt })
@@ -347,6 +351,13 @@ export function joinGroupByCode(code, userId) {
     writeDb(db)
   }
   return delay(withMemberCount(db, group))
+}
+
+/** @param {string} code @returns {Promise<Group|null>} */
+export function getGroupByCode(code) {
+  const db = readDb()
+  const group = db.groups.find((g) => g.inviteCode.toUpperCase() === code.trim().toUpperCase())
+  return delay(group ? withMemberCount(db, group) : null)
 }
 
 /** @param {string} userId @returns {Promise<Group[]>} */
@@ -413,6 +424,31 @@ export function setGroupDiscoverable(groupId, isDiscoverable) {
     writeDb(db)
   }
   return delay(group ? withMemberCount(db, group) : null)
+}
+
+// Local mode has no real Stripe/Connect - price can still be set (so the
+// owner-settings UI has something to show) but there's no way to actually
+// complete a paid join without a real backend, same limitation Plus
+// already has in local mode.
+/** @param {string} groupId @param {number|null} amountPounds @returns {Promise<Group|null>} */
+export function setGroupPrice(groupId, amountPounds) {
+  const db = readDb()
+  const group = db.groups.find((g) => g.id === groupId)
+  if (group) {
+    group.priceAmount = amountPounds
+    writeDb(db)
+  }
+  return delay(group ? withMemberCount(db, group) : null)
+}
+
+/** @param {string} groupId @param {string} userId @returns {Promise<null>} */
+export function getGroupSubscription(groupId, userId) {
+  return delay(null)
+}
+
+/** @param {string} groupId @returns {Promise<{id: string, displayName: string, status: string}[]>} */
+export function listGroupSubscribers(groupId) {
+  return delay([])
 }
 
 /** @param {string} groupId @param {string} memberId @param {string} requesterId @returns {Promise<true>} */

@@ -362,18 +362,27 @@ export default function SocialFeedPage() {
                 {filtered.map((g) => (
                   <div key={g.id} className="discover-group-row">
                     <div className="discover-group-row-main">
-                      <div className="discover-group-row-name">{g.name}</div>
+                      <div className="discover-group-row-name">
+                        {g.name}
+                        {g.priceAmount && <span className="discover-group-price-badge">£{Number(g.priceAmount).toFixed(2)}/mo</span>}
+                      </div>
                       <div className="discover-group-row-meta">
                         {g.memberCount} member{g.memberCount === 1 ? '' : 's'}
                       </div>
                     </div>
-                    <button
-                      className="btn btn-primary btn-small"
-                      onClick={() => handleJoinDiscoverable(g)}
-                      disabled={joiningId === g.id}
-                    >
-                      {joiningId === g.id ? 'Joining…' : 'Join'}
-                    </button>
+                    {g.priceAmount ? (
+                      <button className="btn btn-primary btn-small" onClick={() => navigate(`/join/${g.inviteCode}`)}>
+                        Join
+                      </button>
+                    ) : (
+                      <button
+                        className="btn btn-primary btn-small"
+                        onClick={() => handleJoinDiscoverable(g)}
+                        disabled={joiningId === g.id}
+                      >
+                        {joiningId === g.id ? 'Joining…' : 'Join'}
+                      </button>
+                    )}
                   </div>
                 ))}
               </div>

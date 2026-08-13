@@ -50,6 +50,10 @@ import { freezesGranted, computeStreakTransition } from '../utils/dailyStreak.js
  * @property {string} createdAt
  * @property {boolean} isDiscoverable
  * @property {number} memberCount
+ * @property {number|null} priceAmount
+ * @property {string} priceCurrency
+ * @property {string|null} stripeConnectAccountId
+ * @property {boolean} stripeConnectChargesEnabled
  */
 /**
  * @typedef {object} BetPost
@@ -223,7 +227,11 @@ function mapGroup(row) {
     createdBy: row.created_by,
     createdAt: row.created_at,
     isDiscoverable: row.is_discoverable ?? false,
-    memberCount: row.member_count ?? 0
+    memberCount: row.member_count ?? 0,
+    priceAmount: row.price_amount ?? null,
+    priceCurrency: row.price_currency ?? 'gbp',
+    stripeConnectAccountId: row.stripe_connect_account_id ?? null,
+    stripeConnectChargesEnabled: row.stripe_connect_charges_enabled ?? false
   }
 }
 
@@ -495,6 +503,17 @@ export async function joinGroupByCode(code, userId) {
   return mapGroup(group)
 }
 
+// The lookup half of joinGroupByCode, without the join - lets
+// JoinGroupPage preview a group (and its price) before deciding whether
+// to auto-join or show a paywall, instead of joining unconditionally.
+/** @param {string} code @returns {Promise<Group|null>} */
+export async function getGroupByCode(code) {
+  if (!isSupabaseConfigured) return local.getGroupByCode(code)
+  const { data, error } = await supabase.from('groups').select('*').ilike('invite_code', code.trim()).maybeSingle()
+  if (error) throw error
+  return mapGroup(data)
+}
+
 // Two separate queries rather than one filtered join - PostgREST has no
 // clean "not in a subquery" - fetch every discoverable group plus the
 // caller's own membership rows, then subtract client-side. Fine at this
@@ -569,6 +588,62 @@ export async function setGroupDiscoverable(groupId, isDiscoverable) {
   const { data, error } = await supabase.from('groups').update({ is_discoverable: isDiscoverable }).eq('id', groupId).select().single()
   if (error) throw error
   return mapGroup(data)
+}
+
+// null clears pricing (the group goes back to free-to-join). Plain owner-
+// scoped update, already covered by the "creator renames their group" RLS
+// policy - only stripe_connect_account_id/charges_enabled need the guard
+// trigger, see schema.sql.
+/** @param {string} groupId @param {number|null} amountPounds @returns {Promise<Group|null>} */
+export async function setGroupPrice(groupId, amountPounds) {
+  if (!isSupabaseConfigured) return local.setGroupPrice(groupId, amountPounds)
+  const { data, error } = await supabase.from('groups').update({ price_amount: amountPounds }).eq('id', groupId).select().single()
+  if (error) throw error
+  return mapGroup(data)
+}
+
+/** @param {any} row */
+function mapGroupSubscription(row) {
+  if (!row) return null
+  return {
+    id: row.id,
+    groupId: row.group_id,
+    subscriberId: row.subscriber_id,
+    status: row.status,
+    currentPeriodEnd: row.current_period_end,
+    createdAt: row.created_at
+  }
+}
+
+// Whether the signed-in user already has an active (or trialing) paid
+// membership for this group - used to skip the paywall on a repeat visit
+// to the invite link. Nullable: no row at all is the common case (free
+// group, or never subscribed).
+/** @param {string} groupId @param {string} userId @returns {Promise<ReturnType<typeof mapGroupSubscription>|null>} */
+export async function getGroupSubscription(groupId, userId) {
+  if (!isSupabaseConfigured) return local.getGroupSubscription(groupId, userId)
+  const { data, error } = await supabase
+    .from('group_subscriptions')
+    .select('*')
+    .eq('group_id', groupId)
+    .eq('subscriber_id', userId)
+    .maybeSingle()
+  if (error) throw error
+  return mapGroupSubscription(data)
+}
+
+// Owner-only (RLS-scoped) - just a count + names for the settings panel,
+// not a full billing dashboard.
+/** @param {string} groupId @returns {Promise<{id: string, displayName: string, status: string}[]>} */
+export async function listGroupSubscribers(groupId) {
+  if (!isSupabaseConfigured) return local.listGroupSubscribers(groupId)
+  const { data, error } = await supabase
+    .from('group_subscriptions')
+    .select('*, profiles(display_name)')
+    .eq('group_id', groupId)
+    .in('status', ['active', 'trialing'])
+  if (error) throw error
+  return data.map((row) => ({ id: row.subscriber_id, displayName: row.profiles?.display_name ?? 'Someone', status: row.status }))
 }
 
 /** @param {string} groupId @param {string} memberId @param {string} requesterId @returns {Promise<true>} */

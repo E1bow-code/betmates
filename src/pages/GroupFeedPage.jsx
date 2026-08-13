@@ -18,6 +18,7 @@ import { useAsyncAction } from '../lib/useAsyncAction.js'
 import PullToRefresh from '../components/PullToRefresh.jsx'
 import SportHeroBanner from '../components/SportHeroBanner.jsx'
 import CoachGptLink from '../components/CoachGptLink.jsx'
+import { startConnectOnboarding } from '../api/groupBillingClient.js'
 
 export default function GroupFeedPage() {
   const { id } = useParams()
@@ -46,6 +47,11 @@ export default function GroupFeedPage() {
   const [savingName, setSavingName] = useState(false)
   const [savingDiscoverable, setSavingDiscoverable] = useState(false)
   const [removingId, setRemovingId] = useState(null)
+  const [priceInput, setPriceInput] = useState('')
+  const [savingPrice, setSavingPrice] = useState(false)
+  const [connecting, setConnecting] = useState(false)
+  const [connectError, setConnectError] = useState(null)
+  const [subscriberCount, setSubscriberCount] = useState(null)
   const runAsync = useAsyncAction()
 
   function refresh() {
@@ -90,6 +96,42 @@ export default function GroupFeedPage() {
   }
 
   const isCreator = group?.createdBy === user.id
+
+  useEffect(() => {
+    if (isCreator && group?.priceAmount) dataStore.listGroupSubscribers(id).then((s) => setSubscriberCount(s.length))
+  }, [isCreator, group?.priceAmount, id])
+
+  useEffect(() => {
+    if (group?.priceAmount) setPriceInput(String(group.priceAmount))
+  }, [group?.priceAmount])
+
+  async function handleConnectPayouts() {
+    setConnecting(true)
+    setConnectError(null)
+    const accessToken = await dataStore.getAccessToken()
+    const res = await startConnectOnboarding({ accessToken, groupId: id })
+    if (res.url) {
+      window.location.href = res.url
+      return
+    }
+    setConnecting(false)
+    setConnectError(res.configured === false ? "Payouts aren't set up yet - check back soon." : res.error || 'Something went wrong - try again.')
+  }
+
+  async function handleSavePrice(e) {
+    e.preventDefault()
+    const trimmed = priceInput.trim()
+    const amount = trimmed ? Number(trimmed) : null
+    if (trimmed && (!Number.isFinite(amount) || amount <= 0)) return
+    setSavingPrice(true)
+    try {
+      setGroup(await dataStore.setGroupPrice(id, amount))
+    } catch (err) {
+      setError(err.message)
+    } finally {
+      setSavingPrice(false)
+    }
+  }
 
   function startRename() {
     setNameInput(group.name)
@@ -348,6 +390,44 @@ export default function GroupFeedPage() {
               />
               <span>List this group publicly in Discover</span>
             </label>
+          )}
+
+          {isCreator && (
+            <div className="group-billing-panel">
+              {!group?.stripeConnectChargesEnabled ? (
+                <>
+                  <button className="btn btn-secondary btn-small" onClick={handleConnectPayouts} disabled={connecting}>
+                    {connecting ? 'Redirecting…' : 'Connect payouts (Stripe)'}
+                  </button>
+                  <p className="hint">Charge members a monthly price for this group once payouts are connected.</p>
+                  {connectError && <p className="error">{connectError}</p>}
+                </>
+              ) : (
+                <>
+                  <form className="chat-input-row" onSubmit={handleSavePrice}>
+                    <input
+                      type="number"
+                      min="0"
+                      step="0.5"
+                      placeholder="£ per month (blank = free)"
+                      value={priceInput}
+                      onChange={(e) => setPriceInput(e.target.value)}
+                    />
+                    <button className="btn btn-primary btn-small" type="submit" disabled={savingPrice}>
+                      {savingPrice ? 'Saving…' : 'Save'}
+                    </button>
+                  </form>
+                  {group?.priceAmount ? (
+                    <p className="hint">
+                      £{Number(group.priceAmount).toFixed(2)}/month
+                      {subscriberCount !== null && ` · ${subscriberCount} paying member${subscriberCount === 1 ? '' : 's'}`}
+                    </p>
+                  ) : (
+                    <p className="hint">This group is free to join.</p>
+                  )}
+                </>
+              )}
+            </div>
           )}
 
           <div className="manage-list">

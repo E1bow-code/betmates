@@ -1,13 +1,21 @@
-// Receives Stripe's subscription lifecycle events and is the ONLY place
-// that ever writes is_premium/premium_until/stripe_subscription_id -
-// create-checkout-session.js only ever writes stripe_customer_id. Runs
-// with the service-role key (bypasses guard_premium_fields's
+// Receives Stripe's subscription lifecycle events (BetMates Plus AND paid
+// group memberships - see create-group-checkout-session.js) plus Connect
+// account.updated events for group payout onboarding. Runs with the
+// service-role key (bypasses guard_premium_fields/guard_group_connect_fields's
 // anon/authenticated check the same way every other scheduled/webhook
 // function bypasses RLS) since nobody is signed in when Stripe calls this.
 //
 // Signature verification needs the RAW body, not the parsed JSON body -
 // req.text() (not req.json()) is deliberate here, unlike every other
 // function in this directory.
+//
+// Group subscription events land on this SAME endpoint as Plus - a group
+// checkout is a destination charge (see create-group-checkout-session.js),
+// which keeps the Customer/Subscription on the platform account rather
+// than the connected one, so there's no separate Connect webhook needed
+// for subscription.*. Only account.updated (onboarding completion) is
+// Connect-specific, and Stripe still delivers that to this same endpoint
+// once "listen to events on connected accounts" is enabled on it.
 import Stripe from 'stripe'
 import { createClient } from '@supabase/supabase-js'
 
@@ -31,10 +39,10 @@ async function findUserId(admin, subscription) {
   return data?.id ?? null
 }
 
-async function syncSubscription(admin, subscription) {
+async function syncPlusSubscription(admin, subscription) {
   const userId = await findUserId(admin, subscription)
   if (!userId) {
-    console.error('syncSubscription: no matching user for customer', subscription.customer, 'metadata', subscription.metadata)
+    console.error('syncPlusSubscription: no matching user for customer', subscription.customer, 'metadata', subscription.metadata)
     return
   }
   const periodEnd = subscription.current_period_end ? new Date(subscription.current_period_end * 1000).toISOString() : null
@@ -46,8 +54,53 @@ async function syncSubscription(admin, subscription) {
       stripe_subscription_id: subscription.id
     })
     .eq('id', userId)
-  if (error) console.error('syncSubscription update error', userId, error.message)
-  else console.log('syncSubscription ok', userId, subscription.status, subscription.id)
+  if (error) console.error('syncPlusSubscription update error', userId, error.message)
+  else console.log('syncPlusSubscription ok', userId, subscription.status, subscription.id)
+}
+
+// Mirrors syncPlusSubscription's shape but writes group_subscriptions
+// (the select-only-for-clients table, see schema.sql) instead of profiles,
+// and grants/revokes the actual group_members row that the rest of the
+// app already gates all group access on - no separate "paid content"
+// concept needed anywhere else.
+async function syncGroupSubscription(admin, subscription) {
+  const groupId = subscription.metadata.groupId
+  const userId = subscription.metadata.userId
+  if (!groupId || !userId) {
+    console.error('syncGroupSubscription: missing metadata on subscription', subscription.id, subscription.metadata)
+    return
+  }
+  const periodEnd = subscription.current_period_end ? new Date(subscription.current_period_end * 1000).toISOString() : null
+  const { error } = await admin.from('group_subscriptions').upsert(
+    {
+      group_id: groupId,
+      subscriber_id: userId,
+      stripe_subscription_id: subscription.id,
+      stripe_customer_id: subscription.customer,
+      status: subscription.status,
+      current_period_end: periodEnd
+    },
+    { onConflict: 'group_id,subscriber_id' }
+  )
+  if (error) {
+    console.error('syncGroupSubscription upsert error', groupId, userId, error.message)
+    return
+  }
+  if (isActiveStatus(subscription.status)) {
+    const { error: memberError } = await admin.from('group_members').upsert({ group_id: groupId, user_id: userId })
+    if (memberError) console.error('syncGroupSubscription member upsert error', groupId, userId, memberError.message)
+  }
+  console.log('syncGroupSubscription ok', groupId, userId, subscription.status, subscription.id)
+}
+
+async function syncConnectAccount(admin, account) {
+  if (!account.charges_enabled || !account.details_submitted) return
+  const { error } = await admin
+    .from('groups')
+    .update({ stripe_connect_charges_enabled: true })
+    .eq('stripe_connect_account_id', account.id)
+  if (error) console.error('syncConnectAccount update error', account.id, error.message)
+  else console.log('syncConnectAccount ok', account.id)
 }
 
 export default async (req) => {
@@ -71,10 +124,21 @@ export default async (req) => {
 
   try {
     if (event.type === 'customer.subscription.created' || event.type === 'customer.subscription.updated') {
-      await syncSubscription(admin, event.data.object)
+      const subscription = event.data.object
+      if (subscription.metadata?.groupId) await syncGroupSubscription(admin, subscription)
+      else await syncPlusSubscription(admin, subscription)
     } else if (event.type === 'customer.subscription.deleted') {
-      const userId = await findUserId(admin, event.data.object)
-      if (userId) await admin.from('profiles').update({ is_premium: false }).eq('id', userId)
+      const subscription = event.data.object
+      if (subscription.metadata?.groupId) {
+        const { groupId, userId } = subscription.metadata
+        await admin.from('group_subscriptions').update({ status: subscription.status }).eq('group_id', groupId).eq('subscriber_id', userId)
+        await admin.from('group_members').delete().eq('group_id', groupId).eq('user_id', userId)
+      } else {
+        const userId = await findUserId(admin, subscription)
+        if (userId) await admin.from('profiles').update({ is_premium: false }).eq('id', userId)
+      }
+    } else if (event.type === 'account.updated') {
+      await syncConnectAccount(admin, event.data.object)
     }
     // checkout.session.completed is deliberately not handled separately -
     // the subscription.created event that follows it carries the same
