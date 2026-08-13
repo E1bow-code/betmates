@@ -23,6 +23,18 @@ import PullToRefresh from '../components/PullToRefresh.jsx'
 import ShareLeaderboardButton from '../components/ShareLeaderboardButton.jsx'
 import SportHeroBanner from '../components/SportHeroBanner.jsx'
 import FplPanel from '../components/FplPanel.jsx'
+import {
+  CommentIcon,
+  SearchIcon,
+  TrophyIcon,
+  TargetIcon,
+  BankIcon,
+  NewsIcon,
+  PeopleIcon,
+  SwordsIcon,
+  BellOffIcon,
+  VideoIcon
+} from '../components/icons/Icons.jsx'
 import { computeTipsterRankings } from '../utils/tipsters.js'
 import TipsterLeaderboard from '../components/TipsterLeaderboard.jsx'
 import BookmakerScoreboard from '../components/BookmakerScoreboard.jsx'
@@ -244,7 +256,7 @@ export default function SocialFeedPage() {
           <h1>Social</h1>
           <div className="topbar-actions">
             <Link className="icon-btn" to="/messages" aria-label={`Messages${hasUnseenMessages ? ' - unread' : ''}`}>
-              💬
+              <CommentIcon width={16} height={16} />
               {hasUnseenMessages && <span className="pill-dot" />}
             </Link>
             {segment !== 'feed' && segment !== 'fpl' && segment !== 'discover' && (
@@ -261,22 +273,37 @@ export default function SocialFeedPage() {
           <button className={segment === 'feed' ? 'sport-pill active' : 'sport-pill'} onClick={() => setSegment('feed')}>
             Feed
           </button>
-          <button className={segment === 'discover' ? 'sport-pill active' : 'sport-pill'} onClick={() => setSegment('discover')}>
-            🔎 Discover
+          <button
+            className={segment === 'discover' ? 'sport-pill active icon-row' : 'sport-pill icon-row'}
+            onClick={() => setSegment('discover')}
+          >
+            <SearchIcon width={14} height={14} /> Discover
           </button>
           {showAllSegments ? (
             <>
-              <button className={segment === 'leaderboard' ? 'sport-pill active' : 'sport-pill'} onClick={() => setSegment('leaderboard')}>
-                🏆 Leaderboard
+              <button
+                className={segment === 'leaderboard' ? 'sport-pill active icon-row' : 'sport-pill icon-row'}
+                onClick={() => setSegment('leaderboard')}
+              >
+                <TrophyIcon width={14} height={14} /> Leaderboard
               </button>
-              <button className={segment === 'tipsters' ? 'sport-pill active' : 'sport-pill'} onClick={() => setSegment('tipsters')}>
-                🎯 Tipsters
+              <button
+                className={segment === 'tipsters' ? 'sport-pill active icon-row' : 'sport-pill icon-row'}
+                onClick={() => setSegment('tipsters')}
+              >
+                <TargetIcon width={14} height={14} /> Tipsters
               </button>
-              <button className={segment === 'bookmakers' ? 'sport-pill active' : 'sport-pill'} onClick={() => setSegment('bookmakers')}>
-                🏦 Bookmakers
+              <button
+                className={segment === 'bookmakers' ? 'sport-pill active icon-row' : 'sport-pill icon-row'}
+                onClick={() => setSegment('bookmakers')}
+              >
+                <BankIcon width={14} height={14} /> Bookmakers
               </button>
-              <button className={segment === 'news' ? 'sport-pill active' : 'sport-pill'} onClick={() => setSegment('news')}>
-                📰 News
+              <button
+                className={segment === 'news' ? 'sport-pill active icon-row' : 'sport-pill icon-row'}
+                onClick={() => setSegment('news')}
+              >
+                <NewsIcon width={14} height={14} /> News
               </button>
               <button className={segment === 'tips' ? 'sport-pill active' : 'sport-pill'} onClick={() => setSegment('tips')}>
                 Tips
@@ -299,7 +326,7 @@ export default function SocialFeedPage() {
 
           {groups && !groups.length && (
             <EmptyState
-              icon="👥"
+              icon={<PeopleIcon width={26} height={26} />}
               title="No groups yet"
               subtitle="Create one for your mates, or join with an invite code, to start sharing bets."
               action={
@@ -328,15 +355,19 @@ export default function SocialFeedPage() {
 
           {groups && groups.length > 1 && (
             <div className="group-actions">
-              <button className="btn btn-ghost btn-small" onClick={() => setShowGroupCompare(true)}>
-                ⚔️ Compare groups
+              <button className="btn btn-ghost btn-small icon-row" onClick={() => setShowGroupCompare(true)}>
+                <SwordsIcon width={15} height={15} /> Compare groups
               </button>
             </div>
           )}
 
           {feed === null && groups?.length > 0 && <div className="loading">Catching up on the latest bets…</div>}
           {feed && groups?.length > 0 && !feed.length && (
-            <EmptyState icon="🔕" title="Quiet in here so far" subtitle="Head to the Odds tab and tap a price to get the first bet posted." />
+            <EmptyState
+              icon={<BellOffIcon width={26} height={26} />}
+              title="Quiet in here so far"
+              subtitle="Head to the Odds tab and tap a price to get the first bet posted."
+            />
           )}
 
           {feed && feed.length > 0 && (
@@ -366,7 +397,7 @@ export default function SocialFeedPage() {
 
           {discoverGroups && !discoverGroups.length && (
             <EmptyState
-              icon="🔎"
+              icon={<SearchIcon width={26} height={26} />}
               title="No public groups yet"
               subtitle="Nobody's made a group discoverable yet - check back later, or start your own."
             />
@@ -376,7 +407,7 @@ export default function SocialFeedPage() {
             const q = discoverSearch.trim().toLowerCase()
             const filtered = q ? discoverGroups.filter((g) => g.name.toLowerCase().includes(q)) : discoverGroups
             if (!filtered.length) {
-              return <EmptyState icon="🔎" title="No matches" subtitle={`Nothing found for "${discoverSearch.trim()}".`} />
+              return <EmptyState icon={<SearchIcon width={26} height={26} />} title="No matches" subtitle={`Nothing found for "${discoverSearch.trim()}".`} />
             }
             return (
               <div className="discover-group-list">
@@ -434,11 +465,11 @@ export default function SocialFeedPage() {
 
           {news === null && <div className="loading">Catching up on the headlines…</div>}
           {news && !news.length && (
-            <EmptyState icon="📰" title="No headlines right now" subtitle="The feeds didn't return anything - try again shortly." />
+            <EmptyState icon={<NewsIcon width={26} height={26} />} title="No headlines right now" subtitle="The feeds didn't return anything - try again shortly." />
           )}
           {news && news.length > 0 && filteredNews && !filteredNews.length && (
             <EmptyState
-              icon="📰"
+              icon={<NewsIcon width={26} height={26} />}
               title="Nothing about your teams right now"
               subtitle="None of the latest headlines mention a team or player you follow - switch to All to see everything."
             />
@@ -481,7 +512,7 @@ export default function SocialFeedPage() {
           {videos === null && <div className="loading">Loading tips…</div>}
           {videos && !videos.length && (
             <EmptyState
-              icon="🎥"
+              icon={<VideoIcon width={26} height={26} />}
               title="No tips yet"
               subtitle="Add a friend with their code, or record the first one yourself."
               action={
@@ -535,7 +566,7 @@ export default function SocialFeedPage() {
           {leaderboardRows === null && <div className="loading">Adding it all up…</div>}
           {leaderboardRows && !leaderboardRows.length && (
             <EmptyState
-              icon="🏆"
+              icon={<TrophyIcon width={26} height={26} />}
               title="Nothing settled yet"
               subtitle={
                 leaderboardWindow === 'all'

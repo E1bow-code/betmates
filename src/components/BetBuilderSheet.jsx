@@ -18,6 +18,7 @@ import { useDelayedClose } from '../lib/useDelayedClose.js'
 import { computeStats } from '../utils/trackerStats.js'
 import { tipsterBadge } from '../utils/tipsterBadge.js'
 import { PICKER_SPORTS, SPORT_LABEL, loadItemsForSport, labelFor, normalizeItem, groupByCompetition } from '../lib/quickPick.js'
+import { LinkIcon, CameraIcon, VideoIcon, SparkIcon, WarningIcon, EyesIcon, RulerIcon, TrendUpIcon } from './icons/Icons.jsx'
 import { POST_TAGS } from '../lib/postTags.js'
 import PostPreview from './PostPreview.jsx'
 
@@ -467,8 +468,9 @@ export default function BetBuilderSheet() {
 
         {correlation && (
           <div className="limit-warning">
-            🔗 {correlation.legCount} of these legs are on the same {correlation.events.length > 1 ? 'matches' : 'match'} - they're
-            not really independent, so that combined price overstates how spread out the risk is.
+            <LinkIcon className="icon-lead" /> {correlation.legCount} of these legs are on the same{' '}
+            {correlation.events.length > 1 ? 'matches' : 'match'} - they're not really independent, so that combined price overstates
+            how spread out the risk is.
           </div>
         )}
 
@@ -517,12 +519,12 @@ export default function BetBuilderSheet() {
         )}
         {!photoFile && !videoFile && (
           <div className="composer-media-buttons">
-            <label className="btn btn-secondary composer-photo-button">
-              📷 Add a photo
+            <label className="btn btn-secondary composer-photo-button icon-row">
+              <CameraIcon /> Add a photo
               <input type="file" accept="image/*" onChange={handlePhotoChange} className="scan-cta-input" />
             </label>
-            <label className="btn btn-secondary composer-photo-button">
-              🎥 Add a video
+            <label className="btn btn-secondary composer-photo-button icon-row">
+              <VideoIcon /> Add a video
               <input type="file" accept="video/*" onChange={handleVideoChange} className="scan-cta-input" />
             </label>
           </div>
@@ -562,31 +564,34 @@ export default function BetBuilderSheet() {
 
         {sanityCheckOn && (bigStake || lossChasing || stakingWarning || (user.stakeLimitAmount && periodSpend !== null && stakeNum > 0 && periodSpend + stakeNum > user.stakeLimitAmount)) && (
           <div className="sanity-check">
-            <p className="sanity-check-title">🧠 Heads-up</p>
+            <p className="sanity-check-title icon-row">
+              <SparkIcon width={15} height={15} /> Heads-up
+            </p>
             {user.stakeLimitAmount && periodSpend !== null && stakeNum > 0 && periodSpend + stakeNum > user.stakeLimitAmount && (
               <div className="limit-warning">
-                ⚠️ This would take you to £{(periodSpend + stakeNum).toFixed(2)} of your £{Number(user.stakeLimitAmount).toFixed(2)}{' '}
-                {user.stakeLimitPeriod === 'monthly' ? 'monthly' : 'weekly'} limit.
+                <WarningIcon className="icon-lead" /> This would take you to £{(periodSpend + stakeNum).toFixed(2)} of your £
+                {Number(user.stakeLimitAmount).toFixed(2)} {user.stakeLimitPeriod === 'monthly' ? 'monthly' : 'weekly'} limit.
               </div>
             )}
 
             {lossChasing && (
               <div className="limit-warning">
-                👀 Your last logged bet lost at £{lossChasing.lastStake.toFixed(2)} - this one's {lossChasing.increasePct}% bigger. No
-                judgement, just flagging it.
+                <EyesIcon className="icon-lead" /> Your last logged bet lost at £{lossChasing.lastStake.toFixed(2)} - this one's{' '}
+                {lossChasing.increasePct}% bigger. No judgement, just flagging it.
               </div>
             )}
 
             {stakingWarning && (
               <div className="limit-warning">
-                📐 Your staking plan suggests £{stakingWarning.suggestion.toFixed(2)} a bet - this one's {stakingWarning.overPct}%
-                over that.
+                <RulerIcon className="icon-lead" /> Your staking plan suggests £{stakingWarning.suggestion.toFixed(2)} a bet - this
+                one's {stakingWarning.overPct}% over that.
               </div>
             )}
 
             {bigStake && (
               <div className="limit-warning">
-                📈 That's {bigStake.multiple}x your average stake (£{bigStake.avgStake.toFixed(2)}) - no judgement, just flagging it.
+                <TrendUpIcon className="icon-lead" /> That's {bigStake.multiple}x your average stake (£{bigStake.avgStake.toFixed(2)}) -
+                no judgement, just flagging it.
               </div>
             )}
           </div>

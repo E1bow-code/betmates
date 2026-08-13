@@ -2608,6 +2608,9 @@ button.conversation-row { width: 100%; background: none; border: none; border-bo
   border: 1px solid color-mix(in srgb, var(--bad) 30%, transparent);
 }
 .reaction-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
   background: none;
   border: 1px solid var(--border);
   border-radius: 999px;
@@ -2617,6 +2620,21 @@ button.conversation-row { width: 100%; background: none; border: none; border-bo
   cursor: pointer;
 }
 .reaction-btn.active { border-color: var(--accent-dim); color: var(--accent); }
+
+.reaction-names { display: flex; flex-wrap: wrap; gap: 4px 14px; }
+.reaction-names-group { display: inline-flex; align-items: center; gap: 4px; }
+
+/* Icon + text pairing, used wherever a heading/label/chip now leads with a
+   real icon instead of an emoji character - keeps them vertically centred
+   regardless of the surrounding element's own display (h2, span, p...). */
+.icon-row { display: inline-flex; align-items: center; gap: 6px; }
+
+/* Same icon-instead-of-emoji swap, for a leading icon inside a paragraph
+   that wraps across multiple lines - .icon-row's flex would turn each word
+   into its own flex item and wrap strangely, so this stays a plain inline
+   element (like the emoji character it replaces) with just enough nudge to
+   sit on the text baseline. */
+.icon-lead { display: inline-block; vertical-align: -3px; margin-right: 4px; }
 
 .bet-card-header-right { display: flex; align-items: center; gap: 8px; }
 
@@ -3108,13 +3126,16 @@ button.conversation-row { width: 100%; background: none; border: none; border-bo
    segment - Home's own feed interleaves tips now (PublicFeedView.jsx), so
    this is the new way in without leaving Home. */
 .home-record-tip-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
   flex-shrink: 0;
   width: 44px;
   height: 44px;
   border-radius: 50%;
   border: 1px solid var(--border);
   background: var(--surface);
-  font-size: 1.1rem;
+  color: var(--text-dim);
   cursor: pointer;
 }
 .home-record-tip-btn:hover, .home-record-tip-btn:focus-visible { border-color: var(--accent-dim); outline: none; }

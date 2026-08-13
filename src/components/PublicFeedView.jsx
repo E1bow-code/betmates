@@ -6,6 +6,7 @@ import BetCard from './BetCard.jsx'
 import VideoCard from './VideoCard.jsx'
 import EmptyState from './EmptyState.jsx'
 import SportIcon from './icons/SportIcons.jsx'
+import { FlameIcon, MegaphoneIcon } from './icons/Icons.jsx'
 
 // The public feed - anyone's "post to everyone" picks, regardless of group
 // membership - interleaved with the viewer's Tips (video_posts, strictly
@@ -87,7 +88,11 @@ const PublicFeedView = forwardRef(function PublicFeedView({ filter = 'all' }, re
 
       {filter === 'all' && trendingPicks.length > 0 && (
         <div className="account-section">
-          <h2 className="market-title">🔥 Trending this week</h2>
+          <h2 className="market-title">
+            <span className="icon-row">
+              <FlameIcon /> Trending this week
+            </span>
+          </h2>
           <div className="trending-row">
             {trendingPicks.map((pick, i) => (
               <div key={pick.key} className="trending-chip">
@@ -108,7 +113,7 @@ const PublicFeedView = forwardRef(function PublicFeedView({ filter = 'all' }, re
       {combinedFeed === null && <div className="loading">Catching up on the feed…</div>}
       {combinedFeed && !combinedFeed.length && (
         <EmptyState
-          icon="📣"
+          icon={<MegaphoneIcon width={26} height={26} />}
           title="Nothing here yet"
           subtitle={filter === 'following' ? "Follow a few people to see their picks here." : 'Be the first to post a pick for everyone to see.'}
         />

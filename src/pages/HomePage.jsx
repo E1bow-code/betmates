@@ -11,6 +11,7 @@ import HomeHighlights from '../components/HomeHighlights.jsx'
 import HomeInviteNudge from '../components/HomeInviteNudge.jsx'
 import VideoRecorder from '../components/VideoRecorder.jsx'
 import Avatar from '../components/Avatar.jsx'
+import { FlameIcon, SnowflakeIcon, CalendarIcon, VideoIcon } from '../components/icons/Icons.jsx'
 
 // The front door post-login (see App.jsx's HomeRedirect) - Facebook-home-
 // feed shaped: a one-line greeting, a single compact strip for glanceable
@@ -93,12 +94,12 @@ export default function HomePage() {
         <div className="home-stats-strip">
           {streak.count >= 2 && (
             <span className="home-stat-chip">
-              {streak.type === 'won' ? '🔥' : '🥶'} {streak.count}-{streak.type === 'won' ? 'win' : 'loss'} streak
+              {streak.type === 'won' ? <FlameIcon /> : <SnowflakeIcon />} {streak.count}-{streak.type === 'won' ? 'win' : 'loss'} streak
             </span>
           )}
           {user.streakCurrentCount >= 1 && (
             <span className="home-stat-chip">
-              📅 {user.streakCurrentCount}-day streak{!loggedToday && ' · log today'}
+              <CalendarIcon /> {user.streakCurrentCount}-day streak{!loggedToday && ' · log today'}
             </span>
           )}
           {rankTeaser && <RankTeaser {...rankTeaser} />}
@@ -114,7 +115,7 @@ export default function HomePage() {
           <span className="home-composer-placeholder">Share your next pick…</span>
         </button>
         <button type="button" className="home-record-tip-btn" onClick={() => setShowRecorder(true)} aria-label="Record a tip">
-          🎥
+          <VideoIcon />
         </button>
       </div>
 

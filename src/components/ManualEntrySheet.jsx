@@ -13,6 +13,7 @@ import { detectBigStake } from '../utils/bigStake.js'
 import { periodStart, sumStakesSince, wouldExceedLimit } from '../utils/spendLimit.js'
 import { useAsyncAction } from '../lib/useAsyncAction.js'
 import { useEscapeKey } from '../lib/useEscapeKey.js'
+import { CameraIcon, SparkIcon, WarningIcon, EyesIcon, RulerIcon, TrendUpIcon } from './icons/Icons.jsx'
 import { useDelayedClose } from '../lib/useDelayedClose.js'
 
 const SPORT_OPTIONS = Object.entries(SPORT_LABEL).filter(([key]) => key !== 'multi')
@@ -165,7 +166,9 @@ export default function ManualEntrySheet({ userId, onClose, onSaved }) {
             most bets get typed - so the card sits back with a soft tint and
             a secondary button. */}
         <div className="scan-cta">
-          <p className="scan-cta-title">📷 Scan your bet slip</p>
+          <p className="scan-cta-title icon-row">
+            <CameraIcon /> Scan your bet slip
+          </p>
           <p className="scan-cta-body">
             Screenshot it, then choose it below
             <span className="scan-cta-paste-hint"> - or paste it, Ctrl+V / ⌘V</span>. We'll read off the odds and stake for you.
@@ -254,28 +257,31 @@ export default function ManualEntrySheet({ userId, onClose, onSaved }) {
               stakingWarning ||
               (user.stakeLimitAmount && periodSpend !== null && stakeNum > 0 && periodSpend + stakeNum > user.stakeLimitAmount)) && (
               <div className="sanity-check">
-                <p className="sanity-check-title">🧠 Heads-up</p>
+                <p className="sanity-check-title icon-row">
+                  <SparkIcon width={15} height={15} /> Heads-up
+                </p>
                 {user.stakeLimitAmount && periodSpend !== null && stakeNum > 0 && periodSpend + stakeNum > user.stakeLimitAmount && (
                   <div className="limit-warning">
-                    ⚠️ This would take you to £{(periodSpend + stakeNum).toFixed(2)} of your £{Number(user.stakeLimitAmount).toFixed(2)}{' '}
-                    {user.stakeLimitPeriod === 'monthly' ? 'monthly' : 'weekly'} limit.
+                    <WarningIcon className="icon-lead" /> This would take you to £{(periodSpend + stakeNum).toFixed(2)} of your £
+                    {Number(user.stakeLimitAmount).toFixed(2)} {user.stakeLimitPeriod === 'monthly' ? 'monthly' : 'weekly'} limit.
                   </div>
                 )}
                 {lossChasing && (
                   <div className="limit-warning">
-                    👀 Your last logged bet lost at £{lossChasing.lastStake.toFixed(2)} - this one's {lossChasing.increasePct}% bigger.
-                    No judgement, just flagging it.
+                    <EyesIcon className="icon-lead" /> Your last logged bet lost at £{lossChasing.lastStake.toFixed(2)} - this one's{' '}
+                    {lossChasing.increasePct}% bigger. No judgement, just flagging it.
                   </div>
                 )}
                 {stakingWarning && (
                   <div className="limit-warning">
-                    📐 Your staking plan suggests £{stakingWarning.suggestion.toFixed(2)} a bet - this one's {stakingWarning.overPct}%
-                    over that.
+                    <RulerIcon className="icon-lead" /> Your staking plan suggests £{stakingWarning.suggestion.toFixed(2)} a bet - this
+                    one's {stakingWarning.overPct}% over that.
                   </div>
                 )}
                 {bigStake && (
                   <div className="limit-warning">
-                    📈 That's {bigStake.multiple}x your average stake (£{bigStake.avgStake.toFixed(2)}) - no judgement, just flagging it.
+                    <TrendUpIcon className="icon-lead" /> That's {bigStake.multiple}x your average stake (£
+                    {bigStake.avgStake.toFixed(2)}) - no judgement, just flagging it.
                   </div>
                 )}
               </div>

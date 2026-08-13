@@ -4,6 +4,7 @@ import ShareVideoSheet from './ShareVideoSheet.jsx'
 import * as dataStore from '../lib/dataStore.js'
 import { computeStats } from '../utils/trackerStats.js'
 import { tipsterBadge } from '../utils/tipsterBadge.js'
+import { PinIcon, ShareIcon } from './icons/Icons.jsx'
 
 function timeAgo(iso) {
   const diffMs = Date.now() - new Date(iso).getTime()
@@ -86,11 +87,15 @@ export default function VideoCard({ post }) {
       )}
 
       <div className="video-caption">{post.caption}</div>
-      {post.tag && <div className="video-tag">📌 {post.tag}</div>}
+      {post.tag && (
+        <div className="video-tag icon-row">
+          <PinIcon width={14} height={14} /> {post.tag}
+        </div>
+      )}
 
       <div className="bet-card-footer">
-        <button className="btn btn-secondary btn-small" onClick={() => setSharing(true)}>
-          ↪ Share
+        <button className="btn btn-secondary btn-small icon-row" onClick={() => setSharing(true)}>
+          <ShareIcon width={15} height={15} /> Share
         </button>
       </div>
 

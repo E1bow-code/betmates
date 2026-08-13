@@ -1,5 +1,6 @@
 import { useAuth } from '../context/AuthContext.jsx'
 import { detectSharpMoney } from '../utils/sharpMoney.js'
+import { FlameIcon, ExportIcon } from './icons/Icons.jsx'
 
 // The "professional money's on this" signal - real, sustained price
 // movement over time (src/utils/sharpMoney.js), distinct from
@@ -20,8 +21,17 @@ export default function SharpMoneyBadge({ series }) {
   const result = detectSharpMoney(series)
   if (!result || !user.isPremium) return null
   return (
-    <div className={`line-value ${result.direction === 'shortening' ? 'line-value-good' : 'line-value-bad'}`}>
-      {result.direction === 'shortening' ? '🔥 Shortening fast' : '📤 Drifting fast'} - {result.pct}%
+    <div className={`line-value icon-row ${result.direction === 'shortening' ? 'line-value-good' : 'line-value-bad'}`}>
+      {result.direction === 'shortening' ? (
+        <>
+          <FlameIcon width={14} height={14} /> Shortening fast
+        </>
+      ) : (
+        <>
+          <ExportIcon width={14} height={14} /> Drifting fast
+        </>
+      )}{' '}
+      - {result.pct}%
     </div>
   )
 }

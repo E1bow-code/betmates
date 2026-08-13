@@ -16,9 +16,16 @@ import Avatar from './Avatar.jsx'
 import EditBetSheet from './EditBetSheet.jsx'
 import LiveBadge from './LiveBadge.jsx'
 import FixtureChatSheet from './FixtureChatSheet.jsx'
+import { FlameIcon, UnsureFaceIcon, ThumbsUpIcon, CommentIcon } from './icons/Icons.jsx'
 
+// The emoji strings are the actual stored value (bet_reactions.emoji) and
+// what goes out in push notification titles (an OS-rendered string, not
+// something our own icon set can reach) - only REACTION_ICON below is
+// new, for swapping the in-app button glyph for a real icon without
+// touching the data model.
 const REACTION_EMOJIS = ['🔥', '😬', '👍']
 const REACTION_LABEL = { '🔥': 'fire', '😬': 'grimace', '👍': 'thumbs up' }
+const REACTION_ICON = { '🔥': FlameIcon, '😬': UnsureFaceIcon, '👍': ThumbsUpIcon }
 const VOTE_OPTIONS = [
   { key: 'lock_in', label: 'Lock in' },
   { key: 'not_sure', label: 'Not sure' },
@@ -364,6 +371,7 @@ export default function BetCard({ post, memberNames, memberAvatars, variant = 'g
             {REACTION_EMOJIS.map((emoji) => {
               const count = reactions.filter((r) => r.emoji === emoji).length
               const mine = reactions.some((r) => r.emoji === emoji && r.userId === user.id)
+              const Icon = REACTION_ICON[emoji]
               return (
                 <button
                   key={emoji}
@@ -372,7 +380,7 @@ export default function BetCard({ post, memberNames, memberAvatars, variant = 'g
                   aria-label={`${mine ? 'Remove' : 'React with'} ${REACTION_LABEL[emoji]}${count > 0 ? ` · ${count}` : ''}`}
                   aria-pressed={mine}
                 >
-                  {emoji} {count > 0 && count}
+                  <Icon /> {count > 0 && count}
                 </button>
               )
             })}
@@ -381,12 +389,15 @@ export default function BetCard({ post, memberNames, memberAvatars, variant = 'g
 
         {variant === 'group' && reactions.length > 0 && (
           <p className="hint reaction-names">
-            {REACTION_EMOJIS.filter((emoji) => reactions.some((r) => r.emoji === emoji))
-              .map((emoji) => {
-                const names = reactions.filter((r) => r.emoji === emoji).map((r) => memberNames?.[r.userId] ?? 'Someone')
-                return `${emoji} ${names.join(', ')}`
-              })
-              .join('   ')}
+            {REACTION_EMOJIS.filter((emoji) => reactions.some((r) => r.emoji === emoji)).map((emoji) => {
+              const names = reactions.filter((r) => r.emoji === emoji).map((r) => memberNames?.[r.userId] ?? 'Someone')
+              const Icon = REACTION_ICON[emoji]
+              return (
+                <span key={emoji} className="reaction-names-group">
+                  <Icon /> {names.join(', ')}
+                </span>
+              )
+            })}
           </p>
         )}
 
@@ -397,7 +408,7 @@ export default function BetCard({ post, memberNames, memberAvatars, variant = 'g
             aria-expanded={showComments}
             aria-label={`${showComments ? 'Hide' : 'Show'} comments${comments.length > 0 ? ` · ${comments.length}` : ''}`}
           >
-            💬 {comments.length > 0 && comments.length}
+            <CommentIcon /> {comments.length > 0 && comments.length}
           </button>
           {selections.length > 0 && (
             <CopyBetButton post={post} userId={user.id} copyCount={copyCount} onCopied={() => setCopyCount((c) => c + 1)} />

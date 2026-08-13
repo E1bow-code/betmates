@@ -1,4 +1,5 @@
 import { Link } from 'react-router-dom'
+import { TargetIcon } from './icons/Icons.jsx'
 
 // HomePage's glance-able social-standing signal - see HomePage.jsx's own
 // header comment for why P&L/activity isn't repeated here too. Only ever
@@ -16,7 +17,16 @@ export default function RankTeaser({ groupId, groupName, rank, totalRanked, clv 
           {/* The user's own closing line value in this group - the "are you
               actually sharp" signal next to the "are you winning" rank. Only
               shown once enough closes exist to clear clvSummary's sample gate. */}
-          {clv ? ` · 🎯 ${clv.avgPct >= 0 ? '+' : ''}${clv.avgPct}% CLV` : ''}
+          {clv && (
+            <>
+              {' · '}
+              <span className="icon-row">
+                <TargetIcon width={13} height={13} />
+                {clv.avgPct >= 0 ? '+' : ''}
+                {clv.avgPct}% CLV
+              </span>
+            </>
+          )}
         </span>
       </span>
       <span className="rank-teaser-chevron">›</span>
