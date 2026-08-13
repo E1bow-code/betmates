@@ -1931,6 +1931,11 @@ button.conversation-row { width: 100%; background: none; border: none; border-bo
    line. Flex so the badge, event text and any live-score tag sit on one row. */
 .tracker-row .selection-event { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
 .tracker-row .selection-event .team-badge { border-radius: 4px; }
+
+/* Hall of Fame record line: crest/headshot inline before the "+£X on <event>"
+   text on the two fixture-tied records. */
+.hof-record-meta { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+.hof-record-meta .team-badge { border-radius: 4px; }
 .selection-odds-row { display: flex; justify-content: space-between; align-items: baseline; }
 .selection-odds { color: var(--accent); font-weight: 700; font-size: 1.2rem; }
 .selection-bookmaker { color: var(--text-dim); font-size: 0.8rem; }
