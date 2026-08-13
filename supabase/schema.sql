@@ -1556,6 +1556,14 @@ create table group_subscriptions (
   status text not null,
   current_period_end timestamptz,
   created_at timestamptz not null default now(),
+  -- Watermark for alert-checks.js's runGroupRenewalReminders - stores WHICH
+  -- current_period_end the reminder already covered, not just a sent-at
+  -- flag, since a subscription (unlike a one-off trial) renews every month:
+  -- current_period_end advances on each renewal sync, so comparing against
+  -- it resets the reminder automatically each cycle with no separate job
+  -- needed to clear it - same self-resetting idea as limit_alert_sent_at's
+  -- comparison against periodStart() below.
+  renewal_reminder_for_period_end timestamptz,
   unique (group_id, subscriber_id)
 );
 alter table group_subscriptions enable row level security;

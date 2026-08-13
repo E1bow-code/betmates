@@ -8,9 +8,11 @@
 // fires, so this runs on the service-role key rather than working within
 // RLS - the one place in this project that does. A fourth check
 // (runLimitBuddyAlerts), a fifth (runValueEdgeAlerts, CoachGPT's
-// proactive value-alert push), and a sixth (runTrialReminders, BetMates
-// Plus's trial-ending push) joined the same invocation later for the
-// same reason - one more independent check, same cost as zero extra crons.
+// proactive value-alert push), a sixth (runTrialReminders, BetMates
+// Plus's trial-ending push), and a seventh (runGroupRenewalReminders, the
+// subscriber-side counterpart for paid groups) joined the same invocation
+// later for the same reason - one more independent check, same cost as
+// zero extra crons.
 // @ts-check
 import { createClient } from '@supabase/supabase-js'
 import webpush from 'web-push'
@@ -77,6 +79,13 @@ import { findBoardValue } from '../../src/utils/valueFinder.js'
  * @property {string} id
  * @property {string} premium_until
  * @property {string|null} trial_reminder_sent_at
+ */
+/**
+ * @typedef {object} GroupRenewalRow
+ * @property {string} subscriber_id
+ * @property {string} current_period_end
+ * @property {string|null} renewal_reminder_for_period_end
+ * @property {{id: string, name: string, price_amount: number|string}|null} groups
  */
 
 const SUPABASE_URL = process.env.VITE_SUPABASE_URL
@@ -462,6 +471,57 @@ async function runTrialReminders(supabase) {
   return { checked: trialing.length, due: due.length, sent }
 }
 
+// --- Paid group renewal reminder ----------------------------------------
+// The subscriber-side counterpart to the trial reminder above - a day's
+// warning before a paid group membership renews and charges again. Unlike
+// the trial reminder, this has no premium_status-style distinction to make
+// (group subscriptions are never given a trial - see
+// create-group-checkout-session.js), so every active/trialing row with an
+// approaching current_period_end qualifies. Also transactional, same
+// no-notification_prefs-gate reasoning as the trial reminder.
+const GROUP_RENEWAL_REMINDER_WINDOW_MS = 24 * 60 * 60 * 1000
+
+/** @param {Supabase} supabase */
+async function runGroupRenewalReminders(supabase) {
+  const { data } = await supabase
+    .from('group_subscriptions')
+    .select('subscriber_id,current_period_end,renewal_reminder_for_period_end,groups(id,name,price_amount)')
+    .in('status', ['active', 'trialing'])
+    .not('current_period_end', 'is', null)
+  const rows = /** @type {GroupRenewalRow[]} */ (/** @type {unknown} */ (data ?? []))
+  if (!rows.length) return { checked: 0 }
+
+  const now = Date.now()
+  // renewal_reminder_for_period_end has to be compared against the row's own
+  // current_period_end in JS (PostgREST can't do a column-vs-column filter)
+  // - see schema.sql's comment on why this is what makes the reminder
+  // resurface every renewal instead of firing only once ever.
+  const due = rows.filter((row) => {
+    if (!row.groups) return false
+    const endsAt = new Date(row.current_period_end).getTime()
+    if (endsAt <= now || endsAt > now + GROUP_RENEWAL_REMINDER_WINDOW_MS) return false
+    return row.renewal_reminder_for_period_end !== row.current_period_end
+  })
+  if (!due.length) return { checked: rows.length, due: 0 }
+
+  await Promise.all(
+    due.map((row) =>
+      supabase
+        .from('group_subscriptions')
+        .update({ renewal_reminder_for_period_end: row.current_period_end })
+        .eq('subscriber_id', row.subscriber_id)
+        .eq('group_id', row.groups.id)
+    )
+  )
+
+  const sent = await sendAll(supabase, due.map((row) => ({ ...row, user_id: row.subscriber_id })), (row) => ({
+    title: `⏳ ${row.groups.name} renews soon`,
+    body: `Renews in ~24h at £${Number(row.groups.price_amount).toFixed(2)}/month - manage or cancel any time from the group's Members tab.`,
+    url: `/#/groups/${row.groups.id}`
+  }))
+  return { checked: rows.length, due: due.length, sent }
+}
+
 // --- Value-edge alerts (CoachGPT round 2) -------------------------------
 // Proactive half of CoachGPT: pushes when a followed team/fighter has a
 // real price edge on the board, rather than only answering when asked in
@@ -573,14 +633,16 @@ export default async (req) => {
   // Independent of each other (different tables, different push copy), so
   // they run concurrently rather than one after another - and one throwing
   // doesn't stop the others from still doing their job.
-  const [kickoffReminders, oddsAlerts, followedResults, limitBuddyAlerts, trialReminders, valueEdgeAlerts] = await Promise.allSettled([
-    runKickoffReminders(supabase),
-    runOddsAlerts(supabase),
-    runFollowedResults(supabase),
-    runLimitBuddyAlerts(supabase),
-    runTrialReminders(supabase),
-    runValueEdgeAlerts(supabase)
-  ])
+  const [kickoffReminders, oddsAlerts, followedResults, limitBuddyAlerts, trialReminders, groupRenewalReminders, valueEdgeAlerts] =
+    await Promise.allSettled([
+      runKickoffReminders(supabase),
+      runOddsAlerts(supabase),
+      runFollowedResults(supabase),
+      runLimitBuddyAlerts(supabase),
+      runTrialReminders(supabase),
+      runGroupRenewalReminders(supabase),
+      runValueEdgeAlerts(supabase)
+    ])
 
   /** @param {PromiseSettledResult<any>} r */
   const settle = (r) => (r.status === 'fulfilled' ? r.value : { error: r.reason?.message ?? String(r.reason) })
@@ -591,6 +653,7 @@ export default async (req) => {
       followedResults: settle(followedResults),
       limitBuddyAlerts: settle(limitBuddyAlerts),
       trialReminders: settle(trialReminders),
+      groupRenewalReminders: settle(groupRenewalReminders),
       valueEdgeAlerts: settle(valueEdgeAlerts)
     }),
     { status: 200, headers: { 'content-type': 'application/json' } }
