@@ -19,6 +19,7 @@ import { computeStats } from '../utils/trackerStats.js'
 import { tipsterBadge } from '../utils/tipsterBadge.js'
 import { PICKER_SPORTS, SPORT_LABEL, loadItemsForSport, labelFor, normalizeItem } from '../lib/quickPick.js'
 import { POST_TAGS } from '../lib/postTags.js'
+import PostPreview from './PostPreview.jsx'
 
 // The bet slip: reads its legs from BetSlipContext rather than a single
 // `selection` prop, so tapping outcomes across different fixtures builds
@@ -594,6 +595,25 @@ export default function BetBuilderSheet() {
             </select>
           </label>
         )}
+
+        {/* Exactly what mates will see - built from the same values that go
+            into createBetPost (submittedLegs/marketType/potentialReturn), so
+            the preview and the posted card can never drift apart. */}
+        <PostPreview
+          authorName={user.displayName}
+          authorAvatarUrl={user.avatarUrl}
+          caption={caption}
+          tag={tag}
+          legs={submittedLegs}
+          marketType={marketType}
+          stake={stakeNum}
+          stakeHidden={stakeHidden}
+          combinedOdds={combinedOdds}
+          potentialReturn={potentialReturn}
+          photoPreview={photoPreview}
+          videoPreview={videoPreview}
+          format={format}
+        />
 
         {error && <div className="auth-error">{error}</div>}
 
