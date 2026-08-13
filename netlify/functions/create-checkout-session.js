@@ -65,7 +65,13 @@ export default async (req) => {
       mode: 'subscription',
       customer: customerId,
       line_items: [{ price: priceId, quantity: 1 }],
-      subscription_data: { metadata: { userId } },
+      // 7 days free before the first charge - stripe-webhook.js's
+      // isActiveStatus() already treats 'trialing' as active, so this
+      // needed no change on the sync side. Card is still collected at
+      // checkout (Stripe's default for subscription mode), so it just
+      // auto-charges when the trial ends rather than needing a second
+      // action from the user.
+      subscription_data: { trial_period_days: 7, metadata: { userId } },
       success_url: `${siteUrl}/#/account?upgraded=1`,
       cancel_url: `${siteUrl}/#/account`
     })

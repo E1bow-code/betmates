@@ -516,7 +516,8 @@ export default function AccountPage() {
           <>
             <p className="hint">
               Unlimited CoachGPT (free plan gets 10 messages a month) plus the advanced analytics layer below. Everything
-              else on BetMates stays free either way.
+              else on BetMates stays free either way. First 7 days are free either plan - cancel any time before then and
+              you won&apos;t be charged.
             </p>
             <ul className="plus-feature-list">
               <li>
@@ -546,10 +547,10 @@ export default function AccountPage() {
             </ul>
             <div className="self-exclude-options">
               <button className="btn btn-primary btn-small" disabled={!!checkoutBusy} onClick={() => handleUpgrade('monthly')}>
-                {checkoutBusy === 'monthly' ? 'Redirecting…' : '£2.99/month'}
+                {checkoutBusy === 'monthly' ? 'Redirecting…' : 'Free for 7 days, then £2.99/month'}
               </button>
               <button className="btn btn-ghost btn-small" disabled={!!checkoutBusy} onClick={() => handleUpgrade('annual')}>
-                {checkoutBusy === 'annual' ? 'Redirecting…' : '£24.99/year'}
+                {checkoutBusy === 'annual' ? 'Redirecting…' : 'Free for 7 days, then £24.99/year'}
               </button>
             </div>
             {checkoutError && <p className="error">{checkoutError}</p>}
