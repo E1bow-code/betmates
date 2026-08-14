@@ -12,6 +12,7 @@
 // nothing to bet on. Races that have already gone off, or were abandoned,
 // are filtered out too.
 import { cacheGet, cacheSet } from '../../src/lib/apiCache.js'
+import { logProviderError } from '../../src/lib/logProviderError.js'
 
 const LIST_TTL = 20 * 60 * 1000
 const SILK_PALETTE = ['#dc2626', '#2563eb', '#16a34a', '#eab308', '#9333ea', '#0891b2', '#ea580c', '#db2777']
@@ -42,6 +43,7 @@ export default async (req) => {
       })
       if (!res.ok) {
         console.error(`Racing provider error (${res.status}), falling back to mock`)
+        await logProviderError('racing', `HTTP ${res.status}`)
         return serveMock(id)
       }
       const { racecards } = await res.json()
@@ -60,6 +62,7 @@ export default async (req) => {
     })
   } catch (err) {
     console.error('Racing provider error, falling back to mock:', err.message)
+    await logProviderError('racing', err.message)
     return serveMock(id)
   }
 }

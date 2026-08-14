@@ -22,6 +22,7 @@
 // cost credits twice.
 import { cacheGet, cacheSet } from '../../src/lib/apiCache.js'
 import { TENNIS_DYNAMIC_KEY } from '../../src/lib/sportsConfig.js'
+import { logProviderError } from '../../src/lib/logProviderError.js'
 
 const SCORES_TTL = 3 * 60 * 1000
 // In-play scores change by the minute, so the live view caches far more
@@ -62,6 +63,17 @@ async function fetchOddsApiGames(rawKeys, apiKey, live) {
       return events
     })
   )
+
+  // Unlike odds.js/ufc.js/sport.js's own fallback points, a rejected key
+  // here never surfaced anywhere before - it silently dropped out of the
+  // results below. This is the path auto-settle.js (every 30 min) and
+  // alert-checks.js (every 15 min) hit, both with sport keys tied to real
+  // open bets/followed fixtures - and since SCORES_TTL/LIVE_TTL are far
+  // shorter than either cron interval, most of their calls land here
+  // genuinely uncached. Logged once per request (not per key) so a
+  // multi-sport rejection doesn't spam the admin error log.
+  const rejected = results.filter((r) => r.status === 'rejected')
+  if (rejected.length) await logProviderError('scores', rejected.map((r) => r.reason?.message).join('; '))
 
   const events = results.filter((r) => r.status === 'fulfilled').flatMap((r) => r.value)
   // A game in progress reports scores with completed=false; a finished one

@@ -15,6 +15,7 @@
 import { FOOTBALL_SPORT_KEYS } from '../../src/lib/sportsConfig.js'
 import { cacheGet, cacheSet } from '../../src/lib/apiCache.js'
 import { pickLink } from '../../src/lib/oddsLinks.js'
+import { logProviderError } from '../../src/lib/logProviderError.js'
 
 const SPORTS = FOOTBALL_SPORT_KEYS
 const REGION = 'uk'
@@ -84,7 +85,9 @@ export default async (req) => {
       // a broken page for users - fall back to sample odds instead, same as
       // the no-API-key path. Logged server-side so it's still diagnosable.
       if (!events.length && results.every((r) => r.status === 'rejected')) {
-        console.error('Odds provider error, falling back to mock:', results[0].reason?.message)
+        const detail = results[0].reason?.message
+        console.error('Odds provider error, falling back to mock:', detail)
+        await logProviderError('odds-football', detail ?? 'all sports rejected')
         return serveMock(id)
       }
       if (events.length) cacheSet('football-events', events, LIST_TTL)
@@ -150,6 +153,7 @@ export default async (req) => {
     })
   } catch (err) {
     console.error('Odds provider error, falling back to mock:', err.message)
+    await logProviderError('odds-football', err.message)
     return serveMock(id)
   }
 }

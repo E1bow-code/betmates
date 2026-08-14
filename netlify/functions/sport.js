@@ -12,6 +12,7 @@
 import { GENERIC_SPORTS } from '../../src/lib/sportsConfig.js'
 import { cacheGet, cacheSet } from '../../src/lib/apiCache.js'
 import { pickLink } from '../../src/lib/oddsLinks.js'
+import { logProviderError } from '../../src/lib/logProviderError.js'
 
 const REGION = 'uk'
 const MARKETS = 'h2h,totals'
@@ -60,6 +61,7 @@ export default async (req) => {
       })
     } catch (err) {
       console.error('SportsGameOdds error, degrading to empty:', err.message)
+      await logProviderError(`sgo-${sportParam}`, err.message)
       return emptyResponse('live-empty')
     }
   }
@@ -104,7 +106,9 @@ export default async (req) => {
       // fall back to here, but "nothing on right now" is a state the UI
       // already handles fine.
       if (!events.length && results.every((r) => r.status === 'rejected')) {
-        console.error('Odds provider error, degrading to empty:', results[0].reason?.message)
+        const detail = results[0].reason?.message
+        console.error('Odds provider error, degrading to empty:', detail)
+        await logProviderError(`odds-${sportParam}`, detail ?? 'all keys rejected')
         return emptyResponse('live-empty')
       }
 
@@ -119,6 +123,7 @@ export default async (req) => {
     })
   } catch (err) {
     console.error('Odds provider error, degrading to empty:', err.message)
+    await logProviderError(`odds-${sportParam}`, err.message)
     return emptyResponse('live-empty')
   }
 }

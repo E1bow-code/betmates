@@ -5,6 +5,7 @@
 // src/lib/apiCache.js) - mock fallback when ODDS_API_KEY isn't set.
 import { cacheGet, cacheSet } from '../../src/lib/apiCache.js'
 import { pickLink } from '../../src/lib/oddsLinks.js'
+import { logProviderError } from '../../src/lib/logProviderError.js'
 
 const SPORT = 'mma_mixed_martial_arts'
 const REGION = 'uk'
@@ -34,6 +35,7 @@ export default async (req) => {
       const res = await fetch(apiUrl)
       if (!res.ok) {
         console.error(`Odds provider error (${res.status}), falling back to mock`)
+        await logProviderError('odds-ufc', `HTTP ${res.status}`)
         return serveMock(id)
       }
       const events = await res.json()
@@ -47,6 +49,7 @@ export default async (req) => {
     })
   } catch (err) {
     console.error('Odds provider error, falling back to mock:', err.message)
+    await logProviderError('odds-ufc', err.message)
     return serveMock(id)
   }
 }
