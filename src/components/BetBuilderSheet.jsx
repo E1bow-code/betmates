@@ -91,12 +91,18 @@ export default function BetBuilderSheet() {
 
   const hasPick = legs.length > 0
 
+  // Refetches every time the sheet opens, not just once on mount - this
+  // sheet is mounted permanently at the App shell level (see App.jsx), so a
+  // mount-only fetch would go stale the moment someone creates or joins a
+  // group anywhere else in the app and then opens this sheet without a full
+  // page reload.
   useEffect(() => {
+    if (!sheetOpen) return
     dataStore.listMyGroups(user.id).then((gs) => {
       setGroups(gs)
       if (gs.length) setGroupId(gs[0].id)
     })
-  }, [user.id])
+  }, [user.id, sheetOpen])
 
   // Loads the Event dropdown's options whenever the sheet is showing the
   // picker (zero legs) and either just opened or the Sport dropdown
