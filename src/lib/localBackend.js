@@ -1498,6 +1498,13 @@ export function listFollowing(userId) {
   return delay(ids)
 }
 
+/** @param {string} userId @returns {Promise<number>} */
+export function getFollowerCount(userId) {
+  const db = readDb()
+  const count = db.follows.filter((f) => f.followingId === userId).length
+  return delay(count)
+}
+
 // --- Blocks & reports ----------------------------------------------------
 
 /** @param {string} userId @param {string} blockedId @returns {Promise<true>} */

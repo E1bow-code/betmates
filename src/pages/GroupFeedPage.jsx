@@ -11,6 +11,7 @@ import GroupCoachTake from '../components/GroupCoachTake.jsx'
 import PickemLeaderboard from '../components/PickemLeaderboard.jsx'
 import TablePredictorPanel from '../components/TablePredictorPanel.jsx'
 import Avatar from '../components/Avatar.jsx'
+import GoProSheet from '../components/GoProSheet.jsx'
 import ReferralTierBadge from '../components/ReferralTierBadge.jsx'
 import EmptyState from '../components/EmptyState.jsx'
 import { shareOrCopy, groupInviteUrl } from '../lib/share.js'
@@ -55,6 +56,7 @@ export default function GroupFeedPage() {
   const [connecting, setConnecting] = useState(false)
   const [connectError, setConnectError] = useState(null)
   const [subscribers, setSubscribers] = useState(null)
+  const [showGoPro, setShowGoPro] = useState(false)
   const runAsync = useAsyncAction()
 
   function refresh() {
@@ -402,77 +404,69 @@ export default function GroupFeedPage() {
 
           {isCreator && (
             <div className="group-billing-panel">
-              {!group?.stripeConnectChargesEnabled ? (
+              {group?.stripeConnectChargesEnabled && group?.priceAmount ? (
                 <>
-                  <button className="btn btn-secondary btn-small" onClick={handleConnectPayouts} disabled={connecting}>
-                    {connecting ? 'Redirecting…' : 'Connect payouts (Stripe)'}
-                  </button>
-                  <p className="hint">Charge members a monthly price for this group once payouts are connected.</p>
-                  {connectError && <p className="error">{connectError}</p>}
+                  <p className="hint">£{Number(group.priceAmount).toFixed(2)}/month</p>
+                  {subscribers !== null &&
+                    (() => {
+                      const { grossMrr, netMrr } = computeGroupEarnings(subscribers.length, group.priceAmount)
+                      return (
+                        <>
+                          <h2 className="market-title">Earnings</h2>
+                          <div className="stat-tiles">
+                            <div className="stat-tile">
+                              <div className="stat-tile-value">{subscribers.length}</div>
+                              <div className="stat-tile-label">Paying members</div>
+                            </div>
+                            <div className="stat-tile">
+                              <div className="stat-tile-value">£{grossMrr.toFixed(2)}</div>
+                              <div className="stat-tile-label">Gross revenue</div>
+                            </div>
+                            <div className="stat-tile">
+                              <div className="stat-tile-value">£{netMrr.toFixed(2)}</div>
+                              <div className="stat-tile-label">Your est. earnings</div>
+                            </div>
+                          </div>
+                          <p className="hint">After BetMates' 10% fee - excludes Stripe's own processing fee.</p>
+                          {subscribers.length > 0 && (
+                            <>
+                              <div className="manage-list">
+                                {subscribers.map((s) => (
+                                  <div key={s.id} className="manage-list-row">
+                                    <span>{s.displayName}</span>
+                                  </div>
+                                ))}
+                              </div>
+                              <button className="btn btn-ghost btn-small" onClick={handleExportSubscribers}>
+                                Export as CSV
+                              </button>
+                            </>
+                          )}
+                        </>
+                      )
+                    })()}
                 </>
               ) : (
-                <>
-                  <form className="chat-input-row" onSubmit={handleSavePrice}>
-                    <input
-                      type="number"
-                      min="0"
-                      step="0.5"
-                      placeholder="£ per month (blank = free)"
-                      value={priceInput}
-                      onChange={(e) => setPriceInput(e.target.value)}
-                    />
-                    <button className="btn btn-primary btn-small" type="submit" disabled={savingPrice}>
-                      {savingPrice ? 'Saving…' : 'Save'}
-                    </button>
-                  </form>
-                  {group?.priceAmount ? (
-                    <>
-                      <p className="hint">£{Number(group.priceAmount).toFixed(2)}/month</p>
-                      {subscribers !== null &&
-                        (() => {
-                          const { grossMrr, netMrr } = computeGroupEarnings(subscribers.length, group.priceAmount)
-                          return (
-                            <>
-                              <h2 className="market-title">Earnings</h2>
-                              <div className="stat-tiles">
-                                <div className="stat-tile">
-                                  <div className="stat-tile-value">{subscribers.length}</div>
-                                  <div className="stat-tile-label">Paying members</div>
-                                </div>
-                                <div className="stat-tile">
-                                  <div className="stat-tile-value">£{grossMrr.toFixed(2)}</div>
-                                  <div className="stat-tile-label">Gross revenue</div>
-                                </div>
-                                <div className="stat-tile">
-                                  <div className="stat-tile-value">£{netMrr.toFixed(2)}</div>
-                                  <div className="stat-tile-label">Your est. earnings</div>
-                                </div>
-                              </div>
-                              <p className="hint">After BetMates' 10% fee - excludes Stripe's own processing fee.</p>
-                              {subscribers.length > 0 && (
-                                <>
-                                  <div className="manage-list">
-                                    {subscribers.map((s) => (
-                                      <div key={s.id} className="manage-list-row">
-                                        <span>{s.displayName}</span>
-                                      </div>
-                                    ))}
-                                  </div>
-                                  <button className="btn btn-ghost btn-small" onClick={handleExportSubscribers}>
-                                    Export as CSV
-                                  </button>
-                                </>
-                              )}
-                            </>
-                          )
-                        })()}
-                    </>
-                  ) : (
-                    <p className="hint">This group is free to join.</p>
-                  )}
-                </>
+                <button className="btn btn-secondary btn-small" onClick={() => setShowGoPro(true)}>
+                  Turn this into a paid group
+                </button>
               )}
             </div>
+          )}
+
+          {showGoPro && (
+            <GoProSheet
+              group={group}
+              user={user}
+              onClose={() => setShowGoPro(false)}
+              priceInput={priceInput}
+              setPriceInput={setPriceInput}
+              savingPrice={savingPrice}
+              handleSavePrice={handleSavePrice}
+              connecting={connecting}
+              connectError={connectError}
+              handleConnectPayouts={handleConnectPayouts}
+            />
           )}
 
           <div className="manage-list">

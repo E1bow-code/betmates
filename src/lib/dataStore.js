@@ -1163,6 +1163,17 @@ export async function listFollowing(userId) {
   return data.map((row) => row.following_id)
 }
 
+// Count only, not the follower list itself - used to show "N followers" as
+// a pitch stat (GoProSheet, JoinGroupPage's paywall) without pulling every
+// follower's id down just to take .length client-side.
+/** @param {string} userId @returns {Promise<number>} */
+export async function getFollowerCount(userId) {
+  if (!isSupabaseConfigured) return local.getFollowerCount(userId)
+  const { count, error } = await supabase.from('follows').select('*', { count: 'exact', head: true }).eq('following_id', userId)
+  if (error) throw error
+  return count ?? 0
+}
+
 // --- Blocks & reports ----------------------------------------------------
 // Public-feed-only (see BetCard.jsx variant='public') - group posts aren't
 // blockable since a group is already people you chose to be around.

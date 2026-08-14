@@ -978,6 +978,46 @@ button.conversation-row { width: 100%; background: none; border: none; border-bo
   background: var(--surface);
 }
 
+/* The owner's track record shown to a prospective subscriber, above the
+   price/disclaimer text already in .paywall-card - same computeStats/
+   tipsterBadge/.stat-tiles combination GoProSheet's pitch step and
+   Discover's group list already use, so all three surfaces agree. */
+.paywall-owner-pitch {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  width: 100%;
+}
+
+/* GoProSheet.jsx (GroupFeedPage.jsx's "Turn this into a paid group" flow) -
+   each of its three steps (Pitch/Price/Connect) gets consistent spacing
+   regardless of what it contains. */
+.gopro-sheet-step {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+/* The Pitch step's hero - the owner's own identity/track record as the
+   actual sales pitch, stacked and centered rather than the usual inline
+   .account-identity row, so it reads as a moment rather than a header. */
+.gopro-pitch-hero {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  gap: 10px;
+  padding: 8px 0 4px;
+}
+.gopro-pitch-hero .account-name {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  font-size: 1.2rem;
+}
+.gopro-pitch-hero .stat-tiles { width: 100%; }
+
 .report-list { display: flex; flex-direction: column; gap: 10px; }
 .report-card { border: 1px solid var(--border); border-radius: 4px; padding: 12px; background: var(--surface); }
 .report-card-meta { font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.03em; color: var(--bad); font-weight: 700; margin-bottom: 4px; }
