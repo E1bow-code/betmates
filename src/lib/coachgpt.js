@@ -307,6 +307,16 @@ async function callClaudeModel(apiKey, model, messages, extra) {
         // keep a deep answer substantive AND complete rather than trying to
         // fill the ceiling or burning a slow search on the calendar.
         max_tokens: 950,
+        // Confirmed live via debug logging: extended thinking was firing on
+        // these calls despite nothing here ever requesting it, and thinking
+        // tokens share the SAME max_tokens ceiling as the visible reply - one
+        // forced-fallback call spent 192 of its 194 output tokens on an
+        // invisible thinking block, leaving an empty string as the actual
+        // answer (surfaced to the user as "couldn't get a straight answer",
+        // indistinguishable from the coach going silent). It also just costs
+        // real generation time for a chat reply nobody reads the reasoning
+        // trace of. Explicitly disabled so every token goes to the answer.
+        thinking: { type: 'disabled' },
         system: systemPromptFor(),
         messages,
         ...extra
