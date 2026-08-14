@@ -2144,6 +2144,17 @@ button.conversation-row { width: 100%; background: none; border: none; border-bo
   white-space: nowrap;
   max-width: 100%;
 }
+/* .fixture-team-profile-btn resets to a left-aligned row (it's built for
+   .fixture-teams-row's inline photo-then-name layout) - re-stack it to
+   match .matchup-banner-side's centered column for the player-sport tap
+   target here. */
+.matchup-banner-profile-btn {
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  width: 100%;
+  text-align: center;
+}
 /* Loser dims once resolveMatchupWinner has a confirmed result - winner
    stays full-strength, no extra rule needed for it beyond the photo-wrap
    ring below. */
