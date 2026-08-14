@@ -98,6 +98,9 @@ Netlify cron, configured per-file via `export const config = { schedule }`:
 | `odds-snapshot.js` | `*/30 * * * *` | snapshots prices for open-bet legs (CLV) and followed fixtures (sharp-money) |
 | `coach-settle.js` | `*/30 * * * *` | settles CoachGPT's `lock_in_recommendation` picks for its own scoreboard |
 | `season-rollover.js` | `0 0 1 * *` | archives last month's #1-by-profit into `season_results`, per group and globally |
+| `odds-ingest.js` | `0 */8 * * *` | fetches the football bulk list and writes it to `odds_cache` so `odds.js` serves users from our own DB, not per-user live calls |
+| `ufc-ingest.js` | `0 */8 * * *` | same, for the UFC/MMA list (`ufc.js`) |
+| `sport-ingest.js` | `0 */12 * * *` | same, per generic sport (`sport.js`); `ODDS_INGEST_SPORTS` allowlists which - NOT free-tier-safe with all nine on, see file header |
 
 `alert-checks.js` (and every other scheduled function above) runs with
 nobody signed in, so it uses `SUPABASE_SERVICE_ROLE_KEY` and bypasses RLS -

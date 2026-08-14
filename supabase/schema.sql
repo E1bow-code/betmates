@@ -1599,9 +1599,10 @@ create policy "user joins a group as themselves" on group_members for insert wit
 -- It's the durable, cross-instance successor to src/lib/apiCache.js's
 -- in-memory map.
 --
--- cache_key is the logical response name ('football-list' today; room for
--- 'ufc-list', per-fixture detail, etc. as more of the board moves off live
--- fetches). Written only by netlify/functions/odds-ingest.js on its cron.
+-- cache_key is the logical response name - 'football-list' (odds-ingest.js),
+-- 'ufc-list' (ufc-ingest.js) and 'sport-list-<sport>' per generic sport
+-- (sport-ingest.js) today, with room for per-fixture detail etc. as more of
+-- the board moves off live fetches. Written only by those service-role crons.
 create table odds_cache (
   cache_key text primary key,
   sport text not null,
