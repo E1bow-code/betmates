@@ -118,8 +118,8 @@ function NotificationRow({ item }) {
       : 'tracker-row icon-row notification-row'
 
   function goToRowTarget() {
-    if (item.kind === 'posted' && item.groupId) navigate(`/groups/${item.groupId}`)
-    else if (item.kind === 'posted') navigate('/groups', { state: { segment: 'feed' } })
+    if ((item.kind === 'posted' || item.kind === 'commented') && item.groupId) navigate(`/groups/${item.groupId}`)
+    else if (item.kind === 'posted' || item.kind === 'commented') navigate('/groups', { state: { segment: 'feed' } })
     else navigate('/tracker')
   }
 
@@ -138,7 +138,7 @@ function NotificationRow({ item }) {
     >
       <span className="icon-row-badge">
         {(() => {
-          const Icon = item.kind === 'posted' ? CommentIcon : SETTLED_ICON[item.status]
+          const Icon = item.kind === 'posted' || item.kind === 'commented' ? CommentIcon : SETTLED_ICON[item.status]
           return Icon && <Icon width={18} height={18} />
         })()}
       </span>
@@ -150,6 +150,13 @@ function NotificationRow({ item }) {
                 <UserLink id={item.userId} displayName={item.name} />
               </strong>{' '}
               posted a bet on {item.event}
+            </>
+          ) : item.kind === 'commented' ? (
+            <>
+              <strong onClick={(e) => e.stopPropagation()}>
+                <UserLink id={item.userId} displayName={item.name} />
+              </strong>{' '}
+              commented on your bet on {item.event}: "{item.body}"
             </>
           ) : (
             <>

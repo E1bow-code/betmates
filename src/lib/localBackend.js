@@ -881,6 +881,20 @@ export function listComments(betId) {
   return delay(db.comments.filter((c) => c.betId === betId).sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()))
 }
 
+/** @param {string[]} betIds @param {string} excludeUserId @returns {Promise<any[]>} */
+export function listRecentCommentsOnPosts(betIds, excludeUserId) {
+  const db = readDb()
+  const names = Object.fromEntries(db.users.map((u) => [u.id, u.displayName]))
+  const betIdSet = new Set(betIds)
+  return delay(
+    db.comments
+      .filter((c) => betIdSet.has(c.betId) && c.userId !== excludeUserId)
+      .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
+      .slice(0, 50)
+      .map((c) => ({ id: c.id, betId: c.betId, userId: c.userId, name: names[c.userId] ?? 'Someone', body: c.body, createdAt: c.createdAt }))
+  )
+}
+
 // --- Bet copies (engagement tracking) -------------------------------------
 
 /** @param {string} originalBetId @param {string} copyingUserId @returns {Promise<any>} */

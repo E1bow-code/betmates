@@ -44,7 +44,11 @@ export function ActivityProvider({ userId, children }) {
       dataStore.listBetPostsByUser(userId),
       dataStore.listManualEntries(userId)
     ])
-      .then(([feed, publicFeed, ownPosts, ownManual]) => {
+      .then(async ([feed, publicFeed, ownPosts, ownManual]) => {
+        if (cancelled) return
+
+        const ownPostById = new Map(ownPosts.map((p) => [p.id, p]))
+        const comments = await dataStore.listRecentCommentsOnPosts([...ownPostById.keys()], userId).catch(() => [])
         if (cancelled) return
 
         const newest = [...feed, ...publicFeed].reduce((max, p) => (p.createdAt > max ? p.createdAt : max), '')
@@ -72,6 +76,20 @@ export function ActivityProvider({ userId, children }) {
             at: entry.settledAt,
             status: entry.status,
             event: entry.selections?.[0]?.event ?? 'a bet'
+          })
+        }
+        for (const comment of comments) {
+          if (!withinWindow(comment.createdAt)) continue
+          const post = ownPostById.get(comment.betId)
+          merged.push({
+            id: `commented-${comment.id}`,
+            kind: 'commented',
+            at: comment.createdAt,
+            userId: comment.userId,
+            name: comment.name,
+            body: comment.body,
+            event: post?.selections?.[0]?.event ?? 'a bet',
+            groupId: post?.groupId
           })
         }
         merged.sort((a, b) => new Date(b.at) - new Date(a.at))

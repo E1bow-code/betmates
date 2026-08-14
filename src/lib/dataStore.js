@@ -1382,6 +1382,42 @@ export async function listComments(betId) {
   return data.map(mapComment)
 }
 
+// For ActivityContext.jsx's in-app "commented" notification kind - feeds
+// off betIds the caller already fetched (its own listBetPostsByUser call),
+// rather than re-querying bet_posts here just to find them. excludeUserId
+// drops the viewer's own comments on their own posts (nothing to notify
+// yourself about). Comment-author names weren't previously threaded
+// through to any caller, so this joins profiles the same way
+// listAllReports.js does for its own post author.
+/**
+ * @param {string[]} betIds
+ * @param {string} excludeUserId
+ * @returns {Promise<{id: string, betId: string, userId: string, name: string, body: string, createdAt: string}[]>}
+ */
+export async function listRecentCommentsOnPosts(betIds, excludeUserId) {
+  if (!betIds.length) return []
+  if (!isSupabaseConfigured) return local.listRecentCommentsOnPosts(betIds, excludeUserId)
+  const { data, error } = await supabase
+    .from('bet_comments')
+    .select('id, bet_id, user_id, body, created_at, commenter:profiles!bet_comments_user_id_fkey(display_name)')
+    .in('bet_id', betIds)
+    .neq('user_id', excludeUserId)
+    .order('created_at', { ascending: false })
+    .limit(50)
+  if (error) throw error
+  return data.map((row) => {
+    const commenter = /** @type {{display_name: string}|null} */ (/** @type {unknown} */ (row.commenter))
+    return {
+      id: row.id,
+      betId: row.bet_id,
+      userId: row.user_id,
+      name: commenter?.display_name ?? 'Someone',
+      body: row.body,
+      createdAt: row.created_at
+    }
+  })
+}
+
 // Renders non-virtualized in potentially unbounded lists (PublicFeedView.jsx
 // fetches every public post with no .limit()), so unlike every other
 // subscribeX below this can't be one channel per mounted BetCard - that
