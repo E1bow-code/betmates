@@ -677,23 +677,19 @@ export default function BetBuilderSheet() {
 
         {error && <div className="auth-error">{error}</div>}
 
-        {/* One clear primary action, not four equal buttons. With a group you
-            share to it; without one, posting to everyone is the primary. Saving
-            privately is the quiet tertiary, and closing is the × up top - no
-            need for a fourth full-width Cancel button down here. */}
+        {/* One clear primary action, not four equal buttons. Posting to the
+            public feed is the main attraction regardless of whether the
+            user has groups - sharing with just one group is the secondary
+            option underneath it, not the other way round. Saving privately
+            is the quiet tertiary, and closing is the × up top - no need for
+            a fourth full-width Cancel button down here. */}
         <div className="sheet-actions">
-          {groups.length > 0 ? (
-            <>
-              <button className="btn btn-primary" onClick={handlePost} disabled={submitting || !canSubmit}>
-                {submitting ? 'Posting…' : 'Share with the group'}
-              </button>
-              <button className="btn btn-secondary" onClick={handlePostPublic} disabled={submitting || !canSubmit}>
-                {submitting ? 'Posting…' : 'Post to everyone'}
-              </button>
-            </>
-          ) : (
-            <button className="btn btn-primary" onClick={handlePostPublic} disabled={submitting || !canSubmit}>
-              {submitting ? 'Posting…' : 'Post to everyone'}
+          <button className="btn btn-primary" onClick={handlePostPublic} disabled={submitting || !canSubmit}>
+            {submitting ? 'Posting…' : 'Post to everyone'}
+          </button>
+          {groups.length > 0 && (
+            <button className="btn btn-secondary" onClick={handlePost} disabled={submitting || !canSubmit}>
+              {submitting ? 'Posting…' : 'Share with the group'}
             </button>
           )}
           {hasPick && (
