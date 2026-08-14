@@ -895,6 +895,20 @@ export function listRecentCommentsOnPosts(betIds, excludeUserId) {
   )
 }
 
+/** @param {string[]} betIds @param {string} excludeUserId @returns {Promise<any[]>} */
+export function listRecentReactionsOnPosts(betIds, excludeUserId) {
+  const db = readDb()
+  const names = Object.fromEntries(db.users.map((u) => [u.id, u.displayName]))
+  const betIdSet = new Set(betIds)
+  return delay(
+    db.reactions
+      .filter((r) => betIdSet.has(r.betId) && r.userId !== excludeUserId)
+      .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
+      .slice(0, 50)
+      .map((r) => ({ id: r.id, betId: r.betId, userId: r.userId, name: names[r.userId] ?? 'Someone', emoji: r.emoji, createdAt: r.createdAt }))
+  )
+}
+
 // --- Bet copies (engagement tracking) -------------------------------------
 
 /** @param {string} originalBetId @param {string} copyingUserId @returns {Promise<any>} */

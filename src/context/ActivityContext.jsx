@@ -48,7 +48,10 @@ export function ActivityProvider({ userId, children }) {
         if (cancelled) return
 
         const ownPostById = new Map(ownPosts.map((p) => [p.id, p]))
-        const comments = await dataStore.listRecentCommentsOnPosts([...ownPostById.keys()], userId).catch(() => [])
+        const [comments, reactions] = await Promise.all([
+          dataStore.listRecentCommentsOnPosts([...ownPostById.keys()], userId).catch(() => []),
+          dataStore.listRecentReactionsOnPosts([...ownPostById.keys()], userId).catch(() => [])
+        ])
         if (cancelled) return
 
         const newest = [...feed, ...publicFeed].reduce((max, p) => (p.createdAt > max ? p.createdAt : max), '')
@@ -88,6 +91,20 @@ export function ActivityProvider({ userId, children }) {
             userId: comment.userId,
             name: comment.name,
             body: comment.body,
+            event: post?.selections?.[0]?.event ?? 'a bet',
+            groupId: post?.groupId
+          })
+        }
+        for (const reaction of reactions) {
+          if (!withinWindow(reaction.createdAt)) continue
+          const post = ownPostById.get(reaction.betId)
+          merged.push({
+            id: `reacted-${reaction.id}`,
+            kind: 'reacted',
+            at: reaction.createdAt,
+            userId: reaction.userId,
+            name: reaction.name,
+            emoji: reaction.emoji,
             event: post?.selections?.[0]?.event ?? 'a bet',
             groupId: post?.groupId
           })

@@ -50,10 +50,12 @@ const POST_TAG_ICON = {
 // something our own icon set can reach) - only REACTION_ICON below is
 // new, for swapping the in-app button glyph for a real icon without
 // touching the data model.
-const REACTION_EMOJIS = ['🔥', '😬', '👍']
-const REACTION_LABEL = { '🔥': 'fire', '😬': 'grimace', '👍': 'thumbs up' }
+// Exported so NotificationsPage.jsx's "reacted" notification text can
+// share these labels instead of redeclaring its own copy that could drift.
+export const REACTION_EMOJIS = ['🔥', '😬', '👍']
+export const REACTION_LABEL = { '🔥': 'fire', '😬': 'grimace', '👍': 'thumbs up' }
 const REACTION_ICON = { '🔥': FlameIcon, '😬': UnsureFaceIcon, '👍': ThumbsUpIcon }
-const VOTE_OPTIONS = [
+export const VOTE_OPTIONS = [
   { key: 'lock_in', label: 'Lock in' },
   { key: 'not_sure', label: 'Not sure' },
   { key: 'not_happening', label: 'Not happening' }

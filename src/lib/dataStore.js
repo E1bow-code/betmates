@@ -1418,6 +1418,41 @@ export async function listRecentCommentsOnPosts(betIds, excludeUserId) {
   })
 }
 
+// Same shape/purpose as listRecentCommentsOnPosts, for the "reacted"
+// notification kind - reactions push-notify the author only while the bet
+// is still live (see BetCard.jsx's toggleReaction), but this in-app feed
+// deliberately isn't live-gated: a reaction is still worth surfacing after
+// the fact even if the viewer missed the live push, same reasoning as why
+// comments get an in-app fallback at all.
+/**
+ * @param {string[]} betIds
+ * @param {string} excludeUserId
+ * @returns {Promise<{id: string, betId: string, userId: string, name: string, emoji: string, createdAt: string}[]>}
+ */
+export async function listRecentReactionsOnPosts(betIds, excludeUserId) {
+  if (!betIds.length) return []
+  if (!isSupabaseConfigured) return local.listRecentReactionsOnPosts(betIds, excludeUserId)
+  const { data, error } = await supabase
+    .from('bet_reactions')
+    .select('id, bet_id, user_id, emoji, created_at, reactor:profiles!bet_reactions_user_id_fkey(display_name)')
+    .in('bet_id', betIds)
+    .neq('user_id', excludeUserId)
+    .order('created_at', { ascending: false })
+    .limit(50)
+  if (error) throw error
+  return data.map((row) => {
+    const reactor = /** @type {{display_name: string}|null} */ (/** @type {unknown} */ (row.reactor))
+    return {
+      id: row.id,
+      betId: row.bet_id,
+      userId: row.user_id,
+      name: reactor?.display_name ?? 'Someone',
+      emoji: row.emoji,
+      createdAt: row.created_at
+    }
+  })
+}
+
 // Renders non-virtualized in potentially unbounded lists (PublicFeedView.jsx
 // fetches every public post with no .limit()), so unlike every other
 // subscribeX below this can't be one channel per mounted BetCard - that

@@ -9,9 +9,19 @@ import { formatOdds } from '../utils/oddsFormat.js'
 import EmptyState from '../components/EmptyState.jsx'
 import SportHeroBanner from '../components/SportHeroBanner.jsx'
 import UserLink from '../components/UserLink.jsx'
+import { REACTION_EMOJIS, VOTE_OPTIONS } from '../components/BetCard.jsx'
 import { BellIcon, CommentIcon, CheckIcon, XIcon, MinusIcon } from '../components/icons/Icons.jsx'
 
 const SETTLED_ICON = { won: CheckIcon, lost: XIcon, void: MinusIcon }
+
+// Same reacted/voted split BetCard.jsx's own toggleReaction push-notification
+// title uses - kept in one place (REACTION_EMOJIS/VOTE_OPTIONS are exported
+// from there) so the two can't silently drift on what counts as a vote.
+function reactionVerb(emoji) {
+  if (REACTION_EMOJIS.includes(emoji)) return `reacted ${emoji} to`
+  const label = VOTE_OPTIONS.find((o) => o.key === emoji)?.label ?? emoji
+  return `voted "${label}" on`
+}
 
 // A real tab rather than a floating bell dropdown - matches how the rest of
 // the app navigates (Odds/Social/Tracker/Account are all pages, not
@@ -117,9 +127,11 @@ function NotificationRow({ item }) {
       ? `tracker-row icon-row notification-row status-${item.status}`
       : 'tracker-row icon-row notification-row'
 
+  const isSocial = item.kind === 'posted' || item.kind === 'commented' || item.kind === 'reacted'
+
   function goToRowTarget() {
-    if ((item.kind === 'posted' || item.kind === 'commented') && item.groupId) navigate(`/groups/${item.groupId}`)
-    else if (item.kind === 'posted' || item.kind === 'commented') navigate('/groups', { state: { segment: 'feed' } })
+    if (isSocial && item.groupId) navigate(`/groups/${item.groupId}`)
+    else if (isSocial) navigate('/groups', { state: { segment: 'feed' } })
     else navigate('/tracker')
   }
 
@@ -137,10 +149,14 @@ function NotificationRow({ item }) {
       }}
     >
       <span className="icon-row-badge">
-        {(() => {
-          const Icon = item.kind === 'posted' || item.kind === 'commented' ? CommentIcon : SETTLED_ICON[item.status]
-          return Icon && <Icon width={18} height={18} />
-        })()}
+        {item.kind === 'reacted' ? (
+          REACTION_EMOJIS.includes(item.emoji) ? item.emoji : '🎯'
+        ) : (
+          (() => {
+            const Icon = item.kind === 'posted' || item.kind === 'commented' ? CommentIcon : SETTLED_ICON[item.status]
+            return Icon && <Icon width={18} height={18} />
+          })()
+        )}
       </span>
       <div className="tracker-row-main">
         <div className="selection-event">
@@ -157,6 +173,13 @@ function NotificationRow({ item }) {
                 <UserLink id={item.userId} displayName={item.name} />
               </strong>{' '}
               commented on your bet on {item.event}: "{item.body}"
+            </>
+          ) : item.kind === 'reacted' ? (
+            <>
+              <strong onClick={(e) => e.stopPropagation()}>
+                <UserLink id={item.userId} displayName={item.name} />
+              </strong>{' '}
+              {reactionVerb(item.emoji)} your bet on {item.event}
             </>
           ) : (
             <>
