@@ -500,20 +500,6 @@ export async function runCoachGptTurn({ apiKey, history, message, callTool }) {
     else {
       text = extractText(data?.content)
       truncated = data?.stop_reason === 'max_tokens'
-      // TEMPORARY debug instrumentation - live evidence (2 rounds) shows this
-      // forced call sometimes returns HTTP 200 with genuinely empty text, no
-      // error, surfacing to the user as "couldn't get a straight answer" -
-      // exactly the "I don't know" symptom this whole change set exists to
-      // fix. Logging the raw shape to find out why before guessing further.
-      // Remove once diagnosed.
-      if (!text) {
-        console.error('coachgpt: forced no-tools call returned empty text', {
-          stopReason: data?.stop_reason,
-          contentTypes: (data?.content ?? []).map((b) => b.type),
-          content: JSON.stringify(data?.content)?.slice(0, 2000),
-          usage: data?.usage
-        })
-      }
     }
   }
 
