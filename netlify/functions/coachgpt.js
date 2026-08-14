@@ -16,7 +16,7 @@
 // the actual access control, no admin client needed for a read-only check.
 import { createClient } from '@supabase/supabase-js'
 import { runCoachGptTurn } from '../../src/lib/coachgpt.js'
-import { matchFixtureQuery, matchRaceQuery } from '../../src/utils/matchFixtureQuery.js'
+import { matchFixtureQuery, matchRaceQuery, startsWithinHours } from '../../src/utils/matchFixtureQuery.js'
 import { computeBestValue } from '../../src/utils/bestValue.js'
 import { getPlayerProfile } from '../../src/lib/playerProfile.js'
 import { GENERIC_SPORTS, apiKeysForSport, sgoLeagueForSport } from '../../src/lib/sportsConfig.js'
@@ -297,6 +297,60 @@ async function toolGetResults(siteUrl, { sport } = {}) {
   return { sport: key, results }
 }
 
+// "What's on tonight/today" browses by TIME, unlike find_fixture which
+// needs a name to search on and comes back empty for a bare time-word
+// question (matchFixtureQuery's STOPWORDS deliberately strip "tonight"/
+// "today" as name-search noise - confirmed live, CoachGPT had no way to
+// actually answer "what sports on tonight"). 20 hours covers "tonight"/
+// "today"/"this evening" without needing to reason about UK BST/GMT
+// calendar-day boundaries exactly - anything 20+ hours out is squarely
+// "later in the week" by any reasonable reading. Racing races get no
+// upper bound since our racing data is structurally always today's card
+// already (see COACHGPT_SYSTEM's own note) - just "hasn't run yet".
+const UPCOMING_WINDOW_HOURS = 20
+const UPCOMING_LIMIT = 15
+
+function summariseUpcomingFixture(fixture, sportKey) {
+  return {
+    sport: sportKey,
+    competition: fixture.competition,
+    homeTeam: fixture.homeTeam ?? fixture.participantA ?? fixture.fighterA,
+    awayTeam: fixture.awayTeam ?? fixture.participantB ?? fixture.fighterB,
+    kickoff: fixture.kickoff
+  }
+}
+
+async function toolListUpcoming(siteUrl, { sport } = {}) {
+  const normalisedSport = sport && SPORT_ORDER.includes(sport) ? sport : null
+  const sportsToCheck = normalisedSport ? [normalisedSport] : SPORT_ORDER
+  const now = Date.now()
+
+  const perSport = await Promise.all(
+    sportsToCheck.map(async (key) => {
+      if (key === 'racing') {
+        const races = await fetchListFor(siteUrl, key)
+        return (Array.isArray(races) ? races : [])
+          .filter((race) => {
+            const t = new Date(race.offTime).getTime()
+            return !Number.isNaN(t) && t >= now
+          })
+          .map((race) => ({ sport: 'racing', course: race.course, raceName: race.raceName, offTime: race.offTime, runnerCount: race.runners?.length ?? 0 }))
+      }
+      const fixtures = await fetchListFor(siteUrl, key)
+      return (Array.isArray(fixtures) ? fixtures : [])
+        .filter((f) => startsWithinHours(f.kickoff, UPCOMING_WINDOW_HOURS, now))
+        .map((f) => summariseUpcomingFixture(f, key))
+    })
+  )
+
+  const events = perSport
+    .flat()
+    .sort((a, b) => new Date(a.kickoff ?? a.offTime).getTime() - new Date(b.kickoff ?? b.offTime).getTime())
+    .slice(0, UPCOMING_LIMIT)
+
+  return { count: events.length, events }
+}
+
 // lock_in_recommendation's tool input carries bare identity fields
 // (eventId/marketKey/outcomeName, or raceId/horseId) - matched back
 // against the last grounding array (built from the RAW fixture/runner
@@ -363,6 +417,7 @@ export default async (req) => {
   // (fresher-priced) copy.
   let allGrounding = []
   const callTool = async (name, input) => {
+    if (name === 'list_upcoming_events') return toolListUpcoming(siteUrl, input)
     if (name === 'find_fixture') {
       const groundingOut = {}
       const result = await toolFindFixture(siteUrl, input, groundingOut)

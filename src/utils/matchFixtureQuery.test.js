@@ -1,6 +1,6 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { matchFixtureQuery, matchRaceQuery } from './matchFixtureQuery.js'
+import { matchFixtureQuery, matchRaceQuery, startsWithinHours } from './matchFixtureQuery.js'
 
 const fixture = (over) => ({ id: 'x', homeTeam: 'Home', awayTeam: 'Away', ...over })
 
@@ -111,4 +111,24 @@ test('matchRaceQuery matches by course name and returns every runner in that rac
 test('matchRaceQuery returns nothing for an empty query or no runners', () => {
   assert.deepEqual(matchRaceQuery([{ id: 'r1', course: 'Ascot', runners: [] }], 'Ascot'), [])
   assert.deepEqual(matchRaceQuery([{ id: 'r1', course: 'Ascot', runners: [{ name: 'Frankel' }] }], ''), [])
+})
+
+test('startsWithinHours is true for a timestamp inside the window', () => {
+  const now = Date.parse('2026-08-14T12:00:00Z')
+  assert.equal(startsWithinHours('2026-08-14T20:00:00Z', 20, now), true)
+})
+
+test('startsWithinHours is false for a timestamp already in the past', () => {
+  const now = Date.parse('2026-08-14T12:00:00Z')
+  assert.equal(startsWithinHours('2026-08-14T10:00:00Z', 20, now), false)
+})
+
+test('startsWithinHours is false for a timestamp beyond the window', () => {
+  const now = Date.parse('2026-08-14T12:00:00Z')
+  assert.equal(startsWithinHours('2026-08-16T12:00:00Z', 20, now), false)
+})
+
+test('startsWithinHours is false for a missing or invalid timestamp', () => {
+  assert.equal(startsWithinHours(null, 20), false)
+  assert.equal(startsWithinHours('not-a-date', 20), false)
 })

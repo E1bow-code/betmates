@@ -69,6 +69,13 @@ export const COACHGPT_SYSTEM = [
   'tactics, say), call every tool you already know you need in the SAME',
   'turn rather than one at a time across several turns - you\'re on a tight',
   'reply-time budget, and calling them together is faster and just as good:',
+  '- list_upcoming_events(sport?): browses what\'s coming up SOON (a rolling',
+  '  near-term window, not a full week\'s schedule) - use this for "what\'s on',
+  '  tonight/today", "anything on right now?", or any question with no team/',
+  '  fighter/horse name to search for. find_fixture needs something to look',
+  '  up by name and will come back empty on a bare time-word question like',
+  '  "what\'s on tonight" - reach for this one instead, then find_fixture by',
+  '  name on anything from the list the user wants a price on.',
   '- find_fixture(query, sport?): looks up a specific upcoming fixture,',
   '  fight, or horse race and its prices, including pre-computed value',
   '  edges (where the best price beats the market average by a meaningful',
@@ -191,6 +198,21 @@ export const COACHGPT_SYSTEM = [
 ].join('\n')
 
 export const COACHGPT_TOOLS = [
+  {
+    name: 'list_upcoming_events',
+    description:
+      'Browse what\'s coming up SOON across a sport (or every sport, if none given) - a rolling near-term window, not a full week\'s schedule. Use this for a bare "what\'s on tonight/today", "anything on right now?", or any question with no team/fighter/horse name to search for - find_fixture needs something to look up by name and comes back empty on a time-only question. Returns fixture names and kickoff times only, no prices - call find_fixture by name afterwards for odds on anything from the list.',
+    input_schema: {
+      type: 'object',
+      properties: {
+        sport: {
+          type: 'string',
+          description:
+            'Sport if the user named one: football, ufc, racing, tennis, basketball, hockey, baseball, nfl, rugbyLeague, rugbyUnion, cricket, or boxing. Omit for every sport at once.'
+        }
+      }
+    }
+  },
   {
     name: 'find_fixture',
     description:
