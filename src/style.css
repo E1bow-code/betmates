@@ -1921,7 +1921,21 @@ button.conversation-row { width: 100%; background: none; border: none; border-bo
 
 .selection-event { font-weight: 600; font-size: 0.95rem; }
 .selection-row { display: flex; justify-content: space-between; font-size: 0.85rem; color: var(--text-dim); }
-.selection-pick { color: var(--text); font-weight: 600; }
+.selection-pick { color: var(--text); font-weight: 600; display: inline-flex; align-items: center; gap: 6px; }
+/* The crest/headshot sits just left of the picked team/fighter name in the
+   ticket - a hair rounder than the square badge so a crest reads as a token
+   next to the name rather than a photo. */
+.selection-pick .team-badge { border-radius: 4px; }
+
+/* Tracker history rows carry the same participant badge, leading the fixture
+   line. Flex so the badge, event text and any live-score tag sit on one row. */
+.tracker-row .selection-event { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+.tracker-row .selection-event .team-badge { border-radius: 4px; }
+
+/* Hall of Fame record line: crest/headshot inline before the "+£X on <event>"
+   text on the two fixture-tied records. */
+.hof-record-meta { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+.hof-record-meta .team-badge { border-radius: 4px; }
 .selection-odds-row { display: flex; justify-content: space-between; align-items: baseline; }
 .selection-odds { color: var(--accent); font-weight: 700; font-size: 1.2rem; }
 .selection-bookmaker { color: var(--text-dim); font-size: 0.8rem; }

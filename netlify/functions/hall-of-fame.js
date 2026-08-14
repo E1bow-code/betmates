@@ -40,13 +40,18 @@ export default async (req) => {
     let biggestWin = null
     let underdog = null
     for (const p of wins) {
+      // The first leg's pick, so the Hall of Fame can show a crest/headshot
+      // next to the record (see participantBadge on the client). Only these
+      // two records name a specific fixture, so only these carry it.
+      const leg = p.selections?.[0] ?? {}
+      const pick = { event: leg.event ?? 'Bet', selection: leg.selection ?? null, sport: leg.sport ?? null, market: leg.market ?? null, marketKey: leg.marketKey ?? null }
       const profit = Number(p.potential_return) - Number(p.stake)
       if (!biggestWin || profit > biggestWin.profit) {
-        biggestWin = { ...holder(p), profit, event: p.selections?.[0]?.event ?? 'Bet' }
+        biggestWin = { ...holder(p), profit, ...pick }
       }
       const combined = (p.selections ?? []).reduce((acc, s) => acc * s.odds, 1)
       if (!underdog || combined > underdog.odds) {
-        underdog = { ...holder(p), odds: combined, event: p.selections?.[0]?.event ?? 'Bet' }
+        underdog = { ...holder(p), odds: combined, ...pick }
       }
     }
 

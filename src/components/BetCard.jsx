@@ -10,9 +10,12 @@ import { notifyBetAuthor } from '../lib/notify.js'
 import { useAsyncAction } from '../lib/useAsyncAction.js'
 import { labelForTag, iconForTag } from '../lib/postTags.js'
 import { parseMatchup } from '../utils/matchup.js'
+import { participantBadge } from '../utils/participantBadge.js'
 import CopyBetButton from './CopyBetButton.jsx'
 import BackBetButton from './BackBetButton.jsx'
 import ShareImageButton from './ShareImageButton.jsx'
+import TeamBadge from './TeamBadge.jsx'
+import PlayerPhoto from './PlayerPhoto.jsx'
 import Avatar from './Avatar.jsx'
 import EditBetSheet from './EditBetSheet.jsx'
 import LiveBadge from './LiveBadge.jsx'
@@ -80,6 +83,7 @@ export default function BetCard({ post, memberNames, memberAvatars, variant = 'g
   const [status, setStatus] = useState(post.status)
   const [following, setFollowing] = useState(false)
   const [showCardMenu, setShowCardMenu] = useState(false)
+  const [showReport, setShowReport] = useState(false)
   const [reported, setReported] = useState(false)
   const [showEdit, setShowEdit] = useState(false)
   const [showMoreActions, setShowMoreActions] = useState(false)
@@ -248,7 +252,10 @@ export default function BetCard({ post, memberNames, memberAvatars, variant = 'g
           {variant === 'public' && (
             <button
               className="moderation-toggle"
-              onClick={() => setShowCardMenu((v) => !v)}
+              onClick={() => {
+                setShowCardMenu((v) => !v)
+                setShowReport(false)
+              }}
               aria-label="More options"
               aria-expanded={showCardMenu}
             >
@@ -303,17 +310,25 @@ export default function BetCard({ post, memberNames, memberAvatars, variant = 'g
               <button className="btn btn-ghost btn-small" onClick={handleBlock}>
                 Block {authorName}
               </button>
+              {/* The report reasons stay hidden behind a single "Report"
+                  button until it's tapped - opening the ⋯ menu shouldn't
+                  dump every reason on screen at once (reporting a mate's post
+                  is the rare action here, not the default one). */}
               {reported ? (
                 <span className="hint">Reported, thanks.</span>
-              ) : (
+              ) : showReport ? (
                 <>
-                  <span className="hint">Report:</span>
+                  <span className="hint">Report for:</span>
                   {REPORT_REASONS.map((r) => (
                     <button key={r.key} className="btn btn-ghost btn-small" onClick={() => handleReport(r.key)}>
                       {r.label}
                     </button>
                   ))}
                 </>
+              ) : (
+                <button className="btn btn-ghost btn-small" onClick={() => setShowReport(true)}>
+                  Report
+                </button>
               )}
             </>
           )}
@@ -347,19 +362,30 @@ export default function BetCard({ post, memberNames, memberAvatars, variant = 'g
               <span className={`bet-status-pill status-${status}`}>{STATUS_LABEL[status]}</span>
             </div>
 
-            {selections.map((selection, i) => (
+            {selections.map((selection, i) => {
+              const badge = participantBadge(selection, post.sport)
+              return (
               <div key={i} className={selections.length > 1 ? 'bet-card-leg' : undefined}>
                 <div className="selection-event">{selection.event}</div>
                 <div className="selection-row">
                   <span>{selection.market}</span>
-                  <span className="selection-pick">{selection.selection}</span>
+                  <span className="selection-pick">
+                    {badge &&
+                      (badge.type === 'team' ? (
+                        <TeamBadge team={badge.name} sport={badge.sport} size={18} />
+                      ) : (
+                        <PlayerPhoto name={badge.name} sport={badge.sport} size={18} />
+                      ))}
+                    {selection.selection}
+                  </span>
                 </div>
                 <div className="selection-odds-row">
                   <span className="selection-odds">{formatOdds(selection.odds, format)}</span>
                   <span className="selection-bookmaker">{selection.bookmaker}</span>
                 </div>
               </div>
-            ))}
+              )
+            })}
 
             {post.stakeHidden ? (
               <div className="bet-card-stake bet-card-stake-hidden">Stake kept private</div>

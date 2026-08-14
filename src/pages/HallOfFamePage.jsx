@@ -6,6 +6,9 @@ import { formatOdds } from '../utils/oddsFormat.js'
 import SportHeroBanner from '../components/SportHeroBanner.jsx'
 import EmptyState from '../components/EmptyState.jsx'
 import Avatar from '../components/Avatar.jsx'
+import TeamBadge from '../components/TeamBadge.jsx'
+import PlayerPhoto from '../components/PlayerPhoto.jsx'
+import { participantBadge } from '../utils/participantBadge.js'
 import { MoneyIcon, FlameIcon, TrophyIcon, CalendarIcon, HorseIcon, MegaphoneIcon, HandshakeIcon, TargetIcon } from '../components/icons/Icons.jsx'
 
 // Works fully logged out, same as PublicProfilePage - reachable as a "look
@@ -79,12 +82,23 @@ export default function HallOfFamePage() {
         <div className="tracker-list">
           {rows.map(({ key, icon, title, render }) => {
             const record = data[key]
+            // Only the fixture-tied records (biggest win / longest odds) carry a
+            // pick; the rest return null here and show no badge.
+            const badge = participantBadge(record, record.sport)
             return (
               <div key={key} className="tracker-row icon-row">
                 <span className="icon-row-badge">{icon}</span>
                 <div className="tracker-row-main">
                   <div className="selection-event">{title}</div>
-                  <div className="race-card-meta">{render(record, format)}</div>
+                  <div className="race-card-meta hof-record-meta">
+                    {badge &&
+                      (badge.type === 'team' ? (
+                        <TeamBadge team={badge.name} sport={badge.sport} size={16} />
+                      ) : (
+                        <PlayerPhoto name={badge.name} sport={badge.sport} size={16} />
+                      ))}
+                    <span>{render(record, format)}</span>
+                  </div>
                 </div>
                 <div className="hof-holder">
                   <Avatar name={record.name} size={24} />
