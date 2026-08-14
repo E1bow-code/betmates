@@ -11,7 +11,7 @@ const base = {
   height: 18,
   fill: 'none',
   stroke: 'currentColor',
-  strokeWidth: 1.7,
+  strokeWidth: 1.8,
   strokeLinecap: 'round',
   strokeLinejoin: 'round'
 }
