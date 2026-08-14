@@ -129,6 +129,22 @@ export function flagFor(nationality) {
   return iso2 ? iso2ToFlagEmoji(iso2) : null
 }
 
+// TheSportsDB's dateBorn is community-sourced and occasionally just wrong -
+// confirmed live for Virat Kohli, whose dateBorn (1998-11-05) contradicts
+// their own bio text ("born 5 November 1988"). This bound only catches the
+// genuinely-implausible end of that failure mode (a garbled date landing
+// decades outside a real pro's career, or an obviously-mistyped year) - it
+// canNOT catch a wrong-but-still-plausible age the way Kohli's own error
+// happens to be (their bad dateBorn computes to 27, which is a perfectly
+// normal age for an athlete, so nothing here flags it). There's no general
+// fix for that without re-deriving a birth date from bio prose, which
+// nothing here does. Bounds are what's actually plausible for an active pro
+// in the sports this card covers - Kazuyoshi Miura (football) and George
+// Foreman/Bernard Hopkins (boxing) are the real outliers on the old end, so
+// 65 has real headroom rather than just covering the common case.
+const MIN_PLAUSIBLE_AGE = 14
+const MAX_PLAUSIBLE_AGE = 65
+
 // Whole years only, as of now - a stat tile has no room for "24 years,
 // 3 months" and betting-relevant age never needs that precision.
 export function ageFrom(dateBorn) {
@@ -139,5 +155,6 @@ export function ageFrom(dateBorn) {
   let age = now.getFullYear() - born.getFullYear()
   const hasHadBirthdayThisYear = now.getMonth() > born.getMonth() || (now.getMonth() === born.getMonth() && now.getDate() >= born.getDate())
   if (!hasHadBirthdayThisYear) age--
+  if (age < MIN_PLAUSIBLE_AGE || age > MAX_PLAUSIBLE_AGE) return null
   return age
 }

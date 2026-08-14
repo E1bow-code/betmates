@@ -48,3 +48,11 @@ test('ageFrom is null without a birth date', () => {
   assert.equal(ageFrom(null), null)
   assert.equal(ageFrom(''), null)
 })
+
+test('ageFrom is null for an age outside the plausible range for an active pro', () => {
+  const now = new Date()
+  const iso = (years) => `${now.getFullYear() - years}-01-01`
+  assert.equal(ageFrom(iso(10)), null) // too young for a pro
+  assert.equal(ageFrom(iso(80)), null) // too old for a pro
+  assert.equal(ageFrom(iso(30)), 30) // plausible age still computes normally
+})
