@@ -358,7 +358,7 @@ export default function TrackerPage() {
                     {formatOdds(entry.selections?.[0]?.odds, format)}
                   </div>
                 </div>
-                <span className={`bet-status-pill status-${entry.status}`}>{STATUS_LABEL[entry.status]}</span>
+                <span className={`chip chip--pill chip--sm chip--outline bet-status-pill status-${entry.status}`}>{STATUS_LABEL[entry.status]}</span>
               </div>
             ))}
           </div>
@@ -469,7 +469,7 @@ export default function TrackerPage() {
                       <option value="void">Void</option>
                     </select>
                   ) : (
-                    <span className={`bet-status-pill status-${entry.status}`}>{STATUS_LABEL[entry.status]}</span>
+                    <span className={`chip chip--pill chip--sm chip--outline bet-status-pill status-${entry.status}`}>{STATUS_LABEL[entry.status]}</span>
                   )}
                   {entry.status === 'open' && (
                     <button className="btn btn-ghost btn-small" onClick={() => setEditingEntry(entry)}>

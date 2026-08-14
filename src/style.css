@@ -130,6 +130,44 @@ html, body {
   line-height: 1.4;
 }
 
+/* Chip/badge system - Phase 2 of the token migration. Before this, ~10
+   inline tag/badge/pill components (.discover-group-price-badge,
+   .discover-group-tipster-badge, .home-stat-chip, .bet-status-pill,
+   .post-tag-chip, .tipster-badge, .backing-badge, .video-tag,
+   .group-chip, .sport-pill) were each hand-written from scratch with
+   their own independently-chosen padding/font-size/tone, even though
+   they're visually the same handful of shapes repeated. These classes
+   supply the shared shape/size/tone; each component's own class (still
+   applied alongside, e.g. class="chip chip--pill chip--sm chip--outline-
+   accent tipster-badge") keeps only what's genuinely unique to it -
+   cursor, hover/active state, layout context. Two shape tiers per the
+   file's own pill-for-social/sharp-for-data rule; two size tiers, since
+   the real corpus only ever needed "small status tag" and "standalone
+   chip with breathing room", not a bigger scale. */
+.chip {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-4);
+  font-weight: 700;
+  white-space: nowrap;
+  line-height: 1.2;
+}
+.chip--pill { border-radius: var(--radius-pill); }
+.chip--sharp { border-radius: var(--radius-sharp); }
+.chip--sm { padding: var(--space-2) var(--space-8); font-size: var(--text-xs); }
+.chip--md { padding: var(--space-8) var(--space-12); font-size: var(--text-sm); }
+
+/* Tone modifiers - name describes fill + border, not a semantic (won/lost
+   already have their own modifiers below since they're state, not tone). */
+.chip--outline { background: none; border: 1px solid var(--border); color: var(--text-dim); }
+.chip--outline-accent { background: none; border: 1px solid var(--accent-dim); color: var(--accent); }
+.chip--filled-neutral { background: var(--surface); border: 1px solid var(--border); color: var(--text-dim); }
+.chip--filled-accent { background: rgba(var(--accent-rgb), 0.12); border: 1px solid var(--accent-dim); color: var(--accent); }
+.chip--filled-accent-strong { background: rgba(var(--accent-rgb), 0.16); border: none; color: var(--accent); }
+.chip--solid-accent { background: var(--accent); border: 1px solid var(--accent); color: var(--accent-ink); }
+.chip--won { border-color: var(--accent); color: var(--accent); }
+.chip--lost { border-color: var(--bad); color: var(--bad); }
+
 /* Off-screen until focused - the first tab stop on every signed-in page,
    letting keyboard/screen-reader users jump past NewsTickerBar's headline
    links straight to .route-page (see App.jsx's Shell). */
@@ -1018,26 +1056,13 @@ button.conversation-row { width: 100%; background: none; border: none; border-bo
 .discover-group-row-main { flex: 1; min-width: 0; }
 .discover-group-row-name { font-weight: 600; font-size: var(--text-md); display: flex; align-items: center; gap: var(--space-6); }
 .discover-group-row-meta { font-size: 0.8rem; color: var(--text-dim); }
-.discover-group-price-badge {
-  font-size: 0.7rem;
-  font-weight: 700;
-  padding: var(--space-2) var(--space-8);
-  border-radius: var(--radius-pill);
-  background: rgba(var(--accent-rgb), 0.16);
-  color: var(--accent);
-}
+/* Both now pure chip compositions (chip chip--pill chip--sm chip--filled-
+   accent-strong / chip--filled-neutral in the JSX) - no unique CSS left,
+   kept as bare selectors only as a comment anchor for that composition. */
 
 /* Same pill shape as the price badge, but neutral - it's a track-record
    signal, not the thing being sold, so it shouldn't compete with price for
    attention. */
-.discover-group-tipster-badge {
-  font-size: 0.7rem;
-  font-weight: 700;
-  padding: var(--space-2) var(--space-8);
-  border-radius: var(--radius-pill);
-  background: var(--surface-2);
-  color: var(--text-dim);
-}
 
 /* Owner-only paid-group settings (GroupFeedPage.jsx's Members tab) - price
    field + Connect-payouts CTA, same bordered-card convention as .scan-cta/
@@ -1475,25 +1500,12 @@ button.conversation-row { width: 100%; background: none; border: none; border-bo
    the app - it reads as a physical toggle, which is the point. */
 .sport-switcher { display: flex; gap: var(--space-8); margin: var(--space-6) 0 var(--space-2); overflow-x: auto; padding-bottom: var(--space-2); }
 .sport-switcher .sport-pill { flex-shrink: 0; }
-.sport-pill {
-  position: relative;
-  background: none;
-  border: 1px solid var(--border);
-  border-radius: var(--radius-pill);
-  padding: 5px var(--space-12);
-  font-size: 0.8rem;
-  color: var(--text-dim);
-  cursor: pointer;
-  text-decoration: none;
-  display: inline-block;
-}
-.sport-pill.active {
-  background: var(--accent);
-  border-color: var(--accent);
-  color: var(--accent-ink);
-  font-weight: 700;
-  box-shadow: 0 2px 8px rgba(var(--accent-rgb), 0.35);
-}
+/* Shape/size/tone now come from the chip base (chip chip--pill chip--md
+   chip--outline, swapping to chip--solid-accent when active, in the
+   JSX) - position/cursor/text-decoration and the active glow are the
+   bits unique to this being a clickable segment toggle. */
+.sport-pill { position: relative; cursor: pointer; text-decoration: none; }
+.sport-pill.active { box-shadow: 0 2px 8px rgba(var(--accent-rgb), 0.35); }
 
 /* Compact round button for a topbar action that isn't a page segment (e.g.
    Social's Messages link) - same rounded family as .sport-pill, sized to
@@ -1658,18 +1670,9 @@ button.conversation-row { width: 100%; background: none; border: none; border-bo
 .outcome-name { display: flex; flex-direction: column; align-items: flex-start; gap: 3px; font-weight: 500; }
 
 /* Stamped rectangular tag, not just dim inline text - matches every other
-   badge in the app instead of reading as an afterthought next to the name. */
-.backing-badge {
-  display: inline-flex;
-  align-items: center;
-  gap: 3px;
-  font-weight: 700;
-  font-size: var(--text-xs);
-  color: var(--accent);
-  border: 1px solid rgba(var(--accent-rgb), 0.35);
-  border-radius: var(--radius-sharp);
-  padding: 1px 5px;
-}
+   badge in the app instead of reading as an afterthought next to the name.
+   Now a pure chip composition (chip chip--sharp chip--sm chip--outline-
+   accent in the JSX) - no unique CSS left. */
 /* Deliberately not colored good/bad (--accent/--bad) - whether shortening
    or drifting is "good" depends on whether you're looking to back that
    price now or already have, so this only signals direction, not value. */
@@ -1997,15 +2000,9 @@ button.conversation-row { width: 100%; background: none; border: none; border-bo
 }
 
 .video-caption { font-size: var(--text-md); line-height: 1.4; }
-.video-tag {
-  align-self: flex-start;
-  background: none;
-  border: 1px solid var(--accent-dim);
-  border-radius: var(--radius-sharp);
-  padding: 3px var(--space-8);
-  font-size: var(--text-sm);
-  color: var(--accent);
-}
+/* Shape/size/tone now come from the chip base (chip chip--sharp chip--sm
+   chip--outline-accent in the JSX) - align-self is layout context only. */
+.video-tag { align-self: flex-start; }
 
 .share-section-label { font-size: var(--text-sm); text-transform: uppercase; color: var(--text-dim); margin: var(--space-10) 0 var(--space-6); letter-spacing: 0.04em; }
 .share-target-list { display: flex; flex-direction: column; border: 1px solid var(--border); border-radius: var(--radius-sharp); overflow: hidden; }
@@ -2116,17 +2113,17 @@ button.conversation-row { width: 100%; background: none; border: none; border-bo
 .news-feed-title { font-size: 0.9rem; line-height: 1.35; }
 
 .group-chip-row { display: flex; gap: var(--space-8); overflow-x: auto; padding: var(--space-4) 0 var(--space-10); }
+/* Shape/tone now come from the chip base (chip chip--pill chip--outline
+   in the JSX) - full-brightness text (not the base's dim) and its own
+   font-size/padding stay local, since this is a nav link to a whole
+   group and needs to read more prominently than a small status tag. */
 .group-chip {
   flex-shrink: 0;
-  background: none;
-  border: 1px solid var(--border);
-  border-radius: var(--radius-pill);
   padding: var(--space-8) var(--space-16);
   font-size: var(--text-base);
   font-weight: 600;
   color: var(--text);
   text-decoration: none;
-  white-space: nowrap;
 }
 
 .friend-chip-btn { font-family: inherit; cursor: pointer; display: flex; align-items: center; gap: var(--space-4); }
@@ -2675,16 +2672,11 @@ button.conversation-row { width: 100%; background: none; border: none; border-bo
 .bet-card-stat-value.accent { color: var(--accent); }
 
 /* Stamped, not a bubble: bordered rectangle with letterspaced caps,
-   like a "PAID"/"VOID" stamp on a slip. */
+   like a "PAID"/"VOID" stamp on a slip. Shape/size/tone now come from
+   the chip base (chip chip--pill chip--sm chip--outline in the JSX) -
+   the mono/uppercase/letterspacing treatment is genuinely unique to a
+   status stamp, so it keeps its own rule on top. */
 .bet-status-pill {
-  font-size: 0.64rem;
-  font-weight: 700;
-  padding: var(--space-4) var(--space-10);
-  border: 1px solid var(--border);
-  border-radius: var(--radius-pill);
-  background: none;
-  color: var(--text-dim);
-  white-space: nowrap;
   text-transform: uppercase;
   letter-spacing: 0.04em;
   font-family: var(--font-mono);
@@ -2763,25 +2755,13 @@ button.conversation-row { width: 100%; background: none; border: none; border-bo
 }
 .post-preview-card { cursor: default; }
 .post-tag-row { display: flex; flex-wrap: wrap; gap: var(--space-6); margin: var(--space-2) 0; }
-.post-tag-chip {
-  display: inline-flex;
-  align-items: center;
-  padding: var(--space-6) var(--space-12);
-  background: var(--surface);
-  border: 1px solid var(--border);
-  border-radius: var(--radius-pill);
-  color: var(--text-dim);
-  font-size: 0.78rem;
-  font-weight: 600;
-  cursor: pointer;
-}
-.post-tag-chip.active { background: rgba(var(--accent-rgb), 0.16); border-color: var(--accent-dim); color: var(--accent); }
+/* Shape/size/tone now come from the chip base (chip chip--pill chip--md
+   chip--filled-neutral, swapping to chip--filled-accent when active/
+   readonly, in the JSX) - only the interactive/layout bits stay here. */
+.post-tag-chip { cursor: pointer; }
 .post-tag-chip-readonly {
   width: fit-content;
   margin-bottom: var(--space-2);
-  background: rgba(var(--accent-rgb), 0.12);
-  border-color: var(--accent-dim);
-  color: var(--accent);
   cursor: default;
 }
 .bet-card-stake { font-size: var(--text-base); color: var(--text-dim); }
@@ -2864,8 +2844,15 @@ button.conversation-row { width: 100%; background: none; border: none; border-bo
 
 /* Icon + text pairing, used wherever a heading/label/chip now leads with a
    real icon instead of an emoji character - keeps them vertically centred
-   regardless of the surrounding element's own display (h2, span, p...). */
-.icon-row { display: inline-flex; align-items: center; gap: var(--space-6); }
+   regardless of the surrounding element's own display (h2, span, p...).
+   Was two separate .icon-row declarations at identical specificity (this
+   one, plus a second setting only `gap: var(--space-12)` ~300 lines down
+   near .tracker-list) - same silent-override bug Phase 1 found in
+   .tipster-badge. The second one was winning cascade order on every
+   .icon-row in the app, so 12px is what's actually live today; merged
+   here rather than reverting to the originally-intended 6px, since that
+   would be an app-wide visual change with no design call behind it. */
+.icon-row { display: inline-flex; align-items: center; gap: var(--space-12); }
 
 /* Same icon-instead-of-emoji swap, for a leading icon inside a paragraph
    that wraps across multiple lines - .icon-row's flex would turn each word
@@ -3162,7 +3149,6 @@ button.conversation-row { width: 100%; background: none; border: none; border-bo
    read as a plaque, not a bet-history line: the icon gets its own bordered
    badge instead of sitting inline with the title. Hall of Fame additionally
    gives the record holder a face next to their name (.hof-holder). */
-.icon-row { gap: var(--space-12); }
 .icon-row-badge {
   flex-shrink: 0;
   width: 34px;
@@ -3327,19 +3313,8 @@ button.conversation-row { width: 100%; background: none; border: none; border-bo
 .home-stats-strip .rank-teaser { margin: 0; min-width: 220px; max-width: 260px; }
 .home-stats-strip .home-highlights { display: contents; }
 
-.home-stat-chip {
-  display: inline-flex;
-  align-items: center;
-  gap: var(--space-6);
-  padding: var(--space-8) var(--space-12);
-  background: rgba(var(--accent-rgb), 0.12);
-  border: 1px solid var(--accent-dim);
-  border-radius: var(--radius-pill);
-  font-size: 0.78rem;
-  font-weight: 700;
-  color: var(--accent);
-  white-space: nowrap;
-}
+/* Now a pure chip composition (chip chip--pill chip--md chip--filled-
+   accent in the JSX) - no unique CSS left. */
 
 /* Tap-anywhere bar that opens the same "Log a bet" sheet as BottomNav's
    "+" FAB (see QuickAddContext.jsx) - styled like a Facebook/social-app
@@ -3492,19 +3467,10 @@ button.conversation-row { width: 100%; background: none; border: none; border-bo
    was already an unintentional merge of both. Combined into one real rule
    here instead of leaving the second, now-redundant declaration to keep
    silently overriding this one. */
-.tipster-badge {
-  display: inline-flex;
-  align-items: center;
-  gap: var(--space-4);
-  margin-left: var(--space-8);
-  padding: 1px 7px;
-  font-size: var(--text-xs);
-  font-weight: 600;
-  border: 1px solid var(--accent-dim);
-  border-radius: var(--radius-pill);
-  color: var(--accent);
-  white-space: nowrap;
-}
+/* Shape/size/tone now come from the chip base (chip chip--pill chip--sm
+   chip--outline-accent in the JSX) - margin-left is the one thing unique
+   to this usage (sits right after a name, not standalone). */
+.tipster-badge { margin-left: var(--space-8); }
 
 .avatar-upload { position: relative; display: inline-block; cursor: pointer; flex-shrink: 0; }
 .avatar-upload-badge {

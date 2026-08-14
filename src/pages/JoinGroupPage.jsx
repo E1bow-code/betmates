@@ -156,7 +156,7 @@ export default function JoinGroupPage() {
               return (
                 <div className="paywall-owner-pitch">
                   {badge && (
-                    <span className="tipster-badge icon-row">
+                    <span className="chip chip--pill chip--sm chip--outline-accent tipster-badge icon-row">
                       {BadgeIcon && <BadgeIcon width={13} height={13} />} {badge.label}
                     </span>
                   )}

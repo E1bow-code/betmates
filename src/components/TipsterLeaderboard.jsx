@@ -90,7 +90,7 @@ export default function TipsterLeaderboard({ rows, window, onWindowChange, curre
                     <span className="tipster-name">{row.name}</span>
                   )}
                   {row.badge && (
-                    <span className="tipster-badge icon-row">
+                    <span className="chip chip--pill chip--sm chip--outline-accent tipster-badge icon-row">
                       {(() => {
                         const BadgeIcon = TIPSTER_BADGE_ICON[row.badge.icon]
                         return BadgeIcon && <BadgeIcon width={13} height={13} />

@@ -87,7 +87,7 @@ export default function PublicProfilePage() {
                     if (!badge) return null
                     const BadgeIcon = TIPSTER_BADGE_ICON[badge.icon]
                     return (
-                      <span className="tipster-badge icon-row" title={`${badge.label} - ${data.stats.decidedCount}+ decided public picks`}>
+                      <span className="chip chip--pill chip--sm chip--outline-accent tipster-badge icon-row" title={`${badge.label} - ${data.stats.decidedCount}+ decided public picks`}>
                         {BadgeIcon && <BadgeIcon width={13} height={13} />} {badge.label}
                       </span>
                     )
@@ -137,7 +137,7 @@ export default function PublicProfilePage() {
                         <SportIcon sport={r.sport} /> {r.event}
                       </div>
                     </div>
-                    <span className={`bet-status-pill status-${r.status}`}>{r.status === 'won' ? 'Won' : 'Lost'}</span>
+                    <span className={`chip chip--pill chip--sm chip--outline bet-status-pill status-${r.status}`}>{r.status === 'won' ? 'Won' : 'Lost'}</span>
                   </div>
                 ))}
               </div>

@@ -87,7 +87,7 @@ export default function GoProSheet({
               <span className="account-name">
                 {user.displayName}
                 {badge && (
-                  <span className="tipster-badge icon-row">
+                  <span className="chip chip--pill chip--sm chip--outline-accent tipster-badge icon-row">
                     {BadgeIcon && <BadgeIcon width={13} height={13} />} {badge.label}
                   </span>
                 )}

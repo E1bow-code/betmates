@@ -16,7 +16,7 @@ export default function ReferralTierBadge({ count }) {
   if (!tier) return null
   const Icon = TIER_ICON[tier.icon]
   return (
-    <span className="tipster-badge icon-row" title={`${tier.label} - brought ${tier.threshold}+ mates to BetMates`}>
+    <span className="chip chip--pill chip--sm chip--outline-accent tipster-badge icon-row" title={`${tier.label} - brought ${tier.threshold}+ mates to BetMates`}>
       {Icon && <Icon width={13} height={13} />} {tier.label}
     </span>
   )

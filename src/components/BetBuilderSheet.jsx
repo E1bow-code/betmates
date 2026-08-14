@@ -526,7 +526,11 @@ export default function BetBuilderSheet() {
                 <button
                   key={t.key}
                   type="button"
-                  className={tag === t.key ? 'post-tag-chip active icon-row' : 'post-tag-chip icon-row'}
+                  className={
+                    tag === t.key
+                      ? 'chip chip--pill chip--md chip--filled-accent post-tag-chip active icon-row'
+                      : 'chip chip--pill chip--md chip--filled-neutral post-tag-chip icon-row'
+                  }
                   onClick={() => setTag(tag === t.key ? null : t.key)}
                 >
                   {Icon && <Icon width={14} height={14} />} {t.label}

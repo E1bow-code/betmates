@@ -43,6 +43,11 @@ import { computeBookmakerScoreboard } from '../utils/bookmakerScoreboard.js'
 
 const TIPSTER_BADGE_ICON = { sharp: TargetIcon, reliable: BadgeCheckIcon }
 
+// Chip-system base classes for the segment switcher's .sport-pill buttons
+// (see style.css's chip system comment) - inactive/active tone swap.
+const CHIP_PILL = 'chip chip--pill chip--md chip--outline'
+const CHIP_PILL_ACTIVE = 'chip chip--pill chip--md chip--solid-accent'
+
 // Landing view for the Social tab. The feed is the main attraction - group/
 // friend management (create, join, invite codes) lives behind the Manage
 // sheet instead of sitting above the feed. Segments:
@@ -270,14 +275,14 @@ export default function SocialFeedPage() {
           </div>
         </div>
         <div className="sport-switcher">
-          <button className={segment === 'bets' ? 'sport-pill active' : 'sport-pill'} onClick={() => setSegment('bets')}>
+          <button className={segment === 'bets' ? CHIP_PILL_ACTIVE + ' sport-pill active' : CHIP_PILL + ' sport-pill'} onClick={() => setSegment('bets')}>
             Bets
           </button>
-          <button className={segment === 'feed' ? 'sport-pill active' : 'sport-pill'} onClick={() => setSegment('feed')}>
+          <button className={segment === 'feed' ? CHIP_PILL_ACTIVE + ' sport-pill active' : CHIP_PILL + ' sport-pill'} onClick={() => setSegment('feed')}>
             Feed
           </button>
           <button
-            className={segment === 'discover' ? 'sport-pill active icon-row' : 'sport-pill icon-row'}
+            className={(segment === 'discover' ? CHIP_PILL_ACTIVE + ' sport-pill active' : CHIP_PILL + ' sport-pill') + ' icon-row'}
             onClick={() => setSegment('discover')}
           >
             <SearchIcon width={14} height={14} /> Discover
@@ -285,38 +290,38 @@ export default function SocialFeedPage() {
           {showAllSegments ? (
             <>
               <button
-                className={segment === 'leaderboard' ? 'sport-pill active icon-row' : 'sport-pill icon-row'}
+                className={(segment === 'leaderboard' ? CHIP_PILL_ACTIVE + ' sport-pill active' : CHIP_PILL + ' sport-pill') + ' icon-row'}
                 onClick={() => setSegment('leaderboard')}
               >
                 <TrophyIcon width={14} height={14} /> Leaderboard
               </button>
               <button
-                className={segment === 'tipsters' ? 'sport-pill active icon-row' : 'sport-pill icon-row'}
+                className={(segment === 'tipsters' ? CHIP_PILL_ACTIVE + ' sport-pill active' : CHIP_PILL + ' sport-pill') + ' icon-row'}
                 onClick={() => setSegment('tipsters')}
               >
                 <TargetIcon width={14} height={14} /> Tipsters
               </button>
               <button
-                className={segment === 'bookmakers' ? 'sport-pill active icon-row' : 'sport-pill icon-row'}
+                className={(segment === 'bookmakers' ? CHIP_PILL_ACTIVE + ' sport-pill active' : CHIP_PILL + ' sport-pill') + ' icon-row'}
                 onClick={() => setSegment('bookmakers')}
               >
                 <BankIcon width={14} height={14} /> Bookmakers
               </button>
               <button
-                className={segment === 'news' ? 'sport-pill active icon-row' : 'sport-pill icon-row'}
+                className={(segment === 'news' ? CHIP_PILL_ACTIVE + ' sport-pill active' : CHIP_PILL + ' sport-pill') + ' icon-row'}
                 onClick={() => setSegment('news')}
               >
                 <NewsIcon width={14} height={14} /> News
               </button>
-              <button className={segment === 'tips' ? 'sport-pill active' : 'sport-pill'} onClick={() => setSegment('tips')}>
+              <button className={segment === 'tips' ? CHIP_PILL_ACTIVE + ' sport-pill active' : CHIP_PILL + ' sport-pill'} onClick={() => setSegment('tips')}>
                 Tips
               </button>
-              <button className={segment === 'fpl' ? 'sport-pill active' : 'sport-pill'} onClick={() => setSegment('fpl')}>
+              <button className={segment === 'fpl' ? CHIP_PILL_ACTIVE + ' sport-pill active' : CHIP_PILL + ' sport-pill'} onClick={() => setSegment('fpl')}>
                 FPL
               </button>
             </>
           ) : (
-            <button className="sport-pill" onClick={() => setMoreSegmentsOpen(true)}>
+            <button className={CHIP_PILL + ' sport-pill'} onClick={() => setMoreSegmentsOpen(true)}>
               More tabs ▾
             </button>
           )}
@@ -349,7 +354,7 @@ export default function SocialFeedPage() {
           {groups && groups.length > 0 && (
             <div className="group-chip-row">
               {groups.map((g) => (
-                <Link key={g.id} to={`/groups/${g.id}`} className="group-chip">
+                <Link key={g.id} to={`/groups/${g.id}`} className="chip chip--pill chip--outline group-chip">
                   {g.name}
                 </Link>
               ))}
@@ -419,12 +424,12 @@ export default function SocialFeedPage() {
                     <div className="discover-group-row-main">
                       <div className="discover-group-row-name">
                         {g.name}
-                        {g.priceAmount && <span className="discover-group-price-badge">£{Number(g.priceAmount).toFixed(2)}/mo</span>}
+                        {g.priceAmount && <span className="chip chip--pill chip--sm chip--filled-accent-strong discover-group-price-badge">£{Number(g.priceAmount).toFixed(2)}/mo</span>}
                         {ownerBadges[g.id] &&
                           (() => {
                             const BadgeIcon = TIPSTER_BADGE_ICON[ownerBadges[g.id].icon]
                             return (
-                              <span className="discover-group-tipster-badge icon-row">
+                              <span className="chip chip--pill chip--sm chip--filled-neutral discover-group-tipster-badge icon-row">
                                 {BadgeIcon && <BadgeIcon width={13} height={13} />} {ownerBadges[g.id].label}
                               </span>
                             )
@@ -503,7 +508,7 @@ export default function SocialFeedPage() {
           {friends && friends.length > 0 && (
             <div className="group-chip-row">
               {friends.map((f) => (
-                <button key={f.id} className="group-chip friend-chip friend-chip-btn" onClick={() => setCompareFriend(f)}>
+                <button key={f.id} className="chip chip--pill chip--outline group-chip friend-chip friend-chip-btn" onClick={() => setCompareFriend(f)}>
                   {f.displayName} <span className="friend-chip-vs">vs</span>
                 </button>
               ))}

@@ -178,7 +178,7 @@ export default function FightDetailPage() {
                           <span>{outcome.name}</span>
                         </span>
                         {backingCount > 0 && (
-                          <span className="backing-badge icon-row">
+                          <span className="chip chip--sharp chip--sm chip--outline-accent backing-badge icon-row">
                             <FlameIcon width={14} height={14} /> {backingCount} backing
                           </span>
                         )}

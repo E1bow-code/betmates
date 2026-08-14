@@ -244,7 +244,11 @@ export default function OddsListPage() {
           {SPORTS.map((s) => (
             <button
               key={s.key}
-              className={sport === s.key ? 'sport-pill active' : 'sport-pill'}
+              className={
+                sport === s.key
+                  ? 'chip chip--pill chip--md chip--solid-accent sport-pill active'
+                  : 'chip chip--pill chip--md chip--outline sport-pill'
+              }
               onClick={() => setSport(s.key)}
             >
               {s.label}

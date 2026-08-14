@@ -131,7 +131,7 @@ function NotificationRow({ item }) {
         <div className="race-card-meta">{formatRelativeTime(item.at)}</div>
       </div>
       {item.kind === 'settled' && (
-        <span className={`bet-status-pill status-${item.status}`}>{item.status === 'won' ? 'Won' : item.status === 'lost' ? 'Lost' : 'Void'}</span>
+        <span className={`chip chip--pill chip--sm chip--outline bet-status-pill status-${item.status}`}>{item.status === 'won' ? 'Won' : item.status === 'lost' ? 'Lost' : 'Void'}</span>
       )}
     </>
   )

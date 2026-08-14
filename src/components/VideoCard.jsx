@@ -69,7 +69,7 @@ export default function VideoCard({ post }) {
               {post.authorName}
               {badge && (
                 <span
-                  className="tipster-badge icon-row"
+                  className="chip chip--pill chip--sm chip--outline-accent tipster-badge icon-row"
                   title={`${badge.label} - ${authorStats.decidedCount}+ decided public picks`}
                 >
                   {BadgeIcon && <BadgeIcon width={13} height={13} />} {badge.label}
@@ -94,7 +94,7 @@ export default function VideoCard({ post }) {
 
       <div className="video-caption">{post.caption}</div>
       {post.tag && (
-        <div className="video-tag icon-row">
+        <div className="chip chip--sharp chip--sm chip--outline-accent video-tag icon-row">
           <PinIcon width={14} height={14} /> {post.tag}
         </div>
       )}

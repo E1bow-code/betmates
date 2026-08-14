@@ -340,7 +340,7 @@ export default function BetCard({ post, memberNames, memberAvatars, variant = 'g
           (() => {
             const TagIcon = POST_TAG_ICON[iconForTag(post.tag)]
             return (
-              <span className="post-tag-chip post-tag-chip-readonly icon-row">
+              <span className="chip chip--pill chip--md chip--filled-accent post-tag-chip post-tag-chip-readonly icon-row">
                 {TagIcon && <TagIcon width={13} height={13} />} {labelForTag(post.tag)}
               </span>
             )
@@ -360,7 +360,7 @@ export default function BetCard({ post, memberNames, memberAvatars, variant = 'g
 
             <div className="bet-card-ticket-header">
               <span className="bet-card-ticket-tag">{post.marketType}</span>
-              <span className={`bet-status-pill status-${status}`}>{STATUS_LABEL[status]}</span>
+              <span className={`chip chip--pill chip--sm chip--outline bet-status-pill status-${status}`}>{STATUS_LABEL[status]}</span>
             </div>
 
             {selections.map((selection, i) => {

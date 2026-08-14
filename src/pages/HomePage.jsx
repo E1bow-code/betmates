@@ -93,12 +93,12 @@ export default function HomePage() {
       {hasStatsStrip && (
         <div className="home-stats-strip">
           {streak.count >= 2 && (
-            <span className="home-stat-chip">
+            <span className="chip chip--pill chip--md chip--filled-accent home-stat-chip">
               {streak.type === 'won' ? <FlameIcon /> : <SnowflakeIcon />} {streak.count}-{streak.type === 'won' ? 'win' : 'loss'} streak
             </span>
           )}
           {user.streakCurrentCount >= 1 && (
-            <span className="home-stat-chip">
+            <span className="chip chip--pill chip--md chip--filled-accent home-stat-chip">
               <CalendarIcon /> {user.streakCurrentCount}-day streak{!loggedToday && ' · log today'}
             </span>
           )}
