@@ -41,7 +41,38 @@ const HOMEPAGE_LINKS = {
   PointsBet: 'https://pointsbet.com',
   'Bally Bet': 'https://ballybet.com',
   'Hard Rock Bet': 'https://app.hardrock.bet',
-  BetRivers: 'https://betrivers.com'
+  BetRivers: 'https://betrivers.com',
+  // racing.js passes theracingapi.com's own bookmaker strings straight
+  // through with no normalization (no pickLink() equivalent exists for
+  // that provider - see racing.js's reshapeRunner), so these have to match
+  // exactly, spacing included, even where a same-brand entry already
+  // exists above under a differently-spaced key (e.g. "Bet Victor" here
+  // vs "BetVictor" above, "Betfair Exchange" here vs "Betfair" above -
+  // genuinely how each provider spells it, not a typo to consolidate).
+  '7Bet': 'https://www.7bet.co.uk',
+  BestOdds: 'https://www.bestodds.com/uk',
+  'Bet Victor': 'https://www.betvictor.com',
+  BetAhoy: 'https://betahoy.co.uk',
+  BetTom: 'https://www.bettom.com',
+  BetWright: 'https://betwright.com',
+  Betano: 'https://www.betano.co.uk',
+  'Betfair Exchange': 'https://www.betfair.com/exchange',
+  Betfred: 'https://www.betfred.com',
+  'Boyle Sports': 'https://www.boylesports.com',
+  BresBet: 'https://www.bresbet.com',
+  CopyBet: 'https://www.copybet.com',
+  'Dragon Bet': 'https://dragonbet.uk.com',
+  'LiveScore Bet': 'https://www.livescorebet.com',
+  Midnite: 'https://www.midnite.com',
+  Octobet: 'https://octobet.com',
+  'PricedUp Bet': 'https://pricedup.bet',
+  'Quinn Bet': 'https://quinnbet.com/uk',
+  SmarketsSBK: 'https://smarkets.com',
+  SportingIndex: 'https://www.sportingindex.com',
+  Spreadex: 'https://www.spreadex.com',
+  'Star Sports': 'https://starsports.bet',
+  'Virgin Bet': 'https://www.virginbet.com',
+  'talkSPORT BET': 'https://www.talksportbet.com'
 }
 
 // Real affiliate tracking links, once you have them, go here - one Netlify
