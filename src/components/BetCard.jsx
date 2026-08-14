@@ -9,7 +9,7 @@ import { isLive } from '../utils/liveStatus.js'
 import { notifyBetAuthor } from '../lib/notify.js'
 import { useAsyncAction } from '../lib/useAsyncAction.js'
 import { labelForTag, iconForTag } from '../lib/postTags.js'
-import { parseMatchup } from '../utils/matchup.js'
+import { parseMatchup, resolveMatchupWinner } from '../utils/matchup.js'
 import { participantBadge } from '../utils/participantBadge.js'
 import CopyBetButton from './CopyBetButton.jsx'
 import BackBetButton from './BackBetButton.jsx'
@@ -354,7 +354,8 @@ export default function BetCard({ post, memberNames, memberAvatars, variant = 'g
             {selections.length === 1 &&
               (() => {
                 const matchup = parseMatchup(selections[0])
-                return matchup && <MatchupBanner sport={selections[0].sport} {...matchup} />
+                const winner = resolveMatchupWinner(selections[0], matchup, status)
+                return matchup && <MatchupBanner sport={selections[0].sport} {...matchup} winner={winner} />
               })()}
 
             <div className="bet-card-ticket-header">
