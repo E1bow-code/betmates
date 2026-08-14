@@ -175,12 +175,21 @@ export default function ChallengeSection({ user, friend, myPosts, theirPosts }) 
         <div className="challenge-history">
           {past.slice(0, 3).map((c) => {
             const { mine, theirs, winner } = statsFor(c)
-            const resultLabel =
-              winner === 'a' ? 'You won' : winner === 'b' ? `${friend.displayName} won` : winner === 'tie' ? 'Tied' : 'No result'
             return (
               <div key={c.id} className="challenge-history-row">
                 <span className="challenge-history-label">
-                  {METRIC_LABEL[c.metric]} · {resultLabel}
+                  {METRIC_LABEL[c.metric]} ·{' '}
+                  {winner === 'a' ? (
+                    'You won'
+                  ) : winner === 'b' ? (
+                    <>
+                      <UserLink id={friend.id} displayName={friend.displayName} /> won
+                    </>
+                  ) : winner === 'tie' ? (
+                    'Tied'
+                  ) : (
+                    'No result'
+                  )}
                 </span>
                 <span className="challenge-history-score">
                   {formatChallengeValue(mine, c.metric)} – {formatChallengeValue(theirs, c.metric)}

@@ -27,7 +27,7 @@ const SPORT_OPTIONS = Object.entries(SPORT_LABEL).filter(([key]) => key !== 'mul
 // to type from what they can see in the photo or the raw recognised text
 // shown below the scan control.
 export default function ManualEntrySheet({ userId, onClose, onSaved }) {
-  const { user } = useAuth()
+  const { user, refreshUser } = useAuth()
   const { showToast } = useToast()
   const [sport, setSport] = useState('football')
   const [event, setEvent] = useState('')
@@ -145,6 +145,7 @@ export default function ManualEntrySheet({ userId, onClose, onSaved }) {
         stake: stakeNum,
         potentialReturn
       })
+      refreshUser()
       onSaved?.()
       onClose()
     } catch (err) {

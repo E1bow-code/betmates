@@ -116,10 +116,10 @@ export default function Leaderboard({ posts, memberNames, currentUserId, closes 
                   <div key={row.userId} className={row.rank === 1 ? 'leaderboard-row leaderboard-row-top' : 'leaderboard-row'}>
                     <span className="leaderboard-rank">#{row.rank}</span>
                     <Avatar name={row.name} size={24} />
-                    <span className="leaderboard-name">
+                    <UserLink id={row.userId} className="leaderboard-name">
                       {row.name}
                       <ReferralTierBadge count={referralCounts[row.userId]} />
-                    </span>
+                    </UserLink>
                     <span className={`leaderboard-pnl ${row.clv.avgPct >= 0 ? 'tone-good' : 'tone-bad'}`}>
                       {row.clv.avgPct >= 0 ? '+' : ''}
                       {row.clv.avgPct}%

@@ -63,7 +63,7 @@ const POST_TAG_ICON = {
 // Odds tab same as before.
 
 export default function BetBuilderSheet() {
-  const { user } = useAuth()
+  const { user, refreshUser } = useAuth()
   const navigate = useNavigate()
   const { legs, toggleLeg, removeLeg, clearSlip, sheetOpen, closeSheet } = useBetSlip()
   const { format } = useOddsFormat()
@@ -286,6 +286,7 @@ export default function BetBuilderSheet() {
         },
         user.id
       )
+      refreshUser()
       clearSlip()
       removePhoto()
       removeVideo()
@@ -322,6 +323,7 @@ export default function BetBuilderSheet() {
         tag
       })
       notifyPublicFollowers()
+      refreshUser()
       clearSlip()
       removePhoto()
       removeVideo()
