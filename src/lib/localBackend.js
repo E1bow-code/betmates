@@ -1585,7 +1585,7 @@ export function reportPost(postId, reporterId, reason) {
 // --- Report moderation ---------------------------------------------------
 
 /**
- * @returns {Promise<{id: string, reason: string, createdAt: string, reporterName: string, postId: string, post: {id: string, authorName: string, event: string, stake: number|null, status: string}}[]>}
+ * @returns {Promise<{id: string, reason: string, createdAt: string, reporterName: string, postId: string, post: {id: string, userId: string, authorName: string, event: string, stake: number|null, status: string}}[]>}
  */
 export function listAllReports() {
   const db = readDb()
@@ -1603,6 +1603,7 @@ export function listAllReports() {
           postId: r.postId,
           post: {
             id: post.id,
+            userId: post.userId,
             authorName: names[post.userId] ?? 'Someone',
             event: post.selections?.[0]?.event ?? 'Bet',
             stake: post.stake,

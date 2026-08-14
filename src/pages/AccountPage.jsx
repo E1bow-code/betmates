@@ -19,6 +19,7 @@ import { computeXp, levelForXp, xpForLevel, xpForNextLevel, flairTierForLevel } 
 import { freezesGranted } from '../utils/dailyStreak.js'
 import Avatar from '../components/Avatar.jsx'
 import InstallGuide from '../components/InstallGuide.jsx'
+import UserLink from '../components/UserLink.jsx'
 import SportHeroBanner from '../components/SportHeroBanner.jsx'
 import { useAsyncAction } from '../lib/useAsyncAction.js'
 import { FlameIcon, SparkIcon, LockIcon, HandshakeIcon, MegaphoneIcon, TargetIcon, CrownIcon } from '../components/icons/Icons.jsx'
@@ -986,7 +987,7 @@ export default function AccountPage() {
           <div className="manage-list">
             {blockedUsers.map((b) => (
               <div key={b.id} className="manage-list-row">
-                <span>{b.displayName}</span>
+                <UserLink id={b.id} displayName={b.displayName} />
                 <button className="btn btn-ghost btn-small" onClick={() => handleUnblock(b.id)}>
                   Unblock
                 </button>

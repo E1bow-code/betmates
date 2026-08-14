@@ -1445,6 +1445,7 @@ button.conversation-row { width: 100%; background: none; border: none; border-bo
 .chat-message-mine .chat-message-time { text-align: right; }
 .dm-header-row { display: flex; align-items: center; gap: var(--space-8); }
 .dm-header-row h1 { margin: 0; }
+.dm-header-link { display: flex; align-items: center; gap: var(--space-8); color: inherit; text-decoration: none; }
 .chat-input-row { display: flex; gap: var(--space-8); }
 .chat-input-row input {
   flex: 1;

@@ -3,6 +3,7 @@ import { Link, Navigate } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext.jsx'
 import * as dataStore from '../lib/dataStore.js'
 import EmptyState from '../components/EmptyState.jsx'
+import UserLink from '../components/UserLink.jsx'
 import { CheckIcon } from '../components/icons/Icons.jsx'
 
 // Gated on profiles.is_admin (see schema.sql) - this project has one
@@ -83,7 +84,7 @@ export default function AdminReportsPage() {
               </div>
               <div className="report-card-title">{g.post.event}</div>
               <div className="hint" style={{ padding: 0, marginBottom: 10 }}>
-                Posted by {g.post.authorName}
+                Posted by <UserLink id={g.post.userId} displayName={g.post.authorName} />
                 {g.post.stake ? ` · £${g.post.stake} staked` : ''} · reported by {[...new Set(g.reporterNames)].join(', ')}
               </div>
               <div className="report-card-actions">

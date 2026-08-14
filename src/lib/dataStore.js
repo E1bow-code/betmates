@@ -1239,7 +1239,7 @@ export async function reportPost(postId, reporterId, reason) {
  * @property {string} createdAt
  * @property {string} reporterName
  * @property {string} postId
- * @property {{id: string, authorName: string, event: string, stake: number|null, status: string}} post
+ * @property {{id: string, userId: string, authorName: string, event: string, stake: number|null, status: string}} post
  */
 /** @returns {Promise<PostReport[]>} */
 export async function listAllReports() {
@@ -1255,7 +1255,7 @@ export async function listAllReports() {
     .filter((row) => row.post) // the post's own delete policy cascades its reports away too, but guard anyway
     .map((row) => {
       const reporter = /** @type {{display_name: string}|null} */ (/** @type {unknown} */ (row.reporter))
-      const post = /** @type {{id: string, selections: any[], stake: number|null, status: string, author: {display_name: string}|null}} */ (
+      const post = /** @type {{id: string, user_id: string, selections: any[], stake: number|null, status: string, author: {display_name: string}|null}} */ (
         /** @type {unknown} */ (row.post)
       )
       return {
@@ -1266,6 +1266,7 @@ export async function listAllReports() {
         postId: row.post_id,
         post: {
           id: post.id,
+          userId: post.user_id,
           authorName: post.author?.display_name ?? 'Someone',
           event: post.selections?.[0]?.event ?? 'Bet',
           stake: post.stake,

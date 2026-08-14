@@ -10,6 +10,7 @@ import Avatar from '../components/Avatar.jsx'
 import EmptyState from '../components/EmptyState.jsx'
 import PullToRefresh from '../components/PullToRefresh.jsx'
 import CoachGptLink from '../components/CoachGptLink.jsx'
+import UserLink from '../components/UserLink.jsx'
 import { CommentIcon } from '../components/icons/Icons.jsx'
 
 // 1:1 chat with a friend - same free-text shape as GroupFeedPage's Chat
@@ -73,8 +74,10 @@ export default function DirectMessagePage() {
         </Link>
         <div className="topbar-row">
           <div className="dm-header-row">
-            {friend && <Avatar name={friend.displayName} photoUrl={friend.avatarUrl} size={30} />}
-            <h1>{friend?.displayName ?? 'Message'}</h1>
+            <UserLink id={friendId} className="dm-header-link">
+              {friend && <Avatar name={friend.displayName} photoUrl={friend.avatarUrl} size={30} />}
+              <h1>{friend?.displayName ?? 'Message'}</h1>
+            </UserLink>
           </div>
           <CoachGptLink iconOnly />
         </div>
