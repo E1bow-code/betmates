@@ -392,7 +392,7 @@ export default function BetCard({ post, memberNames, memberAvatars, variant = 'g
               <div className="bet-card-stake bet-card-stake-hidden">Stake kept private</div>
             ) : (
               <>
-                <div className="bet-card-ticket-divider" />
+                <div className="chalk-divider chalk-divider--tear bet-card-ticket-divider" />
                 <div className="bet-card-stats">
                   {post.stake ? (
                     <div className="bet-card-stat">

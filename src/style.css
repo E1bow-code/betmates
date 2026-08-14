@@ -2100,8 +2100,21 @@ button.conversation-row { width: 100%; background: none; border: none; border-bo
 
 /* Kelly section of the payout calculator (PayoutCalculatorSheet.jsx) - set
    apart from the plain payout numbers above with a divider, since it needs
-   its own inputs (bankroll, win-chance estimate, fraction picker). */
-.kelly-calc { border-top: 1px solid var(--border); margin-top: var(--space-14); padding-top: var(--space-14); display: flex; flex-direction: column; gap: var(--space-10); }
+   its own inputs (bankroll, win-chance estimate, fraction picker). Uses
+   the chalk-divider motif (a ::before pseudo-element rather than the
+   shared class, since this is one property on an existing container, not
+   a standalone element) - a calculator/receipt-style summary is exactly
+   the kind of spot the motif was meant for. */
+.kelly-calc { position: relative; margin-top: var(--space-14); padding-top: var(--space-14); display: flex; flex-direction: column; gap: var(--space-10); }
+.kelly-calc::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 1px;
+  background: repeating-linear-gradient(90deg, var(--border) 0 6px, transparent 6px 12px);
+}
 .kelly-calc-title { margin: 0; font-size: var(--text-base); font-weight: 600; color: var(--text); }
 
 /* Groups - chips stay pill-shaped (they're navigational tabs to a group,
@@ -2676,10 +2689,16 @@ button.conversation-row { width: 100%; background: none; border: none; border-bo
   color: var(--accent);
 }
 
-/* Torn-ticket perforation between the leg list and the stat row - a
-   dashed rule with a small circular notch centred on it. */
-.bet-card-ticket-divider { position: relative; height: 1px; background: repeating-linear-gradient(90deg, var(--border) 0 6px, transparent 6px 12px); margin: var(--space-2) 0; }
-.bet-card-ticket-divider::before {
+/* Chalk/slip motif (Phase 3's one new textural signature) - a dashed
+   rule standing in for a plain solid border wherever it reads as a
+   chalkboard line or a torn ticket edge, not scattered everywhere. This
+   was previously baked directly into .bet-card-ticket-divider alone;
+   generalized here so .kelly-calc's divider below reuses the same rule
+   instead of redrawing it from scratch. */
+.chalk-divider { position: relative; height: 1px; background: repeating-linear-gradient(90deg, var(--border) 0 6px, transparent 6px 12px); margin: var(--space-2) 0; }
+/* Torn-ticket perforation - a small circular notch centred on the dashed
+   rule, for an actual ticket/receipt edge rather than a plain divider. */
+.chalk-divider--tear::before {
   content: '';
   position: absolute;
   top: 50%;
@@ -3894,7 +3913,7 @@ a.race-card:hover, a.race-card:focus-visible { background: rgba(var(--accent-rgb
    so the dashed rule under it is the same "torn off" divider the rest of
    the app uses before an action row, not new territory. */
 .race-header { padding: var(--space-4) var(--space-4) var(--space-16); border-bottom: 1px dashed var(--border); margin-bottom: var(--space-12); }
-.race-header h1 { font-size: 1.25rem; margin: 0 0 var(--space-4); }
+.race-header h1 { font-size: var(--text-xl); margin: 0 0 var(--space-4); }
 .race-header-meta { color: var(--text-dim); font-size: var(--text-base); }
 
 /* Runner list - same divided-panel treatment as race-list. */
@@ -4141,7 +4160,7 @@ a.race-card:hover, a.race-card:focus-visible { background: rgba(var(--accent-rgb
 
 .error-boundary h1 {
   margin: 0;
-  font-size: 20px;
+  font-size: var(--text-xl);
   color: var(--text);
 }
 
