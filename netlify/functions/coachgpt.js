@@ -349,15 +349,24 @@ export default async (req) => {
 
   const siteUrl = process.env.URL || new URL(req.url).origin
 
-  // Last find_fixture call's grounding wins - if the model calls it again
-  // later in the same turn (a clarifying re-search, say) that's a better
-  // signal of what the final reply is actually about than an earlier call.
-  let lastGrounding = null
+  // Every find_fixture call's grounding accumulates - a "best value this
+  // weekend?" turn routinely looks up several fixtures before settling on
+  // one as the actual lean, and that lean is very often NOT the last one
+  // searched (confirmed live: a reply naming Newcastle as the pick after
+  // Hull and Arsenal were checked and rejected first). Keeping only the
+  // last call's grounding meant matchRecommendation had nothing to match
+  // the real pick against whenever it wasn't the final lookup, silently
+  // dropping the "Log this" row and the scoreboard entry for a pick the
+  // model stated in plain English. Deduped by the same identity
+  // LogThisRow keys on, so a fixture re-searched twice this turn (a
+  // clarifying re-check) only offers one button, keeping the later
+  // (fresher-priced) copy.
+  let allGrounding = []
   const callTool = async (name, input) => {
     if (name === 'find_fixture') {
       const groundingOut = {}
       const result = await toolFindFixture(siteUrl, input, groundingOut)
-      lastGrounding = groundingOut.value ?? null
+      if (groundingOut.value) allGrounding = [...allGrounding, ...groundingOut.value]
       return result
     }
     if (name === 'get_player_profile') return toolGetPlayerProfile(input.name)
@@ -367,16 +376,19 @@ export default async (req) => {
   }
 
   const { text, recommendation, error } = await runCoachGptTurn({ apiKey, history: body?.history, message, callTool })
+  const dedupedGrounding = allGrounding.length
+    ? Array.from(new Map(allGrounding.map((leg) => [`${leg.selection}-${leg.eventId ?? leg.horseId ?? leg.event}`, leg])).values())
+    : null
   // A follow-up like "who do you like there?" often answers straight from
   // `history` without calling find_fixture again this turn, leaving
-  // lastGrounding null even though the reply clearly leans on a fixture
+  // dedupedGrounding null even though the reply clearly leans on a fixture
   // looked up earlier - fall back to the grounding the client carried over
   // from that earlier message so lock_in_recommendation still has
   // something real to match against. The "Log this" row on THIS message
-  // stays tied to this turn's own lookup only (lastGrounding, unseeded) -
+  // stays tied to this turn's own lookups only (dedupedGrounding, unseeded) -
   // no fallback there, so it never shows stale legs under a reply that
   // didn't itself look anything up.
-  const matchGrounding = lastGrounding ?? body?.priorGrounding ?? null
+  const matchGrounding = dedupedGrounding ?? body?.priorGrounding ?? null
   return json({
     configured: true,
     reply: text,
@@ -385,7 +397,7 @@ export default async (req) => {
     // nothing to say - lets the client show "the coach is down" instead of the
     // misleading "couldn't get a straight answer, try rephrasing".
     error: error ?? null,
-    grounding: text ? lastGrounding : null,
+    grounding: text ? dedupedGrounding : null,
     recommendation: matchRecommendation(recommendation, matchGrounding)
   })
 }

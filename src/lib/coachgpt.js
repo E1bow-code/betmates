@@ -388,7 +388,19 @@ function extractText(content) {
 // hasPick: false, but it can no longer just forget to mention a pick.
 // Costs one extra Anthropic request per turn; only made when there's a
 // real answer to classify.
-async function lockInRecommendation(call, messages, text) {
+//
+// Deliberately its own small model and short system prompt, not the pinned
+// main-turn model/COACHGPT_SYSTEM - classifying one already-written reply
+// needs none of the big coach persona prompt or Opus/Sonnet-level reasoning,
+// and this call runs on EVERY successful turn, unconditionally, inside the
+// same synchronous ~30s edge budget the main turn already ate into (see
+// MAX_TOOL_ROUNDS/WEB_SEARCH_MAX_USES comments above) - a real reply that
+// took 20+ seconds getting there had no margin left for a slow follow-up.
+const LOCK_IN_MODEL = 'claude-haiku-4-5-20251001'
+const LOCK_IN_SYSTEM =
+  'You classify one already-written reply from a sports-betting chat assistant. Read it and call lock_in_recommendation: did it name ONE specific selection as its lean?'
+
+async function lockInRecommendation(apiKey, messages, text) {
   const followUp = [
     ...messages,
     { role: 'assistant', content: text },
@@ -398,7 +410,12 @@ async function lockInRecommendation(call, messages, text) {
         'Call lock_in_recommendation now to record whether your reply above named one specific selection as your lean.'
     }
   ]
-  const { data } = await call(followUp, { tools: [RECOMMENDATION_TOOL], tool_choice: { type: 'tool', name: 'lock_in_recommendation' } })
+  const { data } = await callClaudeModel(apiKey, LOCK_IN_MODEL, followUp, {
+    system: LOCK_IN_SYSTEM,
+    max_tokens: 200,
+    tools: [RECOMMENDATION_TOOL],
+    tool_choice: { type: 'tool', name: 'lock_in_recommendation' }
+  })
   const block = data?.content?.find((b) => b.type === 'tool_use' && b.name === 'lock_in_recommendation')
   return block?.input?.hasPick ? block.input : null
 }
@@ -481,6 +498,6 @@ export async function runCoachGptTurn({ apiKey, history, message, callTool }) {
     text += "\n\n*(Ran long and got cut off there, champ - ask me to keep going and I'll pick up where I left off.)*"
   }
 
-  const recommendation = text ? await lockInRecommendation(call, messages, text) : null
+  const recommendation = text ? await lockInRecommendation(apiKey, messages, text) : null
   return { text, recommendation, error: null }
 }
