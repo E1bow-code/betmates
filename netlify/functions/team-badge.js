@@ -103,11 +103,15 @@ function json(url, source) {
   return new Response(JSON.stringify({ url }), { status: 200, headers })
 }
 
-export default async (req) => {
-  const params = new URL(req.url).searchParams
-  const team = params.get('team')
-  if (!team) return json(null)
-  const sport = params.get('sport')
+// The actual lookup, factored out so netlify/functions/team-badges.js (the
+// batch endpoint - see its own header comment for why it exists) can share
+// this exact cache/alias/sport-matching logic instead of a second copy of
+// it drifting out of sync. Never throws - same contract as the single-team
+// endpoint below, just returning {badge, source} instead of a Response so
+// the source (live/live-cached) is still available for the x-data-source
+// header on both endpoints.
+export async function resolveTeamBadge(team, sport) {
+  if (!team) return { badge: null, source: undefined }
   const wantedSport = SPORT_MAP[sport]
 
   // Cache and look up by the resolved name, so every spelling of a club
@@ -115,7 +119,7 @@ export default async (req) => {
   const resolved = resolveTeam(team)
   const key = wantedSport ? `badge-${sport}-${resolved.toLowerCase()}` : `badge-${resolved.toLowerCase()}`
   const cached = cacheGet(key)
-  if (cached !== undefined) return json(cached, 'live-cached')
+  if (cached !== undefined) return { badge: cached, source: 'live-cached' }
 
   // Test key "3" needs no registration; set SPORTSDB_API_KEY to a paid key
   // if the free tier's rate limits start blanking badges under real traffic.
@@ -129,10 +133,19 @@ export default async (req) => {
     const match = wantedSport ? data?.teams?.find((t) => t.strSport === wantedSport) : data?.teams?.[0]
     const badge = match?.strBadge ?? null
     cacheSet(key, badge, badge ? HIT_TTL : MISS_TTL)
-    return json(badge, 'live')
+    return { badge, source: 'live' }
   } catch (err) {
     console.error(`team-badge lookup failed for "${team}":`, err.message)
     cacheSet(key, null, FAILURE_TTL)
-    return json(null)
+    return { badge: null, source: undefined }
   }
+}
+
+export default async (req) => {
+  const params = new URL(req.url).searchParams
+  const team = params.get('team')
+  if (!team) return json(null)
+  const sport = params.get('sport')
+  const { badge, source } = await resolveTeamBadge(team, sport)
+  return json(badge, source)
 }
