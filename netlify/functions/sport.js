@@ -5,13 +5,34 @@
 // SportsGameOdds-backed sports (see sportsConfig.js's `provider: 'sgo'`
 // comment) go through a completely different API with its own shape -
 // real per-bookmaker odds and deep links, separate free quota, better
-// suited to US sports than querying UK bookmakers ever was. Caching (see
-// src/lib/apiCache.js) applies to both paths - same "stay on the free
-// tier" goal either way.
+// suited to US sports than querying UK bookmakers ever was.
+//
+// Read-through, same pattern as netlify/functions/odds.js and ufc.js:
+//   1. odds_cache (Supabase) - the durable per-sport list written by the
+//      scheduled netlify/functions/sport-ingest.js. Once the cron has run,
+//      every user's request for that sport is served from our own database at
+//      zero provider quota.
+//   2. Live provider (Odds API or SportsGameOdds) - only on a cold/stale
+//      cache, via fetchLiveSportItems below.
+//   3. Empty board - no key, or a provider outage. There's no per-sport mock
+//      data here, but "nothing on right now" is a state the UI handles fine.
+// Both live paths are also in-memory cached (see src/lib/apiCache.js) - same
+// "stay on the free tier" goal for the cold-cache window either way.
+//
+// fetchLiveSportItems is exported (not just used here) so sport-ingest.js can
+// reuse the EXACT provider logic - tennis dynamic-key resolution, the SGO
+// shape, the empty-vs-error handling - rather than duplicating it. That's the
+// opposite factoring from odds.js/ufc.js (which share only a pure reshape
+// module and keep their own thin fetch glue): those have simple, single-source
+// fetches, whereas this one's two-provider logic is too much to copy.
 
 import { GENERIC_SPORTS } from '../../src/lib/sportsConfig.js'
+import { createClient } from '@supabase/supabase-js'
 import { cacheGet, cacheSet } from '../../src/lib/apiCache.js'
 import { pickLink } from '../../src/lib/oddsLinks.js'
+
+const SUPABASE_URL = process.env.VITE_SUPABASE_URL
+const SUPABASE_ANON_KEY = process.env.VITE_SUPABASE_ANON_KEY
 
 const REGION = 'uk'
 const MARKETS = 'h2h,totals'
@@ -23,6 +44,99 @@ const TENNIS_KEYS_TTL = 30 * 60 * 1000
 // there's no freshness lost by caching longer than that - cached hard
 // against the free tier's 2,500 objects/month budget.
 const SGO_TTL = 15 * 60 * 1000
+// How stale a cron-written odds_cache row may be before the proxy ignores it
+// and goes live - see netlify/functions/odds.js's DB_MAX_AGE.
+const DB_MAX_AGE = 12 * 60 * 60 * 1000
+
+function respond(id, items, dataSource) {
+  const body = id ? items.find((i) => i.id === id) ?? null : items
+  return new Response(JSON.stringify(body), {
+    status: 200,
+    headers: { 'content-type': 'application/json', 'x-data-source': dataSource }
+  })
+}
+
+// The durable per-sport list written by sport-ingest.js. Returns the items
+// array or null when there's no fresh row (never throws).
+async function readCachedList(sportParam) {
+  if (!SUPABASE_URL || !SUPABASE_ANON_KEY) return null
+  try {
+    const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY)
+    const { data } = await supabase.from('odds_cache').select('payload, fetched_at').eq('cache_key', `sport-list-${sportParam}`).maybeSingle()
+    if (!data) return null
+    if (Date.now() - new Date(data.fetched_at).getTime() > DB_MAX_AGE) return null
+    return data.payload
+  } catch {
+    return null
+  }
+}
+
+async function resolveApiSportKeys(apiKey, config) {
+  if (!config.dynamicPrefix) return config.apiSportKeys
+  // /v4/sports listing is free (doesn't cost quota) - used to resolve which
+  // tennis_* tournament keys are actually live right now instead of a
+  // hardcoded list (see sportsConfig.js's dynamicPrefix comment). Still cached
+  // to avoid a network round-trip every request.
+  const cachedKeys = cacheGet(`tennis-keys-${config.dynamicPrefix}`)
+  if (cachedKeys) return cachedKeys
+  const keys = await fetch(`https://api.the-odds-api.com/v4/sports/?apiKey=${apiKey}`)
+    .then((r) => (r.ok ? r.json() : []))
+    .then((sports) => sports.filter((s) => s.active && s.key.startsWith(config.dynamicPrefix)).map((s) => s.key))
+    .catch(() => [])
+  if (keys.length) cacheSet(`tennis-keys-${config.dynamicPrefix}`, keys, TENNIS_KEYS_TTL)
+  return keys
+}
+
+// Fetch a sport's list straight from its live provider - no cache read here, so
+// both the proxy (cold-cache fallback) and sport-ingest.js (the cron) can call
+// it. Returns { items, dataSource } where dataSource is:
+//   'live'       - real provider data (may be an empty array in off-season)
+//   'live-empty' - a provider error/outage degraded to an empty board
+//   'mock'       - no API key configured for this provider
+// The cron only persists 'live' results, so an outage never overwrites a good
+// cached row with an empty one.
+export async function fetchLiveSportItems(sportParam, config) {
+  if (config.provider === 'sgo') {
+    const sgoApiKey = process.env.SGO_API_KEY
+    if (!sgoApiKey) return { items: [], dataSource: 'mock' }
+    try {
+      return { items: await fetchSgoItems(sgoApiKey, config), dataSource: 'live' }
+    } catch (err) {
+      console.error('SportsGameOdds error, degrading to empty:', err.message)
+      return { items: [], dataSource: 'live-empty' }
+    }
+  }
+
+  const apiKey = process.env.ODDS_API_KEY
+  if (!apiKey) return { items: [], dataSource: 'mock' }
+  try {
+    const apiSportKeys = await resolveApiSportKeys(apiKey, config)
+    if (!apiSportKeys.length) return { items: [], dataSource: 'live-empty' }
+
+    const results = await Promise.allSettled(
+      apiSportKeys.map(async (apiSport) => {
+        const apiUrl = `https://api.the-odds-api.com/v4/sports/${apiSport}/odds/?apiKey=${apiKey}&regions=${REGION}&markets=${MARKETS}&oddsFormat=decimal&includeLinks=true`
+        const res = await fetch(apiUrl)
+        if (!res.ok) throw new Error(`${apiSport}: ${res.status}`)
+        return res.json()
+      })
+    )
+
+    const events = results.filter((r) => r.status === 'fulfilled').flatMap((r) => r.value)
+    // Provider errors (quota exhausted, outage, etc.) degrade to an empty
+    // board rather than an error page.
+    if (!events.length && results.every((r) => r.status === 'rejected')) {
+      console.error('Odds provider error, degrading to empty:', results[0].reason?.message)
+      return { items: [], dataSource: 'live-empty' }
+    }
+
+    const items = events.map((e) => reshapeEvent(e, config)).sort((a, b) => new Date(a.kickoff) - new Date(b.kickoff))
+    return { items, dataSource: 'live' }
+  } catch (err) {
+    console.error('Odds provider error, degrading to empty:', err.message)
+    return { items: [], dataSource: 'live-empty' }
+  }
+}
 
 export default async (req) => {
   const url = new URL(req.url)
@@ -37,90 +151,20 @@ export default async (req) => {
     })
   }
 
-  const emptyResponse = (dataSource) =>
-    new Response(JSON.stringify(id ? null : []), {
-      status: 200,
-      headers: { 'content-type': 'application/json', 'x-data-source': dataSource }
-    })
+  // 1. Durable cron-written list.
+  const dbItems = await readCachedList(sportParam)
+  if (dbItems) return respond(id, dbItems, 'db')
 
-  if (config.provider === 'sgo') {
-    const sgoApiKey = process.env.SGO_API_KEY
-    if (!sgoApiKey) return emptyResponse('mock')
+  // 2. In-memory live cache from a recent cold-cache fetch.
+  const memItems = cacheGet(`sport-items-${sportParam}`)
+  if (memItems) return respond(id, memItems, 'live-cached')
 
-    try {
-      let items = cacheGet(`sport-items-${sportParam}`)
-      if (!items) {
-        items = await fetchSgoItems(sgoApiKey, config)
-        cacheSet(`sport-items-${sportParam}`, items, SGO_TTL)
-      }
-      const body = id ? items.find((i) => i.id === id) ?? null : items
-      return new Response(JSON.stringify(body), {
-        status: 200,
-        headers: { 'content-type': 'application/json', 'x-data-source': 'live' }
-      })
-    } catch (err) {
-      console.error('SportsGameOdds error, degrading to empty:', err.message)
-      return emptyResponse('live-empty')
-    }
+  // 3. Live provider.
+  const { items, dataSource } = await fetchLiveSportItems(sportParam, config)
+  if (dataSource === 'live') {
+    cacheSet(`sport-items-${sportParam}`, items, config.provider === 'sgo' ? SGO_TTL : LIST_TTL)
   }
-
-  const apiKey = process.env.ODDS_API_KEY
-  if (!apiKey) return emptyResponse('mock')
-
-  try {
-    let items = cacheGet(`sport-items-${sportParam}`)
-    if (!items) {
-      // /v4/sports listing is free (doesn't cost quota) - used to resolve
-      // which tennis_* tournament keys are actually live right now instead
-      // of a hardcoded list (see sportsConfig.js's dynamicPrefix comment).
-      // Still cached to avoid a network round-trip every request.
-      const apiSportKeys = config.dynamicPrefix
-        ? await (async () => {
-            const cachedKeys = cacheGet(`tennis-keys-${config.dynamicPrefix}`)
-            if (cachedKeys) return cachedKeys
-            const keys = await fetch(`https://api.the-odds-api.com/v4/sports/?apiKey=${apiKey}`)
-              .then((r) => (r.ok ? r.json() : []))
-              .then((sports) => sports.filter((s) => s.active && s.key.startsWith(config.dynamicPrefix)).map((s) => s.key))
-              .catch(() => [])
-            if (keys.length) cacheSet(`tennis-keys-${config.dynamicPrefix}`, keys, TENNIS_KEYS_TTL)
-            return keys
-          })()
-        : config.apiSportKeys
-
-      if (!apiSportKeys.length) return emptyResponse('live-empty')
-
-      const results = await Promise.allSettled(
-        apiSportKeys.map(async (apiSport) => {
-          const apiUrl = `https://api.the-odds-api.com/v4/sports/${apiSport}/odds/?apiKey=${apiKey}&regions=${REGION}&markets=${MARKETS}&oddsFormat=decimal&includeLinks=true`
-          const res = await fetch(apiUrl)
-          if (!res.ok) throw new Error(`${apiSport}: ${res.status}`)
-          return res.json()
-        })
-      )
-
-      const events = results.filter((r) => r.status === 'fulfilled').flatMap((r) => r.value)
-      // Provider errors (quota exhausted, outage, etc.) degrade to an empty
-      // board rather than an error page - there's no per-sport mock data to
-      // fall back to here, but "nothing on right now" is a state the UI
-      // already handles fine.
-      if (!events.length && results.every((r) => r.status === 'rejected')) {
-        console.error('Odds provider error, degrading to empty:', results[0].reason?.message)
-        return emptyResponse('live-empty')
-      }
-
-      items = events.map((e) => reshapeEvent(e, config)).sort((a, b) => new Date(a.kickoff) - new Date(b.kickoff))
-      cacheSet(`sport-items-${sportParam}`, items, LIST_TTL)
-    }
-
-    const body = id ? items.find((i) => i.id === id) ?? null : items
-    return new Response(JSON.stringify(body), {
-      status: 200,
-      headers: { 'content-type': 'application/json', 'x-data-source': 'live' }
-    })
-  } catch (err) {
-    console.error('Odds provider error, degrading to empty:', err.message)
-    return emptyResponse('live-empty')
-  }
+  return respond(id, items, dataSource)
 }
 
 function reshapeEvent(event, config) {

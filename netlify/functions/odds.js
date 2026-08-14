@@ -1,279 +1,185 @@
-// Proxy between the frontend and The Odds API (theoddsapi.com), keeping
-// ODDS_API_KEY server-side. Reshapes their response into the
-// { id, competition, homeTeam, awayTeam, kickoff, markets: [...] } shape
-// used by src/data/mockFootballOdds.js, so UI code doesn't change when
-// switching src/api/oddsClient.js off mock mode.
+// Proxy between the frontend and BetMates' own football-odds store, keeping
+// ODDS_API_KEY server-side. Serves the
+// { id, competition, homeTeam, awayTeam, kickoff, markets: [...] } shape used
+// by src/data/mockFootballOdds.js, so UI code doesn't change when
+// src/api/oddsClient.js switches off mock mode.
 //
-// Free tier: 500 requests/month, and this app is meant to stay on it - see
-// src/lib/apiCache.js. The bulk list (5 leagues = 5 credits) is cached for
-// LIST_TTL, and a fixture's fully-assembled detail (list lookup + player
-// props + extra markets) is cached per-id for DETAIL_TTL, so repeat views
-// of the same fixture/list within that window cost nothing further -
-// worth keeping short enough that odds don't feel stale, long enough that
-// a few friends checking the same match in the same few minutes only
-// costs credits once.
+// Read-through, in priority order:
+//   1. odds_cache (Supabase) - the durable list written by the scheduled job
+//      netlify/functions/odds-ingest.js. THIS is the "own sports API" layer:
+//      once the cron has run, every user's bulk-list request is served from
+//      our own database and costs zero Odds API credits, no matter how many
+//      users or cold starts. Unlike src/lib/apiCache.js (in-memory, per warm
+//      instance, gone on cold start) this is one shared copy for the whole
+//      app that survives deploys.
+//   2. The Odds API live - only when the DB row is missing or stale (cron
+//      hasn't run yet after a fresh deploy, or has stopped). Keeps the page
+//      working during a cold cache instead of serving mock to real users.
+//   3. Sample odds (src/data/mockFootballOdds.js) - no key and no cache, or a
+//      provider outage. "Missing keys degrade, they don't crash."
+//
+// Per-fixture DETAIL (player props + extra markets) stays an on-demand live
+// call below: it's US-region/close-to-kickoff-only and two credits per
+// fixture, so pre-fetching it for the whole board on a cron would be wasteful
+// - only the fixtures someone actually opens pay for it, in-memory cached per
+// id. The bulk list, the expensive-under-traffic part, is what the cron owns.
+import { createClient } from '@supabase/supabase-js'
 import { FOOTBALL_SPORT_KEYS } from '../../src/lib/sportsConfig.js'
 import { cacheGet, cacheSet } from '../../src/lib/apiCache.js'
-import { pickLink } from '../../src/lib/oddsLinks.js'
+import { reshapeEvent, reshapePlayerMarkets, reshapeExtraMarkets, EXTRA_MARKET_LABELS } from '../../src/lib/footballOddsShape.js'
+
+const SUPABASE_URL = process.env.VITE_SUPABASE_URL
+// Read-only public reference data (RLS: "anyone can read odds cache"), so the
+// proxy uses the anon key - least privilege. Only the ingest cron writes, with
+// the service-role key. Same split as the anon key shipping in the client
+// bundle by design: reads are public, RLS is the access control.
+const SUPABASE_ANON_KEY = process.env.VITE_SUPABASE_ANON_KEY
+const CACHE_KEY = 'football-list'
 
 const SPORTS = FOOTBALL_SPORT_KEYS
 const REGION = 'uk'
 const MARKETS = 'h2h,totals'
-const EXTRA_MARKET_LABELS = {
-  btts: 'Both Teams to Score',
-  draw_no_bet: 'Draw No Bet',
-  double_chance: 'Double Chance',
-  alternate_totals: 'Alternate Total Goals'
-}
-// The free tier is only 500 requests/month total, shared across football,
-// UFC and tennis - a 5-minute cache burns through that in days under any
-// real usage (each redeploy also cold-starts the in-memory cache, so a
-// dev session doing several deploys costs as much as a day of traffic).
-// Odds don't need to be this fresh for a mates' group to compare prices.
+
+// See src/lib/apiCache.js for why these are long. LIST_TTL bounds the
+// in-memory live fallback; DETAIL_TTL bounds per-fixture enrichment.
 const LIST_TTL = 20 * 60 * 1000
 const DETAIL_TTL = 30 * 60 * 1000
+// How stale a cron-written odds_cache row may be before the proxy ignores it
+// and goes live. Comfortably past odds-ingest.js's cadence so a single missed
+// run doesn't drop the whole app to live fetches (which is what the DB layer
+// exists to avoid) - but short enough that a cron that has actually stopped
+// doesn't serve hours-old prices forever.
+const DB_MAX_AGE = 12 * 60 * 60 * 1000
+
+function json(body, source) {
+  return new Response(JSON.stringify(body), {
+    status: 200,
+    headers: { 'content-type': 'application/json', 'x-data-source': source }
+  })
+}
 
 async function serveMock(id) {
   const { getMockFixtures, getMockFixture } = await import('../../src/data/mockFootballOdds.js')
   const body = id ? getMockFixture(id) : getMockFixtures()
-  return new Response(JSON.stringify(body), {
-    status: 200,
-    headers: { 'content-type': 'application/json', 'x-data-source': 'mock' }
-  })
+  return json(body, 'mock')
+}
+
+// The durable list written by odds-ingest.js. Returns the reshaped fixtures
+// array, or null when there's no fresh row (never throws - a DB hiccup should
+// just fall through to the live path, not break the page).
+async function readCachedList() {
+  if (!SUPABASE_URL || !SUPABASE_ANON_KEY) return null
+  try {
+    const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY)
+    const { data } = await supabase.from('odds_cache').select('payload, fetched_at').eq('cache_key', CACHE_KEY).maybeSingle()
+    if (!data) return null
+    if (Date.now() - new Date(data.fetched_at).getTime() > DB_MAX_AGE) return null
+    return data.payload
+  } catch {
+    return null
+  }
+}
+
+// Live bulk fetch - the cold-cache fallback. Returns the raw Odds API events,
+// or null when every league request failed (caller serves mock, same as the
+// no-key path). Logged server-side so a real outage is still diagnosable.
+async function fetchLiveEvents(apiKey) {
+  const results = await Promise.allSettled(
+    SPORTS.map(async (sport) => {
+      const apiUrl = `https://api.the-odds-api.com/v4/sports/${sport}/odds/?apiKey=${apiKey}&regions=${REGION}&markets=${MARKETS}&oddsFormat=decimal&includeLinks=true`
+      const res = await fetch(apiUrl)
+      if (!res.ok) throw new Error(`${sport}: ${res.status}`)
+      return res.json()
+    })
+  )
+  const events = results.filter((r) => r.status === 'fulfilled').flatMap((r) => r.value)
+  if (!events.length && results.every((r) => r.status === 'rejected')) {
+    console.error('Odds provider error, falling back to mock:', results[0].reason?.message)
+    return null
+  }
+  return events
+}
+
+// Resolve the base fixture list from the best available source. Returns
+// { fixtures, source } (source feeds the x-data-source header), or null to
+// signal "serve mock". Priority: durable DB cache -> in-memory live cache ->
+// live fetch.
+async function resolveFixtures(apiKey) {
+  const dbList = await readCachedList()
+  if (dbList) return { fixtures: dbList, source: 'db' }
+
+  const memList = cacheGet(CACHE_KEY)
+  if (memList) return { fixtures: memList, source: 'live-cached' }
+
+  if (!apiKey) return null
+  const events = await fetchLiveEvents(apiKey)
+  if (!events) return null
+  const fixtures = events.map(reshapeEvent).sort((a, b) => new Date(a.kickoff) - new Date(b.kickoff))
+  cacheSet(CACHE_KEY, fixtures, LIST_TTL)
+  return { fixtures, source: 'live' }
+}
+
+async function serveList(apiKey) {
+  const base = await resolveFixtures(apiKey)
+  if (!base) return serveMock(null)
+  return json(base.fixtures, base.source)
+}
+
+async function serveFixture(id, apiKey) {
+  const cachedFixture = cacheGet(`football-fixture-${id}`)
+  if (cachedFixture) return json(cachedFixture, 'live-cached')
+
+  const base = await resolveFixtures(apiKey)
+  if (!base) return serveMock(id)
+
+  const fixture = base.fixtures.find((f) => f.id === id)
+  if (!fixture) return json(null, base.source)
+
+  // Without a key we can't make the per-event enrichment calls - serve the
+  // base fixture (h2h + totals) as-is rather than nothing.
+  if (!apiKey) return json(fixture, base.source)
+
+  const enriched = { ...fixture, markets: [...fixture.markets] }
+  const sportKey = fixture.sportKey
+
+  // Player props (goalscorer markets) aren't in the bulk endpoint - they need
+  // a separate per-event call (one more credit), and critically The Odds API's
+  // soccer player-prop coverage is US-bookmaker-only, so this must query
+  // regions=us regardless of REGION above or it always comes back empty even
+  // when the market exists. Bookmakers also don't post these until close to
+  // kickoff, so empty is normal for fixtures still weeks out - never an error.
+  try {
+    const playerMarketKeys = ['player_goal_scorer_anytime', 'player_first_goal_scorer', 'player_last_goal_scorer']
+    const playerUrl = `https://api.the-odds-api.com/v4/sports/${sportKey}/events/${id}/odds/?apiKey=${apiKey}&regions=us&markets=${playerMarketKeys.join(',')}&oddsFormat=decimal&includeLinks=true`
+    const playerRes = await fetch(playerUrl)
+    if (playerRes.ok) enriched.markets.push(...reshapePlayerMarkets(await playerRes.json()))
+  } catch {
+    // Nice-to-have - never fail the whole fixture load over player props.
+  }
+
+  // Additional UK-bookmaker markets (BTTS, draw no bet, double chance), same
+  // one-call-per-fixture treatment as player props so the bulk list stays cheap.
+  try {
+    const extraMarketKeys = Object.keys(EXTRA_MARKET_LABELS)
+    const extraUrl = `https://api.the-odds-api.com/v4/sports/${sportKey}/events/${id}/odds/?apiKey=${apiKey}&regions=${REGION}&markets=${extraMarketKeys.join(',')}&oddsFormat=decimal&includeLinks=true`
+    const extraRes = await fetch(extraUrl)
+    if (extraRes.ok) enriched.markets.push(...reshapeExtraMarkets(await extraRes.json()))
+  } catch {
+    // Nice-to-have - never fail the whole fixture load over extra markets.
+  }
+
+  cacheSet(`football-fixture-${id}`, enriched, DETAIL_TTL)
+  return json(enriched, base.source)
 }
 
 export default async (req) => {
-  const apiKey = process.env.ODDS_API_KEY
   const url = new URL(req.url)
   const id = url.searchParams.get('id')
-
-  if (!apiKey) return serveMock(id)
-
+  const apiKey = process.env.ODDS_API_KEY
   try {
-    if (id) {
-      const cachedFixture = cacheGet(`football-fixture-${id}`)
-      if (cachedFixture) {
-        return new Response(JSON.stringify(cachedFixture), {
-          status: 200,
-          headers: { 'content-type': 'application/json', 'x-data-source': 'live-cached' }
-        })
-      }
-    } else {
-      const cachedList = cacheGet('football-list')
-      if (cachedList) {
-        return new Response(JSON.stringify(cachedList), {
-          status: 200,
-          headers: { 'content-type': 'application/json', 'x-data-source': 'live-cached' }
-        })
-      }
-    }
-
-    let events = cacheGet('football-events')
-    if (!events) {
-      const results = await Promise.allSettled(
-        SPORTS.map(async (sport) => {
-          const apiUrl = `https://api.the-odds-api.com/v4/sports/${sport}/odds/?apiKey=${apiKey}&regions=${REGION}&markets=${MARKETS}&oddsFormat=decimal&includeLinks=true`
-          const res = await fetch(apiUrl)
-          if (!res.ok) throw new Error(`${sport}: ${res.status}`)
-          return res.json()
-        })
-      )
-
-      events = results.filter((r) => r.status === 'fulfilled').flatMap((r) => r.value)
-      // Provider errors (quota exhausted, outage, etc.) shouldn't turn into
-      // a broken page for users - fall back to sample odds instead, same as
-      // the no-API-key path. Logged server-side so it's still diagnosable.
-      if (!events.length && results.every((r) => r.status === 'rejected')) {
-        console.error('Odds provider error, falling back to mock:', results[0].reason?.message)
-        return serveMock(id)
-      }
-      if (events.length) cacheSet('football-events', events, LIST_TTL)
-    }
-
-    if (!id) {
-      const fixtures = events.map(reshapeEvent).sort((a, b) => new Date(a.kickoff) - new Date(b.kickoff))
-      cacheSet('football-list', fixtures, LIST_TTL)
-      return new Response(JSON.stringify(fixtures), {
-        status: 200,
-        headers: { 'content-type': 'application/json', 'x-data-source': 'live' }
-      })
-    }
-
-    const rawEvent = events.find((e) => e.id === id)
-    if (!rawEvent) {
-      return new Response(JSON.stringify(null), {
-        status: 200,
-        headers: { 'content-type': 'application/json', 'x-data-source': 'live' }
-      })
-    }
-
-    const fixture = reshapeEvent(rawEvent)
-
-    // Player props (goalscorer markets) aren't in the bulk endpoint above -
-    // they need a separate per-event call (one more credit), and critically
-    // The Odds API's soccer player-prop coverage is US-bookmaker-only, so
-    // this must query regions=us regardless of REGION above or it always
-    // comes back empty even when the market exists. Bookmakers also don't
-    // post these until close to kickoff, so empty is normal for fixtures
-    // that are still weeks out - never treated as an error either way.
-    try {
-      const playerMarketKeys = ['player_goal_scorer_anytime', 'player_first_goal_scorer', 'player_last_goal_scorer']
-      const playerUrl = `https://api.the-odds-api.com/v4/sports/${rawEvent.sport_key}/events/${id}/odds/?apiKey=${apiKey}&regions=us&markets=${playerMarketKeys.join(',')}&oddsFormat=decimal&includeLinks=true`
-      const playerRes = await fetch(playerUrl)
-      if (playerRes.ok) {
-        const playerEvent = await playerRes.json()
-        fixture.markets.push(...reshapePlayerMarkets(playerEvent))
-      }
-    } catch {
-      // Nice-to-have - never fail the whole fixture load over player props.
-    }
-
-    // Additional UK-bookmaker markets (BTTS, draw no bet, double chance),
-    // same one-call-per-fixture treatment as player props above so the
-    // bulk fixture list stays cheap.
-    try {
-      const extraMarketKeys = Object.keys(EXTRA_MARKET_LABELS)
-      const extraUrl = `https://api.the-odds-api.com/v4/sports/${rawEvent.sport_key}/events/${id}/odds/?apiKey=${apiKey}&regions=${REGION}&markets=${extraMarketKeys.join(',')}&oddsFormat=decimal&includeLinks=true`
-      const extraRes = await fetch(extraUrl)
-      if (extraRes.ok) {
-        const extraEvent = await extraRes.json()
-        fixture.markets.push(...reshapeExtraMarkets(extraEvent))
-      }
-    } catch {
-      // Nice-to-have - never fail the whole fixture load over extra markets.
-    }
-
-    cacheSet(`football-fixture-${id}`, fixture, DETAIL_TTL)
-    return new Response(JSON.stringify(fixture), {
-      status: 200,
-      headers: { 'content-type': 'application/json', 'x-data-source': 'live' }
-    })
+    return id ? await serveFixture(id, apiKey) : await serveList(apiKey)
   } catch (err) {
     console.error('Odds provider error, falling back to mock:', err.message)
     return serveMock(id)
   }
-}
-
-function reshapeEvent(event) {
-  const marketDefs = [
-    { key: 'h2h', label: '1X2' },
-    { key: 'totals', label: 'Over/Under 2.5 Goals' }
-  ]
-
-  const markets = marketDefs
-    .map(({ key, label }) => {
-      const outcomesByName = new Map()
-      for (const bookmaker of event.bookmakers ?? []) {
-        const market = bookmaker.markets?.find((m) => m.key === key)
-        if (!market) continue
-        for (const outcome of market.outcomes) {
-          const name = normaliseOutcomeName(outcome.name, event.home_team, event.away_team, key)
-          if (!outcomesByName.has(name)) outcomesByName.set(name, [])
-          outcomesByName.get(name).push({ bookmaker: bookmaker.title, decimal: outcome.price, ...pickLink(bookmaker, market, outcome) })
-        }
-      }
-      const outcomes = [...outcomesByName.entries()].map(([name, allOdds]) => ({
-        name,
-        team: name === 'Home' ? event.home_team : name === 'Away' ? event.away_team : null,
-        allOdds: allOdds.sort((a, b) => b.decimal - a.decimal),
-        bestOdds: allOdds.reduce((a, b) => (b.decimal > a.decimal ? b : a))
-      }))
-      return outcomes.length ? { key, label, outcomes } : null
-    })
-    .filter(Boolean)
-
-  return {
-    id: event.id,
-    competition: event.sport_title,
-    sportKey: event.sport_key,
-    homeTeam: event.home_team,
-    awayTeam: event.away_team,
-    kickoff: event.commence_time,
-    status: 'scheduled',
-    markets
-  }
-}
-
-const PLAYER_MARKET_LABELS = {
-  player_goal_scorer_anytime: 'Anytime Goalscorer',
-  player_first_goal_scorer: 'First Goalscorer',
-  player_last_goal_scorer: 'Last Goalscorer'
-}
-
-function reshapePlayerMarkets(event) {
-  return Object.entries(PLAYER_MARKET_LABELS)
-    .map(([key, label]) => {
-      const outcomesByName = new Map()
-      for (const bookmaker of event.bookmakers ?? []) {
-        const market = bookmaker.markets?.find((m) => m.key === key)
-        if (!market) continue
-        for (const outcome of market.outcomes) {
-          const name = outcome.description ?? outcome.name
-          if (!name) continue
-          if (!outcomesByName.has(name)) outcomesByName.set(name, [])
-          outcomesByName.get(name).push({ bookmaker: bookmaker.title, decimal: outcome.price, ...pickLink(bookmaker, market, outcome) })
-        }
-      }
-      const outcomes = [...outcomesByName.entries()].map(([name, allOdds]) => ({
-        name,
-        team: null,
-        allOdds: allOdds.sort((a, b) => b.decimal - a.decimal),
-        bestOdds: allOdds.reduce((a, b) => (b.decimal > a.decimal ? b : a))
-      }))
-      return outcomes.length ? { key, label, outcomes } : null
-    })
-    .filter(Boolean)
-}
-
-function normaliseOutcomeName(rawName, homeTeam, awayTeam, marketKey) {
-  if (marketKey === 'h2h') {
-    if (rawName === homeTeam) return 'Home'
-    if (rawName === awayTeam) return 'Away'
-    return 'Draw'
-  }
-  return rawName // "Over"/"Under" totals labels are already provider-clean
-}
-
-// 0.5 and 6.5+ lines are essentially guaranteed/impossible bets nobody
-// actually wants - keep the alternate-lines list to the range people
-// realistically consider instead of a wall of 14 rows.
-const ALT_TOTALS_MIN_LINE = 1.5
-const ALT_TOTALS_MAX_LINE = 4.5
-
-function reshapeExtraMarkets(event) {
-  return Object.entries(EXTRA_MARKET_LABELS)
-    .map(([key, label]) => {
-      const outcomesByName = new Map()
-      for (const bookmaker of event.bookmakers ?? []) {
-        const market = bookmaker.markets?.find((m) => m.key === key)
-        if (!market) continue
-        for (const outcome of market.outcomes) {
-          if (key === 'alternate_totals' && (outcome.point < ALT_TOTALS_MIN_LINE || outcome.point > ALT_TOTALS_MAX_LINE)) continue
-          // draw_no_bet is two-way (no draw outcome) so "Home"/"Away" reads
-          // naturally with the team-badge UI; btts (Yes/No) and
-          // double_chance (e.g. "Team A/Draw") are already clean labels;
-          // alternate_totals needs the line folded into the name (multiple
-          // Over/Under rows per market) or every line would collide into
-          // one "Over" bucket.
-          const name =
-            key === 'draw_no_bet'
-              ? normaliseOutcomeName(outcome.name, event.home_team, event.away_team, 'h2h')
-              : key === 'alternate_totals'
-                ? `${outcome.name} ${outcome.point}`
-                : outcome.name
-          if (!outcomesByName.has(name)) outcomesByName.set(name, [])
-          outcomesByName.get(name).push({ bookmaker: bookmaker.title, decimal: outcome.price, ...pickLink(bookmaker, market, outcome) })
-        }
-      }
-      const outcomes = [...outcomesByName.entries()]
-        .map(([name, allOdds]) => ({
-          name,
-          team: name === 'Home' ? event.home_team : name === 'Away' ? event.away_team : null,
-          allOdds: allOdds.sort((a, b) => b.decimal - a.decimal),
-          bestOdds: allOdds.reduce((a, b) => (b.decimal > a.decimal ? b : a))
-        }))
-        .sort((a, b) => (key === 'alternate_totals' ? a.name.localeCompare(b.name, undefined, { numeric: true }) : 0))
-      return outcomes.length ? { key, label, outcomes } : null
-    })
-    .filter(Boolean)
 }

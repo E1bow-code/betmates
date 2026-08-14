@@ -1587,3 +1587,33 @@ create policy "user joins a group as themselves" on group_members for insert wit
     )
   )
 );
+
+-- --- Own-the-serving-layer odds cache ---------------------------------------
+-- The durable backing store for BetMates' own football-odds API. Distinct from
+-- the fixtures/odds_snapshots pair above: those are a NORMALISED price history
+-- (one thin row per bookmaker/selection/time) that feeds CLV and sharp-money
+-- analysis. THIS table is a SERVING cache - one row holds a whole
+-- already-assembled proxy response (the reshaped { id, homeTeam, ..., markets }
+-- list) as jsonb, so netlify/functions/odds.js can answer a user's bulk-list
+-- request with a single primary-key read instead of 5 live Odds API calls.
+-- It's the durable, cross-instance successor to src/lib/apiCache.js's
+-- in-memory map.
+--
+-- cache_key is the logical response name - 'football-list' (odds-ingest.js),
+-- 'ufc-list' (ufc-ingest.js) and 'sport-list-<sport>' per generic sport
+-- (sport-ingest.js) today, with room for per-fixture detail etc. as more of
+-- the board moves off live fetches. Written only by those service-role crons.
+create table odds_cache (
+  cache_key text primary key,
+  sport text not null,
+  payload jsonb not null,
+  fetched_at timestamptz not null default now()
+);
+
+-- Public read like fixtures/odds_snapshots (it's cached public reference data,
+-- and the proxy reads it with the anon key). No insert/update policy on
+-- purpose: with RLS enabled that means anon/authenticated can't write it at
+-- all, so only the service-role ingest cron can - exactly the access split we
+-- want for a table users consume but never author.
+alter table odds_cache enable row level security;
+create policy "anyone can read odds cache" on odds_cache for select using (true);
