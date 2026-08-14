@@ -74,6 +74,25 @@ html, body {
   line-height: 1.4;
 }
 
+/* Off-screen until focused - the first tab stop on every signed-in page,
+   letting keyboard/screen-reader users jump past NewsTickerBar's headline
+   links straight to .route-page (see App.jsx's Shell). */
+.skip-link {
+  position: absolute;
+  top: -40px;
+  left: 8px;
+  z-index: 200;
+  background: var(--accent);
+  color: var(--accent-ink);
+  padding: 10px 16px;
+  border-radius: 6px;
+  font-weight: 700;
+  text-decoration: none;
+}
+.skip-link:focus {
+  top: 8px;
+}
+
 h1, h2, .topbar h1, .sheet-title, .auth-title {
   font-family: Georgia, 'Times New Roman', serif;
   letter-spacing: 0.01em;

@@ -301,6 +301,12 @@ function Shell() {
   return (
     <ActivityProvider userId={user.id}>
       <BetSlipProvider>
+        {/* First tab stop on every page - NewsTickerBar alone puts ~15-20
+            real, tabbable headline links ahead of the actual app, with no
+            other way to bypass them. */}
+        <a href="#main-content" className="skip-link">
+          Skip to content
+        </a>
         <RouteTitle />
         <ScatteredSportPhotos />
         <NewsTickerBar headlines={newsHeadlines} />
@@ -312,8 +318,9 @@ function Shell() {
               {/* Keyed by pathname so React remounts this wrapper - and
                   replays its CSS mount animation - on every navigation,
                   giving page changes a soft settle instead of an instant
-                  cut (see .route-page in style.css). */}
-              <div className="route-page" key={location.pathname}>
+                  cut (see .route-page in style.css). id/tabIndex are the
+                  skip link's landing target. */}
+              <div className="route-page" id="main-content" tabIndex={-1} key={location.pathname}>
                 <Routes>
                   <Route path="/" element={<HomeRedirect />} />
                   <Route path="/dashboard" element={<HomePage />} />
