@@ -83,6 +83,7 @@ export default function BetCard({ post, memberNames, memberAvatars, variant = 'g
   const [commentBody, setCommentBody] = useState('')
   const [status, setStatus] = useState(post.status)
   const [following, setFollowing] = useState(false)
+  const [resolvedProfiles, setResolvedProfiles] = useState({})
   const [showCardMenu, setShowCardMenu] = useState(false)
   const [showReport, setShowReport] = useState(false)
   const [reported, setReported] = useState(false)
@@ -145,6 +146,42 @@ export default function BetCard({ post, memberNames, memberAvatars, variant = 'g
       dataStore.listFollowing(user.id).then((ids) => setFollowing(ids.includes(post.userId)))
     }
   }, [variant, post.userId, user.id])
+
+  // comments/reactions only ever carry a raw userId (see mapComment/
+  // mapReaction) - memberNames/memberAvatars covers group feeds (built from
+  // the group's own member list), but the public feed never has a bounded
+  // member set to build one from, so it doesn't pass those props at all.
+  // Without this, every comment/reaction on the public feed - including the
+  // viewer's own, right after posting - fell back to "Someone".
+  useEffect(() => {
+    const ids = new Set([...comments.map((c) => c.userId), ...reactions.map((r) => r.userId)])
+    const missing = [...ids].filter((id) => id && id !== user.id && !memberNames?.[id] && !resolvedProfiles[id])
+    if (!missing.length) return undefined
+    let cancelled = false
+    Promise.all(missing.map((id) => dataStore.getProfileById(id))).then((profiles) => {
+      if (cancelled) return
+      setResolvedProfiles((prev) => {
+        const next = { ...prev }
+        for (const p of profiles) if (p) next[p.id] = p
+        return next
+      })
+    })
+    return () => {
+      cancelled = true
+    }
+  }, [comments, reactions, memberNames, user.id])
+
+  function resolveName(id) {
+    if (!id) return 'Someone'
+    if (id === user.id) return memberNames?.[id] ?? user.displayName ?? 'Someone'
+    return memberNames?.[id] ?? resolvedProfiles[id]?.displayName ?? 'Someone'
+  }
+
+  function resolveAvatar(id) {
+    if (!id) return undefined
+    if (id === user.id) return memberAvatars?.[id] ?? user.avatarUrl
+    return memberAvatars?.[id] ?? resolvedProfiles[id]?.avatarUrl
+  }
 
   const isAuthor = post.userId === user.id
   const authorName = memberNames?.[post.userId] ?? post.authorName ?? 'Someone'
@@ -462,7 +499,7 @@ export default function BetCard({ post, memberNames, memberAvatars, variant = 'g
                   <Icon />{' '}
                   {reactors.map((r, i) => (
                     <span key={r.userId ?? i}>
-                      <UserLink id={r.userId} displayName={memberNames?.[r.userId] ?? 'Someone'} />
+                      <UserLink id={r.userId} displayName={resolveName(r.userId)} />
                       {i < reactors.length - 1 && ', '}
                     </span>
                   ))}
@@ -535,8 +572,8 @@ export default function BetCard({ post, memberNames, memberAvatars, variant = 'g
           {comments.length === 0 && <div className="comment-empty">No comments yet — be the first to weigh in.</div>}
           {comments.map((c) => (
             <div key={c.id} className="comment-row">
-              <Avatar name={memberNames?.[c.userId] ?? 'Someone'} photoUrl={memberAvatars?.[c.userId]} size={22} />
-              <UserLink id={c.userId} displayName={memberNames?.[c.userId] ?? 'Someone'} className="comment-author" />
+              <Avatar name={resolveName(c.userId)} photoUrl={resolveAvatar(c.userId)} size={22} />
+              <UserLink id={c.userId} displayName={resolveName(c.userId)} className="comment-author" />
               <span>{c.body}</span>
             </div>
           ))}
