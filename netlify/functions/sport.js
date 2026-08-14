@@ -289,7 +289,17 @@ function groupSgoOutcomes(event, betTypeID, homeName, awayName, nameFor, teamFor
       const decimal = americanToDecimal(bm.odds)
       if (!decimal) continue
       if (!outcomesByName.has(name)) outcomesByName.set(name, { team, odds: [] })
-      outcomesByName.get(name).odds.push({ bookmaker: sgoBookmakerLabel(bookmakerId), decimal })
+      // SGO's deeplink is genuinely selection-specific (unlike the plain
+      // event-page links most UK bookmakers return via The Odds API's
+      // pickLink() below) - it lands the bettor straight on this exact bet,
+      // not just the fixture. Only a handful of the biggest US books have
+      // one at any given time (SGO's own rollout, not something to expect
+      // universally) - `isBetslipLink` mirrors pickLink()'s shape so
+      // GenericEventDetailPage.jsx's link/linkIsBetslip wiring needs no
+      // changes to pick this up.
+      outcomesByName
+        .get(name)
+        .odds.push({ bookmaker: sgoBookmakerLabel(bookmakerId), decimal, link: bm.deeplink ?? null, isBetslipLink: Boolean(bm.deeplink) })
     }
   }
   return [...outcomesByName.entries()]

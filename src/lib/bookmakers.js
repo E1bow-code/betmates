@@ -27,7 +27,21 @@ const HOMEPAGE_LINKS = {
   Coral: 'https://sports.coral.co.uk',
   BetVictor: 'https://www.betvictor.com',
   Betway: 'https://betway.com',
-  Unibet: 'https://www.unibet.co.uk'
+  Unibet: 'https://www.unibet.co.uk',
+  // The basketball/hockey/baseball/NFL bookmaker set (SGO_BOOKMAKER_LABELS
+  // in netlify/functions/sport.js) is otherwise-disjoint from the UK list
+  // above - without these, Copy Bet on those four sports had no fallback
+  // at all once a leg's per-selection deeplink wasn't available.
+  FanDuel: 'https://sportsbook.fanduel.com',
+  DraftKings: 'https://sportsbook.draftkings.com',
+  BetMGM: 'https://sports.betmgm.com',
+  Caesars: 'https://www.caesars.com/sportsbook-and-casino',
+  'ESPN BET': 'https://espnbet.com',
+  Bovada: 'https://www.bovada.lv',
+  PointsBet: 'https://pointsbet.com',
+  'Bally Bet': 'https://ballybet.com',
+  'Hard Rock Bet': 'https://app.hardrock.bet',
+  BetRivers: 'https://betrivers.com'
 }
 
 // Real affiliate tracking links, once you have them, go here - one Netlify
