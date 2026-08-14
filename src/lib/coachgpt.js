@@ -24,12 +24,19 @@
 export const COACHGPT_MODELS = ['claude-opus-5', 'claude-sonnet-5']
 export const COACHGPT_MODEL = COACHGPT_MODELS[0]
 const ANTHROPIC_VERSION = '2023-06-01'
-// Was bumped to 4 alongside web_search, then reverted - each round is a full
-// Anthropic round-trip, and this function is synchronous behind a ~30s edge
-// inactivity timeout with no streaming, so every round is real time out of a
-// hard, fixed budget. 3 is what the pre-existing (tested, working) turn
-// budget already used.
-const MAX_TOOL_ROUNDS = 3
+// Was bumped to 4 alongside web_search, then reverted, then 3 itself was cut
+// to 2 here after confirmed-live evidence: a real "best value bet this
+// weekend?" turn - the flagship broad question this whole tool loop exists
+// for - hit the full ~30s edge inactivity timeout twice in a row even after
+// speeding up the always-on lock_in_recommendation follow-up (see its own
+// comment). Each round is a full Anthropic round-trip with no streaming, so
+// every round is real time out of a hard, fixed budget; the system prompt
+// already pushes the model to batch every fixture it needs into ONE round's
+// worth of parallel tool calls rather than searching one at a time, so a
+// third round mostly only ever bought a follow-up re-search (a genuinely
+// ambiguous match, say) - a real but rarer case than the flagship query
+// timing out outright.
+const MAX_TOOL_ROUNDS = 2
 // Anthropic-hosted, not one of our own callTool implementations - the API
 // runs the search (and can chain several before returning) within the same
 // request, so it never touches the client-tool loop below. Capped at 1/turn -
