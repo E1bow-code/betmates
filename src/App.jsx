@@ -252,6 +252,7 @@ function Shell() {
           <Route path="/r/:code" element={<StashReferralCode />} />
           <Route path="/challenge/:code" element={<StashChallengeCode />} />
           <Route path="/u/:code" element={<PublicProfilePage />} />
+          <Route path="/user/:id" element={<PublicProfilePage />} />
           <Route path="/hall-of-fame" element={<HallOfFamePage />} />
           <Route path="*" element={<AuthPage />} />
         </Routes>
@@ -345,6 +346,7 @@ function Shell() {
                   <Route path="/admin/errors" element={<AdminErrorLogsPage />} />
                   <Route path="/admin/analytics" element={<AdminAnalyticsPage />} />
                   <Route path="/u/:code" element={<PublicProfilePage />} />
+                  <Route path="/user/:id" element={<PublicProfilePage />} />
                   <Route path="/hall-of-fame" element={<HallOfFamePage />} />
                   <Route path="/legal" element={<LegalPage />} />
                   <Route path="/help" element={<HelpPage />} />

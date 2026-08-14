@@ -4,6 +4,7 @@ import { computeGroupLeaderboard, computeGroupClvLeaderboard } from '../utils/gr
 import { LEADERBOARD_WINDOWS, formatPeriod } from '../utils/dateWindows.js'
 import * as dataStore from '../lib/dataStore.js'
 import Avatar from './Avatar.jsx'
+import UserLink from './UserLink.jsx'
 import ShareLeaderboardButton from './ShareLeaderboardButton.jsx'
 import ReferralTierBadge from './ReferralTierBadge.jsx'
 import PremiumGate from './PremiumGate.jsx'
@@ -83,10 +84,10 @@ export default function Leaderboard({ posts, memberNames, currentUserId, closes 
                 <div key={row.userId} className={row.rank === 1 ? 'leaderboard-row leaderboard-row-top' : 'leaderboard-row'}>
                   <span className="leaderboard-rank">#{row.rank}</span>
                   <Avatar name={row.name} size={24} />
-                  <span className="leaderboard-name">
+                  <UserLink id={row.userId} className="leaderboard-name">
                     {row.name}
                     <ReferralTierBadge count={referralCounts[row.userId]} />
-                  </span>
+                  </UserLink>
                   <span className={`leaderboard-pnl ${row.profit >= 0 ? 'tone-good' : 'tone-bad'}`}>
                     {row.profit >= 0 ? '+' : ''}£{row.profit.toFixed(2)}
                   </span>

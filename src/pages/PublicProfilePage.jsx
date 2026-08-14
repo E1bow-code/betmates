@@ -12,13 +12,16 @@ import { TargetIcon, BadgeCheckIcon } from '../components/icons/Icons.jsx'
 
 const TIPSTER_BADGE_ICON = { sharp: TargetIcon, reliable: BadgeCheckIcon }
 
-// The one route in this app that works fully logged out - reachable from a
-// "Share my profile" link (see AccountPage) without the visitor needing an
-// account first. Backed by netlify/functions/public-profile.js, which only
-// ever reads that one person's PUBLIC bet posts, same visibility rule as
-// the public feed.
+// Reachable two ways: /u/:code, the one route in this app that works fully
+// logged out (from a "Share my profile" link, see AccountPage, without the
+// visitor needing an account first), and /user/:id, for internal in-app
+// links (a group member, a comment author, a name in a leaderboard) where
+// the caller already has the person's real user id but no friend code.
+// Both are backed by netlify/functions/public-profile.js (?code= or ?id=),
+// which only ever reads that one person's PUBLIC bet posts, same
+// visibility rule as the public feed, regardless of which param found them.
 export default function PublicProfilePage() {
-  const { code } = useParams()
+  const { code, id } = useParams()
   const { user } = useAuth()
   const [data, setData] = useState(undefined) // undefined = loading, null = not found
   const [error, setError] = useState(null)
@@ -28,14 +31,20 @@ export default function PublicProfilePage() {
   // to act on it without navigating back there first.
   const [following, setFollowing] = useState(null)
   const [followBusy, setFollowBusy] = useState(false)
+  // null until checked, same as `following` above - Add friend stays
+  // instant/no-consent, exactly matching addFriendByCode's existing
+  // behaviour elsewhere in the app (ManageSheet's "add a friend" form).
+  const [isFriendState, setIsFriendState] = useState(null)
+  const [friendBusy, setFriendBusy] = useState(false)
   const runAsync = useAsyncAction()
 
   useEffect(() => {
-    fetch(`/api/public-profile?code=${encodeURIComponent(code)}`)
+    const query = code ? `code=${encodeURIComponent(code)}` : `id=${encodeURIComponent(id)}`
+    fetch(`/api/public-profile?${query}`)
       .then((res) => res.json())
       .then(setData)
       .catch((err) => setError(err.message))
-  }, [code])
+  }, [code, id])
 
   useEffect(() => {
     if (!user || !data?.id || data.id === user.id) return
@@ -43,6 +52,18 @@ export default function PublicProfilePage() {
     dataStore
       .listFollowing(user.id)
       .then((ids) => !cancelled && setFollowing(ids.includes(data.id)))
+      .catch(() => {})
+    return () => {
+      cancelled = true
+    }
+  }, [user, data?.id])
+
+  useEffect(() => {
+    if (!user || !data?.id || data.id === user.id) return
+    let cancelled = false
+    dataStore
+      .isFriend(user.id, data.id)
+      .then((yes) => !cancelled && setIsFriendState(yes))
       .catch(() => {})
     return () => {
       cancelled = true
@@ -57,6 +78,13 @@ export default function PublicProfilePage() {
     )
     setFollowBusy(false)
     if (ok) setFollowing((f) => !f)
+  }
+
+  async function handleAddFriend() {
+    setFriendBusy(true)
+    const ok = await runAsync(() => dataStore.addFriend(user.id, data.id), "Couldn't add friend - try again")
+    setFriendBusy(false)
+    if (ok) setIsFriendState(true)
   }
 
   return (
@@ -99,14 +127,30 @@ export default function PublicProfilePage() {
                 </div>
               </div>
             </div>
-            {user && data.id !== user.id && following !== null && (
-              <button
-                className={following ? 'btn btn-ghost btn-small' : 'btn btn-secondary btn-small'}
-                onClick={toggleFollow}
-                disabled={followBusy}
-              >
-                {following ? 'Following' : 'Follow'}
-              </button>
+            {user && data.id !== user.id && (
+              <div className="topbar-actions">
+                {following !== null && (
+                  <button
+                    className={following ? 'btn btn-ghost btn-small' : 'btn btn-secondary btn-small'}
+                    onClick={toggleFollow}
+                    disabled={followBusy}
+                  >
+                    {following ? 'Following' : 'Follow'}
+                  </button>
+                )}
+                {isFriendState !== null && (
+                  <button
+                    className={isFriendState ? 'btn btn-ghost btn-small' : 'btn btn-secondary btn-small'}
+                    onClick={handleAddFriend}
+                    disabled={friendBusy || isFriendState}
+                  >
+                    {isFriendState ? 'Friends' : 'Add friend'}
+                  </button>
+                )}
+                <Link to={`/messages/${data.id}`} className="btn btn-ghost btn-small">
+                  Message
+                </Link>
+              </div>
             )}
           </div>
 

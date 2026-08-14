@@ -11,6 +11,7 @@ import GroupCoachTake from '../components/GroupCoachTake.jsx'
 import PickemLeaderboard from '../components/PickemLeaderboard.jsx'
 import TablePredictorPanel from '../components/TablePredictorPanel.jsx'
 import Avatar from '../components/Avatar.jsx'
+import UserLink from '../components/UserLink.jsx'
 import GoProSheet from '../components/GoProSheet.jsx'
 import ReferralTierBadge from '../components/ReferralTierBadge.jsx'
 import EmptyState from '../components/EmptyState.jsx'
@@ -341,7 +342,11 @@ export default function GroupFeedPage() {
                   <div key={m.id} className={mine ? 'chat-message chat-message-mine' : 'chat-message'}>
                     {!mine && <Avatar name={memberNames[m.userId] ?? 'Someone'} size={26} />}
                     <div className="chat-bubble">
-                      {!mine && <div className="chat-author">{memberNames[m.userId] ?? 'Someone'}</div>}
+                      {!mine && (
+                        <div className="chat-author">
+                          <UserLink id={m.userId} displayName={memberNames[m.userId] ?? 'Someone'} />
+                        </div>
+                      )}
                       <div>{m.body}</div>
                     </div>
                   </div>
@@ -474,11 +479,19 @@ export default function GroupFeedPage() {
               <div key={m.id} className="manage-list-row">
                 <span className="fixture-team">
                   <Avatar name={m.displayName} size={26} />
-                  <span>
-                    {m.displayName}
-                    {m.id === user.id && ' (you)'}
-                    <ReferralTierBadge count={m.referralCount} />
-                  </span>
+                  {m.id === user.id ? (
+                    <span>
+                      {m.displayName} (you)
+                      <ReferralTierBadge count={m.referralCount} />
+                    </span>
+                  ) : (
+                    <UserLink id={m.id} displayName={m.displayName}>
+                      <span>
+                        {m.displayName}
+                        <ReferralTierBadge count={m.referralCount} />
+                      </span>
+                    </UserLink>
+                  )}
                 </span>
                 {isCreator && m.id !== user.id && (
                   <button

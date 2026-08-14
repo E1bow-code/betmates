@@ -1293,6 +1293,28 @@ export function addFriendByCode(code, userId) {
   return delay({ id: target.id, displayName: target.displayName })
 }
 
+/** @param {string} userId @param {string} otherId @returns {Promise<boolean>} */
+export function isFriend(userId, otherId) {
+  const db = readDb()
+  return delay(db.friendships.some((f) => (f.userA === userId && f.userB === otherId) || (f.userA === otherId && f.userB === userId)))
+}
+
+// addFriendByCode minus the code-resolution step, for internal contexts
+// (a group member, a comment author) where the caller already has the
+// person's real id but never had a friend code to type in.
+/** @param {string} userId @param {string} otherId @returns {Promise<{id: string, displayName: string}>} */
+export function addFriend(userId, otherId) {
+  const db = readDb()
+  if (otherId === userId) return Promise.reject(new Error("That's you."))
+  const target = db.users.find((u) => u.id === otherId)
+  if (!target) return Promise.reject(new Error('User not found.'))
+  const already = db.friendships.some((f) => (f.userA === userId && f.userB === otherId) || (f.userA === otherId && f.userB === userId))
+  if (already) return Promise.reject(new Error(`You and ${target.displayName} are already friends.`))
+  db.friendships.push({ id: uid('friend'), userA: userId, userB: otherId, createdAt: new Date().toISOString() })
+  writeDb(db)
+  return delay({ id: target.id, displayName: target.displayName })
+}
+
 /** @param {string} userId @returns {Promise<{id: string, displayName: string}[]>} */
 export function listFriends(userId) {
   const db = readDb()

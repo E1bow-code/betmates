@@ -58,6 +58,7 @@ export function ActivityProvider({ userId, children }) {
             id: `posted-${post.id}`,
             kind: 'posted',
             at: post.createdAt,
+            userId: post.userId,
             name: post.memberNames?.[post.userId] ?? post.authorName ?? 'Someone',
             event: post.selections?.[0]?.event ?? 'a bet',
             groupId: post.groupId

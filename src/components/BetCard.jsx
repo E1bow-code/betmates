@@ -17,6 +17,7 @@ import ShareImageButton from './ShareImageButton.jsx'
 import TeamBadge from './TeamBadge.jsx'
 import PlayerPhoto from './PlayerPhoto.jsx'
 import Avatar from './Avatar.jsx'
+import UserLink from './UserLink.jsx'
 import EditBetSheet from './EditBetSheet.jsx'
 import LiveBadge from './LiveBadge.jsx'
 import FixtureChatSheet from './FixtureChatSheet.jsx'
@@ -229,7 +230,7 @@ export default function BetCard({ post, memberNames, memberAvatars, variant = 'g
         <div className="bet-card-who">
           <Avatar name={authorName} photoUrl={authorAvatarUrl} />
           <div>
-            <span className="bet-card-author">{authorName}</span>
+            <UserLink id={post.userId} displayName={authorName} className="bet-card-author" />
             <span className="bet-card-time">{formatRelativeTime(post.createdAt)}</span>
             {post.groupName && <span className="bet-card-group-tag">in {post.groupName}</span>}
           </div>
@@ -454,11 +455,17 @@ export default function BetCard({ post, memberNames, memberAvatars, variant = 'g
         {variant === 'group' && reactions.length > 0 && (
           <p className="hint reaction-names">
             {REACTION_EMOJIS.filter((emoji) => reactions.some((r) => r.emoji === emoji)).map((emoji) => {
-              const names = reactions.filter((r) => r.emoji === emoji).map((r) => memberNames?.[r.userId] ?? 'Someone')
+              const reactors = reactions.filter((r) => r.emoji === emoji)
               const Icon = REACTION_ICON[emoji]
               return (
                 <span key={emoji} className="reaction-names-group">
-                  <Icon /> {names.join(', ')}
+                  <Icon />{' '}
+                  {reactors.map((r, i) => (
+                    <span key={r.userId ?? i}>
+                      <UserLink id={r.userId} displayName={memberNames?.[r.userId] ?? 'Someone'} />
+                      {i < reactors.length - 1 && ', '}
+                    </span>
+                  ))}
                 </span>
               )
             })}
@@ -529,7 +536,7 @@ export default function BetCard({ post, memberNames, memberAvatars, variant = 'g
           {comments.map((c) => (
             <div key={c.id} className="comment-row">
               <Avatar name={memberNames?.[c.userId] ?? 'Someone'} photoUrl={memberAvatars?.[c.userId]} size={22} />
-              <span className="comment-author">{memberNames?.[c.userId] ?? 'Someone'}</span>
+              <UserLink id={c.userId} displayName={memberNames?.[c.userId] ?? 'Someone'} className="comment-author" />
               <span>{c.body}</span>
             </div>
           ))}

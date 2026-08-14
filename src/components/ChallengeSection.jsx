@@ -5,6 +5,7 @@ import { computeChallengeStats, pickChallengeWinner, formatChallengeValue } from
 import { shareChallengeImage } from '../lib/shareImage.js'
 import { shareOrCopy, challengeUrl } from '../lib/share.js'
 import { useAsyncAction } from '../lib/useAsyncAction.js'
+import UserLink from './UserLink.jsx'
 import { SwordsIcon, LinkIcon } from './icons/Icons.jsx'
 
 const DURATIONS = [
@@ -136,7 +137,7 @@ export default function ChallengeSection({ user, friend, myPosts, theirPosts }) 
         </button>
       </div>
 
-      {active && <ActiveChallenge challenge={active} stats={statsFor(active)} friendName={friend.displayName} />}
+      {active && <ActiveChallenge challenge={active} stats={statsFor(active)} friendId={friend.id} friendName={friend.displayName} />}
 
       {!active && (
         <form className="challenge-start" onSubmit={handleStart}>
@@ -202,7 +203,7 @@ export default function ChallengeSection({ user, friend, myPosts, theirPosts }) 
   )
 }
 
-function ActiveChallenge({ challenge, stats, friendName }) {
+function ActiveChallenge({ challenge, stats, friendId, friendName }) {
   const left = daysLeft(challenge.endsAt)
   return (
     <div className="challenge-active">
@@ -213,7 +214,7 @@ function ActiveChallenge({ challenge, stats, friendName }) {
         </span>
       </div>
       <div className="challenge-active-row">
-        <span>{friendName}</span>
+        <UserLink id={friendId} displayName={friendName} />
         <span className={stats.winner === 'b' ? 'challenge-value tone-good' : 'challenge-value'}>
           {formatChallengeValue(stats.theirs, challenge.metric)}
         </span>

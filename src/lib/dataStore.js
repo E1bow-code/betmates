@@ -2021,6 +2021,44 @@ export async function addFriendByCode(code, userId) {
   return { id: target.id, displayName: target.display_name }
 }
 
+/** @param {string} userId @param {string} otherId @returns {Promise<boolean>} */
+export async function isFriend(userId, otherId) {
+  if (!isSupabaseConfigured) return local.isFriend(userId, otherId)
+  const { data, error } = await supabase
+    .from('friendships')
+    .select('id')
+    .or(`and(user_a.eq.${userId},user_b.eq.${otherId}),and(user_a.eq.${otherId},user_b.eq.${userId})`)
+    .maybeSingle()
+  if (error) throw error
+  return !!data
+}
+
+// addFriendByCode minus the code-resolution step, for internal contexts
+// (a group member, a comment author) where the caller already has the
+// person's real id but never had a friend code to type in. Same RLS
+// policy as addFriendByCode's insert ("user adds a friendship as
+// themselves") already allows this - it was never scoped to "came from a
+// code lookup."
+/** @param {string} userId @param {string} otherId @returns {Promise<{id: string, displayName: string}>} */
+export async function addFriend(userId, otherId) {
+  if (!isSupabaseConfigured) return local.addFriend(userId, otherId)
+  if (otherId === userId) throw new Error("That's you.")
+
+  const { data: existing } = await supabase
+    .from('friendships')
+    .select('id')
+    .or(`and(user_a.eq.${userId},user_b.eq.${otherId}),and(user_a.eq.${otherId},user_b.eq.${userId})`)
+    .maybeSingle()
+  if (existing) throw new Error('Already friends.')
+
+  const { error } = await supabase.from('friendships').insert({ user_a: userId, user_b: otherId })
+  if (error) throw error
+
+  const { data: target, error: profileError } = await supabase.from('profiles').select('id, display_name').eq('id', otherId).single()
+  if (profileError) throw profileError
+  return { id: target.id, displayName: target.display_name }
+}
+
 /** @param {string} userId @returns {Promise<{id: string, displayName: string}[]>} */
 export async function listFriends(userId) {
   if (!isSupabaseConfigured) return local.listFriends(userId)

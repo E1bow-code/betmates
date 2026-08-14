@@ -3232,7 +3232,11 @@ button.conversation-row { width: 100%; background: none; border: none; border-bo
 .tracker-row.status-void { border-left-color: var(--text-dim); }
 .tracker-row.status-triggered { border-left-color: var(--accent); }
 .tracker-row-main { flex: 1; min-width: 0; }
-.notification-row { text-decoration: none; color: inherit; }
+/* Was a real <a> until the row needed a nested, separately-clickable
+   author link inside it (invalid HTML to nest <a> in <a>) - now a div
+   driving navigation itself, so cursor:pointer needs to be explicit
+   instead of coming free from the browser's UA stylesheet. */
+.notification-row { text-decoration: none; color: inherit; cursor: pointer; }
 .notification-row:hover, .notification-row:focus-visible { background: var(--surface-2); }
 .tracker-row-status { display: flex; flex-direction: column; align-items: flex-end; gap: var(--space-6); }
 

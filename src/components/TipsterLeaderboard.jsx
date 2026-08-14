@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
-import { Link } from 'react-router-dom'
 import Avatar from './Avatar.jsx'
+import UserLink from './UserLink.jsx'
 import EmptyState from './EmptyState.jsx'
 import * as dataStore from '../lib/dataStore.js'
 import { LEADERBOARD_WINDOWS } from '../utils/dateWindows.js'
@@ -82,13 +82,7 @@ export default function TipsterLeaderboard({ rows, window, onWindowChange, curre
               <Avatar name={row.name} size={30} />
               <div className="tipster-main">
                 <div className="tipster-name-row">
-                  {row.code ? (
-                    <Link to={`/u/${row.code}`} className="tipster-name">
-                      {row.name}
-                    </Link>
-                  ) : (
-                    <span className="tipster-name">{row.name}</span>
-                  )}
+                  <UserLink id={row.userId} displayName={row.name} className="tipster-name" />
                   {row.badge && (
                     <span className="chip chip--pill chip--sm chip--outline-accent tipster-badge icon-row">
                       {(() => {

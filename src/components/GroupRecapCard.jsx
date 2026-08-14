@@ -1,5 +1,6 @@
 import { computeGroupRecap } from '../utils/groupRecap.js'
 import ShareRecapButton from './ShareRecapButton.jsx'
+import UserLink from './UserLink.jsx'
 import { MedalIcon, MoneyIcon } from './icons/Icons.jsx'
 
 // "This week" summary at the top of a group feed: how the group did over the
@@ -52,7 +53,10 @@ export default function GroupRecapCard({ posts, memberNames }) {
               <MedalIcon width={16} height={16} />
             </span>
             <span>
-              <strong>{recap.topTipster.name}</strong> is top tipster —{' '}
+              <strong>
+                <UserLink id={recap.topTipster.userId} displayName={recap.topTipster.name} />
+              </strong>{' '}
+              is top tipster —{' '}
               <span className={recap.topTipster.profit >= 0 ? 'tone-good' : 'tone-bad'}>
                 {recap.topTipster.profit >= 0 ? '+' : ''}£{recap.topTipster.profit.toFixed(2)}
               </span>{' '}
@@ -67,7 +71,11 @@ export default function GroupRecapCard({ posts, memberNames }) {
               <MoneyIcon width={16} height={16} />
             </span>
             <span>
-              Biggest win: <strong>{recap.biggestWin.name}</strong> +£{recap.biggestWin.profit.toFixed(2)}
+              Biggest win:{' '}
+              <strong>
+                <UserLink id={recap.biggestWin.userId} displayName={recap.biggestWin.name} />
+              </strong>{' '}
+              +£{recap.biggestWin.profit.toFixed(2)}
               {recap.biggestWin.event ? ` on ${recap.biggestWin.legs > 1 ? `a ${recap.biggestWin.legs}-leg bet` : recap.biggestWin.event}` : ''}
             </span>
           </div>
