@@ -81,6 +81,10 @@ export default async (req) => {
     const session = await stripe.checkout.sessions.create({
       mode: 'subscription',
       customer: customerId,
+      // See create-checkout-session.js's comment - Managed Payments is on
+      // by default and requires a tax_code, which price_data-built inline
+      // products (each group's own custom price) have no way to carry.
+      managed_payments: { enabled: false },
       line_items: [
         {
           price_data: {
