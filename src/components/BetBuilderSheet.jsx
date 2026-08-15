@@ -157,6 +157,18 @@ export default function BetBuilderSheet() {
   // "Change" button) - a native <select> can't render a photo+countdown
   // per row, which is the whole reason this replaced one.
   const [pickerEventListOpen, setPickerEventListOpen] = useState(true)
+  // The quick-pick used to vanish for good the moment one leg existed -
+  // fine for "tap a price on the Odds tab" (that flow never closes, you
+  // can tap as many prices as you like across as many fixtures as you
+  // like before opening this sheet), but the ONLY way to add a second leg
+  // through the composer's own inline picker was to close the sheet and
+  // go find another price on the Odds tab. A UFC card is exactly the case
+  // where that matters most - every fight is just one moneyline market,
+  // so a same-fight bet builder is a non-starter and the picker's own
+  // Sport/Event/Market/Selection flow was the only way to combine two
+  // DIFFERENT fights into a multi without leaving the sheet. This
+  // re-reveals it on demand instead of only ever showing it once.
+  const [addingPick, setAddingPick] = useState(false)
 
   const hasPick = legs.length > 0
 
@@ -266,12 +278,26 @@ export default function BetBuilderSheet() {
 
   function pickOutcome(outcome) {
     toggleLeg(outcome.leg)
+    setAddingPick(false)
   }
 
   function selectPickerEvent(id) {
     setPickerEventId(id)
     setPickerMarketKey('')
     setPickerEventListOpen(false)
+  }
+
+  // Reopening the quick-pick for a second leg shouldn't leave it parked on
+  // whatever fight/market the FIRST leg came from - confirmed live, that
+  // read as "nothing happened" since the panel reappears looking almost
+  // identical to how it was left. Resets the Event/Market selection back
+  // to a blank picker (same sport, no refetch needed - pickerItems is
+  // still fresh) rather than the fuller sport-change reset above.
+  function startAddingPick() {
+    setPickerEventId('')
+    setPickerMarketKey('')
+    setPickerEventListOpen(true)
+    setAddingPick(true)
   }
 
   function onClose() {
@@ -473,7 +499,7 @@ export default function BetBuilderSheet() {
           </div>
         </div>
 
-        {hasPick ? (
+        {hasPick && (
           <div className="bet-slip-legs">
             {legs.map((leg) => (
               <div key={`${leg.event}|${leg.market}|${leg.selection}`} className="selection-summary bet-slip-leg">
@@ -492,7 +518,15 @@ export default function BetBuilderSheet() {
               </div>
             ))}
           </div>
-        ) : (
+        )}
+
+        {hasPick && !addingPick && (
+          <button type="button" className="btn btn-ghost btn-small add-another-pick" onClick={startAddingPick}>
+            + Add another pick
+          </button>
+        )}
+
+        {(!hasPick || addingPick) && (
           <div className="quick-pick">
             <p className="quick-pick-title">Attach a pick (optional)</p>
             <label className="field">
@@ -579,6 +613,7 @@ export default function BetBuilderSheet() {
             )}
           </div>
         )}
+
 
         {legs.length > 1 && (
           <div className="potential-return">

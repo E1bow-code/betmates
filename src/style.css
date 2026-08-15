@@ -2060,6 +2060,7 @@ button.conversation-row { width: 100%; background: none; border: none; border-bo
 }
 
 .bet-slip-legs { display: flex; flex-direction: column; gap: var(--space-8); max-height: 40vh; overflow-y: auto; }
+.add-another-pick { align-self: flex-start; margin: var(--space-4) 0; }
 .bet-slip-leg { position: relative; padding-right: 34px; }
 .bet-slip-leg-remove {
   position: absolute;
