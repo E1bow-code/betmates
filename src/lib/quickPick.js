@@ -42,10 +42,20 @@ export async function loadItemsForSport(sportKey) {
   return fetchEvents(sportKey)
 }
 
-function participantsFor(sportKey, item) {
+export function participantsFor(sportKey, item) {
   if (sportKey === 'football') return [item.homeTeam, item.awayTeam]
   if (sportKey === 'ufc') return [item.fighterA, item.fighterB]
   return [item.participantA, item.participantB]
+}
+
+// 'team' -> TeamBadge (crest lookup), 'player' -> PlayerPhoto (headshot
+// lookup), null -> no head-to-head photo pair (racing's many-runner field
+// doesn't fit the two-participant shape the other sports share).
+export function participantTypeFor(sportKey) {
+  if (sportKey === 'football') return 'team'
+  if (sportKey === 'ufc') return 'player'
+  if (sportKey === 'racing') return null
+  return GENERIC_SPORTS[sportKey]?.participantType ?? null
 }
 
 // Cheap label for the Event dropdown's option text - doesn't touch

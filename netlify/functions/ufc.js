@@ -11,6 +11,15 @@ const SPORT = 'mma_mixed_martial_arts'
 const REGION = 'uk'
 const MARKETS = 'h2h'
 const LIST_TTL = 20 * 60 * 1000
+// The Odds API's MMA feed carries a long tail of speculative/rumoured
+// far-future "cards" - fighters listed against opponents they were never
+// actually booked with, sometimes the same fighter appearing in two
+// different fixtures on the same day. Real UFC events are only ever
+// confirmed something like 6-10 weeks out, so anything further than this
+// is noise rather than a genuine near-term card - confirmed live, this
+// cut real garbage (duplicate/impossible pairings months out) without
+// touching the normal near-term list.
+const MAX_DAYS_AHEAD = 60
 
 async function serveMock(id) {
   const { getMockFights, getMockFight } = await import('../../src/data/mockUfcOdds.js')
@@ -39,7 +48,11 @@ export default async (req) => {
         return serveMock(id)
       }
       const events = await res.json()
-      fights = events.map(reshapeEvent).sort((a, b) => new Date(a.kickoff) - new Date(b.kickoff))
+      const cutoff = Date.now() + MAX_DAYS_AHEAD * 24 * 60 * 60 * 1000
+      fights = events
+        .map(reshapeEvent)
+        .filter((f) => new Date(f.kickoff).getTime() <= cutoff)
+        .sort((a, b) => new Date(a.kickoff) - new Date(b.kickoff))
       cacheSet('ufc-fights', fights, LIST_TTL)
     }
     const body = id ? fights.find((f) => f.id === id) ?? null : fights

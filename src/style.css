@@ -2783,6 +2783,34 @@ button.conversation-row { width: 100%; background: none; border: none; border-bo
 }
 .quick-pick-title { margin: 0; font-size: 0.8rem; font-weight: 600; color: var(--text-dim); }
 
+/* The Event field's own rows (PickerEventRow in BetBuilderSheet.jsx) reuse
+   .race-card/.fixture-team wholesale - only the interactive shell differs,
+   since these are <button>s (picking an event, not navigating) rather than
+   the <Link>s OddsListPage's own fixture rows use. .picker-event-list caps
+   the expanded list's height so a long fixture list can't push Market/
+   Selection/caption far down the sheet; the collapsed single-row summary
+   (.selected) doesn't need the cap. */
+.picker-event-status { padding: var(--space-10); border: 1px dashed var(--border); border-radius: var(--radius-sharp); color: var(--text-dim); font-size: 0.85rem; text-align: center; }
+.picker-event-list { max-height: 260px; overflow-y: auto; border-radius: var(--radius-sharp); }
+.picker-event-list .league-group-title { margin: var(--space-10) 0 var(--space-4); }
+.picker-event-list .league-group:first-child .league-group-title { margin-top: 0; }
+.picker-event-row {
+  width: 100%;
+  background: none;
+  border: none;
+  border-bottom: 1px solid var(--border);
+  padding: 0;
+  margin: 0;
+  font: inherit;
+  color: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+.picker-event-row:hover, .picker-event-row:focus-visible { background: rgba(var(--accent-rgb), 0.07); }
+.picker-event-row:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
+.picker-event-row.selected { cursor: pointer; }
+.picker-event-change { display: flex; align-items: center; justify-content: center; color: var(--accent); font-size: 0.75rem; font-weight: 600; }
+
 /* Reddit-style post tags (src/lib/postTags.js) - a row of toggleable pill
    chips in the composer, and a single read-only pill (post-tag-chip-readonly)
    on a posted card. */

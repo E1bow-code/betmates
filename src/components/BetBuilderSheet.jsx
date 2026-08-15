@@ -17,7 +17,20 @@ import { useEscapeKey } from '../lib/useEscapeKey.js'
 import { useDelayedClose } from '../lib/useDelayedClose.js'
 import { computeStats } from '../utils/trackerStats.js'
 import { tipsterBadge } from '../utils/tipsterBadge.js'
-import { PICKER_SPORTS, SPORT_LABEL, loadItemsForSport, labelFor, normalizeItem, groupByCompetition } from '../lib/quickPick.js'
+import {
+  PICKER_SPORTS,
+  SPORT_LABEL,
+  loadItemsForSport,
+  normalizeItem,
+  groupByCompetition,
+  participantsFor,
+  participantTypeFor
+} from '../lib/quickPick.js'
+import { formatKickoff, formatCountdown } from '../utils/format.js'
+import { isLive } from '../utils/liveStatus.js'
+import TeamBadge from './TeamBadge.jsx'
+import PlayerPhoto from './PlayerPhoto.jsx'
+import LiveBadge from './LiveBadge.jsx'
 import {
   LinkIcon,
   CameraIcon,
@@ -37,6 +50,57 @@ import {
 } from './icons/Icons.jsx'
 import { POST_TAGS } from '../lib/postTags.js'
 import PostPreview from './PostPreview.jsx'
+
+// One row in the Event picker's expanded list, or the single collapsed
+// summary row once something's picked (selected=true, which swaps the
+// click target to reopen the list and adds a "Change" hint) - a native
+// <select> can't render a photo/countdown per option, which is the whole
+// reason this replaced one. Reuses the exact .race-card/.fixture-team
+// markup OddsListPage's own FixtureCard/FightCard/EventCard rows already
+// use, just as a <button> instead of a <Link> (this doesn't navigate) and
+// without the odds column (nothing's been priced yet at this point in the
+// flow - Market/Selection are separate steps below).
+function PickerEventRow({ sportKey, item, onSelect, selected }) {
+  const participantType = participantTypeFor(sportKey)
+  const kickoff = sportKey === 'racing' ? item.offTime : item.kickoff
+  const Photo = participantType === 'player' ? PlayerPhoto : TeamBadge
+  const photoProp = participantType === 'player' ? 'name' : 'team'
+  const [a, b] = sportKey === 'racing' ? [null, null] : participantsFor(sportKey, item)
+
+  return (
+    <button
+      type="button"
+      className={selected ? 'race-card picker-event-row selected' : 'race-card picker-event-row'}
+      onClick={() => onSelect(item.id)}
+    >
+      <div className="race-card-time">
+        <span className="off-time">{formatKickoff(kickoff)}</span>
+        {isLive(kickoff, sportKey) ? <LiveBadge /> : <span className="countdown">{formatCountdown(kickoff)}</span>}
+      </div>
+      <div className="race-card-main">
+        {sportKey === 'racing' ? (
+          <div className="race-card-title">
+            {item.course} · {item.raceName}
+          </div>
+        ) : (
+          <div className="race-card-title fixture-teams-row">
+            <span className="fixture-team">
+              {participantType && a && <Photo {...{ [photoProp]: a }} sport={sportKey} size={20} />}
+              <span>{a}</span>
+            </span>
+            <span className="fixture-vs">v</span>
+            <span className="fixture-team">
+              {participantType && b && <Photo {...{ [photoProp]: b }} sport={sportKey} size={20} />}
+              <span>{b}</span>
+            </span>
+          </div>
+        )}
+        <div className="race-card-meta">{sportKey === 'racing' ? `${item.runners?.length ?? 0} runners` : item.competition}</div>
+      </div>
+      {selected && <span className="race-card-fav picker-event-change">Change</span>}
+    </button>
+  )
+}
 
 const POST_TAG_ICON = {
   horse: HorseIcon,
@@ -88,6 +152,11 @@ export default function BetBuilderSheet() {
   const [pickerLoading, setPickerLoading] = useState(false)
   const [pickerEventId, setPickerEventId] = useState('')
   const [pickerMarketKey, setPickerMarketKey] = useState('')
+  // The Event picker shows itself as an expanded list until something's
+  // picked, then collapses to a single summary row (reopened via its own
+  // "Change" button) - a native <select> can't render a photo+countdown
+  // per row, which is the whole reason this replaced one.
+  const [pickerEventListOpen, setPickerEventListOpen] = useState(true)
 
   const hasPick = legs.length > 0
 
@@ -117,6 +186,7 @@ export default function BetBuilderSheet() {
     setPickerItems(null)
     setPickerEventId('')
     setPickerMarketKey('')
+    setPickerEventListOpen(true)
     loadItemsForSport(pickerSport)
       .then((items) => {
         if (!cancelled) setPickerItems(items)
@@ -196,6 +266,12 @@ export default function BetBuilderSheet() {
 
   function pickOutcome(outcome) {
     toggleLeg(outcome.leg)
+  }
+
+  function selectPickerEvent(id) {
+    setPickerEventId(id)
+    setPickerMarketKey('')
+    setPickerEventListOpen(false)
   }
 
   function onClose() {
@@ -429,36 +505,46 @@ export default function BetBuilderSheet() {
                 ))}
               </select>
             </label>
-            <label className="field">
+            <div className="field">
               <span>Event</span>
-              <select
-                value={pickerEventId}
-                onChange={(e) => {
-                  setPickerEventId(e.target.value)
-                  setPickerMarketKey('')
-                }}
-                disabled={pickerLoading || !pickerItems?.length}
-              >
-                <option value="">
-                  {pickerLoading ? 'Loading…' : pickerItems && !pickerItems.length ? 'No upcoming events' : 'Choose an event'}
-                </option>
-                {pickerGroups
-                  ? pickerGroups.map((group) => (
-                      <optgroup key={group.competition} label={group.competition}>
-                        {group.items.map((item) => (
-                          <option key={item.id} value={item.id}>
-                            {labelFor(pickerSport, item)}
-                          </option>
-                        ))}
-                      </optgroup>
-                    ))
-                  : pickerItems?.map((item) => (
-                      <option key={item.id} value={item.id}>
-                        {labelFor(pickerSport, item)}
-                      </option>
-                    ))}
-              </select>
-            </label>
+              {pickerLoading ? (
+                <div className="picker-event-status">Loading…</div>
+              ) : !pickerItems?.length ? (
+                <div className="picker-event-status">No upcoming events</div>
+              ) : pickerEventListOpen ? (
+                <div className="picker-event-list">
+                  {pickerGroups
+                    ? pickerGroups.map((group) => (
+                        <div key={group.competition} className="league-group">
+                          {pickerGroups.length > 1 && <h3 className="league-group-title">{group.competition}</h3>}
+                          <div className="race-list">
+                            {group.items.map((item) => (
+                              <PickerEventRow key={item.id} sportKey={pickerSport} item={item} onSelect={selectPickerEvent} />
+                            ))}
+                          </div>
+                        </div>
+                      ))
+                    : (
+                        <div className="race-list">
+                          {pickerItems.map((item) => (
+                            <PickerEventRow key={item.id} sportKey={pickerSport} item={item} onSelect={selectPickerEvent} />
+                          ))}
+                        </div>
+                      )}
+                </div>
+              ) : (
+                pickerItem && (
+                  <div className="race-list">
+                    <PickerEventRow
+                      sportKey={pickerSport}
+                      item={pickerItem}
+                      onSelect={() => setPickerEventListOpen(true)}
+                      selected
+                    />
+                  </div>
+                )
+              )}
+            </div>
             {pickerNormalized && (
               <label className="field">
                 <span>Market</span>
