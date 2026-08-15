@@ -192,11 +192,18 @@ export default function BetCard({ post, memberNames, memberAvatars, variant = 'g
   async function toggleReaction(key) {
     const { action, reaction } = await dataStore.toggleReaction(post.id, user.id, key)
     setReactions((r) => (action === 'added' ? [...r, reaction] : r.filter((x) => x.id !== reaction.id)))
-    if (action === 'added' && !isAuthor && live) {
+    // Used to only push while `live` (status open + kickoff passed) - the
+    // in-app Alerts fallback (ActivityContext.jsx's 'reacted' kind) never
+    // had that restriction, so a pre-kickoff or already-settled reaction
+    // showed up in Alerts but silently skipped the push. Now pushes
+    // unconditionally like comments already did; the "while your bet's
+    // live" framing only applies when it's actually true.
+    if (action === 'added' && !isAuthor) {
       const reactorName = memberNames?.[user.id] ?? user.displayName ?? 'Someone'
       const icon = REACTION_EMOJIS.includes(key) ? key : '🎯'
       const verb = REACTION_EMOJIS.includes(key) ? 'reacted' : `voted "${VOTE_OPTIONS.find((o) => o.key === key)?.label}"`
-      notifyBetAuthor(post.userId, { title: `${icon} ${reactorName} ${verb} while your bet's live`, body: '', url: '/#/groups' })
+      const title = live ? `${icon} ${reactorName} ${verb} while your bet's live` : `${icon} ${reactorName} ${verb} on your bet`
+      notifyBetAuthor(post.userId, { title, body: '', url: '/#/groups' })
     }
   }
 
