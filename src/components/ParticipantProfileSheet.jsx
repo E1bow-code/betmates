@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { getPlayerProfile } from '../lib/playerProfile.js'
 import { getFighterHistory } from '../lib/fighterHistory.js'
+import { getFighterTaleOfTape } from '../lib/fighterTaleOfTape.js'
 import { useEscapeKey } from '../lib/useEscapeKey.js'
 import { useDelayedClose } from '../lib/useDelayedClose.js'
 import { abbreviatePosition, flagFor, ageFrom } from '../utils/playerCard.js'
@@ -27,12 +28,15 @@ function formatBirthDate(dateStr) {
 // There's no real attribute-rating data (no free API has a FIFA-style
 // 0-99 pace/shooting breakdown for a given player), so the card is built
 // entirely from real fields TheSportsDB returns - position, nationality,
-// physical stats, age - rather than inventing numbers to fill a FUT-style
-// stat wheel. Coverage varies a lot person to person, so every section
-// below only renders if the field it needs actually came back.
+// physical stats, age - plus, for UFC specifically, reach/stance/division/
+// record from ESPN's MMA API (TheSportsDB's generic lookup doesn't carry
+// those) - rather than inventing numbers to fill a FUT-style stat wheel.
+// Coverage varies a lot person to person, so every section below only
+// renders if the field it needs actually came back.
 export default function ParticipantProfileSheet({ name, sport, onClose }) {
   const [profile, setProfile] = useState(undefined)
   const [fights, setFights] = useState([])
+  const [taleOfTape, setTaleOfTape] = useState(null)
   const { closing, requestClose } = useDelayedClose(onClose)
   useEscapeKey(requestClose)
 
@@ -62,6 +66,21 @@ export default function ParticipantProfileSheet({ name, sport, onClose }) {
     }
   }, [name, sport])
 
+  // Reach/stance/division/record - TheSportsDB's generic lookup above
+  // doesn't carry MMA-specific fields, so this is a second source (ESPN,
+  // see fighter-tale-of-tape.js), same UFC-only gate as the fight history.
+  useEffect(() => {
+    let cancelled = false
+    setTaleOfTape(null)
+    if (sport !== 'ufc') return undefined
+    getFighterTaleOfTape(name).then((t) => {
+      if (!cancelled) setTaleOfTape(t)
+    })
+    return () => {
+      cancelled = true
+    }
+  }, [name, sport])
+
   const positionAbbr = profile ? abbreviatePosition(profile.position) : null
   const flag = profile ? flagFor(profile.nationality) : null
   const age = profile ? ageFrom(profile.dateBorn) : null
@@ -74,7 +93,11 @@ export default function ParticipantProfileSheet({ name, sport, onClose }) {
         profile.height && { label: 'Height', value: profile.height },
         profile.weight && { label: 'Weight', value: profile.weight },
         age !== null && { label: 'Age', value: String(age) },
-        profile.status && { label: 'Status', value: profile.status, tone: profile.status === 'Active' ? 'good' : 'bad' }
+        profile.status && { label: 'Status', value: profile.status, tone: profile.status === 'Active' ? 'good' : 'bad' },
+        taleOfTape?.reach && { label: 'Reach', value: taleOfTape.reach },
+        taleOfTape?.stance && { label: 'Stance', value: taleOfTape.stance },
+        taleOfTape?.weightClass && { label: 'Division', value: taleOfTape.weightClass },
+        taleOfTape?.record?.summary && { label: 'Record', value: taleOfTape.record.summary }
       ].filter(Boolean)
     : []
 
