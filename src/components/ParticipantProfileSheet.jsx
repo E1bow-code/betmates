@@ -93,13 +93,24 @@ export default function ParticipantProfileSheet({ name, sport, onClose }) {
         profile.height && { label: 'Height', value: profile.height },
         profile.weight && { label: 'Weight', value: profile.weight },
         age !== null && { label: 'Age', value: String(age) },
-        profile.status && { label: 'Status', value: profile.status, tone: profile.status === 'Active' ? 'good' : 'bad' },
-        taleOfTape?.reach && { label: 'Reach', value: taleOfTape.reach },
-        taleOfTape?.stance && { label: 'Stance', value: taleOfTape.stance },
-        taleOfTape?.weightClass && { label: 'Division', value: taleOfTape.weightClass },
-        taleOfTape?.record?.summary && { label: 'Record', value: taleOfTape.record.summary }
+        profile.status && { label: 'Status', value: profile.status, tone: profile.status === 'Active' ? 'good' : 'bad' }
       ].filter(Boolean)
     : []
+  // Kept separate from statTiles rather than merged in above: profile and
+  // taleOfTape come from two independent lookups (TheSportsDB vs ESPN) that
+  // can disagree - a fighter ESPN has indexed but TheSportsDB hasn't is a
+  // real, confirmed-live case (TheSportsDB's coverage is broad but not
+  // MMA-specific, ESPN is a direct UFC data partner). Keeping this list on
+  // its own means the tale-of-tape card can still render on its own below
+  // when that happens, instead of the whole section silently disappearing
+  // behind the profile === null branch just because ONE of the two sources
+  // came up empty.
+  const taleOfTapeTiles = [
+    taleOfTape?.reach && { label: 'Reach', value: taleOfTape.reach },
+    taleOfTape?.stance && { label: 'Stance', value: taleOfTape.stance },
+    taleOfTape?.weightClass && { label: 'Division', value: taleOfTape.weightClass },
+    taleOfTape?.record?.summary && { label: 'Record', value: taleOfTape.record.summary }
+  ].filter(Boolean)
 
   const socials = profile
     ? [
@@ -109,18 +120,31 @@ export default function ParticipantProfileSheet({ name, sport, onClose }) {
       ].filter(Boolean)
     : []
 
-  const hasNothing = profile && !profile.bio && statTiles.length === 0 && socials.length === 0 && !profile.photo
+  const hasNothing = profile && !profile.bio && statTiles.length === 0 && taleOfTapeTiles.length === 0 && socials.length === 0 && !profile.photo
 
   return (
     <div className={`sheet-backdrop${closing ? ' closing' : ''}`} onClick={requestClose}>
       <div className={`sheet profile-sheet${closing ? ' closing' : ''}`} onClick={(e) => e.stopPropagation()}>
         <div className="sheet-handle" />
         {profile === undefined && <div className="loading">Loading…</div>}
-        {profile === null && (
+        {profile === null && taleOfTapeTiles.length === 0 && (
           <>
             <h2 className="sheet-title">{name}</h2>
             <p className="hint">No extra profile data found for this name.</p>
           </>
+        )}
+        {profile === null && taleOfTapeTiles.length > 0 && (
+          <div className="player-card">
+            <h2 className="player-card-name">{name}</h2>
+            <div className="stat-tiles player-card-stats">
+              {taleOfTapeTiles.map((t) => (
+                <div key={t.label} className="stat-tile">
+                  <div className="stat-tile-value">{t.value}</div>
+                  <div className="stat-tile-label">{t.label}</div>
+                </div>
+              ))}
+            </div>
+          </div>
         )}
         {profile && (
           <>
@@ -157,9 +181,9 @@ export default function ParticipantProfileSheet({ name, sport, onClose }) {
                 </p>
               )}
 
-              {statTiles.length > 0 && (
+              {(statTiles.length > 0 || taleOfTapeTiles.length > 0) && (
                 <div className="stat-tiles player-card-stats">
-                  {statTiles.map((t) => (
+                  {[...statTiles, ...taleOfTapeTiles].map((t) => (
                     <div key={t.label} className={t.tone ? `stat-tile tone-${t.tone}` : 'stat-tile'}>
                       <div className="stat-tile-value">{t.value}</div>
                       <div className="stat-tile-label">{t.label}</div>

@@ -386,7 +386,8 @@ export default function BetBuilderSheet() {
           body: activitySummary(),
           url: `/#/groups/${groupId}`
         },
-        user.id
+        user.id,
+        'betPosted'
       )
       refreshUser()
       clearSlip()

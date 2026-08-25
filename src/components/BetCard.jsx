@@ -272,10 +272,13 @@ export default function BetCard({ post, memberNames, memberAvatars, variant = 'g
   const live = status === 'open' && selections.some((s) => isLive(s.kickoff, s.sport ?? post.sport))
   const liveChatLeg = live && selections.find((s) => s.eventId && isLive(s.kickoff, s.sport ?? post.sport))
 
-  const openEntries = useMemo(
-    () => (status === 'open' ? [{ selections, sport: post.sport }] : []),
-    [status, selections, post.sport]
-  )
+  // Gated on `live` (kickoff estimate has actually passed), not just
+  // `open` - every open card in a feed independently polls /api/scores
+  // every 30s (see useLiveScores), so a card for a bet that doesn't kick
+  // off until next week has no business polling at all. Confirmed live:
+  // without this, a feed of N open bets was N concurrent pollers even
+  // though only the ones actually in-play could ever get a result back.
+  const openEntries = useMemo(() => (live ? [{ selections, sport: post.sport }] : []), [live, selections, post.sport])
   const liveByEvent = useLiveScores(openEntries)
 
   return (

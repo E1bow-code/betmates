@@ -27,7 +27,7 @@ export default async (req) => {
   }
 
   try {
-    const { accessToken, groupId, friendId, authorId, followersOf, excludeUserId, title, body, url } = await req.json()
+    const { accessToken, groupId, friendId, authorId, followersOf, excludeUserId, title, body, url, gate } = await req.json()
     if (!accessToken || (!groupId && !friendId && !authorId && !followersOf)) {
       return new Response(JSON.stringify({ sent: 0, reason: 'missing accessToken and groupId/friendId/authorId/followersOf' }), {
         status: 200
@@ -72,26 +72,33 @@ export default async (req) => {
     // gates on the recipient's notification_prefs before sending - this
     // real-time path never did, so AccountPage's "Bet posted in a group"
     // toggle silently did nothing, and reactions/comments had no opt-out
-    // at all. groupId/followersOf are both "someone posted a bet" in
-    // spirit, so both read betPosted; authorId (reactions + comments on
-    // YOUR bet) gets its own betActivity toggle. friendId (DMs, challenge
-    // invites) stays ungated, per the comment above.
+    // at all.
     //
-    // betActivity is new - unlike every other prefs key here, which
-    // defaults to false (opt-in) and so is safely absent from existing
-    // rows, this one defaults to true (opt-out, since reaction/comment
-    // pushes already went to everyone) - `!== false` rather than the
-    // `=== true` the other gates use, so an existing profile row that
-    // predates this key keeps getting notified until someone actually
-    // flips it off, not silently muted the moment this shipped.
-    if (groupId || followersOf) {
-      const { data: profiles, error: profilesError } = await supabase.from('profiles').select('id,notification_prefs').in('id', targetUserIds)
+    // groupId/followersOf both fan out to notifyGroup/notifyFollowers
+    // (src/lib/notify.js), which cover more than just "a bet was posted" -
+    // group tournament-started announcements go through the same groupId
+    // path (GroupTournamentSection.jsx). Inferring "gate on betPosted"
+    // from groupId alone (an earlier version of this fix did exactly that)
+    // meant turning off "Bet posted in a group" silently also muted
+    // tournament announcements, with no way to keep one and not the other.
+    // So the CALLER states which pref (if any) applies via `gate` -
+    // BetBuilderSheet.jsx/notifyFollowers pass 'betPosted' for an actual
+    // bet post, GroupTournamentSection.jsx passes nothing and stays
+    // transactional, same treatment as friendId above. authorId (reactions
+    // + comments on YOUR bet) keeps its own hardcoded betActivity gate
+    // rather than going through `gate` too - it's the one opt-OUT (not
+    // opt-in) preference here, since those pushes already went to everyone
+    // before this toggle existed, so `optedIn` below takes an explicit
+    // predicate instead of assuming every gate is `=== true`.
+    const optedIn = async (ids, predicate) => {
+      const { data: profiles, error: profilesError } = await supabase.from('profiles').select('id,notification_prefs').in('id', ids)
       if (profilesError) throw profilesError
-      targetUserIds = profiles.filter((p) => p.notification_prefs?.betPosted === true).map((p) => p.id)
+      return profiles.filter((p) => predicate(p.notification_prefs)).map((p) => p.id)
+    }
+    if (gate) {
+      targetUserIds = await optedIn(targetUserIds, (prefs) => prefs?.[gate] === true)
     } else if (authorId) {
-      const { data: profiles, error: profilesError } = await supabase.from('profiles').select('id,notification_prefs').in('id', targetUserIds)
-      if (profilesError) throw profilesError
-      targetUserIds = profiles.filter((p) => p.notification_prefs?.betActivity !== false).map((p) => p.id)
+      targetUserIds = await optedIn(targetUserIds, (prefs) => prefs?.betActivity !== false)
     }
     if (!targetUserIds.length) return new Response(JSON.stringify({ sent: 0 }), { status: 200 })
 

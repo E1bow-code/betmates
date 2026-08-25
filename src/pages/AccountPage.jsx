@@ -26,6 +26,13 @@ import { FlameIcon, SparkIcon, LockIcon, HandshakeIcon, MegaphoneIcon, TargetIco
 
 const TIER_ICON = { handshake: HandshakeIcon, megaphone: MegaphoneIcon, target: TargetIcon, crown: CrownIcon }
 
+// Every notification pref below defaults to false when absent from a
+// stored profile - reactions/comments (betActivity) is the one exception,
+// since it went to everyone before this toggle existed (see
+// send-push.js). Only list defaults that AREN'T false here; toggleNotification
+// and the checkbox below both read from this so they can't drift apart.
+const NOTIFICATION_PREF_DEFAULTS = { betActivity: true }
+
 const EXPANDED_KEY = 'betmates:accountExpanded'
 
 function loadExpandedGroups() {
@@ -337,9 +344,20 @@ export default function AccountPage() {
     setExclusionSaving(false)
   }
 
+  // Every pref here defaults to false when absent from a stored profile
+  // EXCEPT betActivity, which defaults to true (see its checkbox below) -
+  // `!current[key]` alone flips the wrong thing for it: an existing user
+  // whose profile predates that key has current.betActivity === undefined,
+  // so `!undefined` computes true, the same value the checkbox is already
+  // implicitly showing - the first click looked like a no-op (confirmed
+  // live), and only a second click actually changed anything. Keyed off
+  // NOTIFICATION_PREF_DEFAULTS so toggling always flips the value the
+  // checkbox is actually displaying, not the raw (possibly-missing) stored
+  // one - and so the next opt-out-by-default pref doesn't hit the same bug.
   async function toggleNotification(key) {
     const current = user.notificationPrefs ?? {}
-    await runAsync(() => updateNotificationPrefs({ ...current, [key]: !current[key] }), "Couldn't save that - try again")
+    const effective = current[key] ?? NOTIFICATION_PREF_DEFAULTS[key] ?? false
+    await runAsync(() => updateNotificationPrefs({ ...current, [key]: !effective }), "Couldn't save that - try again")
   }
 
   async function handleSaveName(e) {
@@ -637,7 +655,7 @@ export default function AccountPage() {
 
           <label className="field-check">
             <input type="checkbox" checked={user.notificationPrefs?.betPosted ?? false} onChange={() => toggleNotification('betPosted')} />
-            <span>Bet posted in a group</span>
+            <span>Bet posted in a group, or by someone you follow</span>
           </label>
           <label className="field-check">
             {/* Defaults to true, not false like its siblings here - this is
@@ -648,7 +666,7 @@ export default function AccountPage() {
                 they're actually still getting. */}
             <input
               type="checkbox"
-              checked={user.notificationPrefs?.betActivity ?? true}
+              checked={user.notificationPrefs?.betActivity ?? NOTIFICATION_PREF_DEFAULTS.betActivity}
               onChange={() => toggleNotification('betActivity')}
             />
             <span>Reactions and comments on your bets</span>

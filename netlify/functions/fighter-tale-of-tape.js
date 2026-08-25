@@ -28,6 +28,16 @@ function statValue(stats, name) {
   return stats?.find((s) => s.name === name)?.value ?? null
 }
 
+// A cache miss here means up to 4 sequential fetches (each depends on the
+// previous response's id/$ref, so they can't run in parallel) - without a
+// per-call bound, one slow/hanging ESPN response stalls the whole chain for
+// as long as the platform's own function timeout allows, blocking the
+// profile sheet's open animation the whole time.
+const FETCH_TIMEOUT_MS = 6000
+function fetchWithTimeout(url) {
+  return fetch(url, { signal: AbortSignal.timeout(FETCH_TIMEOUT_MS) })
+}
+
 export default async (req) => {
   const params = new URL(req.url).searchParams
   const name = params.get('name')
@@ -38,7 +48,7 @@ export default async (req) => {
   if (cached !== undefined) return json(cached, 'live-cached')
 
   try {
-    const searchRes = await fetch(`https://site.web.api.espn.com/apis/search/v2?query=${encodeURIComponent(name)}&limit=5`)
+    const searchRes = await fetchWithTimeout(`https://site.web.api.espn.com/apis/search/v2?query=${encodeURIComponent(name)}&limit=5`)
     if (!searchRes.ok) throw new Error(`ESPN search: ${searchRes.status}`)
     const searchData = await searchRes.json()
     const playerGroup = searchData?.results?.find((r) => r.type === 'player')
@@ -49,7 +59,7 @@ export default async (req) => {
       return json(null, 'live')
     }
 
-    const detailRes = await fetch(`https://sports.core.api.espn.com/v2/sports/mma/leagues/ufc/athletes/${athleteId}`)
+    const detailRes = await fetchWithTimeout(`https://sports.core.api.espn.com/v2/sports/mma/leagues/ufc/athletes/${athleteId}`)
     if (!detailRes.ok) throw new Error(`ESPN athlete: ${detailRes.status}`)
     const detail = await detailRes.json()
 
@@ -59,10 +69,10 @@ export default async (req) => {
     // the-tape card, just without the W-L-D line.
     let record = null
     try {
-      const recordsRes = await fetch(detail.records?.$ref)
+      const recordsRes = await fetchWithTimeout(detail.records?.$ref)
       if (recordsRes.ok) {
         const recordsData = await recordsRes.json()
-        const totalRes = await fetch(recordsData?.items?.[0]?.$ref)
+        const totalRes = await fetchWithTimeout(recordsData?.items?.[0]?.$ref)
         if (totalRes.ok) {
           const total = await totalRes.json()
           record = {
