@@ -58,8 +58,16 @@ async function syncPlusSubscription(admin, subscription) {
       stripe_subscription_id: subscription.id
     })
     .eq('id', userId)
-  if (error) console.error('syncPlusSubscription update error', userId, error.message)
-  else console.log('syncPlusSubscription ok', userId, subscription.status, subscription.id)
+  // Throws, doesn't just log - this write is the actual grant of paid
+  // access. The outer handler's own comment already says "a transient DB
+  // error should fail loudly enough to get retried", but nothing here
+  // ever threw, so it never did: a genuinely-paying subscriber whose
+  // profiles update failed (network blip, not a real data problem) still
+  // got a 200 back to Stripe, which then never retries per the comment's
+  // own documented intent - confirmed by reading straight through, not
+  // eyeballed.
+  if (error) throw new Error(`syncPlusSubscription update failed for ${userId}: ${error.message}`)
+  console.log('syncPlusSubscription ok', userId, subscription.status, subscription.id)
 }
 
 // Mirrors syncPlusSubscription's shape but writes group_subscriptions
@@ -86,13 +94,16 @@ async function syncGroupSubscription(admin, subscription) {
     },
     { onConflict: 'group_id,subscriber_id' }
   )
-  if (error) {
-    console.error('syncGroupSubscription upsert error', groupId, userId, error.message)
-    return
-  }
+  // Both writes below throw rather than log-and-continue, same reasoning
+  // as syncPlusSubscription - a subscriber who's genuinely paid but never
+  // got their group_subscriptions row (or, worse, never got the actual
+  // group_members access row the rest of the app gates everything on)
+  // because of a transient failure deserves a Stripe retry, not a silent
+  // 200.
+  if (error) throw new Error(`syncGroupSubscription upsert failed for group ${groupId}/user ${userId}: ${error.message}`)
   if (isActiveStatus(subscription.status)) {
     const { error: memberError } = await admin.from('group_members').upsert({ group_id: groupId, user_id: userId })
-    if (memberError) console.error('syncGroupSubscription member upsert error', groupId, userId, memberError.message)
+    if (memberError) throw new Error(`syncGroupSubscription member upsert failed for group ${groupId}/user ${userId}: ${memberError.message}`)
   }
   console.log('syncGroupSubscription ok', groupId, userId, subscription.status, subscription.id)
 }
@@ -149,8 +160,8 @@ async function syncConnectAccount(admin, account) {
     .from('groups')
     .update({ stripe_connect_charges_enabled: true })
     .eq('stripe_connect_account_id', account.id)
-  if (error) console.error('syncConnectAccount update error', account.id, error.message)
-  else console.log('syncConnectAccount ok', account.id)
+  if (error) throw new Error(`syncConnectAccount update failed for ${account.id}: ${error.message}`)
+  console.log('syncConnectAccount ok', account.id)
 }
 
 export default async (req) => {
@@ -184,15 +195,30 @@ export default async (req) => {
         await syncPlusSubscription(admin, subscription)
       }
     } else if (event.type === 'customer.subscription.deleted') {
+      // These three writes REVOKE access on cancellation - none of them
+      // checked their own {error} before this (some didn't even
+      // destructure it), so a failed revoke here was invisible, not just
+      // unretried: a user who cancelled kept paid access indefinitely
+      // with nothing in the logs to say why. Now checked and thrown,
+      // same as the sync helpers above.
       const subscription = event.data.object
       if (subscription.metadata?.groupId) {
         const { groupId, userId } = subscription.metadata
-        await admin.from('group_subscriptions').update({ status: subscription.status }).eq('group_id', groupId).eq('subscriber_id', userId)
-        await admin.from('group_members').delete().eq('group_id', groupId).eq('user_id', userId)
+        const { error: subError } = await admin
+          .from('group_subscriptions')
+          .update({ status: subscription.status })
+          .eq('group_id', groupId)
+          .eq('subscriber_id', userId)
+        if (subError) throw new Error(`group_subscriptions revoke failed for group ${groupId}/user ${userId}: ${subError.message}`)
+        const { error: memberError } = await admin.from('group_members').delete().eq('group_id', groupId).eq('user_id', userId)
+        if (memberError) throw new Error(`group_members revoke failed for group ${groupId}/user ${userId}: ${memberError.message}`)
         await notifyGroupSubscriberLeft(admin, groupId, userId)
       } else {
         const userId = await findUserId(admin, subscription)
-        if (userId) await admin.from('profiles').update({ is_premium: false }).eq('id', userId)
+        if (userId) {
+          const { error: profileError } = await admin.from('profiles').update({ is_premium: false }).eq('id', userId)
+          if (profileError) throw new Error(`Plus revoke failed for user ${userId}: ${profileError.message}`)
+        }
       }
     } else if (event.type === 'account.updated') {
       await syncConnectAccount(admin, event.data.object)
