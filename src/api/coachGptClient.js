@@ -24,9 +24,10 @@
 //                                                and the single full leg
 //                                                CoachGPT locked in as its
 //                                                actual lean (else null)
-// accessToken is optional - omitted (local/no-backend mode, or signed out)
-// simply means the free-allowance check can't run, so it degrades to
-// unlimited rather than blocking a mode that was never metered.
+// accessToken is optional only in local/no-backend mode (no Supabase
+// configured at all) - on a real deploy, coachgpt.js now treats a missing
+// or invalid token as at-the-limit, not unlimited, so always send the
+// real one here.
 // Never throws - any network failure resolves to "not configured" so the
 // page can show one consistent unavailable state either way.
 export async function sendCoachGptMessage({ message, history, priorGrounding, accessToken }) {

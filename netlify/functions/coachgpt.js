@@ -35,16 +35,28 @@ const SUPABASE_URL = process.env.VITE_SUPABASE_URL
 const ANON_KEY = process.env.VITE_SUPABASE_ANON_KEY
 const FREE_MONTHLY_MESSAGE_LIMIT = 10
 
-// Missing accessToken/Supabase config means either local/no-backend mode or
-// a signed-out caller - either way there's no per-user allowance to track,
-// so this degrades to "unlimited" rather than blocking a mode that was
-// never metered in the first place.
+// Missing Supabase config means local/no-backend mode, which was never
+// metered in the first place - degrades to "unlimited" same as every
+// other proxy's missing-API-key contract.
+//
+// A missing/invalid accessToken on an otherwise-configured (real,
+// deployed) backend is a DIFFERENT case and must NOT take the same
+// unlimited path - this function is reachable directly over HTTP by
+// anyone, not just through the app's own UI, so "no token" here means
+// "unauthenticated caller", not "local dev". This used to return
+// `limited: false` for both cases, which meant simply omitting
+// accessToken from the request body (or sending a garbage/expired one)
+// bypassed the free/Plus message cap entirely - confirmed live, an
+// unauthenticated curl to this endpoint got a real Claude reply with no
+// allowance check at all. Fails closed now: anything that isn't a real,
+// currently-valid session is treated as at the limit.
 async function checkMessageAllowance(accessToken) {
-  if (!accessToken || !SUPABASE_URL || !ANON_KEY) return { limited: false }
+  if (!SUPABASE_URL || !ANON_KEY) return { limited: false }
+  if (!accessToken) return { limited: true }
 
   const userClient = createClient(SUPABASE_URL, ANON_KEY, { global: { headers: { Authorization: `Bearer ${accessToken}` } } })
   const { data: userData, error: userError } = await userClient.auth.getUser()
-  if (userError || !userData?.user) return { limited: false }
+  if (userError || !userData?.user) return { limited: true }
 
   const { data: profile } = await userClient.from('profiles').select('is_premium').eq('id', userData.user.id).single()
   if (profile?.is_premium) return { limited: false }

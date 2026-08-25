@@ -15,13 +15,35 @@
 // that rather than ANTHROPIC_API_KEY because Netlify's AI Gateway silently
 // intercepts the latter in local `netlify dev` (see coachgpt.js for the full
 // story); production was never affected, but the rename sidesteps it everywhere.
+import { createClient } from '@supabase/supabase-js'
 import { requestCoachTake } from '../../src/lib/coach.js'
+
+const SUPABASE_URL = process.env.VITE_SUPABASE_URL
+const ANON_KEY = process.env.VITE_SUPABASE_ANON_KEY
 
 function json(body, status = 200) {
   return new Response(JSON.stringify(body), {
     status,
     headers: { 'content-type': 'application/json' }
   })
+}
+
+// This function is reachable directly over HTTP by anyone, not just through
+// the app's own UI - unlike coachgpt.js (which has a real free/Plus message
+// cap to enforce), this feature has no per-user limit of its own, so this
+// isn't rate-limiting, just identity. Confirmed live: with no check at all
+// here, a fully signed-out caller with no account could still generate real
+// Claude completions against invented bet-shaped data, burning the same
+// COACH_ANTHROPIC_KEY budget coachgpt.js is trying to meter. Same
+// missing-Supabase-config-degrades-to-open contract as checkMessageAllowance
+// in coachgpt.js - only a genuinely unconfigured (local/no-backend) deploy
+// skips this.
+async function isRealUser(accessToken) {
+  if (!SUPABASE_URL || !ANON_KEY) return true
+  if (!accessToken) return false
+  const userClient = createClient(SUPABASE_URL, ANON_KEY, { global: { headers: { Authorization: `Bearer ${accessToken}` } } })
+  const { data, error } = await userClient.auth.getUser()
+  return !error && !!data?.user
 }
 
 export default async (req) => {
@@ -36,6 +58,8 @@ export default async (req) => {
   } catch {
     return json({ configured: true, error: 'Bad request body' }, 400)
   }
+
+  if (!(await isRealUser(body?.accessToken))) return json({ configured: true, take: null })
 
   // Bet review - only settled bets are worth a reaction; an open bet has no
   // outcome to react to.
