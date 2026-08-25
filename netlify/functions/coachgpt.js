@@ -5,8 +5,18 @@
 // job via the ordinary data layer (dataStore.js's
 // listCoachMessages/addCoachMessage), not this function's.
 //
-// Missing ANTHROPIC_API_KEY degrades like every other proxy here:
+// Missing COACH_ANTHROPIC_KEY degrades like every other proxy here:
 // { configured: false } at HTTP 200, never a crash.
+//
+// Named COACH_ANTHROPIC_KEY, not ANTHROPIC_API_KEY - Netlify's AI Gateway
+// silently intercepts the latter name in local `netlify dev` and swaps in
+// its own short-lived proxy token, which this function then sends straight
+// to api.anthropic.com and gets a real 401 back. Confirmed live: the
+// intercepted value was a fresh ~413-char JWT every dev-server restart,
+// completely invisible in netlify dev's own env-injection log (it's
+// neither the .env.local value nor the dashboard value). Production was
+// never affected - the interception is local-dev-only - but the rename
+// avoids the collision everywhere rather than just working around it locally.
 //
 // One real auth check DOES exist here now (P2-M): the free/Plus message
 // allowance needs to know who's asking, so the client sends its Supabase
@@ -385,7 +395,7 @@ function matchRecommendation(recommendation, grounding) {
 export default async (req) => {
   if (req.method !== 'POST') return json({ configured: true, error: 'POST only' }, 405)
 
-  const apiKey = process.env.ANTHROPIC_API_KEY
+  const apiKey = process.env.COACH_ANTHROPIC_KEY
   if (!apiKey) return json({ configured: false })
 
   let body

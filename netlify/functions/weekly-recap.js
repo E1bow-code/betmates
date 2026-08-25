@@ -15,7 +15,9 @@ const VAPID_PUBLIC_KEY = process.env.VITE_VAPID_PUBLIC_KEY
 const VAPID_PRIVATE_KEY = process.env.VAPID_PRIVATE_KEY
 // Optional: when set, the recap push leads with a one-line Coach's take on the
 // week instead of the bare numbers. Unset -> the numeric body below, unchanged.
-const ANTHROPIC_API_KEY = process.env.ANTHROPIC_API_KEY
+// Named COACH_ANTHROPIC_KEY, not ANTHROPIC_API_KEY - see coachgpt.js's header
+// comment for why (Netlify's AI Gateway intercepts the latter in local dev).
+const ANTHROPIC_API_KEY = process.env.COACH_ANTHROPIC_KEY
 
 export default async (req) => {
   if (!SUPABASE_URL || !SERVICE_ROLE_KEY || !VAPID_PUBLIC_KEY || !VAPID_PRIVATE_KEY) {

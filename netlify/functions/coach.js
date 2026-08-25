@@ -9,9 +9,12 @@
 // identifying leaves the browser and the request body stays tiny. Stateless:
 // data in, coaching out.
 //
-// Missing ANTHROPIC_API_KEY degrades like every other proxy here: it returns
+// Missing COACH_ANTHROPIC_KEY degrades like every other proxy here: it returns
 // { configured: false } (HTTP 200) and the UI simply hides/skips rather than
-// erroring. Set ANTHROPIC_API_KEY in the Netlify env to switch it on.
+// erroring. Set COACH_ANTHROPIC_KEY in the Netlify env to switch it on - named
+// that rather than ANTHROPIC_API_KEY because Netlify's AI Gateway silently
+// intercepts the latter in local `netlify dev` (see coachgpt.js for the full
+// story); production was never affected, but the rename sidesteps it everywhere.
 import { requestCoachTake } from '../../src/lib/coach.js'
 
 function json(body, status = 200) {
@@ -24,7 +27,7 @@ function json(body, status = 200) {
 export default async (req) => {
   if (req.method !== 'POST') return json({ configured: true, error: 'POST only' }, 405)
 
-  const apiKey = process.env.ANTHROPIC_API_KEY
+  const apiKey = process.env.COACH_ANTHROPIC_KEY
   if (!apiKey) return json({ configured: false })
 
   let body

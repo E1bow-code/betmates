@@ -1,6 +1,6 @@
 // Fetch wrappers for the Coach function (netlify/functions/coach.js). Each
 // sends a different already-aggregated shape and gets back:
-//   { configured: false }        - no ANTHROPIC_API_KEY set in prod; hide the section
+//   { configured: false }        - no COACH_ANTHROPIC_KEY set in prod; hide the section
 //   { configured: true, take }   - the coaching text, or take: null when there's
 //                                  nothing to say / upstream was unavailable
 // Never throws - any network failure resolves to "not configured" so the

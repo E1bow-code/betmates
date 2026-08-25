@@ -16,7 +16,7 @@
 
 // Preferred model first, then a fallback the key is far more likely to have
 // access to. A turn tries the preferred model; if THAT model is the problem
-// (e.g. the configured ANTHROPIC_API_KEY isn't entitled to it - a 404
+// (e.g. the configured key isn't entitled to it - a 404
 // model-not-found), it drops to the next rather than failing the whole reply,
 // since a coach that silently says nothing is worse than one on a slightly
 // smaller model. A bad key or rate limit fails identically on every model, so

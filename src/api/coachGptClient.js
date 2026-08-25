@@ -1,7 +1,7 @@
 // Fetch wrapper for the CoachGPT function (netlify/functions/coachgpt.js).
 // Sends the new message plus the recent turns already held in page state
 // and returns:
-//   { configured: false }                     - no ANTHROPIC_API_KEY set;
+//   { configured: false }                     - no COACH_ANTHROPIC_KEY set;
 //                                                show a "not available
 //                                                here" state
 //   { configured: true, limited: true, reply:
