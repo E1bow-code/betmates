@@ -95,10 +95,23 @@ export default async (req) => {
       if (profilesError) throw profilesError
       return profiles.filter((p) => predicate(p.notification_prefs)).map((p) => p.id)
     }
-    if (gate) {
-      targetUserIds = await optedIn(targetUserIds, (prefs) => prefs?.[gate] === true)
-    } else if (authorId) {
+    // authorId is checked BEFORE gate, not merely instead of it - this
+    // function is a public endpoint any authenticated caller can hit
+    // directly with their own request body, not just through notify.js's
+    // own call shapes, so a caller passing `authorId` alongside an
+    // unrelated `gate` value (e.g. one of their own opted-in prefs) must
+    // not be able to swap out the hardcoded betActivity check for
+    // whichever pref happens to favour them - reaction/comment pushes on
+    // someone else's bet always respect that one specific opt-out,
+    // full stop. `gate` itself is also constrained to the one key a
+    // legitimate caller actually sends (notify.js's notifyGroup/
+    // notifyFollowers), rather than trusting an arbitrary caller-supplied
+    // string as a notification_prefs property name.
+    const ALLOWED_GATES = new Set(['betPosted'])
+    if (authorId) {
       targetUserIds = await optedIn(targetUserIds, (prefs) => prefs?.betActivity !== false)
+    } else if (gate && ALLOWED_GATES.has(gate)) {
+      targetUserIds = await optedIn(targetUserIds, (prefs) => prefs?.[gate] === true)
     }
     if (!targetUserIds.length) return new Response(JSON.stringify({ sent: 0 }), { status: 200 })
 
