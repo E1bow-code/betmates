@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { useAuth } from '../context/AuthContext.jsx'
 import { useOddsFormat } from '../context/OddsFormatContext.jsx'
 import * as dataStore from '../lib/dataStore.js'
@@ -20,6 +20,8 @@ import Avatar from './Avatar.jsx'
 import UserLink from './UserLink.jsx'
 import EditBetSheet from './EditBetSheet.jsx'
 import LiveBadge from './LiveBadge.jsx'
+import LiveScoreTag from './LiveScoreTag.jsx'
+import { useLiveScores } from '../lib/liveScores.js'
 import FixtureChatSheet from './FixtureChatSheet.jsx'
 import MatchupBanner from './MatchupBanner.jsx'
 import {
@@ -270,6 +272,12 @@ export default function BetCard({ post, memberNames, memberAvatars, variant = 'g
   const live = status === 'open' && selections.some((s) => isLive(s.kickoff, s.sport ?? post.sport))
   const liveChatLeg = live && selections.find((s) => s.eventId && isLive(s.kickoff, s.sport ?? post.sport))
 
+  const openEntries = useMemo(
+    () => (status === 'open' ? [{ selections, sport: post.sport }] : []),
+    [status, selections, post.sport]
+  )
+  const liveByEvent = useLiveScores(openEntries)
+
   return (
     <div className={`bet-card status-${status}`}>
       <div className="bet-card-header">
@@ -412,9 +420,13 @@ export default function BetCard({ post, memberNames, memberAvatars, variant = 'g
 
             {selections.map((selection, i) => {
               const badge = participantBadge(selection, post.sport)
+              const liveGame = status === 'open' ? liveByEvent.get(selection.event) : null
               return (
               <div key={i} className={selections.length > 1 ? 'bet-card-leg' : undefined}>
-                <div className="selection-event">{selection.event}</div>
+                <div className="selection-event">
+                  {selection.event}
+                  {liveGame && <LiveScoreTag game={liveGame} />}
+                </div>
                 <div className="selection-row">
                   <span>{selection.market}</span>
                   <span className="selection-pick">

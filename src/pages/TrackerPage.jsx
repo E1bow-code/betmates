@@ -34,7 +34,7 @@ import SportIcon from '../components/icons/SportIcons.jsx'
 import TeamBadge from '../components/TeamBadge.jsx'
 import PlayerPhoto from '../components/PlayerPhoto.jsx'
 import { participantBadge } from '../utils/participantBadge.js'
-import LiveBadge from '../components/LiveBadge.jsx'
+import LiveScoreTag from '../components/LiveScoreTag.jsx'
 import { useLiveScores } from '../lib/liveScores.js'
 import { betLineValue, beatTheLineRate } from '../utils/lineValue.js'
 import { betClv, clvSummary } from '../utils/clv.js'
@@ -543,19 +543,5 @@ function ClvTag({ clv }) {
         (you {clv.bet.toFixed(2)} vs close {clv.close.toFixed(2)})
       </span>
     </div>
-  )
-}
-
-function LiveScoreTag({ game }) {
-  const home = game.scores?.find((s) => s.name === game.homeTeam)?.score
-  const away = game.scores?.find((s) => s.name === game.awayTeam)?.score
-  if (!Number.isFinite(home) || !Number.isFinite(away)) return null
-  return (
-    <span className="live-score-tag">
-      <LiveBadge />
-      <span className="live-score">
-        {home}&ndash;{away}
-      </span>
-    </span>
   )
 }
