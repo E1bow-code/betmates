@@ -13,7 +13,7 @@ export function applyTheme(theme) {
   else document.documentElement.removeAttribute('data-theme')
   // Keeps the mobile browser chrome/PWA status bar matching the page
   // instead of staying dark when the page itself has gone light.
-  document.querySelector('meta[name="theme-color"]')?.setAttribute('content', theme === 'light' ? '#f5efe1' : '#15120f')
+  document.querySelector('meta[name="theme-color"]')?.setAttribute('content', theme === 'light' ? '#f1f6ee' : '#0e1a13')
 }
 
 export function setTheme(theme) {

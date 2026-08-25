@@ -1,6 +1,6 @@
-// Earthy/warm set to match the chalkboard palette in style.css, rather
+// Cool/energetic set to match the Floodhouse palette in style.css, rather
 // than the default-Tailwind rainbow every AI-generated avatar picker uses.
-const PALETTE = ['#e0a339', '#d9694f', '#c9a635', '#8a9a5b', '#4f8a8b', '#b56576', '#6b8f71', '#c17817']
+const PALETTE = ['#baff29', '#ef5b4e', '#3fb8af', '#4f8ed9', '#c77dd8', '#e8b34c', '#6bcf7f', '#ff8f5e']
 
 function colorFor(name) {
   let hash = 0

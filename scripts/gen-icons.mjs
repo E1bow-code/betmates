@@ -8,8 +8,8 @@
 import { deflateSync } from 'node:zlib'
 import { writeFileSync, mkdirSync } from 'node:fs'
 
-const BG = [21, 18, 15] // #15120f
-const BALL = [224, 163, 57] // #e0a339
+const BG = [14, 26, 19] // #0e1a13
+const BALL = [186, 255, 41] // #baff29
 const SEAM = BG
 
 // Geometry below is defined on a 100x100 canvas (matches favicon.svg) and
