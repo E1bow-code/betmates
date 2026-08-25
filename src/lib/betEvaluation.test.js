@@ -114,10 +114,17 @@ test('a winning multi with a void leg is re-priced without it', () => {
   assert.equal(voidAdjustedReturn(e, outcomes), 15)
 })
 
-test('no void legs means no correction at all', () => {
+test('no void legs still recomputes the correct stake x odds return', () => {
+  // Security fix: this used to return undefined ("leave potential_return
+  // alone") whenever there was no void leg to adjust, trusting whatever
+  // was already stored - but both bet_posts/manual_entries let a bet's
+  // own author set potential_return to anything via a raw API call up
+  // until settlement, with nothing server-side re-checking it matched
+  // stake x odds. Always recomputing closes that; two legs at the
+  // default odds of 2 each on a GBP 10 stake is 10 x 2 x 2 = 40.
   const e = entry(10, [leg({ market: '1X2', selection: 'Spurs' }), leg({ market: 'Over/Under 2.5', selection: 'Over 2.5' })])
   const { outcomes } = evaluateEntryDetailed(e, games, [])
-  assert.equal(voidAdjustedReturn(e, outcomes), undefined)
+  assert.equal(voidAdjustedReturn(e, outcomes), 40)
 })
 
 test('an all-void bet needs no correction - the stake just comes back', () => {
@@ -165,12 +172,15 @@ test('an undetermined leg resolves to nothing settleable yet', () => {
   assert.equal(resolveSettlement(e, evaluateEntryDetailed(e, games, [])), null)
 })
 
-test('a plain loss or win carries no potentialReturn correction', () => {
+test('a plain loss carries no potentialReturn correction, but a plain win always recomputes it', () => {
   const lost = entry(10, [leg({ market: '1X2', selection: 'Everton' })])
   assert.deepEqual(resolveSettlement(lost, evaluateEntryDetailed(lost, games, [])), { status: 'lost', potentialReturnOverride: undefined })
 
+  // Security fix - see voidAdjustedReturn's comment: a win always writes
+  // the correct stake x odds figure now, not just when a void leg needs
+  // adjusting, so a tampered potential_return can't survive settlement.
   const won = entry(10, [leg({ market: '1X2', selection: 'Spurs' })])
-  assert.deepEqual(resolveSettlement(won, evaluateEntryDetailed(won, games, [])), { status: 'won', potentialReturnOverride: undefined })
+  assert.deepEqual(resolveSettlement(won, evaluateEntryDetailed(won, games, [])), { status: 'won', potentialReturnOverride: 20 })
 })
 
 test('a winning multi with a void leg resolves with the re-priced return', () => {
