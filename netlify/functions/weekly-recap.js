@@ -28,13 +28,27 @@ export default async (req) => {
     const supabase = createClient(SUPABASE_URL, SERVICE_ROLE_KEY)
     webpush.setVapidDetails('mailto:betmates@example.com', VAPID_PUBLIC_KEY, VAPID_PRIVATE_KEY)
 
-    const { data: optedIn } = await supabase.from('profiles').select('id').eq('notification_prefs->>weeklyRecap', 'true')
-    if (!optedIn?.length) return new Response(JSON.stringify({ sent: 0 }), { status: 200 })
-
-    const userIds = optedIn.map((p) => p.id)
     const weekAgo = new Date()
     weekAgo.setDate(weekAgo.getDate() - 7)
     const weekAgoIso = weekAgo.toISOString()
+
+    // Every other scheduled push in this codebase has a watermark
+    // specifically so a repeat invocation in the same window can't
+    // double-send (team_news_notified_at, streak_reminder_sent_date,
+    // kickoff_reminder_sent_at) - this one never did, and unlike its
+    // siblings it has no per-item dedup to fall back on either, so
+    // simply calling this function's public URL twice fanned out a full
+    // duplicate recap to every opted-in user each time. `weekAgoIso`
+    // doubles as the "haven't sent one this week" cutoff - the same
+    // window already used to decide what counts as "this week's bets".
+    const { data: optedIn } = await supabase
+      .from('profiles')
+      .select('id')
+      .eq('notification_prefs->>weeklyRecap', 'true')
+      .or(`weekly_recap_sent_at.is.null,weekly_recap_sent_at.lt.${weekAgoIso}`)
+    if (!optedIn?.length) return new Response(JSON.stringify({ sent: 0 }), { status: 200 })
+
+    const userIds = optedIn.map((p) => p.id)
 
     const [{ data: posts }, { data: manual }, { data: subs }] = await Promise.all([
       supabase
@@ -65,6 +79,7 @@ export default async (req) => {
     }
 
     const sends = []
+    const watermarkUpdates = []
     for (const [userId, entries] of byUser) {
       // Nothing settled this week - a recap saying "£0.00, 0 bets" isn't
       // worth a notification, so those users are skipped rather than sent
@@ -99,6 +114,14 @@ export default async (req) => {
         }
       }
 
+      // Kept in a separate array from `sends` (not counted in the
+      // returned `sent` figure, which should stay a count of actual push
+      // notifications) - set once we've actually decided to send this
+      // user something, not for anyone skipped above (no settled bets,
+      // no subscriptions), otherwise a quiet week would wrongly suppress
+      // next week's real recap too.
+      watermarkUpdates.push(supabase.from('profiles').update({ weekly_recap_sent_at: new Date().toISOString() }).eq('id', userId))
+
       const payload = JSON.stringify({ title, body, url })
       for (const sub of userSubs) {
         sends.push(
@@ -110,6 +133,7 @@ export default async (req) => {
     }
 
     const results = await Promise.allSettled(sends)
+    await Promise.allSettled(watermarkUpdates)
     return new Response(JSON.stringify({ sent: results.filter((r) => r.status === 'fulfilled').length }), {
       status: 200,
       headers: { 'content-type': 'application/json' }
