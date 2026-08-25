@@ -33,7 +33,14 @@
   --bad: #ef5b4e;
   --bad-rgb: 239, 91, 78;
   --bad-dim: #c94a3f;
-  --bad-ink: #fff; /* text on a --bad background - white reads fine against both themes' --bad, so this stays constant rather than flipping per theme like --accent-ink does */
+  /* Text on a --bad background - flips per theme, same reasoning as
+     --accent-ink: dark theme's --bad is bright enough that white text on
+     it only clears 3.35:1 (WCAG AA needs 4.5:1 for normal-size text,
+     e.g. .btn-danger's label) - confirmed with a real luminance
+     calculation, not eyeballed. --bg reads at 5.34:1 instead. Light
+     theme's --bad is dark enough that white already clears AA
+     comfortably (4.81:1), so it keeps the old always-white behavior there. */
+  --bad-ink: #0e1a13;
   --font-display: 'Big Shoulders Display', 'Arial Narrow', sans-serif;
   --font-body: 'IBM Plex Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
   --font-mono: 'IBM Plex Mono', ui-monospace, 'SF Mono', Consolas, 'Roboto Mono', monospace;
@@ -97,12 +104,18 @@
 /* Light mode keeps the same Floodhouse identity - a pale sage/mint paper
    ground with deep pine-black ink, rather than switching to a generic
    white-and-blue SaaS palette. The accent darkens from the dark theme's
-   LED-lime to a deep olive here (same hue, ~4.7:1 against --surface) since
-   the bright dark-mode lime would fail contrast on a light ground - same
-   darkening move the old palette made for its own accent. Toggled via a
-   `data-theme` attribute on <html> (see src/lib/theme.js) instead of
-   prefers-color-scheme, since this is a deliberate, saved user choice
-   rather than following the OS. */
+   LED-lime to a deep olive here since the bright dark-mode lime would
+   fail contrast on a light ground - same darkening move the old palette
+   made for its own accent. --accent and --bad are both darkened one
+   notch further than the first pass shipped with (#5c7f16/#c94436) -
+   both cleared AA against --surface (4.66:1 / 4.81:1) but fell just
+   short against --bg specifically (4.25:1 / 4.39:1, WCAG needs 4.5:1),
+   caught by an actual WCAG contrast calculation post-ship, not
+   eyeballing - both text colors get used directly on --bg in plenty of
+   places (stat-tile values, tone-good/tone-bad text), not just on cards.
+   Toggled via a `data-theme` attribute on <html> (see src/lib/theme.js)
+   instead of prefers-color-scheme, since this is a deliberate, saved
+   user choice rather than following the OS. */
 :root[data-theme='light'] {
   --bg: #f1f6ee;
   --bg-rgb: 241, 246, 238;
@@ -111,12 +124,12 @@
   --border: #cddbc3;
   --text: #13241a;
   --text-dim: #5c7267;
-  --accent: #5c7f16;
-  --accent-rgb: 92, 127, 22;
+  --accent: #557614; /* darkened from #5c7f16 - see comment above */
+  --accent-rgb: 85, 118, 20;
   --accent-dim: #486613;
   --accent-ink: #fbfff5;
-  --bad: #c94436;
-  --bad-rgb: 201, 68, 54;
+  --bad: #c33f31; /* darkened from #c94436 - see comment above */
+  --bad-rgb: 195, 63, 49;
   --bad-dim: #a3392e;
   --bad-ink: #fff;
   color-scheme: light;
