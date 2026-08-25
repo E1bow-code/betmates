@@ -246,10 +246,16 @@ create policy "members post bets as themselves" on bet_posts for insert with che
 -- break the self-report transition into 'won'/'lost'/'void' this policy is
 -- meant to allow. using still gates which rows can be touched at all
 -- (must be open going in); with check only re-confirms ownership.
+-- with check also re-confirms group_id membership (not just ownership,
+-- per the comment above) - without it, an author could repoint an open
+-- post's group_id at a group they were never a member of, injecting it
+-- into that group's feed via the "members read bet posts in their
+-- groups" select policy above, which trusts group_id alone. Mirrors the
+-- same membership check the insert policy already requires.
 create policy "author updates own open bet post" on bet_posts for update using (
   auth.uid() = user_id and status = 'open'
 ) with check (
-  auth.uid() = user_id
+  auth.uid() = user_id and (group_id is null or is_group_member(group_id, auth.uid()))
 );
 create policy "author deletes own open bet post" on bet_posts for delete using (
   auth.uid() = user_id and status = 'open'
@@ -940,7 +946,13 @@ create policy "members read entries for their group's predictors" on predictor_e
 create policy "members submit their own entry" on predictor_entries for insert with check (
   auth.uid() = user_id and exists (select 1 from predictors p where p.id = predictor_entries.predictor_id and is_group_member(p.group_id, auth.uid()))
 );
-create policy "members update their own entry" on predictor_entries for update using (auth.uid() = user_id) with check (auth.uid() = user_id);
+-- with check re-confirms predictor_id still belongs to a group the user
+-- is in, mirroring the insert policy above - without it, a user could
+-- repoint their own entry's predictor_id at a predictor in a group they
+-- were never a member of.
+create policy "members update their own entry" on predictor_entries for update using (auth.uid() = user_id) with check (
+  auth.uid() = user_id and exists (select 1 from predictors p where p.id = predictor_entries.predictor_id and is_group_member(p.group_id, auth.uid()))
+);
 
 -- --- Team news push alerts -------------------------------------------------
 -- netlify/functions/team-news-alerts.js - the push half of the Social tab's
@@ -1044,11 +1056,41 @@ alter table coach_messages add column if not exists grounding jsonb;
 -- reply actually leaned on (netlify/functions/coachgpt.js's
 -- lock_in_recommendation tool, matched back to the full leg from
 -- grounding) and how it settled - null/null until netlify/functions/
--- coach-settle.js resolves it. No new RLS policy: reads reuse the select
--- policy above, and coach-settle.js runs under the service-role key
--- (same as auto-settle.js), which bypasses RLS entirely for the update.
+-- coach-settle.js resolves it. recommendation is legitimately client-
+-- inserted (the real assistant reply's own recommendation, computed
+-- server-side by coachgpt.js and persisted by the client via
+-- addCoachMessage), so it isn't guarded - but result never legitimately
+-- arrives with the insert (the comment above already says as much: null
+-- until coach-settle.js resolves it later). "insert own coach messages"
+-- has no column restriction beyond user_id, so a raw
+-- `insert({ ..., result: 'won' })` bypassed the LLM AND coach-settle.js
+-- entirely, forging an apparent win onto CoachGPT's own scoreboard -
+-- guarded the same way as guard_is_admin/guard_premium_fields above.
 alter table coach_messages add column if not exists recommendation jsonb;
 alter table coach_messages add column if not exists result text check (result in ('won', 'lost', 'void'));
+
+create or replace function guard_coach_message_result()
+returns trigger
+language plpgsql
+security definer
+set search_path = public
+as $$
+begin
+  if auth.role() in ('anon', 'authenticated') then
+    if tg_op = 'INSERT' then
+      new.result := null;
+    else
+      new.result := old.result;
+    end if;
+  end if;
+  return new;
+end;
+$$;
+
+drop trigger if exists guard_coach_message_result_on_coach_messages on coach_messages;
+create trigger guard_coach_message_result_on_coach_messages
+  before insert or update on coach_messages
+  for each row execute function guard_coach_message_result();
 
 -- session_id: groups turns into one conversation. CoachGptPage.jsx starts a
 -- fresh uuid (stored client-side in localStorage) each time the user hits
@@ -1249,6 +1291,16 @@ alter table profiles add column if not exists streak_freezes_used integer not nu
 -- streak_milestone_notified above.
 alter table profiles add column if not exists streak_reminder_sent_date date;
 
+-- Watermark for netlify/functions/weekly-recap.js - every other scheduled
+-- push here has one of these (team_news_notified_at, streak_reminder_
+-- sent_date, kickoff_reminder_sent_at) specifically so a second
+-- invocation in the same window can't double-send; weekly-recap.js never
+-- had one, so simply calling its public URL twice (it has no caller auth
+-- at all, same as its siblings) fanned out a full duplicate push to
+-- every opted-in user with a settled bet that week, each time. No new
+-- RLS policy: "user updates own profile" already covers this.
+alter table profiles add column if not exists weekly_recap_sent_at timestamptz;
+
 -- --- Group tournaments -------------------------------------------------
 -- A seasonal mini-league scoped to one group, ranking every member (not
 -- just two, unlike the `challenges` 1v1 above) by profit or ROI over the
@@ -1405,6 +1457,18 @@ alter table profiles add column if not exists stripe_subscription_id text;
 alter table profiles add column if not exists premium_status text;
 alter table profiles add column if not exists trial_reminder_sent_at timestamptz;
 
+-- Was `before update` only (no insert branch) - guard_is_admin's own
+-- comment right above explains exactly why that's a hole ("The insert
+-- policy has the same hole at sign-up time"), but this trigger was
+-- written without the INSERT case that comment warns about: a fresh
+-- `supabase.from('profiles').insert({ ...normal signup fields...,
+-- is_premium: true })` at account-creation time never touched this
+-- trigger at all (wrong `before update` registration below) AND the
+-- function itself had no `tg_op = 'INSERT'` branch to null these fields
+-- out even if it had fired - free permanent Plus, no Stripe involved.
+-- Confirmed live via a real WCAG-style audit of this file, not
+-- eyeballed. Fixed the same way guard_is_admin already does it: false/
+-- null on insert, hold the previous value on update.
 create or replace function guard_premium_fields()
 returns trigger
 language plpgsql
@@ -1413,12 +1477,21 @@ set search_path = public
 as $$
 begin
   if auth.role() in ('anon', 'authenticated') then
-    new.is_premium := old.is_premium;
-    new.premium_until := old.premium_until;
-    new.stripe_customer_id := old.stripe_customer_id;
-    new.stripe_subscription_id := old.stripe_subscription_id;
-    new.premium_status := old.premium_status;
-    new.trial_reminder_sent_at := old.trial_reminder_sent_at;
+    if tg_op = 'INSERT' then
+      new.is_premium := false;
+      new.premium_until := null;
+      new.stripe_customer_id := null;
+      new.stripe_subscription_id := null;
+      new.premium_status := null;
+      new.trial_reminder_sent_at := null;
+    else
+      new.is_premium := old.is_premium;
+      new.premium_until := old.premium_until;
+      new.stripe_customer_id := old.stripe_customer_id;
+      new.stripe_subscription_id := old.stripe_subscription_id;
+      new.premium_status := old.premium_status;
+      new.trial_reminder_sent_at := old.trial_reminder_sent_at;
+    end if;
   end if;
   return new;
 end;
@@ -1426,7 +1499,7 @@ $$;
 
 drop trigger if exists guard_premium_fields_on_profiles on profiles;
 create trigger guard_premium_fields_on_profiles
-  before update on profiles
+  before insert or update on profiles
   for each row execute function guard_premium_fields();
 
 -- --- Post photos -------------------------------------------------------
@@ -1520,6 +1593,10 @@ alter table groups add column if not exists price_currency text not null default
 alter table groups add column if not exists stripe_connect_account_id text;
 alter table groups add column if not exists stripe_connect_charges_enabled boolean not null default false;
 
+-- Same "before update only, no insert branch" hole guard_premium_fields
+-- had - "any signed-in user can create a group" has no column
+-- restriction, so `insert({ ..., stripe_connect_charges_enabled: true })`
+-- at group-creation time went straight through unguarded.
 create or replace function guard_group_connect_fields()
 returns trigger
 language plpgsql
@@ -1528,8 +1605,13 @@ set search_path = public
 as $$
 begin
   if auth.role() in ('anon', 'authenticated') then
-    new.stripe_connect_account_id := old.stripe_connect_account_id;
-    new.stripe_connect_charges_enabled := old.stripe_connect_charges_enabled;
+    if tg_op = 'INSERT' then
+      new.stripe_connect_account_id := null;
+      new.stripe_connect_charges_enabled := false;
+    else
+      new.stripe_connect_account_id := old.stripe_connect_account_id;
+      new.stripe_connect_charges_enabled := old.stripe_connect_charges_enabled;
+    end if;
   end if;
   return new;
 end;
@@ -1537,7 +1619,7 @@ $$;
 
 drop trigger if exists guard_group_connect_fields_on_groups on groups;
 create trigger guard_group_connect_fields_on_groups
-  before update on groups
+  before insert or update on groups
   for each row execute function guard_group_connect_fields();
 
 -- One row per active-or-lapsed paid membership. season_results-shaped:
