@@ -18,6 +18,17 @@ function json(fights, source) {
   return new Response(JSON.stringify({ fights }), { status: 200, headers })
 }
 
+// Same reasoning as fighter-tale-of-tape.js's identical helper: a cache
+// miss here means a sequential search->results chain plus up to 3
+// parallel lookupevent.php calls, none of which had a bound - one
+// hanging TheSportsDB response stalled the whole request for as long as
+// the platform's own function timeout allows, blocking the profile
+// sheet's open animation the whole time.
+const FETCH_TIMEOUT_MS = 6000
+function fetchWithTimeout(url) {
+  return fetch(url, { signal: AbortSignal.timeout(FETCH_TIMEOUT_MS) })
+}
+
 // A champion's name in strResult carries a trailing "(c)" ("Islam
 // Makhachev (c)") that isn't part of strPlayer, so a straight equality
 // check against fighterName misses and both sides get treated as "not the
@@ -80,7 +91,7 @@ export default async (req) => {
 
   const apiKey = process.env.SPORTSDB_API_KEY || '3'
   try {
-    const searchRes = await fetch(`https://www.thesportsdb.com/api/v1/json/${apiKey}/searchplayers.php?p=${encodeURIComponent(name)}`)
+    const searchRes = await fetchWithTimeout(`https://www.thesportsdb.com/api/v1/json/${apiKey}/searchplayers.php?p=${encodeURIComponent(name)}`)
     if (!searchRes.ok) throw new Error(`TheSportsDB search: ${searchRes.status}`)
     const searchData = await searchRes.json()
     const fighter = searchData?.player?.find((p) => p.strSport === 'Fighting')
@@ -89,7 +100,7 @@ export default async (req) => {
       return json([], 'live')
     }
 
-    const resultsRes = await fetch(`https://www.thesportsdb.com/api/v1/json/${apiKey}/playerresults.php?id=${fighter.idPlayer}`)
+    const resultsRes = await fetchWithTimeout(`https://www.thesportsdb.com/api/v1/json/${apiKey}/playerresults.php?id=${fighter.idPlayer}`)
     if (!resultsRes.ok) throw new Error(`TheSportsDB results: ${resultsRes.status}`)
     const resultsData = await resultsRes.json()
     const recent = (resultsData?.results ?? []).slice(0, 3)
@@ -105,7 +116,7 @@ export default async (req) => {
         }
         if (!r.idEvent) return base
         try {
-          const eventRes = await fetch(`https://www.thesportsdb.com/api/v1/json/${apiKey}/lookupevent.php?id=${r.idEvent}`)
+          const eventRes = await fetchWithTimeout(`https://www.thesportsdb.com/api/v1/json/${apiKey}/lookupevent.php?id=${r.idEvent}`)
           if (!eventRes.ok) return base
           const eventData = await eventRes.json()
           const { opponent, method } = parseResult(eventData?.events?.[0]?.strResult, fighter.strPlayer)
