@@ -24,7 +24,7 @@ import { freezesGranted, computeStreakTransition } from '../utils/dailyStreak.js
  * @property {string} dob
  * @property {string} friendCode
  * @property {string[]} bookmakerPrefs
- * @property {{betPosted: boolean, betSettled: boolean, oddsMoved: boolean, [key: string]: boolean}} notificationPrefs
+ * @property {{betPosted: boolean, betActivity: boolean, betSettled: boolean, oddsMoved: boolean, [key: string]: boolean}} notificationPrefs
  * @property {string} acceptedTermsAt
  * @property {string} createdAt
  * @property {boolean} isAdmin
@@ -198,7 +198,7 @@ function mapProfile(row) {
     dob: row.date_of_birth,
     friendCode: row.friend_code,
     bookmakerPrefs: row.bookmaker_prefs || [],
-    notificationPrefs: row.notification_prefs || { betPosted: true, betSettled: true, oddsMoved: false },
+    notificationPrefs: row.notification_prefs || { betPosted: true, betActivity: true, betSettled: true, oddsMoved: false },
     acceptedTermsAt: row.accepted_terms_at,
     createdAt: row.created_at,
     isAdmin: row.is_admin || false,

@@ -640,6 +640,20 @@ export default function AccountPage() {
             <span>Bet posted in a group</span>
           </label>
           <label className="field-check">
+            {/* Defaults to true, not false like its siblings here - this is
+                the one opt-out (not opt-in) preference, since reaction/
+                comment pushes already went to everyone before this toggle
+                existed (see send-push.js) - showing it unchecked for
+                someone who's never touched it would misrepresent what
+                they're actually still getting. */}
+            <input
+              type="checkbox"
+              checked={user.notificationPrefs?.betActivity ?? true}
+              onChange={() => toggleNotification('betActivity')}
+            />
+            <span>Reactions and comments on your bets</span>
+          </label>
+          <label className="field-check">
             <input type="checkbox" checked={user.notificationPrefs?.betSettled ?? false} onChange={() => toggleNotification('betSettled')} />
             <span>Bet settled</span>
           </label>

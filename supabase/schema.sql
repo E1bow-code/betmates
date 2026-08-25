@@ -13,7 +13,7 @@ create table profiles (
   display_name text not null,
   date_of_birth date not null,
   bookmaker_prefs text[] not null default '{}',
-  notification_prefs jsonb not null default '{"betPosted": true, "betSettled": true, "oddsMoved": false, "kickoffReminders": false}',
+  notification_prefs jsonb not null default '{"betPosted": true, "betActivity": true, "betSettled": true, "oddsMoved": false, "kickoffReminders": false}',
   friend_code text not null unique default upper(substr(md5(random()::text), 1, 6)),
   accepted_terms_at timestamptz not null default now(),
   created_at timestamptz not null default now()

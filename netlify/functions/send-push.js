@@ -43,6 +43,11 @@ export default async (req) => {
     if (friendId) {
       // "friends can read each other's push subscriptions" (schema.sql)
       // covers the read below - no group lookup needed for a 1:1 DM.
+      // Treated as transactional (DMs and challenge invites both go
+      // through this path) - same no-notification_prefs-gate reasoning
+      // alert-checks.js already uses for the trial-ending reminder: a
+      // friend directly messaging or challenging you is rare enough, and
+      // important enough, that it doesn't need its own opt-out.
       targetUserIds = [friendId]
     } else if (authorId) {
       // "commenters can read the bet author's push subscriptions"
@@ -60,6 +65,33 @@ export default async (req) => {
       const { data: members, error: membersError } = await supabase.from('group_members').select('user_id').eq('group_id', groupId)
       if (membersError) throw membersError
       targetUserIds = members.map((m) => m.user_id).filter((id) => id !== excludeUserId)
+    }
+    if (!targetUserIds.length) return new Response(JSON.stringify({ sent: 0 }), { status: 200 })
+
+    // Every scheduled push (auto-settle.js, alert-checks.js, etc.) already
+    // gates on the recipient's notification_prefs before sending - this
+    // real-time path never did, so AccountPage's "Bet posted in a group"
+    // toggle silently did nothing, and reactions/comments had no opt-out
+    // at all. groupId/followersOf are both "someone posted a bet" in
+    // spirit, so both read betPosted; authorId (reactions + comments on
+    // YOUR bet) gets its own betActivity toggle. friendId (DMs, challenge
+    // invites) stays ungated, per the comment above.
+    //
+    // betActivity is new - unlike every other prefs key here, which
+    // defaults to false (opt-in) and so is safely absent from existing
+    // rows, this one defaults to true (opt-out, since reaction/comment
+    // pushes already went to everyone) - `!== false` rather than the
+    // `=== true` the other gates use, so an existing profile row that
+    // predates this key keeps getting notified until someone actually
+    // flips it off, not silently muted the moment this shipped.
+    if (groupId || followersOf) {
+      const { data: profiles, error: profilesError } = await supabase.from('profiles').select('id,notification_prefs').in('id', targetUserIds)
+      if (profilesError) throw profilesError
+      targetUserIds = profiles.filter((p) => p.notification_prefs?.betPosted === true).map((p) => p.id)
+    } else if (authorId) {
+      const { data: profiles, error: profilesError } = await supabase.from('profiles').select('id,notification_prefs').in('id', targetUserIds)
+      if (profilesError) throw profilesError
+      targetUserIds = profiles.filter((p) => p.notification_prefs?.betActivity !== false).map((p) => p.id)
     }
     if (!targetUserIds.length) return new Response(JSON.stringify({ sent: 0 }), { status: 200 })
 

@@ -191,7 +191,7 @@ export function signUp({ email, displayName, dob, referredByCode }) {
     displayName,
     dob,
     bookmakerPrefs: [],
-    notificationPrefs: { betPosted: true, betSettled: true, oddsMoved: false, kickoffReminders: false },
+    notificationPrefs: { betPosted: true, betActivity: true, betSettled: true, oddsMoved: false, kickoffReminders: false },
     friendCode: Math.random().toString(36).slice(2, 8).toUpperCase(),
     acceptedTermsAt: new Date().toISOString(),
     createdAt: new Date().toISOString(),
