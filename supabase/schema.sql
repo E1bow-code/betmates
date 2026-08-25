@@ -305,6 +305,41 @@ create policy "user deletes own open tracker entry" on manual_entries for delete
   auth.uid() = user_id and status = 'open'
 );
 
+-- Neither UPDATE policy above restricts which columns change, only that
+-- the row is open and stays owned by the same user - same shape hole as
+-- guard_premium_fields, but on `selections` instead of a Stripe field.
+-- src/components/EditBetSheet.jsx never exposes editing selections/odds/
+-- market ("a record of what was actually picked at the time, not
+-- something to revise after the fact") - it's insert-time-only by
+-- design, which makes locking it here zero legitimate-use cost. Without
+-- this, a raw update to an OPEN bet's own selections (e.g. once the real
+-- final score is already known) let the score-verified auto-settle path
+-- - the "objective" backstop that isn't just self-reported - confirm a
+-- fabricated result as a genuine, system-verified win.
+create or replace function guard_locked_selections()
+returns trigger
+language plpgsql
+security definer
+set search_path = public
+as $$
+begin
+  if auth.role() in ('anon', 'authenticated') then
+    new.selections := old.selections;
+  end if;
+  return new;
+end;
+$$;
+
+drop trigger if exists guard_locked_selections_on_bet_posts on bet_posts;
+create trigger guard_locked_selections_on_bet_posts
+  before update on bet_posts
+  for each row execute function guard_locked_selections();
+
+drop trigger if exists guard_locked_selections_on_manual_entries on manual_entries;
+create trigger guard_locked_selections_on_manual_entries
+  before update on manual_entries
+  for each row execute function guard_locked_selections();
+
 -- fixtures / odds_snapshots are public reference data cached by the
 -- Netlify Function (netlify/functions/odds-snapshot.js) using the service
 -- role key, so no RLS write policy is needed for anon clients; reads are open.
