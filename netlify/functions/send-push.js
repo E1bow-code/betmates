@@ -33,6 +33,20 @@ export default async (req) => {
         status: 200
       })
     }
+    // Every legitimate caller (src/lib/notify.js) only ever sends an
+    // internal hash route ("/#/tracker", "/#/messages/<id>", ...) - but
+    // this is a public endpoint any authenticated caller can hit directly
+    // with their own request body, and nothing enforced that `url` stays
+    // internal. src/sw.js's notificationclick handler navigates the app
+    // (or opens a new window) straight to whatever `url` a push payload
+    // carries, with no origin check of its own - confirmed live, an
+    // absolute attacker-controlled URL passed through untouched, turning
+    // a trusted-looking BetMates push into a phishing delivery channel to
+    // anyone the caller has a legitimate relationship with (a group-mate,
+    // friend, follower, or even just someone who's commented on their
+    // bet). `//evil.example` is rejected too, not just `https://...` - a
+    // protocol-relative URL is still an absolute one to a browser.
+    const safeUrl = typeof url === 'string' && url.startsWith('/') && !url.startsWith('//') ? url : '/'
 
     webpush.setVapidDetails('mailto:betmates@example.com', VAPID_PUBLIC_KEY, VAPID_PRIVATE_KEY)
     const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
@@ -118,7 +132,7 @@ export default async (req) => {
     const { data: subs, error: subsError } = await supabase.from('push_subscriptions').select('*').in('user_id', targetUserIds)
     if (subsError) throw subsError
 
-    const payload = JSON.stringify({ title, body, url })
+    const payload = JSON.stringify({ title, body, url: safeUrl })
     const results = await Promise.allSettled(
       subs.map((sub) => webpush.sendNotification({ endpoint: sub.endpoint, keys: { p256dh: sub.p256dh, auth: sub.auth_key } }, payload))
     )
