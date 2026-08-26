@@ -502,6 +502,29 @@ body.slip-bar-open .app-content {
   .more-menu-item:hover { background: var(--surface-2); }
 }
 
+/* Discover's own treatment (see MoreMenu.jsx's `featured` prop) - same
+   tinted-card language .limit-warning/.rank-teaser already use for "this
+   deserves a second look", not a new accent style of its own. Breaks out
+   of the flat divided list into its own standalone card so it reads as the
+   one thing here worth tapping first, not just item #1 in a row of equals. */
+.more-menu-item--featured {
+  border: 1px solid var(--accent);
+  border-radius: var(--radius-lg);
+  background: color-mix(in srgb, var(--accent) 12%, transparent);
+  margin: var(--space-4) var(--space-4) var(--space-10);
+  padding: var(--space-14) var(--space-16);
+}
+.more-menu-item--featured .more-menu-item-icon {
+  width: 40px;
+  height: 40px;
+  background: var(--accent);
+  color: var(--accent-ink);
+}
+.more-menu-item--featured .more-menu-item-label { font-size: var(--text-lg); }
+@media (hover: hover) {
+  .more-menu-item--featured:hover { background: color-mix(in srgb, var(--accent) 20%, transparent); }
+}
+
 /* Leading glyph in a soft tile - gives each row a fixed-width anchor so the
    labels line up in a column and the list scans vertically, the same shape
    the bottom nav uses for its icons. */
