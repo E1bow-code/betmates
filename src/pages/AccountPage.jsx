@@ -22,7 +22,7 @@ import InstallGuide from '../components/InstallGuide.jsx'
 import UserLink from '../components/UserLink.jsx'
 import SportHeroBanner from '../components/SportHeroBanner.jsx'
 import { useAsyncAction } from '../lib/useAsyncAction.js'
-import { FlameIcon, SparkIcon, LockIcon, HandshakeIcon, MegaphoneIcon, TargetIcon, CrownIcon } from '../components/icons/Icons.jsx'
+import { FlameIcon, SparkIcon, LockIcon, HandshakeIcon, MegaphoneIcon, TargetIcon, CrownIcon, PencilIcon } from '../components/icons/Icons.jsx'
 
 const TIER_ICON = { handshake: HandshakeIcon, megaphone: MegaphoneIcon, target: TargetIcon, crown: CrownIcon }
 
@@ -436,7 +436,9 @@ export default function AccountPage() {
       <div className="account-hero">
         <label className="avatar-upload">
           <Avatar name={user.displayName} photoUrl={user.avatarUrl} size={64} tier={tier} />
-          <span className="avatar-upload-badge" aria-hidden="true">{avatarUploading ? '…' : '✎'}</span>
+          <span className="avatar-upload-badge" aria-hidden="true">
+            {avatarUploading ? '…' : <PencilIcon width={11} height={11} />}
+          </span>
           <input
             type="file"
             accept="image/*"

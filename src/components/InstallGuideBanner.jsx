@@ -3,7 +3,7 @@ import { isIOS, isStandalone } from '../lib/platform.js'
 import { useInstallPrompt } from '../lib/useInstallPrompt.js'
 import { promptInstall } from '../lib/installPrompt.js'
 import InstallGuide from './InstallGuide.jsx'
-import { DownloadIcon } from './icons/Icons.jsx'
+import { DownloadIcon, XIcon } from './icons/Icons.jsx'
 
 const DISMISSED_KEY = 'betmates:installBannerDismissed'
 
@@ -46,7 +46,7 @@ export default function InstallGuideBanner() {
           )}
         </strong>
         <button className="install-banner-close" onClick={dismiss} aria-label="Dismiss">
-          ✕
+          <XIcon width={14} height={14} />
         </button>
       </div>
       {showNative ? (

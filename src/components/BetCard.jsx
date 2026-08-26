@@ -34,8 +34,10 @@ import {
   DiamondIcon,
   TargetIcon,
   LockIcon,
-  BrokenHeartIcon
+  BrokenHeartIcon,
+  ChevronIcon
 } from './icons/Icons.jsx'
+import { MoreIcon } from './icons/NavIcons.jsx'
 
 const POST_TAG_ICON = {
   horse: HorseIcon,
@@ -317,15 +319,15 @@ export default function BetCard({ post, memberNames, memberAvatars, variant = 'g
               aria-label="More options"
               aria-expanded={showCardMenu}
             >
-              ⋯
+              <MoreIcon width={16} height={16} />
             </button>
           )}
         </div>
       </div>
 
       {/* variant='public' folds Follow, Edit+result, Back this bet, Share
-          image and Block/Report into one menu behind the header's "⋯" -
-          on the old layout these were scattered across a header toggle, a
+          image and Block/Report into one menu behind the header's MoreIcon
+          toggle - on the old layout these were scattered across a header toggle, a
           footer "More" toggle and always-visible buttons, ~9-11 clickable
           elements per card. Copy Bet and the comment toggle stay directly
           visible below since they're the actual engagement mechanic, not
@@ -563,12 +565,13 @@ export default function BetCard({ post, memberNames, memberAvatars, variant = 'g
           )}
           {variant === 'group' && (
             <button
-              className="btn btn-ghost btn-small"
+              className="btn btn-ghost btn-small icon-row"
               type="button"
               onClick={() => setShowMoreActions((v) => !v)}
               aria-expanded={showMoreActions}
             >
-              {showMoreActions ? 'Less ▴' : 'More ▾'}
+              {showMoreActions ? 'Less' : 'More'}
+              <ChevronIcon width={13} height={13} style={showMoreActions ? { transform: 'rotate(180deg)' } : undefined} />
             </button>
           )}
         </div>

@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import * as dataStore from '../lib/dataStore.js'
 import InviteMatesButton from './InviteMatesButton.jsx'
-import { CelebrateIcon } from './icons/Icons.jsx'
+import { CelebrateIcon, XIcon } from './icons/Icons.jsx'
 
 const DISMISSED_KEY = 'betmates:homeInviteDismissed'
 const MIN_BETS = 3
@@ -39,7 +39,7 @@ export default function HomeInviteNudge({ user, entryCount }) {
   return (
     <div className="home-invite-nudge">
       <button className="home-invite-nudge-close" onClick={dismiss} aria-label="Dismiss">
-        ✕
+        <XIcon width={14} height={14} />
       </button>
       <p className="home-invite-nudge-title icon-row">
         <CelebrateIcon /> Betting solo?

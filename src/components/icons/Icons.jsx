@@ -550,6 +550,30 @@ export function XIcon(props) {
   )
 }
 
+// Star - a standing follow/favorite preference (FollowButton.jsx/
+// FollowParticipantButton.jsx/FirstRunWizard.jsx's starter-team picker).
+// `filled` swaps the fill instead of keeping two separate icons around,
+// since every caller already tracks that as a boolean itself.
+export function StarIcon({ filled, ...props }) {
+  return (
+    <svg {...base} {...props} fill={filled ? 'currentColor' : 'none'}>
+      <path d="m12 4 2.3 4.7 5.2.8-3.8 3.7.9 5.1L12 16.6 7.4 18.1l.9-5.1-3.8-3.7 5.2-.8L12 4Z" strokeWidth={filled ? 1.3 : 1.8} />
+    </svg>
+  )
+}
+
+// Down chevron - "show more" affordances that already have their own text
+// label (unlike MoreIcon's bare-glyph "⋯" trigger). Callers rotate it 180°
+// via style={{ transform: 'rotate(180deg)' }} for the collapsed/expanded
+// swap instead of keeping a second up-facing icon around.
+export function ChevronIcon(props) {
+  return (
+    <svg {...base} {...props}>
+      <path d="M6 9.5 12 15.5 18 9.5" strokeWidth={2} />
+    </svg>
+  )
+}
+
 // Dash - void/no-result status.
 export function MinusIcon(props) {
   return (

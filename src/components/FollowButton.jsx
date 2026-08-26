@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import * as dataStore from '../lib/dataStore.js'
 import { useAuth } from '../context/AuthContext.jsx'
 import { useAsyncAction } from '../lib/useAsyncAction.js'
+import { StarIcon } from './icons/Icons.jsx'
 
 // Kickoff reminder + result notification for a fixture with no bet
 // attached - separate from the odds-target alert bell (that's about a
@@ -39,8 +40,9 @@ export default function FollowButton({ sport, eventId, eventLabel, kickoff }) {
   if (following === null) return null
 
   return (
-    <button className="btn btn-ghost btn-small follow-fixture-btn" onClick={toggle} disabled={busy} type="button">
-      {following ? '★ Following' : '☆ Follow'}
+    <button className="btn btn-ghost btn-small follow-fixture-btn icon-row" onClick={toggle} disabled={busy} type="button">
+      <StarIcon width={13} height={13} filled={following} />
+      {following ? 'Following' : 'Follow'}
     </button>
   )
 }

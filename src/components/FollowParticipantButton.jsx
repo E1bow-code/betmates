@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import * as dataStore from '../lib/dataStore.js'
 import { useAuth } from '../context/AuthContext.jsx'
 import { useAsyncAction } from '../lib/useAsyncAction.js'
+import { StarIcon } from './icons/Icons.jsx'
 
 // A standing "always show me this team/player" preference - distinct from
 // FollowButton (which follows one specific upcoming fixture). Surfaced as
@@ -45,7 +46,7 @@ export default function FollowParticipantButton({ sport, name }) {
       aria-label={following ? `Unfollow ${name}` : `Follow ${name}`}
       title={following ? `Following ${name}` : `Follow ${name}`}
     >
-      {following ? '★' : '☆'}
+      <StarIcon width={18} height={18} filled={following} />
     </button>
   )
 }
