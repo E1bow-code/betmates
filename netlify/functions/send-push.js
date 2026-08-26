@@ -1,9 +1,20 @@
-// Fans a Web Push notification out to a group's members. Authenticates to
-// Supabase as the POSTER (their own access token, passed in the request
-// body) rather than a service-role key - this project doesn't have one
-// configured, so push_subscriptions' "group-mates can read subscriptions
-// to notify them" RLS policy (see supabase/schema.sql) does the access
-// control instead of a server bypassing RLS entirely.
+// Fans a Web Push notification out to a group's members, a friend, a bet
+// author's commenters, or a poster's followers. Runs on the service-role
+// key, same as every other push-sending function (auto-settle.js,
+// alert-checks.js, etc.) - it wasn't always: this used to authenticate as
+// the POSTER's own access token and lean on push_subscriptions' RLS
+// policies ("group-mates can read...", "friends can read...", etc., see
+// supabase/schema.sql) to both fetch subscriptions AND enforce that the
+// caller actually had the claimed relationship to the target. Those
+// policies granted raw push credentials (endpoint/keys) to a broad
+// relationship set for that reason, which was more exposure than the
+// feature needed. Now the relationship itself is checked explicitly
+// below (resolveGroupMember/resolveFriend/resolveCommenter/
+// resolveFollower) using the caller's identity resolved from their own
+// access token - same shape as delete-account.js/create-checkout-session.js
+// - and push_subscriptions no longer needs those broad SELECT policies at
+// all (see schema.sql: only "user manages own push subscriptions"
+// remains).
 //
 // Always resolves 200 even on failure - a broken push send should never
 // surface as an error on the bet-posting flow that triggers it (see
@@ -14,15 +25,49 @@ import webpush from 'web-push'
 
 const SUPABASE_URL = process.env.VITE_SUPABASE_URL
 const SUPABASE_ANON_KEY = process.env.VITE_SUPABASE_ANON_KEY
+const SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY
 const VAPID_PUBLIC_KEY = process.env.VITE_VAPID_PUBLIC_KEY
 const VAPID_PRIVATE_KEY = process.env.VAPID_PRIVATE_KEY
+
+// Each mirrors the exact predicate the RLS policy it replaces used to
+// enforce (see schema.sql's comments on each policy for the reasoning) -
+// callerId always comes from the caller's own resolved access token,
+// never a client-supplied id, so none of these can be spoofed by passing
+// a different id in the request body.
+async function isGroupMember(admin, groupId, callerId) {
+  const { data, error } = await admin.from('group_members').select('user_id').eq('group_id', groupId).eq('user_id', callerId).maybeSingle()
+  if (error) throw error
+  return !!data
+}
+
+async function isFriend(admin, callerId, targetId) {
+  const { data, error } = await admin
+    .from('friendships')
+    .select('id')
+    .or(`and(user_a.eq.${callerId},user_b.eq.${targetId}),and(user_a.eq.${targetId},user_b.eq.${callerId})`)
+    .maybeSingle()
+  if (error) throw error
+  return !!data
+}
+
+async function hasCommentedOn(admin, callerId, authorId) {
+  const { data, error } = await admin
+    .from('bet_comments')
+    .select('id, bet_posts!inner(user_id)')
+    .eq('user_id', callerId)
+    .eq('bet_posts.user_id', authorId)
+    .limit(1)
+    .maybeSingle()
+  if (error) throw error
+  return !!data
+}
 
 export default async (req) => {
   if (req.method !== 'POST') {
     return new Response(JSON.stringify({ error: 'Method not allowed' }), { status: 405 })
   }
 
-  if (!VAPID_PRIVATE_KEY || !VAPID_PUBLIC_KEY || !SUPABASE_URL || !SUPABASE_ANON_KEY) {
+  if (!VAPID_PRIVATE_KEY || !VAPID_PUBLIC_KEY || !SUPABASE_URL || !SUPABASE_ANON_KEY || !SERVICE_ROLE_KEY) {
     return new Response(JSON.stringify({ sent: 0, reason: 'push not configured' }), { status: 200 })
   }
 
@@ -33,6 +78,12 @@ export default async (req) => {
         status: 200
       })
     }
+
+    const authClient = createClient(SUPABASE_URL, SUPABASE_ANON_KEY)
+    const { data: userData, error: userError } = await authClient.auth.getUser(accessToken)
+    if (userError || !userData?.user) return new Response(JSON.stringify({ sent: 0, reason: 'invalid session' }), { status: 200 })
+    const callerId = userData.user.id
+
     // Every legitimate caller (src/lib/notify.js) only ever sends an
     // internal hash route ("/#/tracker", "/#/messages/<id>", ...) - but
     // this is a public endpoint any authenticated caller can hit directly
@@ -49,34 +100,32 @@ export default async (req) => {
     const safeUrl = typeof url === 'string' && url.startsWith('/') && !url.startsWith('//') ? url : '/'
 
     webpush.setVapidDetails('mailto:betmates@example.com', VAPID_PUBLIC_KEY, VAPID_PRIVATE_KEY)
-    const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
-      global: { headers: { Authorization: `Bearer ${accessToken}` } }
-    })
+    const admin = createClient(SUPABASE_URL, SERVICE_ROLE_KEY)
 
     let targetUserIds
     if (friendId) {
-      // "friends can read each other's push subscriptions" (schema.sql)
-      // covers the read below - no group lookup needed for a 1:1 DM.
       // Treated as transactional (DMs and challenge invites both go
       // through this path) - same no-notification_prefs-gate reasoning
       // alert-checks.js already uses for the trial-ending reminder: a
       // friend directly messaging or challenging you is rare enough, and
       // important enough, that it doesn't need its own opt-out.
+      if (!(await isFriend(admin, callerId, friendId))) return new Response(JSON.stringify({ sent: 0 }), { status: 200 })
       targetUserIds = [friendId]
     } else if (authorId) {
-      // "commenters can read the bet author's push subscriptions"
-      // (schema.sql) covers this - scoped to only whoever the caller has
-      // actually just commented on, not a blanket grant.
+      // Scoped tightly to "the caller has actually just commented on one
+      // of this author's bets", not a blanket grant.
+      if (!(await hasCommentedOn(admin, callerId, authorId))) return new Response(JSON.stringify({ sent: 0 }), { status: 200 })
       targetUserIds = [authorId]
     } else if (followersOf) {
-      // "followed users can read their followers' push subscriptions"
-      // (schema.sql) covers the read below - followersOf is always the
-      // caller's own id here (you can only announce your own new posts).
-      const { data: followers, error: followersError } = await supabase.from('follows').select('follower_id').eq('following_id', followersOf)
+      // followersOf must be the caller's own id - you can only announce
+      // your own new posts to your own followers, never someone else's.
+      if (followersOf !== callerId) return new Response(JSON.stringify({ sent: 0 }), { status: 200 })
+      const { data: followers, error: followersError } = await admin.from('follows').select('follower_id').eq('following_id', followersOf)
       if (followersError) throw followersError
       targetUserIds = followers.map((f) => f.follower_id)
     } else {
-      const { data: members, error: membersError } = await supabase.from('group_members').select('user_id').eq('group_id', groupId)
+      if (!(await isGroupMember(admin, groupId, callerId))) return new Response(JSON.stringify({ sent: 0 }), { status: 200 })
+      const { data: members, error: membersError } = await admin.from('group_members').select('user_id').eq('group_id', groupId)
       if (membersError) throw membersError
       targetUserIds = members.map((m) => m.user_id).filter((id) => id !== excludeUserId)
     }
@@ -105,7 +154,7 @@ export default async (req) => {
     // before this toggle existed, so `optedIn` below takes an explicit
     // predicate instead of assuming every gate is `=== true`.
     const optedIn = async (ids, predicate) => {
-      const { data: profiles, error: profilesError } = await supabase.from('profiles').select('id,notification_prefs').in('id', ids)
+      const { data: profiles, error: profilesError } = await admin.from('profiles').select('id,notification_prefs').in('id', ids)
       if (profilesError) throw profilesError
       return profiles.filter((p) => predicate(p.notification_prefs)).map((p) => p.id)
     }
@@ -129,7 +178,7 @@ export default async (req) => {
     }
     if (!targetUserIds.length) return new Response(JSON.stringify({ sent: 0 }), { status: 200 })
 
-    const { data: subs, error: subsError } = await supabase.from('push_subscriptions').select('*').in('user_id', targetUserIds)
+    const { data: subs, error: subsError } = await admin.from('push_subscriptions').select('*').in('user_id', targetUserIds)
     if (subsError) throw subsError
 
     const payload = JSON.stringify({ title, body, url: safeUrl })

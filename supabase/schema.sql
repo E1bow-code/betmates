@@ -479,20 +479,17 @@ create table push_subscriptions (
 
 alter table push_subscriptions enable row level security;
 
+-- Deliberately the ONLY select policy - push_subscriptions holds raw Web
+-- Push credentials (endpoint/keys), and every legitimate reader is a
+-- Netlify Function on the service-role key (auto-settle.js,
+-- alert-checks.js, send-push.js, etc.), which bypasses RLS entirely and
+-- doesn't need a policy at all. send-push.js used to authenticate as the
+-- poster's own token instead and relied on broader read policies here
+-- (group-mates/friends/commenters/followers) to both fetch subscriptions
+-- AND enforce the relationship - moved to service-role plus explicit
+-- relationship checks in code, so those policies are gone rather than
+-- narrowed.
 create policy "user manages own push subscriptions" on push_subscriptions for all using (auth.uid() = user_id) with check (auth.uid() = user_id);
-
--- netlify/functions/send-push.js authenticates as the poster (their own
--- access token, not a service-role key - there isn't one configured for
--- this project) and needs to look up their group-mates' subscriptions to
--- fan a notification out to them. Broadens read access to "anyone who
--- shares a group with you" rather than only your own rows.
-create policy "group-mates can read push subscriptions to notify them" on push_subscriptions for select using (
-  exists (
-    select 1 from group_members mine
-    join group_members theirs on theirs.group_id = mine.group_id
-    where mine.user_id = auth.uid() and theirs.user_id = push_subscriptions.user_id
-  )
-);
 
 -- Kickoff reminders (netlify/functions/alert-checks.js, a scheduled
 -- function) need to scan every user's open bets, not just one poster's own
@@ -678,44 +675,6 @@ drop trigger if exists profiles_sync_referral_count on profiles;
 create trigger profiles_sync_referral_count
 after insert on profiles
 for each row execute function sync_referral_count();
-
--- --- Direct message push notifications ------------------------------------
--- Same idea as the group-mates policy above, but for friends instead of
--- group members - lets the sender's own token (see send-push.js's friendId
--- branch) look up the recipient's subscription to notify them of a new DM.
-create policy "friends can read each other's push subscriptions" on push_subscriptions for select using (
-  exists (
-    select 1 from friendships f
-    where (f.user_a = auth.uid() and f.user_b = push_subscriptions.user_id)
-       or (f.user_b = auth.uid() and f.user_a = push_subscriptions.user_id)
-  )
-);
-
--- --- Bet comment push notifications -----------------------------------
--- Same idea again, for send-push.js's authorId branch: a comment can land
--- on a public-feed post from someone who's neither a group-mate nor a
--- friend of the poster, so neither policy above would cover it. Scoped
--- tightly to "you've actually just commented on one of their bets", not a
--- blanket grant.
-create policy "commenters can read the bet author's push subscriptions" on push_subscriptions for select using (
-  exists (
-    select 1 from bet_comments c
-    join bet_posts p on p.id = c.bet_id
-    where c.user_id = auth.uid() and p.user_id = push_subscriptions.user_id
-  )
-);
-
--- --- New-pick push notifications for followers -----------------------
--- send-push.js's followersOf branch: the poster's own token needs to read
--- their followers' subscriptions to announce a new public pick. followersOf
--- is always the caller's own id (auth.uid()), so this only ever exposes a
--- follower's subscription to the specific person they chose to follow.
-create policy "followed users can read their followers' push subscriptions" on push_subscriptions for select using (
-  exists (
-    select 1 from follows f
-    where f.following_id = auth.uid() and f.follower_id = push_subscriptions.user_id
-  )
-);
 
 -- --- Responsible gambling: spending limit -----------------------------
 -- A self-set weekly/monthly stake cap (see src/pages/AccountPage.jsx and
