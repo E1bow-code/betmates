@@ -146,6 +146,7 @@ export default function ManualEntrySheet({ userId, onClose, onSaved }) {
         potentialReturn
       })
       refreshUser()
+      showToast('Saved to Tracker')
       onSaved?.()
       onClose()
     } catch (err) {
