@@ -1016,11 +1016,25 @@ export async function createBetPost(post) {
 // the key stored on bet_posts.photo_url is the object path, not a
 // resolved URL; getPostPhotoUrl below resolves a short-lived signed URL
 // per read, same as getVideoPlaybackUrl.
+// Mirrors the storage.buckets file_size_limit/allowed_mime_types set
+// server-side (see supabase/schema.sql's migration) - this is purely a
+// nicer failure mode, not the real gate: it fails fast with a clear
+// message instead of uploading megabytes only to have Supabase Storage
+// reject it at the end. A direct API call bypassing the client still hits
+// the actual bucket-level limit regardless of whether this check exists.
+function assertUploadAllowed(file, maxBytes, allowedTypes, label) {
+  if (file.size > maxBytes) throw new Error(`${label} must be under ${Math.round(maxBytes / 1024 / 1024)}MB.`)
+  if (file.type && !allowedTypes.includes(file.type)) {
+    throw new Error(`${label} must be a ${allowedTypes.map((t) => t.split('/')[1]).join(', ')} file.`)
+  }
+}
+
 const PHOTO_EXT_BY_MIME = { 'image/jpeg': 'jpg', 'image/png': 'png', 'image/webp': 'webp', 'image/gif': 'gif' }
 
 /** @param {string} userId @param {Blob} blob @returns {Promise<string>} */
 export async function uploadPostPhoto(userId, blob) {
   if (!isSupabaseConfigured) return local.uploadPostPhoto(userId, blob)
+  assertUploadAllowed(blob, 10 * 1024 * 1024, Object.keys(PHOTO_EXT_BY_MIME), 'Photo')
   const ext = PHOTO_EXT_BY_MIME[blob.type] || 'jpg'
   const path = `${userId}/${Date.now()}.${ext}`
   const { error } = await supabase.storage.from('post-photos').upload(path, blob)
@@ -1043,6 +1057,7 @@ export async function getPostPhotoUrl(photoKey) {
 /** @param {string} userId @param {Blob} blob @returns {Promise<string>} */
 export async function uploadPostVideo(userId, blob) {
   if (!isSupabaseConfigured) return local.uploadPostVideo(userId, blob)
+  assertUploadAllowed(blob, 50 * 1024 * 1024, Object.keys(VIDEO_EXT_BY_MIME), 'Video')
   const ext = VIDEO_EXT_BY_MIME[blob.type] || 'webm'
   const path = `${userId}/${Date.now()}.${ext}`
   const { error } = await supabase.storage.from('post-videos').upload(path, blob)
@@ -1816,6 +1831,7 @@ export async function updateStakingPlan(userId, { bankrollAmount, stakingRule })
 /** @param {string} userId @param {File} file @returns {Promise<string>} */
 export async function uploadAvatar(userId, file) {
   if (!isSupabaseConfigured) return local.uploadAvatar(userId, file)
+  assertUploadAllowed(file, 5 * 1024 * 1024, Object.keys(PHOTO_EXT_BY_MIME), 'Photo')
   const ext = file.name.split('.').pop() || 'jpg'
   const path = `${userId}/avatar.${ext}`
   const { error: uploadError } = await supabase.storage.from('avatars').upload(path, file, { upsert: true })
@@ -2050,6 +2066,7 @@ const VIDEO_EXT_BY_MIME = { 'video/webm': 'webm', 'video/mp4': 'mp4', 'video/qui
 /** @param {string} userId @param {Blob} blob @returns {Promise<string>} */
 export async function uploadVideoBlob(userId, blob) {
   if (!isSupabaseConfigured) return local.uploadVideoBlob(userId, blob)
+  assertUploadAllowed(blob, 50 * 1024 * 1024, Object.keys(VIDEO_EXT_BY_MIME), 'Video')
   const ext = VIDEO_EXT_BY_MIME[blob.type] || 'webm'
   const path = `${userId}/${Date.now()}.${ext}`
   const { error } = await supabase.storage.from('videos').upload(path, blob)
