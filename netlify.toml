@@ -50,6 +50,16 @@
 # 'unsafe-inline' on style-src covers this app's extensive use of inline
 # style={{}} for computed values (avatar sizing, dynamic widths) - there's no
 # script-src equivalent, so scripts stay locked to specific origins only.
+#
+# CORS: deliberately not set anywhere, on any of the 34 functions - checked,
+# not assumed (curl -X OPTIONS against a live endpoint with a foreign Origin
+# header back confirmed no Access-Control-Allow-Origin comes back from
+# anything here). No header means browsers only allow same-origin JS to call
+# these, which is exactly right: this is a same-origin SPA, nothing here is
+# meant to be called from another site's browser JS, and an explicit
+# Access-Control-Allow-Origin naming just betmates.org would be a no-op
+# anyway - CORS only ever gates cross-origin requests, so the app's own
+# same-origin calls were never affected by its absence either way.
 [[headers]]
   for = "/*"
   [headers.values]
