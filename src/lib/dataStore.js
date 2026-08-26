@@ -19,9 +19,9 @@ import { freezesGranted, computeStreakTransition } from '../utils/dailyStreak.js
 /**
  * @typedef {object} Profile
  * @property {string} id
- * @property {string} email
+ * @property {string|null} email
  * @property {string} displayName
- * @property {string} dob
+ * @property {string|null} dob
  * @property {string} friendCode
  * @property {string[]} bookmakerPrefs
  * @property {{betPosted: boolean, betActivity: boolean, betSettled: boolean, oddsMoved: boolean, [key: string]: boolean}} notificationPrefs
@@ -188,14 +188,18 @@ import { freezesGranted, computeStreakTransition } from '../utils/dailyStreak.js
  * @property {string} generatedAt
  */
 
-/** @param {any} row @returns {Profile|null} */
-function mapProfile(row) {
+// privateRow is profile_private's own row (email/date_of_birth split out
+// of profiles - see schema.sql) - undefined for a caller that never
+// fetched it, not just missing on the row, since every real caller of
+// mapProfile is reading its OWN profile and always has one to pass.
+/** @param {any} row @param {{email: string, date_of_birth: string}} [privateRow] @returns {Profile|null} */
+function mapProfile(row, privateRow) {
   if (!row) return null
   return {
     id: row.id,
-    email: row.email,
+    email: privateRow?.email ?? null,
     displayName: row.display_name,
-    dob: row.date_of_birth,
+    dob: privateRow?.date_of_birth ?? null,
     friendCode: row.friend_code,
     bookmakerPrefs: row.bookmaker_prefs || [],
     notificationPrefs: row.notification_prefs || { betPosted: true, betActivity: true, betSettled: true, oddsMoved: false },
@@ -290,7 +294,9 @@ export async function getSession() {
   // still holds a valid, unexpired token) - that's a legitimate "signed
   // out" outcome here, not an error worth a 406 in the console.
   const { data: profile } = await supabase.from('profiles').select('*').eq('id', authUser.id).maybeSingle()
-  return mapProfile(profile)
+  if (!profile) return null
+  const { data: privateProfile } = await supabase.from('profile_private').select('email, date_of_birth').eq('id', authUser.id).maybeSingle()
+  return mapProfile(profile, privateProfile)
 }
 
 // The raw Supabase access token, for the handful of Netlify functions that
@@ -337,16 +343,22 @@ export async function signUp({ email, password, displayName, dob, referredByCode
     .from('profiles')
     .insert({
       id: authUser.id,
-      email,
       display_name: displayName,
-      date_of_birth: dob,
       accepted_terms_at: new Date().toISOString(),
       referred_by: referredBy
     })
     .select()
     .single()
   if (profileError) throw profileError
-  return mapProfile(profile)
+
+  const { data: privateProfile, error: privateError } = await supabase
+    .from('profile_private')
+    .insert({ id: authUser.id, email, date_of_birth: dob })
+    .select()
+    .single()
+  if (privateError) throw privateError
+
+  return mapProfile(profile, privateProfile)
 }
 
 /**
@@ -361,7 +373,9 @@ export async function signIn({ email, password }) {
   // auth row can outlive its profiles row (a manual/partial deletion, not
   // just the normal delete-account path, which removes both together).
   const { data: profile } = await supabase.from('profiles').select('*').eq('id', data.user.id).maybeSingle()
-  return mapProfile(profile)
+  if (!profile) return mapProfile(profile)
+  const { data: privateProfile } = await supabase.from('profile_private').select('email, date_of_birth').eq('id', data.user.id).maybeSingle()
+  return mapProfile(profile, privateProfile)
 }
 
 export async function signOut() {

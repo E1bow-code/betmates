@@ -7,16 +7,35 @@
 create extension if not exists "pgcrypto";
 
 -- One row per auth.users user; created at sign-up (see src/lib/dataStore.js).
+-- Deliberately holds nothing sensitive - "signed-in users can read any
+-- profile" below grants any authenticated user the whole row (needed for
+-- the friend-code lookup, the public Feed's author names, follow buttons,
+-- and every embedded profiles(...) join across dataStore.js), so anything
+-- that shouldn't be that widely readable belongs on profile_private
+-- instead, not here.
 create table profiles (
   id uuid primary key references auth.users(id) on delete cascade,
-  email text not null,
   display_name text not null,
-  date_of_birth date not null,
   bookmaker_prefs text[] not null default '{}',
   notification_prefs jsonb not null default '{"betPosted": true, "betActivity": true, "betSettled": true, "oddsMoved": false, "kickoffReminders": false}',
   friend_code text not null unique default upper(substr(md5(random()::text), 1, 6)),
   accepted_terms_at timestamptz not null default now(),
   created_at timestamptz not null default now()
+);
+
+-- Split out of profiles (2026-08-26): email and date_of_birth were on the
+-- broadly-readable table above, meaning any signed-in user could read
+-- either for anyone via the API directly, not just through the app's own
+-- UI (which never asked for them). Neither is actually read anywhere
+-- except the owner's own session (src/lib/dataStore.js's getSession/
+-- signUp/signIn) - email for AccountPage's display, date_of_birth for
+-- nothing at all client-side, purely regulatory capture at signup - so a
+-- separate owner-only table closes the leak without touching any of the
+-- public profile reads above.
+create table profile_private (
+  id uuid primary key references profiles(id) on delete cascade,
+  email text not null,
+  date_of_birth date not null
 );
 
 create table groups (
@@ -120,6 +139,7 @@ create table odds_snapshots (
 -- --- Row Level Security ----------------------------------------------------
 
 alter table profiles enable row level security;
+alter table profile_private enable row level security;
 alter table groups enable row level security;
 alter table group_members enable row level security;
 alter table bet_posts enable row level security;
@@ -134,10 +154,12 @@ create policy "insert own profile" on profiles for insert with check (auth.uid()
 -- Broader than "read own profile only": the friend-code lookup (add a
 -- friend by code), the public Feed (showing author names), and follow
 -- buttons all need to resolve OTHER people's basic profile info, not just
--- your own. Trade-off: email and date_of_birth become readable by any
--- signed-in user, not just the profile owner. Tighten later with a
--- narrower public "handles" view if that's not acceptable.
+-- your own. Safe to grant the whole row now that profiles holds nothing
+-- sensitive - see profile_private below for what isn't.
 create policy "signed-in users can read any profile" on profiles for select using (auth.role() = 'authenticated');
+
+create policy "read own private profile" on profile_private for select using (auth.uid() = id);
+create policy "insert own private profile" on profile_private for insert with check (auth.uid() = id);
 
 -- Creator must be able to read the group back immediately after creating it,
 -- before their own group_members row exists (Supabase's insert().select()
