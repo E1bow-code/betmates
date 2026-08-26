@@ -504,26 +504,29 @@ export async function createGroup(name, userId) {
   return mapGroup(group)
 }
 
+// Goes through the join_group_by_code() function (schema.sql) rather than
+// a client-side lookup-then-insert - RLS can only see the row being
+// inserted, not an out-of-band code, so nothing at the database level
+// could actually validate the code before this; the function does that
+// check itself before inserting, security definer.
 /** @param {string} code @param {string} userId @returns {Promise<Group|null>} */
 export async function joinGroupByCode(code, userId) {
   if (!isSupabaseConfigured) return local.joinGroupByCode(code, userId)
-  const { data: group, error } = await supabase
-    .from('groups')
-    .select('*')
-    .ilike('invite_code', code.trim())
-    .single()
-  if (error || !group) throw new Error('No group found with that invite code.')
-  await supabase.from('group_members').upsert({ group_id: group.id, user_id: userId })
-  return mapGroup(group)
+  const { data, error } = await supabase.rpc('join_group_by_code', { _code: code.trim() })
+  if (error) throw new Error(error.message)
+  return mapGroup(data)
 }
 
 // The lookup half of joinGroupByCode, without the join - lets
 // JoinGroupPage preview a group (and its price) before deciding whether
 // to auto-join or show a paywall, instead of joining unconditionally.
+// Goes through get_group_preview_by_code() (schema.sql), same reasoning
+// as joinGroupByCode above - a private group's row was previously
+// readable by any signed-in user via a raw table select, code or not.
 /** @param {string} code @returns {Promise<Group|null>} */
 export async function getGroupByCode(code) {
   if (!isSupabaseConfigured) return local.getGroupByCode(code)
-  const { data, error } = await supabase.from('groups').select('*').ilike('invite_code', code.trim()).maybeSingle()
+  const { data, error } = await supabase.rpc('get_group_preview_by_code', { _code: code.trim() })
   if (error) throw error
   return mapGroup(data)
 }

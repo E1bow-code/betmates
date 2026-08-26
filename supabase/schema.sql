@@ -161,17 +161,81 @@ create policy "signed-in users can read any profile" on profiles for select usin
 create policy "read own private profile" on profile_private for select using (auth.uid() = id);
 create policy "insert own private profile" on profile_private for insert with check (auth.uid() = id);
 
--- Creator must be able to read the group back immediately after creating it,
--- before their own group_members row exists (Supabase's insert().select()
--- does the INSERT then a SELECT in one request; without this, that
--- read-back gets blocked by RLS and reports as a generic insert failure).
--- Also broad enough for "join with a code": looking a group up by its
--- invite_code has to work before the joiner has a group_members row.
--- Trade-off (same shape as the profiles policy above): any signed-in user
--- can technically list all groups' names/codes, not just ones they're in.
-create policy "signed-in users can read any group" on groups for select using (auth.role() = 'authenticated');
+-- Members (including the creator, whose own group_members row lands a
+-- moment after the groups insert via createGroup - see below) read their
+-- own groups' full rows. Previously "any signed-in user can read any
+-- group", which let anyone list every group's name/invite_code, not just
+-- ones they're in - narrowed now that the code-lookup and discoverable-
+-- browse cases below have their own dedicated, narrower paths.
+create policy "members can read their own groups" on groups for select using (
+  is_group_member(id, auth.uid()) or created_by = auth.uid()
+);
+
+-- SocialFeedPage.jsx's Discover segment needs to browse every group
+-- flagged discoverable, not just ones the caller's already in - name and
+-- price only, same intent as before, just scoped to the one column that
+-- actually makes a group "discoverable" rather than every row.
+create policy "signed-in users can browse discoverable groups" on groups for select using (
+  is_discoverable = true
+);
+
 create policy "any signed-in user can create a group" on groups for insert with check (auth.uid() = created_by);
 create policy "creator renames their group" on groups for update using (auth.uid() = created_by);
+
+-- Narrow, code-gated alternative to the old blanket "read any group" -
+-- JoinGroupPage.jsx previews a group (name/price) before deciding whether
+-- to join or hit a paywall, for a group the caller isn't a member of yet
+-- and that may not be discoverable at all (a private group's whole point).
+-- security definer so it can read past the select policies above; the
+-- gate is knowing the real invite_code, not blanket table access - this
+-- is the fix for groups being enumerable by any signed-in user.
+create or replace function get_group_preview_by_code(_code text)
+returns groups
+language sql
+security definer
+stable
+set search_path = public
+as $$
+  select * from groups where invite_code ilike _code limit 1;
+$$;
+grant execute on function get_group_preview_by_code(text) to authenticated;
+
+-- Replaces joinGroupByCode's old client-side "look the group up, then
+-- insert membership" - group_members' own insert policy below has no way
+-- to check a caller-supplied code against the group being joined (RLS
+-- policies see the row being inserted, not an out-of-band string), so
+-- that path never actually validated the code at the database level: any
+-- signed-in user could add themselves to any free group by id, invite
+-- code or not. This function is the real gate - security definer so it
+-- can insert past group_members' policy too, having done its own check.
+create or replace function join_group_by_code(_code text)
+returns groups
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  target groups;
+begin
+  select * into target from groups where invite_code ilike _code limit 1;
+  if target.id is null then
+    raise exception 'No group found with that invite code.';
+  end if;
+
+  if target.price_amount is not null and not exists (
+    select 1 from group_subscriptions s
+    where s.group_id = target.id and s.subscriber_id = auth.uid() and s.status in ('active', 'trialing')
+  ) then
+    raise exception 'This group needs an active subscription to join.';
+  end if;
+
+  insert into group_members (group_id, user_id) values (target.id, auth.uid())
+  on conflict (group_id, user_id) do nothing;
+
+  return target;
+end;
+$$;
+grant execute on function join_group_by_code(text) to authenticated;
 
 -- A policy on group_members that subqueries group_members itself causes
 -- "infinite recursion detected in policy" - Postgres re-evaluates the same
@@ -570,8 +634,31 @@ alter table direct_messages enable row level security;
 create policy "user reads own direct messages" on direct_messages for select using (
   auth.uid() = sender_id or auth.uid() = recipient_id
 );
+-- security definer for the same reason as is_group_member() above - a raw
+-- subquery here would run under the SENDER's own RLS on blocks ("user
+-- reads own blocks" = auth.uid() = blocker_id), so a sender who isn't the
+-- blocker could never see the recipient's block row and the check below
+-- would silently pass every time. Confirmed live: without this, a blocked
+-- sender's message still went through.
+create or replace function is_blocked_by(_blocker_id uuid, _blocked_id uuid)
+returns boolean
+language sql
+security definer
+stable
+set search_path = public
+as $$
+  select exists (select 1 from blocks where blocker_id = _blocker_id and blocked_id = _blocked_id);
+$$;
+
+-- Messaging is deliberately open to anyone, not just friends (see
+-- PublicProfilePage.jsx's Message button - clickable-profiles made this
+-- reachable from any profile on purpose). What "Block" implies but didn't
+-- actually enforce: the recipient having blocked the sender should stop
+-- a new message landing, even though blocks were originally scoped to
+-- just the public feed (see blocks table comment).
 create policy "user sends direct messages as themselves" on direct_messages for insert with check (
   auth.uid() = sender_id
+  and not is_blocked_by(recipient_id, sender_id)
 );
 
 -- --- Profile photos --------------------------------------------------------
@@ -1670,14 +1757,27 @@ create policy "group owner reads their group's subscriptions" on group_subscript
   exists (select 1 from groups g where g.id = group_id and g.created_by = auth.uid())
 );
 
--- Tightened from the original unconditional "any signed-in user can add
--- themselves" - a paid group can now only be self-joined with an active
--- subscription already on record. Service-role inserts (the webhook,
--- after a successful checkout) bypass RLS entirely, so this only blocks
--- a client trying to skip payment by calling the insert directly.
+-- Tightened twice now: first from the original unconditional "any
+-- signed-in user can add themselves" to require an active subscription
+-- for a paid group (service-role inserts - the webhook, after a
+-- successful checkout - bypass RLS entirely, so this only ever blocked a
+-- client trying to skip payment by calling the insert directly). Second
+-- tightening here: the paid-group check alone still let anyone add
+-- themselves to any FREE group by id, invite code or not, since nothing
+-- checked they were the creator or the group was actually discoverable -
+-- a real invite-code-only group gave zero real protection at the
+-- database level. Direct self-insert now only covers the two genuinely
+-- code-less cases (creating your own group, joining a discoverable one);
+-- a private group by code goes through join_group_by_code() above
+-- instead, which is the only path that actually validates the code.
 drop policy if exists "user joins a group as themselves" on group_members;
 create policy "user joins a group as themselves" on group_members for insert with check (
-  auth.uid() = user_id and (
+  auth.uid() = user_id
+  and (
+    exists (select 1 from groups g where g.id = group_id and g.created_by = auth.uid())
+    or exists (select 1 from groups g where g.id = group_id and g.is_discoverable = true)
+  )
+  and (
     not exists (select 1 from groups g where g.id = group_id and g.price_amount is not null)
     or exists (
       select 1 from group_subscriptions s
