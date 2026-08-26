@@ -5,6 +5,7 @@ import { useOddsFormat } from '../context/OddsFormatContext.jsx'
 import { formatOdds } from '../utils/oddsFormat.js'
 import { useEscapeKey } from '../lib/useEscapeKey.js'
 import { useDelayedClose } from '../lib/useDelayedClose.js'
+import { useToast } from '../context/ToastContext.jsx'
 
 // Opened from the bell button on an outcome row (FixtureDetailPage,
 // FightDetailPage, GenericEventDetailPage - not RaceDetailPage, see
@@ -15,6 +16,7 @@ import { useDelayedClose } from '../lib/useDelayedClose.js'
 export default function OddsAlertSheet({ target, onClose, onCreated }) {
   const { user } = useAuth()
   const { format } = useOddsFormat()
+  const { showToast } = useToast()
   const { closing, requestClose } = useDelayedClose(onClose)
   useEscapeKey(requestClose)
   const [targetPrice, setTargetPrice] = useState(target.currentDecimal.toFixed(2))
@@ -43,6 +45,7 @@ export default function OddsAlertSheet({ target, onClose, onCreated }) {
         targetDecimal: decimal
       })
       onCreated?.(alert)
+      showToast('Alert set')
       onClose()
     } catch (err) {
       setError(err.message)
