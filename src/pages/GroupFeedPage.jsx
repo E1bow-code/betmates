@@ -19,11 +19,14 @@ import { shareOrCopy, groupInviteUrl } from '../lib/share.js'
 import { useAsyncAction } from '../lib/useAsyncAction.js'
 import PullToRefresh from '../components/PullToRefresh.jsx'
 import SportHeroBanner from '../components/SportHeroBanner.jsx'
+import CollapsibleSection from '../components/CollapsibleSection.jsx'
 import CoachGptLink from '../components/CoachGptLink.jsx'
 import { startConnectOnboarding } from '../api/groupBillingClient.js'
 import { computeGroupEarnings } from '../utils/groupEarnings.js'
 import { groupSubscribersToCsv, downloadCsv } from '../lib/csvExport.js'
 import { CommentIcon } from '../components/icons/Icons.jsx'
+
+const EXTRAS_EXPANDED_KEY = 'betmates:groupExtrasExpanded'
 
 export default function GroupFeedPage() {
   const { id } = useParams()
@@ -58,7 +61,22 @@ export default function GroupFeedPage() {
   const [connectError, setConnectError] = useState(null)
   const [subscribers, setSubscribers] = useState(null)
   const [showGoPro, setShowGoPro] = useState(false)
+  // Recap/Coach's take/Leaderboard/Pick'em/Tournament - collapsed by
+  // default so the feed itself (why you're actually here) is the first
+  // thing you see, not five stacked widgets above it. Remembered per
+  // browser once opened, same idea as AccountPage's own group-expansion
+  // memory, not per-group - it's a "do I want to see this stuff" habit,
+  // not something that varies group to group.
+  const [extrasOpen, setExtrasOpen] = useState(() => localStorage.getItem(EXTRAS_EXPANDED_KEY) === '1')
   const runAsync = useAsyncAction()
+
+  function toggleExtras() {
+    setExtrasOpen((open) => {
+      const next = !open
+      localStorage.setItem(EXTRAS_EXPANDED_KEY, next ? '1' : '0')
+      return next
+    })
+  }
 
   function refresh() {
     return Promise.all([dataStore.getGroup(id), dataStore.listBetPosts(id), dataStore.listGroupMembers(id), dataStore.listSharedInGroup(id)])
@@ -280,29 +298,39 @@ export default function GroupFeedPage() {
         <>
           {error && <div className="error">Hmm, couldn't load this group: {error}</div>}
           {!error && items === null && <div className="loading">Catching up on the feed…</div>}
-          {posts && posts.length > 0 && <GroupRecapCard posts={posts} memberNames={memberNames} />}
-          {posts && posts.length > 0 && <GroupCoachTake posts={posts} memberNames={memberNames} />}
-          {posts && posts.length > 0 && (
-            <Leaderboard
-              posts={posts}
-              memberNames={memberNames}
-              currentUserId={user.id}
-              closes={closes}
-              groupId={id}
-              referralCounts={referralCounts}
-            />
-          )}
-          {posts && posts.length > 0 && <PickemLeaderboard posts={posts} memberNames={memberNames} />}
+
           {posts && (
-            <GroupTournamentSection
-              groupId={id}
-              groupName={group?.name ?? 'the group'}
-              posts={posts}
-              memberNames={memberNames}
-              currentUserId={user.id}
-              isCreator={isCreator}
-            />
+            <CollapsibleSection title="Recap, leaderboard & more" open={extrasOpen} onToggle={toggleExtras}>
+              {posts.length > 0 && (
+                <>
+                  <GroupRecapCard posts={posts} memberNames={memberNames} />
+                  <GroupCoachTake posts={posts} memberNames={memberNames} />
+                  <Leaderboard
+                    posts={posts}
+                    memberNames={memberNames}
+                    currentUserId={user.id}
+                    closes={closes}
+                    groupId={id}
+                    referralCounts={referralCounts}
+                  />
+                  <PickemLeaderboard posts={posts} memberNames={memberNames} />
+                </>
+              )}
+              {/* Unlike the four above, a tournament doesn't need any bets
+                  posted yet to start - it scores whatever comes in during its
+                  own window - so this stays reachable even for a brand new,
+                  still-empty group (matches its original, looser gate). */}
+              <GroupTournamentSection
+                groupId={id}
+                groupName={group?.name ?? 'the group'}
+                posts={posts}
+                memberNames={memberNames}
+                currentUserId={user.id}
+                isCreator={isCreator}
+              />
+            </CollapsibleSection>
           )}
+
           {items && !items.length && (
             <EmptyState
               icon={<CommentIcon width={26} height={26} />}
