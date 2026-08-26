@@ -37,7 +37,9 @@ const SPORT_QUERIES = {
   alerts: 'stopwatch timer close up sports',
   group: 'sports bar crowd cheering',
   profile: 'gold medal close up athlete',
-  insights: 'stadium scoreboard lights night'
+  insights: 'stadium scoreboard lights night',
+  friends: 'friends high five celebrating sports',
+  explore: 'stadium wide angle overview crowd'
 }
 
 // The home banner rotates through a different sport each day rather than

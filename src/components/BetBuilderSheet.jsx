@@ -448,7 +448,7 @@ export default function BetBuilderSheet() {
   function notifyPublicFollowers() {
     const title = `${user.displayName} posted a new pick`
     const body = activitySummary()
-    const url = '/#/groups'
+    const url = '/#/dashboard'
     dataStore
       .listBetPostsByUser(user.id)
       .then((posts) => {

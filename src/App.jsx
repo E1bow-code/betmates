@@ -36,8 +36,11 @@ const FixtureDetailPage = lazy(() => import('./pages/FixtureDetailPage.jsx'))
 const RaceDetailPage = lazy(() => import('./pages/RaceDetailPage.jsx'))
 const FightDetailPage = lazy(() => import('./pages/FightDetailPage.jsx'))
 const GenericEventDetailPage = lazy(() => import('./pages/GenericEventDetailPage.jsx'))
-const SocialFeedPage = lazy(() => import('./pages/SocialFeedPage.jsx'))
+const GroupsHomePage = lazy(() => import('./pages/GroupsHomePage.jsx'))
+const GroupsDiscoverPage = lazy(() => import('./pages/GroupsDiscoverPage.jsx'))
 const GroupFeedPage = lazy(() => import('./pages/GroupFeedPage.jsx'))
+const FriendsPage = lazy(() => import('./pages/FriendsPage.jsx'))
+const ExplorePage = lazy(() => import('./pages/ExplorePage.jsx'))
 const JoinGroupPage = lazy(() => import('./pages/JoinGroupPage.jsx'))
 const TrackerPage = lazy(() => import('./pages/TrackerPage.jsx'))
 const AccountPage = lazy(() => import('./pages/AccountPage.jsx'))
@@ -330,8 +333,10 @@ function Shell() {
                   <Route path="/odds/racing/:id" element={<RaceDetailPage />} />
                   <Route path="/odds/ufc/:id" element={<FightDetailPage />} />
                   <Route path="/odds/:sportKey/:id" element={<GenericEventDetailPage />} />
-                  <Route path="/groups" element={<SocialFeedPage />} />
+                  <Route path="/groups" element={<GroupsHomePage />} />
                   <Route path="/groups/:id" element={<GroupFeedPage />} />
+                  <Route path="/groups/discover" element={<GroupsDiscoverPage />} />
+                  <Route path="/friends" element={<FriendsPage />} />
                   <Route path="/join/:code" element={<JoinGroupPage />} />
                   <Route path="/challenge/:code" element={<ChallengePage />} />
                   <Route path="/messages" element={<MessagesInboxPage />} />
@@ -340,6 +345,7 @@ function Shell() {
                   <Route path="/achievements" element={<AchievementsPage />} />
                   <Route path="/insights" element={<InsightsPage />} />
                   <Route path="/coach" element={<CoachGptPage />} />
+                  <Route path="/explore" element={<ExplorePage />} />
                   <Route path="/alerts" element={<NotificationsPage />} />
                   <Route path="/account" element={<AccountPage />} />
                   <Route path="/admin/reports" element={<AdminReportsPage />} />

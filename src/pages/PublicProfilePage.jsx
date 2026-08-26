@@ -33,7 +33,7 @@ export default function PublicProfilePage() {
   const [followBusy, setFollowBusy] = useState(false)
   // null until checked, same as `following` above - Add friend stays
   // instant/no-consent, exactly matching addFriendByCode's existing
-  // behaviour elsewhere in the app (ManageSheet's "add a friend" form).
+  // behaviour elsewhere in the app (FriendsPage's "add a friend" form).
   const [isFriendState, setIsFriendState] = useState(null)
   const [friendBusy, setFriendBusy] = useState(false)
   const runAsync = useAsyncAction()

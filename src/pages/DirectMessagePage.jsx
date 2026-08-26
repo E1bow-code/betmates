@@ -15,7 +15,7 @@ import { CommentIcon } from '../components/icons/Icons.jsx'
 
 // 1:1 chat with a friend - same free-text shape as GroupFeedPage's Chat
 // tab, just between two people instead of a group's members. Reached from
-// the Friends list in ManageSheet.jsx.
+// the friends list on src/pages/FriendsPage.jsx.
 export default function DirectMessagePage() {
   const { friendId } = useParams()
   const { user } = useAuth()
@@ -69,7 +69,7 @@ export default function DirectMessagePage() {
   return (
     <PullToRefresh onRefresh={refresh}>
       <div className="topbar">
-        <Link to="/groups" state={{ segment: 'tips' }} className="back">
+        <Link to="/friends" className="back">
           &larr; Friends
         </Link>
         <div className="topbar-row">

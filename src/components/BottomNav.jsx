@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Link, NavLink } from 'react-router-dom'
+import { Link, NavLink, useLocation } from 'react-router-dom'
 import { useActivity } from '../context/ActivityContext.jsx'
 import { useBetSlip } from '../context/BetSlipContext.jsx'
 import { useEscapeKey } from '../lib/useEscapeKey.js'
@@ -21,9 +21,20 @@ const RIGHT_TABS = [
   { to: '/account', label: 'You', Icon: AccountIcon }
 ]
 
-function renderTab(tab, hasNewActivity, hasUnseenMessages, showStreak, streak) {
+function renderTab(tab, hasNewActivity, hasUnseenMessages, showStreak, streak, pathname) {
+  // Mates now covers two destinations (see MatesSwitcher.jsx) - /groups and
+  // /friends - but they share this one nav slot rather than each getting
+  // their own icon, so the active check widens to match both. NavLink's own
+  // isActive already covers /groups and everything under it (including
+  // /groups/discover) via its default prefix match; only /friends needs
+  // adding by hand.
+  const extraActive = tab.to === '/groups' && pathname === '/friends'
   return (
-    <NavLink key={tab.to} to={tab.to} className={({ isActive }) => (isActive ? 'bottom-nav-item active' : 'bottom-nav-item')}>
+    <NavLink
+      key={tab.to}
+      to={tab.to}
+      className={({ isActive }) => (isActive || extraActive ? 'bottom-nav-item active' : 'bottom-nav-item')}
+    >
       <span className="bottom-nav-icon">
         <tab.Icon />
         {tab.to === '/groups' && (hasNewActivity || hasUnseenMessages) && <span className="bottom-nav-dot" />}
@@ -73,6 +84,7 @@ function AddChooserSheet({ onClose, onLogBet, onPostPrediction }) {
 export default function BottomNav({ onAddClick }) {
   const { hasNewActivity, hasUnseenMessages, streak } = useActivity()
   const { openSheet } = useBetSlip()
+  const { pathname } = useLocation()
   const [showChooser, setShowChooser] = useState(false)
   // Only a live win streak gets the badge - a loss streak nagging you from
   // the nav bar every time you open the app is a bad feeling to build in on
@@ -84,11 +96,11 @@ export default function BottomNav({ onAddClick }) {
       <Link to="/dashboard" className="sidebar-brand">
         BetMates
       </Link>
-      {LEFT_TABS.map((tab) => renderTab(tab, hasNewActivity, hasUnseenMessages, showStreak, streak))}
+      {LEFT_TABS.map((tab) => renderTab(tab, hasNewActivity, hasUnseenMessages, showStreak, streak, pathname))}
       <button type="button" className="bottom-nav-fab" onClick={() => setShowChooser(true)} aria-label="Add">
         <PlusIcon />
       </button>
-      {RIGHT_TABS.map((tab) => renderTab(tab, hasNewActivity, hasUnseenMessages, showStreak, streak))}
+      {RIGHT_TABS.map((tab) => renderTab(tab, hasNewActivity, hasUnseenMessages, showStreak, streak, pathname))}
       {showChooser && (
         <AddChooserSheet
           onClose={() => setShowChooser(false)}

@@ -252,7 +252,7 @@ export default function GroupFeedPage() {
       <SportHeroBanner sport="group" />
       <div className="topbar">
         <Link to="/groups" className="back">
-          &larr; Social
+          &larr; Groups
         </Link>
         <h1>{group?.name ?? 'Group'}</h1>
         {group && (

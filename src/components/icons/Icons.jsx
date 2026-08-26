@@ -1,6 +1,6 @@
 // General-purpose UI icons, same hand-drawn treatment as NavIcons.jsx/
 // SportIcons.jsx - replaces the emoji sprinkled through BetCard.jsx,
-// HomePage.jsx, SocialFeedPage.jsx, BetBuilderSheet.jsx, and friends.
+// HomePage.jsx, GroupsHomePage.jsx, BetBuilderSheet.jsx, and friends.
 // Emoji render as fixed platform glyphs (a different shape on iOS vs.
 // Android vs. Windows, a fixed colour that ignores the theme), which is
 // exactly the kind of generic "obviously AI-built" tell these replace -

@@ -10,6 +10,8 @@ const EXACT = {
   '/dashboard': 'Home',
   '/odds': 'Odds',
   '/groups': 'Mates',
+  '/friends': 'Friends',
+  '/explore': 'Explore',
   '/tracker': 'Tracker',
   '/insights': 'Insights',
   '/achievements': 'Achievements',

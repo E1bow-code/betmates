@@ -131,7 +131,7 @@ function NotificationRow({ item }) {
 
   function goToRowTarget() {
     if (isSocial && item.groupId) navigate(`/groups/${item.groupId}`)
-    else if (isSocial) navigate('/groups', { state: { segment: 'feed' } })
+    else if (isSocial) navigate('/dashboard')
     else navigate('/tracker')
   }
 

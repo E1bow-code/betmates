@@ -2357,8 +2357,8 @@ export async function listSharedWithMe(userId) {
   return data.map(mapSharedVideoRow)
 }
 
-// The merge SocialFeedPage's Tips segment and PublicFeedView's interleaved
-// Home feed both need: own+friends' posts and clips shared with the viewer
+// The merge FriendsPage's tip feed and PublicFeedView's interleaved Home
+// feed both need: own+friends' posts and clips shared with the viewer
 // are two separate queries that can overlap (a friend shares their own
 // clip with you), deduped by id+sharedAt so a shared-and-own copy of the
 // same video never renders twice, sorted by whichever timestamp is more

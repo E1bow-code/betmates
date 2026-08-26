@@ -138,12 +138,23 @@ function AnalyticsIcon(props) {
   )
 }
 
+// Compass - explore rankings and content beyond your own groups/friends.
+function ExploreIcon(props) {
+  return (
+    <svg {...base} {...props}>
+      <circle cx="12" cy="12" r="8.5" strokeWidth={2} />
+      <path d="m15 9-4.2 1.8L9 15l4.2-1.8L15 9Z" strokeWidth={1.4} />
+    </svg>
+  )
+}
+
 // Route -> icon. MoreMenu.jsx looks this up per row; anything without an
 // entry just renders no glyph (the row still works, it's decorative).
 export const MORE_MENU_ICONS = {
   '/odds': DiscoverIcon,
   '/messages': MessagesIcon,
   '/coach': CoachIcon,
+  '/explore': ExploreIcon,
   '/achievements': AchievementsIcon,
   '/insights': InsightsIcon,
   '/hall-of-fame': HallOfFameIcon,

@@ -70,8 +70,8 @@ const REPORT_REASONS = [
 ]
 
 // variant='public' is for the everyone-can-see feed (see
-// src/pages/SocialFeedPage.jsx's Feed segment): swaps the emoji reaction
-// row for a three-way confidence vote and adds a follow button, since
+// src/components/PublicFeedView.jsx, rendered on HomePage): swaps the emoji
+// reaction row for a three-way confidence vote and adds a follow button, since
 // there's no group membership here to imply "these are your mates". Block/
 // report only make sense here too - group posts are already people you
 // chose to be around, not unsolicited exposure.
@@ -205,7 +205,7 @@ export default function BetCard({ post, memberNames, memberAvatars, variant = 'g
       const icon = REACTION_EMOJIS.includes(key) ? key : '🎯'
       const verb = REACTION_EMOJIS.includes(key) ? 'reacted' : `voted "${VOTE_OPTIONS.find((o) => o.key === key)?.label}"`
       const title = live ? `${icon} ${reactorName} ${verb} while your bet's live` : `${icon} ${reactorName} ${verb} on your bet`
-      notifyBetAuthor(post.userId, { title, body: '', url: '/#/groups' })
+      notifyBetAuthor(post.userId, { title, body: '', url: variant === 'public' ? '/#/dashboard' : '/#/groups' })
     }
   }
 
@@ -242,7 +242,7 @@ export default function BetCard({ post, memberNames, memberAvatars, variant = 'g
     setCommentBody('')
     if (!isAuthor) {
       const commenterName = memberNames?.[user.id] ?? user.displayName ?? 'Someone'
-      notifyBetAuthor(post.userId, { title: `💬 ${commenterName} commented`, body, url: '/#/groups' })
+      notifyBetAuthor(post.userId, { title: `💬 ${commenterName} commented`, body, url: variant === 'public' ? '/#/dashboard' : '/#/groups' })
     }
   }
 

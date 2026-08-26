@@ -14,7 +14,8 @@ import { MORE_MENU_ICONS } from './icons/MoreMenuIcons.jsx'
 const ITEM_DESC = {
   '/odds': 'Best odds across the bookies',
   '/messages': 'Chats with your mates',
-  '/coach': 'Ask the AI betting coach'
+  '/coach': 'Ask the AI betting coach',
+  '/explore': 'Leaderboards, tipsters, and sport news'
 }
 
 const EXPANDED_KEY = 'betmates:moreMenuExpanded'
@@ -157,6 +158,7 @@ function MoreMenuContents({ groups, expanded, onToggleGroup, onNavigate }) {
       <MoreMenuItem to="/odds" label="Discover" desc={ITEM_DESC['/odds']} onNavigate={onNavigate} />
       <MoreMenuItem to="/messages" label="Messages" desc={ITEM_DESC['/messages']} badge={hasUnseenMessages} onNavigate={onNavigate} />
       <MoreMenuItem to="/coach" label="CoachGPT" desc={ITEM_DESC['/coach']} onNavigate={onNavigate} />
+      <MoreMenuItem to="/explore" label="Explore" desc={ITEM_DESC['/explore']} onNavigate={onNavigate} />
       {groups.map((group) => (
         <div key={group.key} className="more-menu-group">
           <button type="button" className="more-menu-group-toggle" onClick={() => onToggleGroup(group.key)}>

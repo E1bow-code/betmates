@@ -33,7 +33,7 @@ function resumeStep(group) {
 // Patreon/OnlyFans/Substack-style pitch moment built around the owner's own
 // track record, rather than the bare settings toggle this replaces. Three
 // steps (Pitch -> Price -> Connect) using the exact same
-// computeStats/tipsterBadge chain SocialFeedPage.jsx's Discover tab and
+// computeStats/tipsterBadge chain GroupsDiscoverPage.jsx and
 // JoinGroupPage.jsx's paywall already use, so all three surfaces agree on
 // the same numbers. Once both stripeConnectChargesEnabled and priceAmount
 // are true, GroupFeedPage.jsx stops opening this sheet at all - the

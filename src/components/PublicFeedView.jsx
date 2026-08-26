@@ -1,20 +1,19 @@
 import { forwardRef, useEffect, useImperativeHandle, useMemo, useState } from 'react'
 import { useAuth } from '../context/AuthContext.jsx'
 import * as dataStore from '../lib/dataStore.js'
-import { computeTrendingPicks } from '../utils/trending.js'
 import BetCard from './BetCard.jsx'
 import VideoCard from './VideoCard.jsx'
 import EmptyState from './EmptyState.jsx'
-import SportIcon from './icons/SportIcons.jsx'
-import { FlameIcon, MegaphoneIcon } from './icons/Icons.jsx'
+import { MegaphoneIcon } from './icons/Icons.jsx'
 
 // The public feed - anyone's "post to everyone" picks, regardless of group
 // membership - interleaved with the viewer's Tips (video_posts, strictly
 // friend-scoped by RLS - see schema.sql, no public tier exists for them).
-// Shared between HomePage (the new front door) and SocialFeedPage's Feed
-// segment so both render the same thing instead of each fetching and
-// rendering it independently. Owns its own fetch; exposes refresh() via
-// ref for callers using PullToRefresh (SocialFeedPage) or a manual
+// Shared between HomePage (the front door) and, previously, SocialFeedPage's
+// Feed segment (removed - HomePage already owned this, see
+// src/pages/GroupsHomePage.jsx's header comment) so both rendered the same
+// thing instead of each fetching and rendering it independently. Owns its
+// own fetch; exposes refresh() via ref for callers using a manual
 // "load more"/record-a-tip trigger (HomePage's post-then-land flow).
 //
 // `filter='following'` (from HomePage's segmented pill row) narrows the
@@ -24,11 +23,29 @@ import { FlameIcon, MegaphoneIcon } from './icons/Icons.jsx'
 // dataStore.listFollowing call, not a shared cache. Tips have no
 // "following" relation (only friendship, already a small curated set), so
 // they render on both All and Following regardless of this toggle.
+//
+// The "Trending this week" chip row that used to sit above the feed here
+// moved to src/pages/ExplorePage.jsx (computeTrendingPicks unchanged) - it's
+// a discovery/ranking signal, not feed content, and was competing with the
+// feed itself for the first thing a returning visitor sees.
+// Repeat visitors don't need "here's how posting works" every single time -
+// shown once, same localStorage-flag pattern as MoreMenu.jsx's expand-state
+// memory, so the feed itself is reached without static instructional copy
+// in front of it on every visit.
+const HINT_SEEN_KEY = 'betmates:publicFeedHintSeen'
+
 const PublicFeedView = forwardRef(function PublicFeedView({ filter = 'all' }, ref) {
   const { user } = useAuth()
   const [publicFeed, setPublicFeed] = useState(null)
   const [tipsFeed, setTipsFeed] = useState(null)
   const [followedIds, setFollowedIds] = useState(null)
+  const [showHint, setShowHint] = useState(() => {
+    try {
+      return localStorage.getItem(HINT_SEEN_KEY) !== '1'
+    } catch {
+      return true
+    }
+  })
 
   useEffect(() => {
     load()
@@ -54,7 +71,14 @@ const PublicFeedView = forwardRef(function PublicFeedView({ filter = 'all' }, re
 
   useImperativeHandle(ref, () => ({ refresh: load }))
 
-  const trendingPicks = useMemo(() => (publicFeed ? computeTrendingPicks(publicFeed) : []), [publicFeed])
+  function dismissHint() {
+    try {
+      localStorage.setItem(HINT_SEEN_KEY, '1')
+    } catch {
+      // ignore
+    }
+    setShowHint(false)
+  }
 
   const visibleFeed = useMemo(() => {
     if (!publicFeed || filter !== 'following') return publicFeed
@@ -79,35 +103,16 @@ const PublicFeedView = forwardRef(function PublicFeedView({ filter = 'all' }, re
 
   return (
     <>
-      {filter === 'all' && (
-        <p className="hint">
-          Everyone's picks - tap a price on the Odds tab and choose "Post to everyone" to add yours. Posting to a group
-          instead keeps it just between you and your mates.
+      {filter === 'all' && showHint && (
+        <p className="hint hint-with-action">
+          <span>
+            Everyone's picks - tap a price on the Odds tab and choose "Post to everyone" to add yours. Posting to a group
+            instead keeps it just between you and your mates.
+          </span>
+          <button className="btn btn-ghost btn-small" onClick={dismissHint}>
+            Got it
+          </button>
         </p>
-      )}
-
-      {filter === 'all' && trendingPicks.length > 0 && (
-        <div className="account-section">
-          <h2 className="market-title">
-            <span className="icon-row">
-              <FlameIcon /> Trending this week
-            </span>
-          </h2>
-          <div className="trending-row">
-            {trendingPicks.map((pick, i) => (
-              <div key={pick.key} className="trending-chip">
-                <span className="trending-chip-rank">{i + 1}</span>
-                <SportIcon sport={pick.sport} size={18} />
-                <div>
-                  <div className="trending-chip-pick">{pick.selection}</div>
-                  <div className="trending-chip-meta">
-                    {pick.event} · {pick.count} backing this
-                  </div>
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
       )}
 
       {combinedFeed === null && <div className="loading">Catching up on the feed…</div>}
