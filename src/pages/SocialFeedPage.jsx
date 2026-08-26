@@ -285,7 +285,7 @@ export default function SocialFeedPage() {
             className={(segment === 'discover' ? CHIP_PILL_ACTIVE + ' sport-pill active' : CHIP_PILL + ' sport-pill') + ' icon-row'}
             onClick={() => setSegment('discover')}
           >
-            <SearchIcon width={14} height={14} /> Discover
+            <SearchIcon width={14} height={14} /> Public groups
           </button>
           {showAllSegments ? (
             <>
@@ -322,7 +322,7 @@ export default function SocialFeedPage() {
             </>
           ) : (
             <button className={CHIP_PILL + ' sport-pill'} onClick={() => setMoreSegmentsOpen(true)}>
-              More tabs ▾
+              More sections ▾
             </button>
           )}
         </div>
