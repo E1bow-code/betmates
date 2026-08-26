@@ -15,11 +15,21 @@
 // that rather than ANTHROPIC_API_KEY because Netlify's AI Gateway silently
 // intercepts the latter in local `netlify dev` (see coachgpt.js for the full
 // story); production was never affected, but the rename sidesteps it everywhere.
+//
+// OMNIROUTE_BASE_URL is the opt-in escape hatch to route this call through a
+// self-hosted OmniRoute gateway instead of straight to Anthropic - unset by
+// default, so nothing changes until it's deliberately configured. When set,
+// the credential swaps to OMNIROUTE_API_KEY (an OmniRoute key, not an
+// Anthropic one) and OMNIROUTE_MODEL_PREFIX (e.g. "cc/") is applied to the
+// model id, matching whatever provider prefix that OmniRoute instance was
+// set up with.
 import { createClient } from '@supabase/supabase-js'
 import { requestCoachTake } from '../../src/lib/coach.js'
 
 const SUPABASE_URL = process.env.VITE_SUPABASE_URL
 const ANON_KEY = process.env.VITE_SUPABASE_ANON_KEY
+const OMNIROUTE_BASE_URL = process.env.OMNIROUTE_BASE_URL
+const route = OMNIROUTE_BASE_URL ? { baseUrl: OMNIROUTE_BASE_URL, modelPrefix: process.env.OMNIROUTE_MODEL_PREFIX } : undefined
 
 function json(body, status = 200) {
   return new Response(JSON.stringify(body), {
@@ -49,7 +59,7 @@ async function isRealUser(accessToken) {
 export default async (req) => {
   if (req.method !== 'POST') return json({ configured: true, error: 'POST only' }, 405)
 
-  const apiKey = process.env.COACH_ANTHROPIC_KEY
+  const apiKey = OMNIROUTE_BASE_URL ? process.env.OMNIROUTE_API_KEY : process.env.COACH_ANTHROPIC_KEY
   if (!apiKey) return json({ configured: false })
 
   let body
@@ -65,7 +75,7 @@ export default async (req) => {
   // outcome to react to.
   if (body?.bet) {
     if (!body.bet.status || body.bet.status === 'open') return json({ configured: true, take: null })
-    const take = await requestCoachTake({ bet: body.bet, apiKey, style: 'bet' })
+    const take = await requestCoachTake({ bet: body.bet, apiKey, style: 'bet', route })
     return json({ configured: true, take })
   }
 
@@ -73,7 +83,7 @@ export default async (req) => {
   // to say, same "don't spend a token on nothing" rule as the other styles.
   if (body?.recap) {
     if (!(body.recap.settledCount >= 1)) return json({ configured: true, take: null })
-    const take = await requestCoachTake({ recap: body.recap, apiKey, style: 'group' })
+    const take = await requestCoachTake({ recap: body.recap, apiKey, style: 'group', route })
     return json({ configured: true, take })
   }
 
@@ -82,6 +92,6 @@ export default async (req) => {
   // on "not enough data" - the UI gates on this too.
   if (!(body?.summary?.settled >= 2)) return json({ configured: true, take: null })
 
-  const take = await requestCoachTake({ summary: body.summary, apiKey, style: 'full' })
+  const take = await requestCoachTake({ summary: body.summary, apiKey, style: 'full', route })
   return json({ configured: true, take })
 }

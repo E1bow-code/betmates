@@ -17,7 +17,12 @@ const VAPID_PRIVATE_KEY = process.env.VAPID_PRIVATE_KEY
 // week instead of the bare numbers. Unset -> the numeric body below, unchanged.
 // Named COACH_ANTHROPIC_KEY, not ANTHROPIC_API_KEY - see coachgpt.js's header
 // comment for why (Netlify's AI Gateway intercepts the latter in local dev).
-const ANTHROPIC_API_KEY = process.env.COACH_ANTHROPIC_KEY
+// OMNIROUTE_BASE_URL, when set, routes this same call through a self-hosted
+// OmniRoute gateway instead - see coach.js's header comment for the full
+// contract; unset by default so this keeps hitting Anthropic directly.
+const OMNIROUTE_BASE_URL = process.env.OMNIROUTE_BASE_URL
+const ANTHROPIC_API_KEY = OMNIROUTE_BASE_URL ? process.env.OMNIROUTE_API_KEY : process.env.COACH_ANTHROPIC_KEY
+const COACH_ROUTE = OMNIROUTE_BASE_URL ? { baseUrl: OMNIROUTE_BASE_URL, modelPrefix: process.env.OMNIROUTE_MODEL_PREFIX } : undefined
 
 export default async (req) => {
   if (!SUPABASE_URL || !SERVICE_ROLE_KEY || !VAPID_PUBLIC_KEY || !VAPID_PRIVATE_KEY) {
@@ -105,7 +110,8 @@ export default async (req) => {
         const take = await requestCoachTake({
           summary: { settled: stats.settledCount, winRate: stats.winRate ?? undefined, profit: stats.profit, roi: stats.roi ?? undefined },
           apiKey: ANTHROPIC_API_KEY,
-          style: 'push'
+          style: 'push',
+          route: COACH_ROUTE
         })
         if (take) {
           title = '🧠 Your week, from the Coach'

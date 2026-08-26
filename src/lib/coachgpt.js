@@ -21,9 +21,10 @@
 // since a coach that silently says nothing is worse than one on a slightly
 // smaller model. A bad key or rate limit fails identically on every model, so
 // those stop immediately and surface as a real error instead (see makeCaller).
+import { buildAnthropicRequest } from './anthropicRoute.js'
+
 export const COACHGPT_MODELS = ['claude-opus-5', 'claude-sonnet-5']
 export const COACHGPT_MODEL = COACHGPT_MODELS[0]
-const ANTHROPIC_VERSION = '2023-06-01'
 // Was bumped to 4 alongside web_search, then reverted, then 3 itself was cut
 // to 2 here after confirmed-live evidence: a real "best value bet this
 // weekend?" turn - the flagship broad question this whole tool loop exists
@@ -314,36 +315,32 @@ function systemPromptFor() {
   return `${COACHGPT_SYSTEM}\n\nToday's date is ${new Date().toISOString().slice(0, 10)}.`
 }
 
-async function callClaudeModel(apiKey, model, messages, extra) {
+async function callClaudeModel(apiKey, model, messages, extra, route) {
   try {
-    const res = await fetch('https://api.anthropic.com/v1/messages', {
-      method: 'POST',
-      headers: { 'content-type': 'application/json', 'x-api-key': apiKey, 'anthropic-version': ANTHROPIC_VERSION },
-      body: JSON.stringify({
-        model,
-        // Was 800, briefly tried 1600 and 1100 - both let a real deep-dive
-        // reply either blow the ~30s edge inactivity timeout or, worse, run
-        // out of budget and cut off mid-sentence with no error (confirmed
-        // live both ways). 950 leaves real margin under the timeout; the
-        // Format section below and systemPromptFor's date are what actually
-        // keep a deep answer substantive AND complete rather than trying to
-        // fill the ceiling or burning a slow search on the calendar.
-        max_tokens: 950,
-        // Confirmed live via debug logging: extended thinking was firing on
-        // these calls despite nothing here ever requesting it, and thinking
-        // tokens share the SAME max_tokens ceiling as the visible reply - one
-        // forced-fallback call spent 192 of its 194 output tokens on an
-        // invisible thinking block, leaving an empty string as the actual
-        // answer (surfaced to the user as "couldn't get a straight answer",
-        // indistinguishable from the coach going silent). It also just costs
-        // real generation time for a chat reply nobody reads the reasoning
-        // trace of. Explicitly disabled so every token goes to the answer.
-        thinking: { type: 'disabled' },
-        system: systemPromptFor(),
-        messages,
-        ...extra
-      })
-    })
+    const { url, headers, body } = buildAnthropicRequest(apiKey, model, {
+      // Was 800, briefly tried 1600 and 1100 - both let a real deep-dive
+      // reply either blow the ~30s edge inactivity timeout or, worse, run
+      // out of budget and cut off mid-sentence with no error (confirmed
+      // live both ways). 950 leaves real margin under the timeout; the
+      // Format section below and systemPromptFor's date are what actually
+      // keep a deep answer substantive AND complete rather than trying to
+      // fill the ceiling or burning a slow search on the calendar.
+      max_tokens: 950,
+      // Confirmed live via debug logging: extended thinking was firing on
+      // these calls despite nothing here ever requesting it, and thinking
+      // tokens share the SAME max_tokens ceiling as the visible reply - one
+      // forced-fallback call spent 192 of its 194 output tokens on an
+      // invisible thinking block, leaving an empty string as the actual
+      // answer (surfaced to the user as "couldn't get a straight answer",
+      // indistinguishable from the coach going silent). It also just costs
+      // real generation time for a chat reply nobody reads the reasoning
+      // trace of. Explicitly disabled so every token goes to the answer.
+      thinking: { type: 'disabled' },
+      system: systemPromptFor(),
+      messages,
+      ...extra
+    }, route)
+    const res = await fetch(url, { method: 'POST', headers, body })
     if (!res.ok) {
       const detail = await res.text().catch(() => '')
       let type = ''
@@ -384,13 +381,13 @@ function classifyError(error) {
 // model answers, it's pinned for the rest of the turn so the (up to five)
 // sequential calls in a single turn don't each re-probe a dead preferred
 // model. Returns the same { data } | { error } shape as callClaudeModel.
-function makeCaller(apiKey) {
+function makeCaller(apiKey, route) {
   let chosen = null
   return async (messages, extra) => {
     const models = chosen ? [chosen] : COACHGPT_MODELS
     let lastError = null
     for (const model of models) {
-      const result = await callClaudeModel(apiKey, model, messages, extra)
+      const result = await callClaudeModel(apiKey, model, messages, extra, route)
       if (result.data) {
         chosen = model
         return { data: result.data }
@@ -439,7 +436,7 @@ const LOCK_IN_MODEL = 'claude-haiku-4-5-20251001'
 const LOCK_IN_SYSTEM =
   'You classify one already-written reply from a sports-betting chat assistant. Read it and call lock_in_recommendation: did it name ONE specific selection as its lean?'
 
-async function lockInRecommendation(apiKey, messages, text) {
+async function lockInRecommendation(apiKey, messages, text, route) {
   const followUp = [
     ...messages,
     { role: 'assistant', content: text },
@@ -454,7 +451,7 @@ async function lockInRecommendation(apiKey, messages, text) {
     max_tokens: 200,
     tools: [RECOMMENDATION_TOOL],
     tool_choice: { type: 'tool', name: 'lock_in_recommendation' }
-  })
+  }, route)
   const block = data?.content?.find((b) => b.type === 'tool_use' && b.name === 'lock_in_recommendation')
   return block?.input?.hasPick ? block.input : null
 }
@@ -471,10 +468,10 @@ async function lockInRecommendation(apiKey, messages, text) {
 // "answered fine" - critical because a swallowed API failure used to surface
 // as an empty reply that wrongly blamed the user's phrasing. recommendation is
 // lock_in_recommendation's raw input, or null if it found no real pick.
-export async function runCoachGptTurn({ apiKey, history, message, callTool }) {
+export async function runCoachGptTurn({ apiKey, history, message, callTool, route }) {
   if (!apiKey) return { text: null, recommendation: null, error: 'no_key' }
 
-  const call = makeCaller(apiKey)
+  const call = makeCaller(apiKey, route)
   const messages = [...(history ?? []).map((m) => ({ role: m.role, content: m.content })), { role: 'user', content: message }]
 
   let text = null
@@ -537,6 +534,6 @@ export async function runCoachGptTurn({ apiKey, history, message, callTool }) {
     text += "\n\n*(Ran long and got cut off there, champ - ask me to keep going and I'll pick up where I left off.)*"
   }
 
-  const recommendation = text ? await lockInRecommendation(apiKey, messages, text) : null
+  const recommendation = text ? await lockInRecommendation(apiKey, messages, text, route) : null
   return { text, recommendation, error: null }
 }

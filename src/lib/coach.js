@@ -10,8 +10,9 @@
 // result or suggest a bet, in keeping with BetMates' trust-based,
 // never-places-real-bets design.
 
+import { buildAnthropicRequest } from './anthropicRoute.js'
+
 export const COACH_MODEL = 'claude-opus-5'
-const ANTHROPIC_VERSION = '2023-06-01'
 
 // Turn a rolled-up summary object into a compact, model-friendly briefing.
 // Every field is optional - a brand-new user might only have a couple - so
@@ -166,7 +167,7 @@ export const COACH_GROUP_SYSTEM = [
 // Ask Claude for a take. Returns the text, or null for any reason it can't be
 // produced (no key, empty briefing, upstream error) - callers treat null as
 // "no take to show" and carry on, never surfacing an error.
-export async function requestCoachTake({ summary, bet, recap, apiKey, style = 'full' }) {
+export async function requestCoachTake({ summary, bet, recap, apiKey, style = 'full', route }) {
   if (!apiKey) return null
   const brief = style === 'bet' ? betBriefing(bet ?? {}) : style === 'group' ? groupBriefing(recap ?? {}) : coachBriefing(summary ?? {})
   if (!brief) return null
@@ -175,20 +176,12 @@ export async function requestCoachTake({ summary, bet, recap, apiKey, style = 'f
   const maxTokens = style === 'push' ? 120 : style === 'bet' ? 150 : style === 'group' ? 250 : 350
 
   try {
-    const res = await fetch('https://api.anthropic.com/v1/messages', {
-      method: 'POST',
-      headers: {
-        'content-type': 'application/json',
-        'x-api-key': apiKey,
-        'anthropic-version': ANTHROPIC_VERSION
-      },
-      body: JSON.stringify({
-        model: COACH_MODEL,
-        max_tokens: maxTokens,
-        system,
-        messages: [{ role: 'user', content: `Here is the record:\n\n${brief}\n\nGive me your take.` }]
-      })
-    })
+    const { url, headers, body } = buildAnthropicRequest(apiKey, COACH_MODEL, {
+      max_tokens: maxTokens,
+      system,
+      messages: [{ role: 'user', content: `Here is the record:\n\n${brief}\n\nGive me your take.` }]
+    }, route)
+    const res = await fetch(url, { method: 'POST', headers, body })
     if (!res.ok) {
       const detail = await res.text().catch(() => '')
       console.error(`coach: Anthropic ${res.status}: ${detail.slice(0, 300)}`)

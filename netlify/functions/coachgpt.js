@@ -34,6 +34,12 @@ import { GENERIC_SPORTS, apiKeysForSport, sgoLeagueForSport } from '../../src/li
 const SUPABASE_URL = process.env.VITE_SUPABASE_URL
 const ANON_KEY = process.env.VITE_SUPABASE_ANON_KEY
 const FREE_MONTHLY_MESSAGE_LIMIT = 10
+// OMNIROUTE_BASE_URL is the opt-in escape hatch to route this call through a
+// self-hosted OmniRoute gateway instead of straight to Anthropic - see
+// coach.js's header comment for the full contract. Unset by default, so
+// nothing changes until it's deliberately configured.
+const OMNIROUTE_BASE_URL = process.env.OMNIROUTE_BASE_URL
+const COACH_ROUTE = OMNIROUTE_BASE_URL ? { baseUrl: OMNIROUTE_BASE_URL, modelPrefix: process.env.OMNIROUTE_MODEL_PREFIX } : undefined
 
 // Missing Supabase config means local/no-backend mode, which was never
 // metered in the first place - degrades to "unlimited" same as every
@@ -407,7 +413,7 @@ function matchRecommendation(recommendation, grounding) {
 export default async (req) => {
   if (req.method !== 'POST') return json({ configured: true, error: 'POST only' }, 405)
 
-  const apiKey = process.env.COACH_ANTHROPIC_KEY
+  const apiKey = OMNIROUTE_BASE_URL ? process.env.OMNIROUTE_API_KEY : process.env.COACH_ANTHROPIC_KEY
   if (!apiKey) return json({ configured: false })
 
   let body
@@ -452,7 +458,7 @@ export default async (req) => {
     return { error: `Unknown tool: ${name}` }
   }
 
-  const { text, recommendation, error } = await runCoachGptTurn({ apiKey, history: body?.history, message, callTool })
+  const { text, recommendation, error } = await runCoachGptTurn({ apiKey, history: body?.history, message, callTool, route: COACH_ROUTE })
   const dedupedGrounding = allGrounding.length
     ? Array.from(new Map(allGrounding.map((leg) => [`${leg.selection}-${leg.eventId ?? leg.horseId ?? leg.event}`, leg])).values())
     : null
