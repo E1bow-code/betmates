@@ -1015,6 +1015,25 @@ body.slip-bar-open .app-content {
 }
 .field .input-money input { width: 100%; box-sizing: border-box; padding-left: var(--space-24); }
 
+/* Same positioning idea as .input-money above, mirrored to the right edge
+   for a clickable "Show"/"Hide" toggle instead of a static prefix symbol. */
+.input-password { position: relative; display: block; width: 100%; }
+.field .input-password input { width: 100%; box-sizing: border-box; padding-right: 52px; }
+.input-password-toggle {
+  position: absolute;
+  right: 4px;
+  top: 50%;
+  transform: translateY(-50%);
+  background: none;
+  border: none;
+  padding: var(--space-4) var(--space-8);
+  color: var(--text-dim);
+  font-family: inherit;
+  font-size: var(--text-sm);
+  cursor: pointer;
+}
+.input-password-toggle:hover { color: var(--text); }
+
 .field-check {
   display: flex;
   align-items: flex-start;
