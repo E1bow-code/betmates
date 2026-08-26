@@ -19,7 +19,8 @@ you to review and merge. It never merges or deploys anything itself.
 
 ## Tasks
 
-- [ ] (example — delete or keep) Show a "Copied ✓" toast when Copy Bet is tapped
+- [ ] Add unit tests for `src/utils/format.js` — cover `formatRelativeTime` (just now, minutes, hours, days, weeks, and a future timestamp) and the other exported pure helpers. Tests only, no behaviour change.
+- [ ] When **Copy Bet** is tapped on a feed card, show a confirmation toast (e.g. "Added to your bet slip ✓") using the existing ToastContext — but only if it doesn't already give clear visual feedback. Keep the change scoped to `CopyBetButton.jsx`.
 
 ## Done
 
