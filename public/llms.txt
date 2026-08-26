@@ -1,0 +1,11 @@
+# BetMates
+
+> Social betting tracker. Groups of mates post bet slips, compare bookmaker odds, and settle scores on a leaderboard. BetMates never places real bets or moves real money - it tracks self-logged wagers and shows odds with outbound links to bookmakers.
+
+BetMates is a single-page app; almost everything past the landing page (feeds, groups, tracker, odds, CoachGPT) sits behind sign-in and is not independently crawlable or indexable - there is nothing more to fetch beyond this page and https://betmates.org/og-image.png.
+
+## Key facts
+
+- Free to use. An optional paid tier (BetMates Plus) unlocks extra analytics; the core tracker, group leaderboards, and odds comparison are free either way.
+- Covers football, horse racing, UFC, tennis, and several other sports, comparing prices across major UK bookmakers.
+- 18+, UK gambling-adjacent: see /legal for the Terms & Responsible Gambling notice, and https://www.begambleaware.org for external support.

@@ -16,3 +16,33 @@
   from = "/api/*"
   to = "/.netlify/functions/:splat"
   status = 200
+
+# CSP is scoped to what the client genuinely reaches over the network, not a
+# generic template - confirmed against the actual code, not guessed:
+#   - cdn.jsdelivr.net: Tesseract.js's DEFAULT source for its WASM core and
+#     English language data (src/lib/ocr.js never overrides workerPath/
+#     corePath/langPath) - without this the bet-slip photo scan breaks
+#     silently, not loudly.
+#   - site.api.espn.com / www.thesportsdb.com: src/lib/broadcastLookup.js and
+#     src/lib/playerProfile.js + sportsDbPlayerSearch.js call these directly
+#     from the browser, unlike every other external API in this app (which
+#     goes through netlify/functions/*.js to keep the real key server-side -
+#     these two happen to be keyless public endpoints).
+#   - *.supabase.co (https + wss): the actual backend - REST, Storage
+#     (avatars/photos/videos), and Realtime subscriptions.
+#   - googletagmanager.com/google-analytics.com: src/lib/analytics.js's
+#     optional GA4 - off unless VITE_GA_ID is set, but allowed here so
+#     turning it on later doesn't also require a CSP change.
+#   - fonts.googleapis.com/fonts.gstatic.com: the two Google Fonts the app
+#     actually loads (see index.html).
+# 'unsafe-inline' on style-src covers this app's extensive use of inline
+# style={{}} for computed values (avatar sizing, dynamic widths) - there's no
+# script-src equivalent, so scripts stay locked to specific origins only.
+[[headers]]
+  for = "/*"
+  [headers.values]
+    X-Content-Type-Options = "nosniff"
+    X-Frame-Options = "DENY"
+    Referrer-Policy = "strict-origin-when-cross-origin"
+    Permissions-Policy = "camera=(self), microphone=(self), geolocation=(), payment=()"
+    Content-Security-Policy = "default-src 'self'; script-src 'self' 'wasm-unsafe-eval' https://www.googletagmanager.com https://cdn.jsdelivr.net; worker-src 'self' blob:; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: blob: https://*.supabase.co; media-src 'self' blob: https://*.supabase.co; connect-src 'self' https://*.supabase.co wss://*.supabase.co https://cdn.jsdelivr.net https://site.api.espn.com https://www.thesportsdb.com https://www.googletagmanager.com https://www.google-analytics.com https://*.google-analytics.com; frame-ancestors 'none'; object-src 'none'; base-uri 'self'"
