@@ -291,6 +291,11 @@ export default function GroupFeedPage() {
           <button className={tab === 'predictor' ? 'mode-tab active' : 'mode-tab'} onClick={() => setTab('predictor')}>
             Predictor
           </button>
+          {isCreator && (
+            <button className={tab === 'settings' ? 'mode-tab active' : 'mode-tab'} onClick={() => setTab('settings')}>
+              Settings
+            </button>
+          )}
         </div>
       </div>
 
@@ -398,110 +403,6 @@ export default function GroupFeedPage() {
 
       {tab === 'members' && (
         <div>
-          {isCreator && (
-            <div className="group-actions">
-              {renaming ? (
-                <form className="chat-input-row" onSubmit={handleRename}>
-                  <input
-                    value={nameInput}
-                    onChange={(e) => setNameInput(e.target.value)}
-                    maxLength={60}
-                    autoFocus
-                  />
-                  <button className="btn btn-primary btn-small" type="submit" disabled={savingName || !nameInput.trim()}>
-                    Save
-                  </button>
-                  <button className="btn btn-ghost btn-small" type="button" onClick={() => setRenaming(false)}>
-                    Cancel
-                  </button>
-                </form>
-              ) : (
-                <button className="btn btn-secondary btn-small" onClick={startRename}>
-                  Rename group
-                </button>
-              )}
-            </div>
-          )}
-
-          {isCreator && (
-            <label className="filter-toggle">
-              <input
-                type="checkbox"
-                checked={group?.isDiscoverable ?? false}
-                onChange={handleToggleDiscoverable}
-                disabled={savingDiscoverable}
-              />
-              <span>List this group publicly in Discover</span>
-            </label>
-          )}
-
-          {isCreator && (
-            <div className="group-billing-panel">
-              {group?.stripeConnectChargesEnabled && group?.priceAmount ? (
-                <>
-                  <p className="hint">£{Number(group.priceAmount).toFixed(2)}/month</p>
-                  {subscribers !== null &&
-                    (() => {
-                      const { grossMrr, netMrr } = computeGroupEarnings(subscribers.length, group.priceAmount)
-                      return (
-                        <>
-                          <h2 className="market-title">Earnings</h2>
-                          <div className="stat-tiles">
-                            <div className="stat-tile">
-                              <div className="stat-tile-value">{subscribers.length}</div>
-                              <div className="stat-tile-label">Paying members</div>
-                            </div>
-                            <div className="stat-tile">
-                              <div className="stat-tile-value">£{grossMrr.toFixed(2)}</div>
-                              <div className="stat-tile-label">Gross revenue</div>
-                            </div>
-                            <div className="stat-tile">
-                              <div className="stat-tile-value">£{netMrr.toFixed(2)}</div>
-                              <div className="stat-tile-label">Your est. earnings</div>
-                            </div>
-                          </div>
-                          <p className="hint">After BetMates' 10% fee - excludes Stripe's own processing fee.</p>
-                          {subscribers.length > 0 && (
-                            <>
-                              <div className="manage-list">
-                                {subscribers.map((s) => (
-                                  <div key={s.id} className="manage-list-row">
-                                    <span>{s.displayName}</span>
-                                  </div>
-                                ))}
-                              </div>
-                              <button className="btn btn-ghost btn-small" onClick={handleExportSubscribers}>
-                                Export as CSV
-                              </button>
-                            </>
-                          )}
-                        </>
-                      )
-                    })()}
-                </>
-              ) : (
-                <button className="btn btn-secondary btn-small" onClick={() => setShowGoPro(true)}>
-                  Turn this into a paid group
-                </button>
-              )}
-            </div>
-          )}
-
-          {showGoPro && (
-            <GoProSheet
-              group={group}
-              user={user}
-              onClose={() => setShowGoPro(false)}
-              priceInput={priceInput}
-              setPriceInput={setPriceInput}
-              savingPrice={savingPrice}
-              handleSavePrice={handleSavePrice}
-              connecting={connecting}
-              connectError={connectError}
-              handleConnectPayouts={handleConnectPayouts}
-            />
-          )}
-
           <div className="manage-list">
             {members.map((m) => (
               <div key={m.id} className="manage-list-row">
@@ -544,6 +445,108 @@ export default function GroupFeedPage() {
           <button className="btn btn-ghost" onClick={handleLeave} disabled={leaving}>
             {leaving ? 'Leaving…' : 'Leave group'}
           </button>
+        </div>
+      )}
+
+      {tab === 'settings' && isCreator && (
+        <div>
+          <div className="group-actions">
+            {renaming ? (
+              <form className="chat-input-row" onSubmit={handleRename}>
+                <input
+                  value={nameInput}
+                  onChange={(e) => setNameInput(e.target.value)}
+                  maxLength={60}
+                  autoFocus
+                />
+                <button className="btn btn-primary btn-small" type="submit" disabled={savingName || !nameInput.trim()}>
+                  Save
+                </button>
+                <button className="btn btn-ghost btn-small" type="button" onClick={() => setRenaming(false)}>
+                  Cancel
+                </button>
+              </form>
+            ) : (
+              <button className="btn btn-secondary btn-small" onClick={startRename}>
+                Rename group
+              </button>
+            )}
+          </div>
+
+          <label className="filter-toggle">
+            <input
+              type="checkbox"
+              checked={group?.isDiscoverable ?? false}
+              onChange={handleToggleDiscoverable}
+              disabled={savingDiscoverable}
+            />
+            <span>List this group publicly in Discover</span>
+          </label>
+
+          <div className="group-billing-panel">
+            {group?.stripeConnectChargesEnabled && group?.priceAmount ? (
+              <>
+                <p className="hint">£{Number(group.priceAmount).toFixed(2)}/month</p>
+                {subscribers !== null &&
+                  (() => {
+                    const { grossMrr, netMrr } = computeGroupEarnings(subscribers.length, group.priceAmount)
+                    return (
+                      <>
+                        <h2 className="market-title">Earnings</h2>
+                        <div className="stat-tiles">
+                          <div className="stat-tile">
+                            <div className="stat-tile-value">{subscribers.length}</div>
+                            <div className="stat-tile-label">Paying members</div>
+                          </div>
+                          <div className="stat-tile">
+                            <div className="stat-tile-value">£{grossMrr.toFixed(2)}</div>
+                            <div className="stat-tile-label">Gross revenue</div>
+                          </div>
+                          <div className="stat-tile">
+                            <div className="stat-tile-value">£{netMrr.toFixed(2)}</div>
+                            <div className="stat-tile-label">Your est. earnings</div>
+                          </div>
+                        </div>
+                        <p className="hint">After BetMates' 10% fee - excludes Stripe's own processing fee.</p>
+                        {subscribers.length > 0 && (
+                          <>
+                            <div className="manage-list">
+                              {subscribers.map((s) => (
+                                <div key={s.id} className="manage-list-row">
+                                  <span>{s.displayName}</span>
+                                </div>
+                              ))}
+                            </div>
+                            <button className="btn btn-ghost btn-small" onClick={handleExportSubscribers}>
+                              Export as CSV
+                            </button>
+                          </>
+                        )}
+                      </>
+                    )
+                  })()}
+              </>
+            ) : (
+              <button className="btn btn-secondary btn-small" onClick={() => setShowGoPro(true)}>
+                Turn this into a paid group
+              </button>
+            )}
+          </div>
+
+          {showGoPro && (
+            <GoProSheet
+              group={group}
+              user={user}
+              onClose={() => setShowGoPro(false)}
+              priceInput={priceInput}
+              setPriceInput={setPriceInput}
+              savingPrice={savingPrice}
+              handleSavePrice={handleSavePrice}
+              connecting={connecting}
+              connectError={connectError}
+              handleConnectPayouts={handleConnectPayouts}
+            />
+          )}
         </div>
       )}
 
