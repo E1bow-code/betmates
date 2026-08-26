@@ -158,6 +158,10 @@ export default function FixtureDetailPage() {
         <FixtureChatPanel sport="football" eventId={fixture.id} eventLabel={`${fixture.homeTeam} v ${fixture.awayTeam}`} />
       </div>
 
+      {!fixture.markets.length && (
+        <div className="empty">No odds posted for this one yet — check back closer to kick-off.</div>
+      )}
+
       {fixture.markets.map((market) => {
         const marketOpen = expandedMarkets.has(market.key)
         return (
