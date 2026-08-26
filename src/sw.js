@@ -16,16 +16,31 @@ clientsClaim()
 cleanupOutdatedCaches()
 precacheAndRoute(self.__WB_MANIFEST)
 
-// Sport banners and player shots come from Pexels' CDN, so they're outside
-// the precache manifest (which only covers our own built assets) and were
-// re-downloaded on every cold load. They're the heaviest thing the app
-// fetches and they never change under a given URL - a hashed CDN filename
-// is already immutable - so serve them from cache and only go to the
-// network on a miss. Capped and expired so a long-lived install can't grow
-// this without limit; opaque cross-origin responses are excluded, since
-// caching those would store failures indistinguishably from successes.
+// Sport hero banners (Pexels) and team badges/player photos (TheSportsDB)
+// are outside the precache manifest (which only covers our own built
+// assets) and were re-downloaded on every cold load. They're immutable
+// under a given URL - a hashed CDN filename never changes - so serve them
+// from cache and only go to the network on a miss. Capped and expired so a
+// long-lived install can't grow this without limit; opaque cross-origin
+// responses are excluded, since caching those would store failures
+// indistinguishably from successes.
+//
+// Deliberately scoped to just these two hosts, NOT "any cross-origin
+// image" (the original, broader matcher) - that also caught Supabase
+// Storage URLs (avatars, post photos/videos), which are user-uploaded and
+// mutable. CacheFirst never revalidates, so a stale or failed avatar fetch
+// got stuck there indefinitely - clearing the browser's HTTP cache doesn't
+// touch a service worker's separate Cache Storage, so it looked permanent
+// ("photos disappeared, still broken after clearing cache") until the SW
+// itself updated. Narrowing the matcher stops new avatar/photo requests
+// from ever entering this cache again; old bad entries under the previous,
+// wider matcher just go unused from here on - vite.config.js's
+// registerType: 'autoUpdate' plus this file's own skipWaiting()/
+// clientsClaim() above mean the fixed SW takes over automatically on the
+// visitor's next load, no manual unregister needed.
 registerRoute(
-  ({ request, url }) => request.destination === 'image' && url.origin !== self.location.origin,
+  ({ request, url }) =>
+    request.destination === 'image' && (url.hostname === 'images.pexels.com' || url.hostname.endsWith('.thesportsdb.com')),
   new CacheFirst({
     cacheName: 'betmates-remote-images',
     plugins: [
