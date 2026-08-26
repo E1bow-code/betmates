@@ -187,8 +187,6 @@ html, body {
 .chip--filled-accent { background: rgba(var(--accent-rgb), 0.12); border: 1px solid var(--accent-dim); color: var(--accent); }
 .chip--filled-accent-strong { background: rgba(var(--accent-rgb), 0.16); border: none; color: var(--accent); }
 .chip--solid-accent { background: var(--accent); border: 1px solid var(--accent); color: var(--accent-ink); }
-.chip--won { border-color: var(--accent); color: var(--accent); }
-.chip--lost { border-color: var(--bad); color: var(--bad); }
 
 /* Off-screen until focused - the first tab stop on every signed-in page,
    letting keyboard/screen-reader users jump past NewsTickerBar's headline
@@ -209,23 +207,27 @@ html, body {
   top: 8px;
 }
 
-/* Shared H1 spec: h1/.dashboard-hero-greeting/.auth-title are all real
-   serif HEADLINE TEXT and now share one size (--text-3xl) - they used to
-   sit at three different sizes (2.3rem/2.1rem/2rem) for no reason other
-   than each page having invented its own hero size independently.
-   .scoreboard-headline-value is deliberately NOT part of this group even
-   though it was the single biggest text on the page before this change -
-   it's a monospace NUMBER (the total P&L figure), not a heading, and
-   keeping it in its own numeric-display role (and visually the largest
-   element on Tracker) is consistent with the numeric/heading type-role
-   split that's already the strongest part of this file - unifying it with
-   the serif headings would blur that distinction, not fix anything. */
+/* Shared H1 spec: h1/.auth-title (both real HEADLINE TEXT, set in
+   --font-display) share one size (--text-3xl) - they used to sit at
+   different sizes for no reason other than each page having invented its
+   own hero size independently. home-greeting-text (HomePage's actual
+   greeting, .dashboard-hero-greeting was an earlier name for it that
+   never got cleaned up when the page was renamed) is deliberately its
+   own size below rather than joining this group - the home greeting
+   reads as a friendly one-liner, not a page-title-weight heading.
+   .scoreboard-headline-value is deliberately NOT part of this group
+   either - it's a monospace NUMBER (the total P&L figure), not a
+   heading, and keeping it in its own numeric-display role (and visually
+   the largest element on Tracker) is consistent with the numeric/heading
+   type-role split that's already the strongest part of this file -
+   unifying it with the headings would blur that distinction, not fix
+   anything. */
 h1, h2, .topbar h1, .sheet-title, .auth-title {
   font-family: var(--font-display);
   font-weight: 700;
   letter-spacing: 0.01em;
 }
-h1, .dashboard-hero-greeting, .auth-title { font-size: var(--text-3xl); }
+h1, .auth-title { font-size: var(--text-3xl); }
 
 /* Numbers that matter - odds, prices, stats - get tabular monospace
    figures so they line up like a real price board instead of shifting
@@ -2419,13 +2421,6 @@ button.conversation-row { width: 100%; background: none; border: none; border-bo
 }
 .follow-participant-btn.active { color: var(--accent); }
 
-.filter-toggle-row {
-  display: flex;
-  align-items: center;
-  gap: var(--space-14);
-  flex-wrap: wrap;
-}
-
 .player-photo {
   border-radius: var(--radius-circle);
   object-fit: cover;
@@ -3299,32 +3294,6 @@ button.conversation-row { width: 100%; background: none; border: none; border-bo
 .tracker-row-status { display: flex; flex-direction: column; align-items: flex-end; gap: var(--space-6); }
 
 /* Account */
-/* Dashboard - the one page meant to feel like a front door, not another
-   list page, so it gets its own bigger header and a single dominant
-   scoreboard number instead of Tracker's four-tile grid at the same
-   scale. Everything below still speaks the app's existing betting-slip/
-   scoreboard grammar (stub-striped dockets, dashed dividers, monospace
-   tabular numbers) - bigger, not a different visual language. */
-.dashboard-hero {
-  position: relative;
-  margin: 0 -12px var(--space-20);
-  padding: 30px var(--space-16) 22px;
-}
-.dashboard-hero-date { font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.08em; color: var(--text-dim); margin: 0 0 var(--space-6); }
-.dashboard-hero-greeting { margin: 0; text-wrap: balance; }
-.dashboard-hero-streak {
-  display: inline-flex;
-  align-items: center;
-  gap: var(--space-6);
-  margin-top: var(--space-12);
-  padding: 5px var(--space-10);
-  background: rgba(var(--accent-rgb), 0.15);
-  border: 1px solid var(--accent-dim);
-  border-radius: var(--radius-sharp);
-  font-size: 0.78rem;
-  font-weight: 700;
-  color: var(--accent);
-}
 
 /* Home page's glance-able social-standing signal - a tappable row (card
    language, like .scoreboard-panel), not another edge-to-edge hero. */
@@ -3522,14 +3491,6 @@ button.conversation-row { width: 100%; background: none; border: none; border-bo
 .docket-event { font-weight: 600; font-size: 0.88rem; display: flex; align-items: center; gap: var(--space-6); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .docket-meta { font-size: 0.78rem; color: var(--text-dim); margin-top: var(--space-2); }
 
-/* Recent activity as a horizontal tape, not a vertical list - reads as
-   something moving/live rather than a static log (Tracker and Alerts
-   already cover the log view). */
-.pulse-tape { display: flex; gap: var(--space-10); overflow-x: auto; padding: var(--space-2) var(--space-2) var(--space-10); }
-.pulse-card { flex-shrink: 0; width: 200px; background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-sharp); padding: var(--space-10) var(--space-12); }
-.pulse-card-title { font-size: var(--text-base); font-weight: 600; overflow: hidden; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
-.pulse-card-meta { font-size: 0.72rem; color: var(--text-dim); margin-top: var(--space-4); }
-
 .trending-chip-rank { font-family: var(--font-mono); font-weight: 700; color: var(--accent); font-size: 0.95rem; flex-shrink: 0; }
 
 .account-section { margin-bottom: 18px; }
@@ -3560,10 +3521,6 @@ button.conversation-row { width: 100%; background: none; border: none; border-bo
 }
 .account-group-toggle:hover { color: var(--accent); }
 .account-group-body .account-section:first-child { margin-top: var(--space-4); }
-.dashboard-quick-links { display: flex; gap: var(--space-10); margin-bottom: var(--space-24); }
-.dashboard-quick-links .btn { flex: 1; text-align: center; }
-.dashboard-section-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: var(--space-4); }
-.dashboard-section-header .market-title { margin: 0; }
 .account-name { font-weight: 700; font-size: 1.1rem; }
 .account-identity { display: flex; align-items: center; gap: var(--space-12); }
 .profile-identity-row { display: flex; align-items: center; justify-content: space-between; gap: var(--space-12); }
@@ -4504,9 +4461,6 @@ a.btn,
   border-color: color-mix(in srgb, var(--border) 70%, transparent);
 }
 
-/* Home hero: a bit more space beneath the greeting block before the feed
-   controls, and a calmer date caption. */
-.dashboard-hero { margin-bottom: var(--space-14); }
 .mode-switcher { margin: var(--space-10) 0 var(--space-4); }
 
 /* Invite buttons (share card + share link) sit on one wrapping row. */
