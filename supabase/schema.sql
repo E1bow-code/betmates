@@ -1221,6 +1221,35 @@ alter table coach_messages alter column session_id set not null;
 alter table coach_messages alter column session_id set default gen_random_uuid();
 create index if not exists coach_messages_session_id_idx on coach_messages(session_id);
 
+-- One row per generated "Coach's take" (netlify/functions/coach.js's
+-- summary/bet/recap styles - Insights' page-level take, Tracker's per-bet
+-- review, and a group's weekly recap) - unlike coach_messages above, this
+-- endpoint never had a usage cap of its own. coach.js already required a
+-- real signed-in session, but that alone is a weak deterrent (a free
+-- signup is trivial to script), and confirmed live: nothing stopped an
+-- authenticated caller from generating unlimited real Claude completions
+-- against invented bet-shaped JSON, burning the same COACH_ANTHROPIC_KEY
+-- budget coachgpt.js's FREE_MONTHLY_MESSAGE_LIMIT is trying to meter. This
+-- table exists purely so coach.js can count "takes generated today" per
+-- user and cap it - no client ever reads or displays these rows the way
+-- coach_messages renders as a real chat history.
+create table coach_takes (
+  id uuid primary key default gen_random_uuid(),
+  user_id uuid not null references profiles(id) on delete cascade,
+  created_at timestamptz not null default now()
+);
+
+alter table coach_takes enable row level security;
+
+create policy "user reads own coach take usage" on coach_takes for select using (
+  auth.uid() = user_id
+);
+create policy "user inserts own coach take usage" on coach_takes for insert with check (
+  auth.uid() = user_id
+);
+
+create index coach_takes_user_id_created_at_idx on coach_takes (user_id, created_at);
+
 -- --- Value-edge push alerts -------------------------------------------------
 -- netlify/functions/alert-checks.js's runValueEdgeAlerts - the proactive
 -- half of CoachGPT: pushes when a followed team/fighter (followed_participants)
