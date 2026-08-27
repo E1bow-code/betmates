@@ -263,25 +263,25 @@ export default function ManualEntrySheet({ userId, onClose, onSaved }) {
                   <SparkIcon width={15} height={15} /> Heads-up
                 </p>
                 {user.stakeLimitAmount && periodSpend !== null && stakeNum > 0 && periodSpend + stakeNum > user.stakeLimitAmount && (
-                  <div className="limit-warning">
+                  <div className="sanity-check-row">
                     <WarningIcon className="icon-lead" /> This would take you to £{(periodSpend + stakeNum).toFixed(2)} of your £
                     {Number(user.stakeLimitAmount).toFixed(2)} {user.stakeLimitPeriod === 'monthly' ? 'monthly' : 'weekly'} limit.
                   </div>
                 )}
                 {lossChasing && (
-                  <div className="limit-warning">
+                  <div className="sanity-check-row">
                     <EyesIcon className="icon-lead" /> Your last logged bet lost at £{lossChasing.lastStake.toFixed(2)} - this one's{' '}
                     {lossChasing.increasePct}% bigger. No judgement, just flagging it.
                   </div>
                 )}
                 {stakingWarning && (
-                  <div className="limit-warning">
+                  <div className="sanity-check-row">
                     <RulerIcon className="icon-lead" /> Your staking plan suggests £{stakingWarning.suggestion.toFixed(2)} a bet - this
                     one's {stakingWarning.overPct}% over that.
                   </div>
                 )}
                 {bigStake && (
-                  <div className="limit-warning">
+                  <div className="sanity-check-row">
                     <TrendUpIcon className="icon-lead" /> That's {bigStake.multiple}x your average stake (£
                     {bigStake.avgStake.toFixed(2)}) - no judgement, just flagging it.
                   </div>

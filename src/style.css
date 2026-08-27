@@ -1025,9 +1025,31 @@ body.slip-bar-open .app-content {
 /* Pre-bet sanity check (opt-in, see AccountPage's preBetSanityCheck toggle) -
    groups up to 4 independent warnings under one heading instead of stacking
    4 separate .limit-warning cards, which read as noisy/repetitive together. */
-.sanity-check { display: flex; flex-direction: column; gap: var(--space-6); margin-bottom: var(--space-4); }
-.sanity-check-title { font-size: 0.8rem; font-weight: 600; color: var(--text-dim); margin: 0; }
-.sanity-check .limit-warning { margin: 0; }
+/* One accent-tinted card holding every triggered warning as a plain row,
+   not N separately-bordered/shadowed .limit-warning cards stacked on top
+   of each other - up to 4 can fire at once (limit/loss-chasing/staking-
+   plan/big-stake), and stacking that many full cards read as noisy and
+   repetitive together despite already being grouped under one heading. */
+.sanity-check {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-8);
+  margin-bottom: var(--space-4);
+  padding: var(--space-12) var(--space-14);
+  border: 1px solid var(--accent-dim);
+  border-radius: var(--radius-card);
+  box-shadow: var(--shadow-card);
+  background: color-mix(in srgb, var(--accent) 10%, transparent);
+}
+.sanity-check-title { font-size: 0.8rem; font-weight: 600; color: var(--text); margin: 0; }
+.sanity-check-row {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-8);
+  font-size: var(--text-base);
+  color: var(--text);
+}
+.sanity-check-row:not(:last-child) { padding-bottom: var(--space-8); border-bottom: 1px dashed var(--border); }
 .auth-footnote { color: var(--text-dim); font-size: var(--text-sm); text-align: center; margin-top: var(--space-20); line-height: 1.5; }
 .auth-footnote a { color: var(--text-dim); }
 
@@ -2630,7 +2652,8 @@ button.conversation-row { width: 100%; font: inherit; text-align: left; cursor: 
   padding: var(--space-16);
   margin-bottom: var(--space-4);
   border: 1px solid var(--border);
-  border-radius: var(--radius-lg);
+  border-radius: var(--radius-card);
+  box-shadow: var(--shadow-card);
   background: color-mix(in srgb, var(--accent) 5%, var(--surface-2));
 }
 .scan-cta-title { margin: 0; font-size: 0.95rem; font-weight: 700; }
@@ -2680,7 +2703,8 @@ button.conversation-row { width: 100%; font: inherit; text-align: left; cursor: 
   margin-top: var(--space-4);
   padding: var(--space-10) var(--space-14);
   border: 1px solid var(--accent-dim);
-  border-radius: var(--radius-lg);
+  border-radius: var(--radius-card);
+  box-shadow: var(--shadow-card);
   background: color-mix(in srgb, var(--accent) 8%, transparent);
 }
 .return-preview-label { font-size: 0.8rem; color: var(--text-dim); font-weight: 600; }
