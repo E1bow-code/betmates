@@ -43,12 +43,13 @@ function loadExpandedGroups() {
   }
 }
 
-// The bookmaker grid, notification checkboxes, and gambling-safety content
-// are the three genuinely long stretches on this page - grouped behind a
+// The bookmaker grid, notification checkboxes, gambling-safety content, and
+// the tail-end catch-all (blocked accounts/install guide/legal link) are
+// the genuinely long-or-numerous stretches on this page - grouped behind a
 // collapsed-by-default toggle (same idea as MoreMenu.jsx's groups) so the
-// page opens short and each is still one tap away. Short sections (share
-// profile, invite, danger zone) stay plain - collapsing a two-line block
-// just adds a click for no real space saved.
+// page opens short and each is still one tap away. Short, single-purpose
+// sections (share profile, invite, danger zone, sign out) stay plain -
+// collapsing a two-line block just adds a click for no real space saved.
 function AccountGroup({ id, title, expanded, onToggle, children }) {
   const open = expanded.has(id)
   return (
@@ -1014,42 +1015,44 @@ export default function AccountPage() {
         {referralShareStatus && <div className="hint">{referralShareStatus}</div>}
       </div>
 
-      {blockedUsers && blockedUsers.length > 0 && (
-        <div className="account-section">
-          <h2 className="market-title">Blocked accounts</h2>
-          <p className="hint">You won't see their posts on the public Feed, and they won't see yours.</p>
-          <div className="manage-list">
-            {blockedUsers.map((b) => (
-              <div key={b.id} className="manage-list-row">
-                <UserLink id={b.id} displayName={b.displayName} />
-                <button className="btn btn-ghost btn-small" onClick={() => handleUnblock(b.id)}>
-                  Unblock
-                </button>
-              </div>
-            ))}
+      <AccountGroup id="more" title="More" expanded={expandedGroups} onToggle={toggleGroup}>
+        {blockedUsers && blockedUsers.length > 0 && (
+          <div className="account-section">
+            <h2 className="market-title">Blocked accounts</h2>
+            <p className="hint">You won't see their posts on the public Feed, and they won't see yours.</p>
+            <div className="manage-list">
+              {blockedUsers.map((b) => (
+                <div key={b.id} className="manage-list-row">
+                  <UserLink id={b.id} displayName={b.displayName} />
+                  <button className="btn btn-ghost btn-small" onClick={() => handleUnblock(b.id)}>
+                    Unblock
+                  </button>
+                </div>
+              ))}
+            </div>
           </div>
-        </div>
-      )}
-
-      <div className="account-section">
-        <h2 className="market-title">Install app</h2>
-        {isStandalone() ? (
-          <p className="hint">You're using the installed app already - nothing else to do.</p>
-        ) : isIOS() ? (
-          <InstallGuide />
-        ) : (
-          <p className="hint">
-            Look for an install icon in your browser's address bar (Chrome, Edge, and most Android browsers offer this
-            automatically) to add BetMates as an app.
-          </p>
         )}
-      </div>
 
-      <div className="account-section">
-        <Link to="/legal" className="back">
-          Terms &amp; Responsible Gambling
-        </Link>
-      </div>
+        <div className="account-section">
+          <h2 className="market-title">Install app</h2>
+          {isStandalone() ? (
+            <p className="hint">You're using the installed app already - nothing else to do.</p>
+          ) : isIOS() ? (
+            <InstallGuide />
+          ) : (
+            <p className="hint">
+              Look for an install icon in your browser's address bar (Chrome, Edge, and most Android browsers offer this
+              automatically) to add BetMates as an app.
+            </p>
+          )}
+        </div>
+
+        <div className="account-section">
+          <Link to="/legal" className="back">
+            Terms &amp; Responsible Gambling
+          </Link>
+        </div>
+      </AccountGroup>
 
       <div className="account-section danger-zone">
         <h2 className="market-title">Danger zone</h2>
