@@ -10,13 +10,17 @@ const TIERS = ['gold', 'silver', 'bronze']
 // rate/ROI/badges/follow buttons - that's what keeps this a real 3-up row
 // even on a narrow phone screen. Reuses the same avatar-tier-gold/-silver/
 // -bronze glow rings achievement flair already uses elsewhere, so "you're
-// on the podium" reads as the same signal in both places.
+// on the podium" reads as the same signal in both places. `userId` is
+// optional - BookmakerScoreboard's entries rank bookmakers, not people, so
+// UserLink correctly degrades to a non-clickable span for those; the row
+// key falls back to `name` so bookmaker entries (no userId at all) still
+// get distinct React keys.
 export default function LeaderboardPodium({ entries }) {
   if (entries.length < 2) return null
   return (
     <div className="leaderboard-podium">
       {entries.slice(0, 3).map((e, i) => (
-        <UserLink key={e.userId} id={e.userId} className={`leaderboard-podium-card leaderboard-podium-card--${TIERS[i]}`}>
+        <UserLink key={e.userId ?? e.name} id={e.userId} className={`leaderboard-podium-card leaderboard-podium-card--${TIERS[i]}`}>
           <Avatar name={e.name} size={40} tier={TIERS[i]} />
           <span className="leaderboard-podium-name">{e.name}</span>
           <span className={`leaderboard-podium-value${e.tone ? ` tone-${e.tone}` : ''}`}>{e.value}</span>

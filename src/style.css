@@ -2246,23 +2246,21 @@ button.conversation-row { width: 100%; font: inherit; text-align: left; cursor: 
 .news-feed-time { font-size: 0.72rem; color: var(--text-dim); flex-shrink: 0; }
 .news-feed-title { font-size: 0.9rem; line-height: 1.35; }
 
-.group-chip-row { display: flex; gap: var(--space-8); overflow-x: auto; padding: var(--space-4) 0 var(--space-10); }
 /* Groups home's entry point into each group (Floodhouse redesign
-   installment 1) - a real card (avatar/initial, name, member count) rather
-   than a plain name-only pill, since this is a nav link into a whole group
-   and is the entry point to the app's core social feature. Narrower than
-   .rank-teaser's 220-260px (that's a wide icon+text+chevron row; this is a
-   compact vertical avatar/name/meta card, so a proportionate width instead
-   of the same number). */
+   installment 1: card shape; installment 2: real grid instead of a
+   horizontal scroll-row, now that the smaller card version's proven live -
+   a group is something you return to, not a transient scroll-past chip, so
+   it earns a real grid slot like the rest of the app's tile grids). */
+.group-chip-row { display: grid; grid-template-columns: repeat(auto-fill, minmax(120px, 1fr)); gap: var(--space-8); padding: var(--space-4) 0 var(--space-10); }
+/* A real card (avatar/initial, name, member count) rather than a plain
+   name-only pill, since this is a nav link into a whole group and is the
+   entry point to the app's core social feature. */
 .group-card {
-  flex-shrink: 0;
   display: flex;
   flex-direction: column;
   align-items: center;
   gap: var(--space-4);
   text-align: center;
-  min-width: 130px;
-  max-width: 150px;
   padding: var(--space-14) var(--space-10);
   border: 1px solid var(--border);
   border-radius: var(--radius-card);
@@ -3538,6 +3536,10 @@ button.conversation-row { width: 100%; font: inherit; text-align: left; cursor: 
    "what's on your mind" post prompt, sitting right above the feed it
    posts into. */
 .home-composer-row { display: flex; align-items: center; gap: var(--space-8); margin: var(--space-4) 0 var(--space-12); }
+/* Floodhouse redesign installment 2: --shadow-float lifts the composer off
+   the page the same way a floating trigger/toast does, since this is the
+   one persistent "start something" affordance on the app's most-visited
+   screen - it shouldn't read as just another bordered input. */
 .home-composer {
   display: flex;
   align-items: center;
@@ -3547,6 +3549,7 @@ button.conversation-row { width: 100%; font: inherit; text-align: left; cursor: 
   border: 1px solid var(--border);
   border-radius: var(--radius-pill);
   background: var(--surface);
+  box-shadow: var(--shadow-float);
   padding: var(--space-10) var(--space-16) var(--space-10) var(--space-10);
   cursor: pointer;
   text-align: left;
@@ -3569,6 +3572,7 @@ button.conversation-row { width: 100%; font: inherit; text-align: left; cursor: 
   border-radius: var(--radius-circle);
   border: 1px solid var(--border);
   background: var(--surface);
+  box-shadow: var(--shadow-float);
   color: var(--text-dim);
   cursor: pointer;
 }
