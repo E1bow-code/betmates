@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
+import posthog from 'posthog-js'
 import { useAuth } from '../context/AuthContext.jsx'
 import { requestPasswordReset } from '../lib/dataStore.js'
 import { isSupabaseConfigured } from '../lib/supabaseClient.js'
@@ -38,6 +39,7 @@ export default function AuthPage() {
     try {
       await requestPasswordReset(email)
       setResetSent(true)
+      posthog.capture('password_reset_requested')
     } catch (err) {
       setError(err.message)
     } finally {
@@ -54,9 +56,13 @@ export default function AuthPage() {
         if (!acceptedTerms) throw new Error('You must confirm your age and accept the Terms to continue.')
         const referredByCode = localStorage.getItem(PENDING_REFERRAL_KEY)
         localStorage.removeItem(PENDING_REFERRAL_KEY)
-        await signUp({ email, password, displayName, dob, referredByCode })
+        const newUser = await signUp({ email, password, displayName, dob, referredByCode })
+        posthog.identify(newUser.id)
+        posthog.capture('user_signed_up', { referred: !!referredByCode })
       } else {
-        await signIn({ email, password })
+        const existing = await signIn({ email, password })
+        posthog.identify(existing.id)
+        posthog.capture('user_signed_in')
       }
     } catch (err) {
       setError(err.message)

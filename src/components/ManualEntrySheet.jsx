@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
+import posthog from 'posthog-js'
 import { useAuth } from '../context/AuthContext.jsx'
 import { useToast } from '../context/ToastContext.jsx'
 import * as dataStore from '../lib/dataStore.js'
@@ -145,6 +146,7 @@ export default function ManualEntrySheet({ userId, onClose, onSaved }) {
         stake: stakeNum,
         potentialReturn
       })
+      posthog.capture('bet_logged', { sport, bookmaker })
       refreshUser()
       showToast('Saved to Tracker')
       onSaved?.()

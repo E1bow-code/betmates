@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom'
+import posthog from 'posthog-js'
 import { useAuth } from '../context/AuthContext.jsx'
 import { useToast } from '../context/ToastContext.jsx'
 import * as dataStore from '../lib/dataStore.js'
@@ -60,6 +61,7 @@ export default function JoinGroupPage() {
         // they stay on /groups and the new chip just appears, but landing
         // straight on the group's own page here has no other visible
         // "that worked" signal).
+        posthog.capture('group_joined', { is_paid_group: !!group?.priceAmount })
         showToast(`Joined ${joined.name}`)
         navigate(`/groups/${joined.id}`, { replace: true })
       })

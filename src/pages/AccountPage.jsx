@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { Link, useLocation, useNavigate } from 'react-router-dom'
+import posthog from 'posthog-js'
 import { useAuth } from '../context/AuthContext.jsx'
 import { useOddsFormat } from '../context/OddsFormatContext.jsx'
 import { BOOKMAKERS } from '../lib/bookmakers.js'
@@ -163,6 +164,7 @@ export default function AccountPage() {
   async function handleUpgrade(plan) {
     setCheckoutBusy(plan)
     setCheckoutError(null)
+    posthog.capture('premium_checkout_started', { plan })
     const accessToken = await dataStore.getAccessToken()
     const res = await startPremiumCheckout({ accessToken, plan })
     if (res.url) {
