@@ -1921,4 +1921,8 @@ begin
   return _calls <= _max;
 end;
 $$;
-grant execute on function bump_llm_budget(integer, integer) to anon, authenticated;
+-- authenticated only, NOT anon: the breaker is only ever called by a
+-- signed-in client (coach.js / coachgpt.js reach it with a valid user token),
+-- and granting anon would let an unauthenticated caller flood it to inflate the
+-- daily tally and trip the breaker for everyone - a DoS on the LLM features.
+grant execute on function bump_llm_budget(integer, integer) to authenticated;
