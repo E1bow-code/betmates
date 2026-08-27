@@ -3639,20 +3639,26 @@ button.conversation-row { width: 100%; font: inherit; text-align: left; cursor: 
 
 /* Collapsed-by-default category wrapper for Account's three longest
    stretches (Preferences/bookmakers, Notifications, Responsible gambling)
-   - see AccountPage.jsx's AccountGroup. Reuses .market-header-meta's caret
-   styling; the toggle itself is a distinct uppercase category label so it
-   doesn't read as just another .market-title sub-heading once expanded. */
+   - see AccountPage.jsx's AccountGroup. The toggle itself is a distinct
+   uppercase category label so it doesn't read as just another
+   .market-title sub-heading once expanded. */
 .account-group { margin-bottom: 18px; }
+/* Floodhouse redesign installment 3: the quiet row-card idiom (see
+   .tracker-row/.race-card etc.) instead of a bare bottom-border label - a
+   collapsible section is a tappable module, so it earns the same bordered/
+   rounded affordance every other row-list item in the app has, not a plain
+   section heading. Shared by every AccountPage AccountGroup and
+   GroupFeedPage's "Recap, leaderboard & more" CollapsibleSection. */
 .account-group-toggle {
   display: flex;
   justify-content: space-between;
   align-items: center;
   width: 100%;
-  background: none;
-  border: none;
-  border-bottom: 1px solid var(--border);
-  padding: var(--space-8) var(--space-2);
-  margin-bottom: var(--space-4);
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  padding: var(--space-10) var(--space-12);
+  margin-bottom: var(--space-8);
   cursor: pointer;
   text-align: left;
   color: var(--text);
@@ -3661,7 +3667,8 @@ button.conversation-row { width: 100%; font: inherit; text-align: left; cursor: 
   text-transform: uppercase;
   letter-spacing: 0.04em;
 }
-.account-group-toggle:hover { color: var(--accent); }
+.account-group-toggle svg { color: var(--text-dim); flex-shrink: 0; transition: transform 0.15s ease; }
+.account-group-toggle:hover { color: var(--accent); border-color: var(--accent-dim); }
 .account-group-body .account-section:first-child { margin-top: var(--space-4); }
 .account-name { font-weight: 700; font-size: var(--text-lg); }
 .account-identity { display: flex; align-items: center; gap: var(--space-12); }

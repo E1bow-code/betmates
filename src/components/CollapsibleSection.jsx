@@ -1,3 +1,5 @@
+import { ChevronIcon } from './icons/Icons.jsx'
+
 // Collapsed-by-default section toggle, reusing AccountPage.jsx's own
 // .account-group/.account-group-toggle/.account-group-body styling (those
 // classes were already generic layout, not account-specific) rather than a
@@ -11,7 +13,7 @@ export default function CollapsibleSection({ title, open, onToggle, children }) 
     <div className="account-group">
       <button className="account-group-toggle" type="button" onClick={onToggle} aria-expanded={open}>
         <span>{title}</span>
-        <span className="market-header-meta">{open ? '▴' : '▾'}</span>
+        <ChevronIcon width={16} height={16} style={open ? { transform: 'rotate(180deg)' } : undefined} />
       </button>
       {open && <div className="account-group-body">{children}</div>}
     </div>

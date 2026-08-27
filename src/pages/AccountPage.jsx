@@ -22,7 +22,7 @@ import InstallGuide from '../components/InstallGuide.jsx'
 import UserLink from '../components/UserLink.jsx'
 import SportHeroBanner from '../components/SportHeroBanner.jsx'
 import { useAsyncAction } from '../lib/useAsyncAction.js'
-import { FlameIcon, SparkIcon, LockIcon, HandshakeIcon, MegaphoneIcon, TargetIcon, CrownIcon, PencilIcon } from '../components/icons/Icons.jsx'
+import { FlameIcon, SparkIcon, LockIcon, HandshakeIcon, MegaphoneIcon, TargetIcon, CrownIcon, PencilIcon, ChevronIcon } from '../components/icons/Icons.jsx'
 
 const TIER_ICON = { handshake: HandshakeIcon, megaphone: MegaphoneIcon, target: TargetIcon, crown: CrownIcon }
 
@@ -56,7 +56,7 @@ function AccountGroup({ id, title, expanded, onToggle, children }) {
     <div className="account-group">
       <button className="account-group-toggle" type="button" onClick={() => onToggle(id)} aria-expanded={open}>
         <span>{title}</span>
-        <span className="market-header-meta">{open ? '▴' : '▾'}</span>
+        <ChevronIcon width={16} height={16} style={open ? { transform: 'rotate(180deg)' } : undefined} />
       </button>
       {open && <div className="account-group-body">{children}</div>}
     </div>
