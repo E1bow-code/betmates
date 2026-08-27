@@ -28,6 +28,12 @@ export default function JoinGroupPage() {
   const navigate = useNavigate()
   const [group, setGroup] = useState(null)
   const [showPaywall, setShowPaywall] = useState(false)
+  // Free groups show a preview landing card (name + who's already in) with an
+  // explicit "Join" button, rather than silently inserting the visitor on
+  // load - the click is the moment that both confirms intent and, once
+  // they're in, hands them the same invite link to pull their own mates.
+  const [showInvite, setShowInvite] = useState(false)
+  const [joining, setJoining] = useState(false)
   const [error, setError] = useState(null)
   const [checkoutBusy, setCheckoutBusy] = useState(false)
   const [checkoutError, setCheckoutError] = useState(null)
@@ -52,6 +58,7 @@ export default function JoinGroupPage() {
   }, [showPaywall, group?.createdBy])
 
   function joinAndEnter() {
+    setJoining(true)
     dataStore
       .joinGroupByCode(code, user.id)
       .then((joined) => {
@@ -65,7 +72,10 @@ export default function JoinGroupPage() {
         showToast(`Joined ${joined.name}`)
         navigate(`/groups/${joined.id}`, { replace: true })
       })
-      .catch((err) => setError(err.message))
+      .catch((err) => {
+        setJoining(false)
+        setError(err.message)
+      })
   }
 
   // Preview + decide: free groups (or an already-active subscriber) join
@@ -86,7 +96,9 @@ export default function JoinGroupPage() {
         }
         setGroup(g)
         if (!g.priceAmount) {
-          joinAndEnter()
+          // Free group: land on a preview card and let them tap Join,
+          // rather than inserting them the instant the link opens.
+          setShowInvite(true)
           return
         }
         const sub = await dataStore.getGroupSubscription(g.id, user.id).catch(() => null)
@@ -154,6 +166,34 @@ export default function JoinGroupPage() {
   }
 
   if (returningFromCheckout) return <div className="loading">Activating your membership…</div>
+
+  if (showInvite && group) {
+    const count = group.memberCount ?? 0
+    return (
+      <div>
+        <div className="topbar">
+          <h1>You're invited</h1>
+        </div>
+        <div className="paywall-card">
+          <div className="paywall-owner-pitch">
+            <span className="chip chip--pill chip--sm chip--outline-accent">Group invite</span>
+            <h2 style={{ margin: 0 }}>{group.name}</h2>
+            <p className="hint">
+              {count > 0
+                ? `${count} ${count === 1 ? 'mate is' : 'mates are'} already logging bets here. Join in and start comparing.`
+                : 'Be the first in - start a slip and pull the rest of your mates in after.'}
+            </p>
+          </div>
+          <button className="btn btn-primary" onClick={joinAndEnter} disabled={joining}>
+            {joining ? 'Joining…' : `Join ${group.name}`}
+          </button>
+          <Link className="btn btn-ghost" to="/groups">
+            Not now
+          </Link>
+        </div>
+      </div>
+    )
+  }
 
   if (showPaywall && group) {
     return (
