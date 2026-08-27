@@ -896,6 +896,15 @@ body.slip-bar-open .app-content {
   width: 100%;
   max-width: 380px;
   flex-shrink: 0;
+  /* Same hero-panel treatment as .account-hero/.race-header - this is the
+     one conversion surface on the highest-reach screen in the app (every
+     referral/share link lands a logged-out visitor here), and it used to
+     float bare on the background photo with no surface of its own. */
+  border: 1px solid var(--border);
+  border-radius: var(--radius-card);
+  box-shadow: var(--shadow-card);
+  background: linear-gradient(180deg, var(--surface) 0%, var(--surface-2) 100%);
+  padding: var(--space-24) var(--space-20);
 }
 
 /* Only rendered in signup mode (see AuthPage.jsx) - a returning visitor
@@ -1210,7 +1219,8 @@ button.conversation-row { width: 100%; font: inherit; text-align: left; cursor: 
   margin-top: var(--space-12);
   border: 1px solid var(--border);
   border-radius: var(--radius-card);
-  background: var(--surface);
+  box-shadow: var(--shadow-card);
+  background: linear-gradient(180deg, var(--surface) 0%, var(--surface-2) 100%);
 }
 
 /* The owner's track record shown to a prospective subscriber, above the
@@ -1833,10 +1843,14 @@ button.conversation-row { width: 100%; font: inherit; text-align: left; cursor: 
 
 .onboarding-actions { display: flex; justify-content: center; gap: var(--space-10); margin-top: var(--space-16); }
 
+/* Same hero-panel treatment as .auth-card - the next screen after signup,
+   so the first-run experience shouldn't drop back to a flat pre-redesign
+   panel right after the polished auth card. */
 .first-run-card {
-  background: var(--surface);
+  background: linear-gradient(180deg, var(--surface) 0%, var(--surface-2) 100%);
   border: 1px solid var(--border);
-  border-radius: var(--radius-sharp);
+  border-radius: var(--radius-card);
+  box-shadow: var(--shadow-card);
   padding: var(--space-24);
   max-width: 420px;
   width: 100%;
@@ -2285,10 +2299,14 @@ button.conversation-row { width: 100%; font: inherit; text-align: left; cursor: 
 .friend-chip-vs { color: var(--accent); font-size: var(--text-xs); text-transform: uppercase; letter-spacing: 0.03em; }
 
 .h2h-grid { display: grid; grid-template-columns: 1fr 1fr; gap: var(--space-12); margin: var(--space-14) 0; }
+/* Same lift .stat-tiles already gets - a stat-comparison focal point, not
+   a list, so it earns --shadow-card without the row-card idiom's radius
+   swap (same precedent .stat-tiles set: keep --radius-sharp, add shadow). */
 .h2h-col {
   background: var(--surface-2);
   border: 1px solid var(--border);
   border-radius: var(--radius-sharp);
+  box-shadow: var(--shadow-card);
   padding: var(--space-14);
   text-align: center;
 }
@@ -2305,25 +2323,30 @@ button.conversation-row { width: 100%; font: inherit; text-align: left; cursor: 
    than inventing a second pill-row style. */
 .challenge-section { margin-top: 18px; padding-top: var(--space-14); border-top: 1px solid var(--border); }
 .challenge-start { display: flex; flex-direction: column; gap: var(--space-8); margin-top: var(--space-8); }
+/* Same lift as .h2h-col above - the live challenge/tournament summary. */
 .challenge-active {
   background: var(--surface-2);
   border: 1px solid var(--border);
   border-radius: var(--radius-sharp);
+  box-shadow: var(--shadow-card);
   padding: var(--space-12) var(--space-14);
   margin-top: var(--space-8);
 }
 .challenge-active-row { display: flex; align-items: center; justify-content: space-between; padding: var(--space-4) 0; font-weight: 600; }
 .challenge-value { font-family: var(--font-mono); font-variant-numeric: tabular-nums; font-weight: 700; color: var(--text-dim); }
 .challenge-value.tone-good { color: var(--accent); }
-.challenge-history { display: flex; flex-direction: column; gap: var(--space-6); margin-top: var(--space-10); }
+/* Quiet row-card idiom (see .tracker-row/.race-card etc.) - shared by
+   ChallengeSection's past-challenge history and GroupTournamentSection's
+   past-tournament history. */
+.challenge-history { display: flex; flex-direction: column; gap: var(--space-4); margin-top: var(--space-10); }
 .challenge-history-row {
   display: flex;
   align-items: center;
   gap: var(--space-10);
   padding: var(--space-8) var(--space-10);
-  background: var(--surface-2);
+  background: var(--surface);
   border: 1px solid var(--border);
-  border-radius: var(--radius-sharp);
+  border-radius: var(--radius-md);
   font-size: 0.8rem;
 }
 .challenge-history-label { flex: 1; color: var(--text-dim); }
