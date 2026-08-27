@@ -1220,6 +1220,25 @@ end $$;
 alter table coach_messages alter column session_id set not null;
 alter table coach_messages alter column session_id set default gen_random_uuid();
 create index if not exists coach_messages_session_id_idx on coach_messages(session_id);
+-- checkMessageAllowance (netlify/functions/coachgpt.js) runs a count on
+-- (user_id, role, created_at) on EVERY CoachGPT message to meter the free
+-- monthly limit; without this it's a sequential scan that worsens as the
+-- table grows. Mirrors the coach_takes(user_id, created_at) index below.
+create index if not exists coach_messages_user_role_created_idx on coach_messages(user_id, role, created_at);
+
+-- Feed / membership hot-path indexes. These tables grow with every user and
+-- are read on the busiest paths; only their primary keys were indexed, so the
+-- queries below fall to sequential scans as rows accumulate under real load.
+--  - group_members PK is (group_id, user_id), so "which groups is this user
+--    in?" (leftmost = user_id) isn't covered - listMyGroups hits this per load.
+--  - bet_posts feed reads filter by group_id (or public) ordered by created_at,
+--    and a profile reads its own posts by user_id.
+--  - direct_messages inbox/outbox read by recipient/sender, newest first.
+create index if not exists group_members_user_id_idx on group_members(user_id);
+create index if not exists bet_posts_group_created_idx on bet_posts(group_id, created_at desc);
+create index if not exists bet_posts_user_created_idx on bet_posts(user_id, created_at desc);
+create index if not exists direct_messages_recipient_created_idx on direct_messages(recipient_id, created_at desc);
+create index if not exists direct_messages_sender_created_idx on direct_messages(sender_id, created_at desc);
 
 -- One row per generated "Coach's take" (netlify/functions/coach.js's
 -- summary/bet/recap styles - Insights' page-level take, Tracker's per-bet

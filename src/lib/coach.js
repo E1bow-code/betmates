@@ -12,7 +12,14 @@
 
 import { buildAnthropicRequest } from './anthropicRoute.js'
 
-export const COACH_MODEL = 'claude-opus-5'
+// The passive Coach "takes" (summary/bet/recap) are short, plain-language
+// mirror reads triggered just by navigating the app - the highest-volume LLM
+// path here (up to DAILY_FREE_TAKE_LIMIT per user per day, no client cache).
+// Sonnet handles them well at a fraction of Opus's per-token cost, which is
+// what keeps this path affordable under real traffic. The interactive
+// CoachGPT *chat* is a separate, deliberately flagship experience and stays on
+// Opus (see netlify/functions/coachgpt.js) - only these ambient takes moved.
+export const COACH_MODEL = 'claude-sonnet-5'
 
 // Turn a rolled-up summary object into a compact, model-friendly briefing.
 // Every field is optional - a brand-new user might only have a couple - so

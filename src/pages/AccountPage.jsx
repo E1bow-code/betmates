@@ -411,6 +411,20 @@ export default function AccountPage() {
         const sub = await subscribeToPush()
         await dataStore.savePushSubscription(user.id, sub)
         setPushEnabled(true)
+        // Enabling push is the moment the user opts into notifications, so
+        // switch on the low-noise, high-value ones (your bet settled; the
+        // Sunday recap) unless they've already explicitly turned them off.
+        // Without this they'd have a push subscription but every retention
+        // pref off, so the scheduled jobs would never send them anything.
+        const prefs = { ...(user.notificationPrefs ?? {}) }
+        let changed = false
+        for (const key of ['betSettled', 'weeklyRecap']) {
+          if (prefs[key] === undefined) {
+            prefs[key] = true
+            changed = true
+          }
+        }
+        if (changed) await updateNotificationPrefs(prefs)
       }
     } catch (err) {
       setPushError(err.message)
