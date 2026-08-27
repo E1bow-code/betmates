@@ -11,9 +11,12 @@
 // we control. Cost stops scaling with traffic and becomes predictable.
 //
 // Free-tier budget math (the constraint - see src/lib/apiCache.js). The list
-// is 5 leagues = 5 credits per run. The free tier is 500 requests/month:
-//   every 8h  -> 5 x 3/day  x 30 = 450/month  (under 500 - the default)
-//   every 6h  -> 5 x 4/day  x 30 = 600/month  (just over)
+// is 5 leagues = 5 credits per run. The free tier is 500 requests/month - and
+// ODDS_INGEST_ENABLED turns on ufc-ingest.js too (~1 credit/run), so football
+// and UFC share that 500 budget:
+//   every 12h -> 5 x 2/day x 30 = 300/mo football (+ ~60 UFC = ~360) - the
+//                free-tier-safe DEFAULT, comfortably under 500 combined.
+//   every 8h  -> 5 x 3/day x 30 = 450/mo football (+ ~90 UFC = ~540) - over 500.
 //   every 20m -> 5 x 72/day x 30 = 10,800/month (needs a paid tier)
 // So on the free tier the odds are hours stale - inherent to 500 req/month,
 // not something any caching layer fixes. Fresh odds are exactly why you'd move
@@ -89,7 +92,8 @@ export default async () => {
 }
 
 export const config = {
-  // Every 8 hours = 3 runs/day x 5 leagues = 450 Odds API credits/month, under
-  // the 500 free-tier cap. See the budget math in the header before changing.
-  schedule: '0 */8 * * *'
+  // Every 12 hours = 2 runs/day x 5 leagues = 300 Odds API credits/month;
+  // with ufc-ingest.js's ~60/mo that's ~360 combined, comfortably under the
+  // 500 free-tier cap (8h would be ~540, over). See the header budget math.
+  schedule: '0 */12 * * *'
 }

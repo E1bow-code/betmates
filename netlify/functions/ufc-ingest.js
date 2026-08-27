@@ -69,6 +69,7 @@ export default async () => {
 }
 
 export const config = {
-  // One credit per run - see the header. Same 8h cadence as odds-ingest.js.
-  schedule: '0 */8 * * *'
+  // One credit per run - see the header. Same 12h cadence as odds-ingest.js, so
+  // football + UFC together stay under the 500/month free tier (~360 combined).
+  schedule: '0 */12 * * *'
 }
