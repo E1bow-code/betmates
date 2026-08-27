@@ -27,6 +27,7 @@ import LiveBadge from '../components/LiveBadge.jsx'
 import PayoutCalculatorButton from '../components/PayoutCalculatorSheet.jsx'
 import { SearchIcon } from '../components/icons/Icons.jsx'
 import * as dataStore from '../lib/dataStore.js'
+import { useMyBookiesOnly } from '../lib/useMyBookiesOnly.js'
 
 const SPORTS = ['football', 'racing', 'ufc', ...Object.keys(GENERIC_SPORTS)].map((key) => ({ key, label: SPORT_LABEL[key] }))
 
@@ -136,7 +137,7 @@ export default function OddsListPage() {
   const [items, setItems] = useState(null)
   const [itemsSport, setItemsSport] = useState(null) // which sport `items` was fetched for
   const [error, setError] = useState(null)
-  const [myBookiesOnly, setMyBookiesOnly] = useState(false)
+  const [myBookiesOnly, setMyBookiesOnly] = useMyBookiesOnly()
   const [myTeamsOnly, setMyTeamsOnly] = useState(false)
   const [followedParticipants, setFollowedParticipants] = useState([])
   const [results, setResults] = useState(null)

@@ -11,6 +11,7 @@ import { useBetSlip } from '../context/BetSlipContext.jsx'
 import { useOddsFormat } from '../context/OddsFormatContext.jsx'
 import { useOddsMovement, movementKey, useOddsHistory, historyKey } from '../lib/oddsMemory.js'
 import { useBacking } from '../lib/backing.js'
+import { useMyBookiesOnly } from '../lib/useMyBookiesOnly.js'
 import PlayerPhoto from '../components/PlayerPhoto.jsx'
 import OddsMoveIndicator from '../components/OddsMoveIndicator.jsx'
 import SharpMoneyBadge from '../components/SharpMoneyBadge.jsx'
@@ -35,7 +36,7 @@ export default function FightDetailPage() {
   const { format } = useOddsFormat()
   const [fight, setFight] = useState(null)
   const [error, setError] = useState(null)
-  const [myBookiesOnly, setMyBookiesOnly] = useState(false)
+  const [myBookiesOnly, setMyBookiesOnly] = useMyBookiesOnly()
   const [alertTarget, setAlertTarget] = useState(null)
   const [expandedOutcome, setExpandedOutcome] = useState(null)
   const [expandedMarkets, setExpandedMarkets] = useState(new Set())

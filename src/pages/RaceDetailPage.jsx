@@ -19,6 +19,7 @@ import RatingBar from '../components/RatingBar.jsx'
 import { pickRatingMetric } from '../utils/ratingBar.js'
 import CoachGptLink from '../components/CoachGptLink.jsx'
 import SharpMoneyBadge from '../components/SharpMoneyBadge.jsx'
+import { useMyBookiesOnly } from '../lib/useMyBookiesOnly.js'
 
 // How many bookmaker prices to show under a tapped runner before the rest go
 // behind a "show all" toggle. A busy UK race can list 25+ books at only two
@@ -34,7 +35,7 @@ export default function RaceDetailPage() {
   const { format } = useOddsFormat()
   const [race, setRace] = useState(null)
   const [error, setError] = useState(null)
-  const [myBookiesOnly, setMyBookiesOnly] = useState(false)
+  const [myBookiesOnly, setMyBookiesOnly] = useMyBookiesOnly()
   const [expandedRunner, setExpandedRunner] = useState(null)
   // Reset when a different runner is opened, so every horse's price list
   // starts collapsed to its best few rather than inheriting the last one's
