@@ -19,7 +19,14 @@ you to review and merge. It never merges or deploys anything itself.
 
 ## Tasks
 
-<!-- No open tasks right now. Add new ones here, most important at the top. -->
+<!-- A reliability push: unit tests for untested pure money/logic modules.
+     Each is deterministic (verified by `npm test`), tests-only, no behaviour
+     change, and one PR's worth. Most important at the top. -->
+
+- [ ] Add unit tests for `src/utils/eachWay.js` — this is settlement-critical maths. Cover `getEachWayTerms` at every field-size tier (>=16, >=12, >=8, >=5, and the `null` under 5 runners) and `computeEachWayReturn` for `'win'` / `'place'` / `'lose'`: verify the half-stake split, that the place part pays at odds shortened by `terms.fraction`, and that a win pays both parts. Tests only, no behaviour change.
+- [ ] Add unit tests for `src/lib/bookmakers.js` — the Copy Bet link logic. Cover `withAffiliate` (adds the affiliate params for a known bookmaker, passes a plain URL through unchanged for an unknown one), `buildDeepLink` (returns a real deep link where a builder exists in `DEEP_LINK_BUILDERS`, `null` where none does), and that `BOOKMAKER_LINKS` merges homepage + affiliate links. Tests only, no behaviour change.
+- [ ] Add unit tests for `src/utils/stakingPlan.js` — cover `suggestedStake` (flat rule returns the flat value; percent rule rounds `bankroll * pct` to 2dp; `null` for no rule, and for a percent rule with no bankroll) and `stakingPlanWarning` (returns `null` at or below the 1.5x threshold, and the `{ suggestion, stakeNum, overPct }` shape above it, with `overPct` correct). Tests only, no behaviour change.
+- [ ] Add unit tests for `src/lib/quickPick.js` — cover its exported pure helpers (read the file for the current exports). Focus on the deterministic selection/scoring logic with fixed inputs; skip anything that reaches the network or DOM. Tests only, no behaviour change.
 
 ## Done
 
