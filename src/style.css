@@ -1282,10 +1282,16 @@ button.conversation-row { width: 100%; font: inherit; text-align: left; cursor: 
 }
 .install-guide-steps li { padding-left: var(--space-4); }
 
+/* Same accent-highlight-card treatment as .home-invite-nudge - both are
+   dismissible, single-CTA engagement nudges, and this one's actually
+   higher-reach (mounted globally, every page, for every non-installed
+   visitor) so it shouldn't be the plainer of the two. */
 .install-banner {
-  background: var(--surface);
-  border: 1px solid var(--border);
-  border-radius: var(--radius-sharp);
+  position: relative;
+  border: 1px solid var(--accent-dim);
+  border-radius: var(--radius-card);
+  box-shadow: var(--shadow-card);
+  background: linear-gradient(180deg, rgba(var(--accent-rgb), 0.08) 0%, transparent 60%), var(--surface);
   padding: var(--space-14) var(--space-16);
   margin-bottom: var(--space-14);
 }
@@ -2111,13 +2117,16 @@ button.conversation-row { width: 100%; font: inherit; text-align: left; cursor: 
 .video-timer { text-align: center; font-size: 0.9rem; color: var(--text-dim); display: flex; align-items: center; justify-content: center; gap: var(--space-6); }
 .recording-dot { width: 9px; height: 9px; border-radius: var(--radius-circle); background: var(--bad); display: inline-block; }
 
-/* Video tips - keep a card feel (it's media, not data), but sharper than
-   the old universal 14px radius so it doesn't match the bet-slip shape. */
+/* Video tips are a full peer of .bet-card in the same feed (Tips, Home's
+   merged feed, shared-in-group videos) and even reuse its header/footer -
+   same --radius-feed outer-post shape so a feed of mixed bet/video posts
+   doesn't have video cards reading as sharper-cornered than everything
+   else scrolling past them. */
 .video-card {
   background: var(--surface);
   border: 1px solid var(--border);
-  border-radius: var(--radius-sharp);
-  padding: var(--space-14);
+  border-radius: var(--radius-feed);
+  padding: var(--space-16);
   display: flex;
   flex-direction: column;
   gap: var(--space-10);
@@ -3328,9 +3337,14 @@ button.conversation-row { width: 100%; font: inherit; text-align: left; cursor: 
 .achievement-hint { font-size: var(--text-sm); color: var(--text-dim); }
 .achievement-card.earned .achievement-hint { color: var(--accent); font-weight: 600; }
 
+/* Same lift as .stat-tiles/.h2h-col/.challenge-active - a summary/
+   comparison surface, not a list, so it keeps --radius-sharp and just
+   adds the shadow. Sits directly after .scoreboard-panel/.stat-tiles on
+   TrackerPage - was the one flat holdout in that sequence. */
 .pnl-chart {
   border: 1px solid var(--border);
   border-radius: var(--radius-sharp);
+  box-shadow: var(--shadow-card);
   padding: var(--space-10) var(--space-12) var(--space-8);
   margin-bottom: var(--space-16);
   background: linear-gradient(180deg, var(--surface) 0%, var(--surface-2) 100%);
@@ -3427,14 +3441,17 @@ button.conversation-row { width: 100%; font: inherit; text-align: left; cursor: 
 
 /* Account */
 
-/* Home page's glance-able social-standing signal - a tappable row (card
-   language, like .scoreboard-panel), not another edge-to-edge hero. */
+/* Glance-able social-standing signal - reused by Home's bento row AND
+   AccountPage's own Tracker P&L teaser (AccountPage.jsx), both genuine
+   "summary moment" contexts, so it carries the hero-panel treatment
+   itself now rather than only picking it up inside .home-bento. */
 .rank-teaser {
   display: flex;
   align-items: center;
   gap: var(--space-12);
   border: 1px solid var(--border);
-  border-radius: var(--radius-sharp);
+  border-radius: var(--radius-card);
+  box-shadow: var(--shadow-card);
   background: var(--surface);
   padding: var(--space-12) var(--space-14);
   margin: 0 0 var(--space-20);
@@ -3536,12 +3553,7 @@ button.conversation-row { width: 100%; font: inherit; text-align: left; cursor: 
   gap: var(--space-8);
   margin: 0 0 var(--space-14);
 }
-.home-bento .rank-teaser {
-  grid-column: 1 / -1;
-  margin: 0;
-  border-radius: var(--radius-card);
-  box-shadow: var(--shadow-card);
-}
+.home-bento .rank-teaser { grid-column: 1 / -1; margin: 0; }
 .home-bento .home-highlights { display: contents; }
 .home-bento .home-highlight-card {
   min-width: 0;
