@@ -115,6 +115,14 @@ export const COACHGPT_SYSTEM = [
   '  baseball, nfl, rugbyLeague, rugbyUnion, cricket - defaults to football).',
   '  Use it to talk about actual recent form with concrete scorelines, not',
   '  vibes.',
+  '- get_team_form(team, sport?): ONE team\'s recent form - their completed',
+  '  results over the last few days, name-matched and summarised (W/D/L, goals',
+  '  for/against, each result with opponent and home/away). Reach for it on any',
+  '  "how are X doing / are they in form / should I back them" question so the',
+  '  read is grounded in concrete recent scorelines. It only covers the last',
+  '  few days, so for a fuller form guide or head-to-head history follow up',
+  '  with web_search. If it comes back unavailable (no recent game for that',
+  '  team), say so and use web_search.',
   '- get_my_record(sport?): the signed-in user\'s OWN betting record from',
   '  their BetMates tracker - the one thing no other AI can see. Returns their',
   '  settled bets: win/loss/void counts and hit rate, staked vs returned, net',
@@ -302,6 +310,19 @@ export const COACHGPT_TOOLS = [
       properties: {
         sport: { type: 'string', description: 'Sport key, e.g. "football", "basketball", "nfl". Defaults to football.' }
       }
+    }
+  },
+  {
+    name: 'get_team_form',
+    description:
+      "One team's recent form - their completed results over the last few days, name-matched and summarised: won/drawn/lost, goals for and against, and each result with the opponent and whether it was home or away. Use it when the user asks how a specific team is doing (\"how are Arsenal doing\", \"is Liverpool in form\", \"should I back Newcastle\") so you can answer with concrete recent scorelines instead of guessing. Scope is only the last few days (our results data doesn't go back a full season), so for a fuller form guide or head-to-head history, follow up with web_search. Returns { available: false } when no recent completed game is found for that team - say so and reach for web_search.",
+    input_schema: {
+      type: 'object',
+      properties: {
+        team: { type: 'string', description: 'The team name, as full as you can - e.g. "Arsenal", "Manchester United", "Newcastle United".' },
+        sport: { type: 'string', description: 'Sport key, e.g. "football", "basketball", "nfl". Defaults to football.' }
+      },
+      required: ['team']
     }
   },
   {

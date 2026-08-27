@@ -31,6 +31,7 @@ import { computeBestValue } from '../../src/utils/bestValue.js'
 import { getPlayerProfile } from '../../src/lib/playerProfile.js'
 import { GENERIC_SPORTS, apiKeysForSport, sgoLeagueForSport } from '../../src/lib/sportsConfig.js'
 import { summariseCoachRecord } from '../../src/utils/coachRecord.js'
+import { summariseTeamForm } from '../../src/utils/teamForm.js'
 import { withinLlmBudget } from '../../src/lib/llmBudget.js'
 
 const SUPABASE_URL = process.env.VITE_SUPABASE_URL
@@ -331,6 +332,23 @@ async function toolGetResults(siteUrl, { sport } = {}) {
   return { sport: key, results }
 }
 
+// One team's recent form - the same /api/scores completed-games data as
+// toolGetResults above, but filtered to a named team and summarised into
+// W/D/L + goals via the pure summariseTeamForm. Degrades to { available: false }
+// when the sport has no configured keys or no recent game matches the team.
+async function toolGetTeamForm(siteUrl, { team, sport } = {}) {
+  const key = sport && SPORT_ORDER.includes(sport) ? sport : 'football'
+  const params = new URLSearchParams()
+  const keys = apiKeysForSport(key)
+  if (keys.length) params.set('keys', keys.join(','))
+  const league = sgoLeagueForSport(key)
+  if (league) params.set('sgoLeague', league)
+  if (![...params.keys()].length) return { available: false, reason: `no results source for ${key}` }
+
+  const games = await fetchJson(siteUrl, `/api/scores?${params.toString()}`)
+  return { sport: key, ...summariseTeamForm(Array.isArray(games) ? games : [], team) }
+}
+
 // "What's on tonight/today" browses by TIME, unlike find_fixture which
 // needs a name to search on and comes back empty for a bare time-word
 // question (matchFixtureQuery's STOPWORDS deliberately strip "tonight"/
@@ -581,6 +599,7 @@ export default async (req) => {
     if (name === 'get_player_profile') return toolGetPlayerProfile(input.name)
     if (name === 'get_recent_news') return toolGetNews(siteUrl, input)
     if (name === 'get_recent_results') return toolGetResults(siteUrl, input)
+    if (name === 'get_team_form') return toolGetTeamForm(siteUrl, input)
     if (name === 'get_my_record') return toolGetMyRecord(userClient, userId, input)
     if (name === 'get_coach_record') return toolGetCoachRecord(userClient, userId, input)
     return { error: `Unknown tool: ${name}` }
