@@ -10,11 +10,11 @@
 const COLORS = {
   bg: '#0a0a0d',
   surface: '#16161c',
-  border: '#322f3d',
-  text: '#f3f0f5',
-  textDim: '#8f8b9c',
-  accent: '#ff3d7f',
-  good: '#3de0c9',
+  border: '#2c3140',
+  text: '#f0f1f5',
+  textDim: '#8b909f',
+  accent: '#6aa5ff',
+  good: '#45d67f',
   bad: '#ff8a3d'
 }
 
