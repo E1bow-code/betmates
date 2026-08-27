@@ -76,7 +76,7 @@ export default function MessagesInboxPage() {
           ))}
       </div>
 
-      {!error && conversations === null && <div className="loading">Loading conversations…</div>}
+      {!error && conversations === null && <div className="loading">Catching up on your messages…</div>}
       {conversations && !conversations.length && (
         <p className="hint">No conversations with friends yet - message someone from the Friends list to start one.</p>
       )}

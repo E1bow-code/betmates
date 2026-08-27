@@ -126,7 +126,7 @@ export default function ParticipantProfileSheet({ name, sport, onClose }) {
     <div className={`sheet-backdrop${closing ? ' closing' : ''}`} onClick={requestClose}>
       <div className={`sheet profile-sheet${closing ? ' closing' : ''}`} onClick={(e) => e.stopPropagation()}>
         <div className="sheet-handle" />
-        {profile === undefined && <div className="loading">Loading…</div>}
+        {profile === undefined && <div className="loading">Building the card…</div>}
         {profile === null && taleOfTapeTiles.length === 0 && (
           <>
             <h2 className="sheet-title">{name}</h2>

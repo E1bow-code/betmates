@@ -86,7 +86,7 @@ export default function DirectMessagePage() {
       {error && <div className="error">Couldn't load this conversation: {error}</div>}
 
       <div className="group-chat">
-        {messages === null && !error && <div className="loading">Loading messages…</div>}
+        {messages === null && !error && <div className="loading">Catching up on the conversation…</div>}
         {messages && !messages.length && (
           <EmptyState
           icon={<CommentIcon width={26} height={26} />}

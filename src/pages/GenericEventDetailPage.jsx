@@ -300,7 +300,7 @@ function LoadingState() {
           &larr; Odds
         </Link>
       </div>
-      <div className="loading">Loading odds…</div>
+      <div className="loading">Pulling the latest odds…</div>
     </div>
   )
 }

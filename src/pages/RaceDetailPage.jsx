@@ -229,7 +229,7 @@ function LoadingState() {
           &larr; Races
         </Link>
       </div>
-      <div className="loading">Loading runners…</div>
+      <div className="loading">Lining up the runners…</div>
     </div>
   )
 }

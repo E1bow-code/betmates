@@ -97,7 +97,7 @@ export default function PublicProfilePage() {
       </div>
 
       {error && <div className="error">Couldn't load this profile: {error}</div>}
-      {data === undefined && !error && <div className="loading">Loading profile…</div>}
+      {data === undefined && !error && <div className="loading">Pulling up the profile…</div>}
       {data === null && !error && (
         <div className="empty">No profile found for that code.</div>
       )}

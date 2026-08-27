@@ -82,7 +82,7 @@ export default function GroupTournamentSection({ groupId, groupName, posts, memb
       </button>
       {expanded && (
         <>
-          {!tournaments && <div className="loading">Loading tournaments…</div>}
+          {!tournaments && <div className="loading">Checking the standings…</div>}
 
           {tournaments && active && <ActiveTournament tournament={active} posts={posts} memberNames={memberNames} />}
 

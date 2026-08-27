@@ -110,7 +110,7 @@ export default function FriendsPage() {
       {error && <div className="auth-error">{error}</div>}
       {shareStatus && <div className="hint">{shareStatus}</div>}
 
-      {friends === null && <div className="loading">Loading your friends…</div>}
+      {friends === null && <div className="loading">Rounding up your friends…</div>}
 
       {friends && !friends.length && (
         <EmptyState
@@ -144,7 +144,7 @@ export default function FriendsPage() {
         </button>
       </div>
 
-      {videos === null && <div className="loading">Loading tips…</div>}
+      {videos === null && <div className="loading">Catching up on the tips…</div>}
       {videos && !videos.length && (
         <EmptyState
           icon={<VideoIcon width={26} height={26} />}

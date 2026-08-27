@@ -73,7 +73,7 @@ export default function GroupsHomePage() {
         )}
       </div>
 
-      {groups === null && <div className="loading">Loading your groups…</div>}
+      {groups === null && <div className="loading">Rounding up your groups…</div>}
 
       {groups && !groups.length && (
         <EmptyState

@@ -49,7 +49,7 @@ export default function ChallengeSection({ user, friend, myPosts, theirPosts }) 
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user.id, friend.id])
 
-  if (!challenges) return <div className="loading">Loading challenges…</div>
+  if (!challenges) return <div className="loading">Checking the scoreboard…</div>
 
   const now = Date.now()
   const active = challenges.find((c) => new Date(c.endsAt).getTime() > now)

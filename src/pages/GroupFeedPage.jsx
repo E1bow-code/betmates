@@ -363,7 +363,7 @@ export default function GroupFeedPage() {
           <div className="topbar-actions group-chat-actions">
             <CoachGptLink />
           </div>
-          {messages === null && <div className="loading">Loading chat…</div>}
+          {messages === null && <div className="loading">Catching up on the chat…</div>}
           {messages && !messages.length && (
             <EmptyState icon={<CommentIcon width={26} height={26} />} title="No messages yet" subtitle="Say something to get the chat going." />
           )}
