@@ -19,15 +19,13 @@ you to review and merge. It never merges or deploys anything itself.
 
 ## Tasks
 
-<!-- A reliability push: unit tests for untested pure money/logic modules.
-     Each is deterministic (verified by `npm test`), tests-only, no behaviour
-     change, and one PR's worth. Most important at the top. -->
-
-- [ ] Add unit tests for `src/lib/bookmakers.js` — the Copy Bet link logic. Cover `withAffiliate` (adds the affiliate params for a known bookmaker, passes a plain URL through unchanged for an unknown one), `buildDeepLink` (returns a real deep link where a builder exists in `DEEP_LINK_BUILDERS`, `null` where none does), and that `BOOKMAKER_LINKS` merges homepage + affiliate links. Tests only, no behaviour change.
-- [ ] Add unit tests for `src/utils/stakingPlan.js` — cover `suggestedStake` (flat rule returns the flat value; percent rule rounds `bankroll * pct` to 2dp; `null` for no rule, and for a percent rule with no bankroll) and `stakingPlanWarning` (returns `null` at or below the 1.5x threshold, and the `{ suggestion, stakeNum, overPct }` shape above it, with `overPct` correct). Tests only, no behaviour change.
-- [ ] Add unit tests for `src/lib/quickPick.js` — cover its exported pure helpers (read the file for the current exports). Focus on the deterministic selection/scoring logic with fixed inputs; skip anything that reaches the network or DOM. Tests only, no behaviour change.
+<!-- No open tasks right now. Add new ones here, most important at the top. -->
 
 ## Done
+
+- [x] Add unit tests for `src/lib/bookmakers.js` (Copy Bet link logic) → `src/lib/bookmakers.test.js`, 5 cases: the bookmaker list + valid https links, `buildDeepLink` returns null (empty `DEEP_LINK_BUILDERS` by design), and `withAffiliate` no-ops without configured params / passes falsy URLs through.
+- [x] Add unit tests for `src/utils/stakingPlan.js` → `src/utils/stakingPlan.test.js`, 8 cases: `suggestedStake` (flat, percent rounding, null cases) and `stakingPlanWarning` (the 1.5x threshold, `overPct`, and null cases).
+- [x] Add unit tests for `src/lib/quickPick.js` → `src/lib/quickPick.test.js`, 7 cases: `PICKER_SPORTS`, `groupByCompetition`, `participantsFor`, `participantTypeFor`, `labelFor`, and `normalizeItem` (team + racing leg shapes).
 
 - [x] Add unit tests for `src/utils/eachWay.js` — settlement-critical each-way maths. → `src/utils/eachWay.test.js`, 8 cases: `getEachWayTerms` at every field-size tier + the `null` under 5 runners, and `computeEachWayReturn` (win pays both halves, place pays only the shortened place half, loss/unknown pay nothing).
 - [x] Add unit tests for `src/utils/format.js` — cover `formatRelativeTime` (just now, minutes, hours, days, and a future timestamp) and the other exported pure helpers. Tests only, no behaviour change. → `src/utils/format.test.js`, 12 cases.
