@@ -1,6 +1,6 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { runCoachGptTurn, COACHGPT_MODELS } from './coachgpt.js'
+import { runCoachGptTurn, COACHGPT_MODELS, COACHGPT_TOOLS } from './coachgpt.js'
 
 // The orchestration loop talks to Anthropic over fetch; these tests stub
 // global fetch with a scripted queue of responses so we can drive the model
@@ -117,4 +117,28 @@ test('a named pick is captured via the forced lock-in follow-up', async () => {
   stubFetch([textReply("I'd go with United here."), lockReply(true)])
   const res = await runCoachGptTurn({ apiKey: 'k', history: [], message: 'United?', callTool: noTool })
   assert.equal(res.recommendation?.hasPick, true)
+})
+
+test('get_my_record is offered to the model as a tool', () => {
+  const record = COACHGPT_TOOLS.find((t) => t.name === 'get_my_record')
+  assert.ok(record, 'get_my_record should be in COACHGPT_TOOLS')
+  // Optional sport filter, nothing required - a bare "how am I doing" must work.
+  assert.deepEqual(record.input_schema.required ?? [], [])
+})
+
+test('a personal-record question runs get_my_record then answers from it', async () => {
+  stubFetch([
+    toolReply('get_my_record', { sport: 'football' }),
+    textReply("You're 3-7 on football, champ - those overs are bleeding you dry."),
+    lockReply(false)
+  ])
+  let toolCalledWith = null
+  const callTool = async (name, input) => {
+    toolCalledWith = { name, input }
+    return { available: true, settledBets: 10, won: 3, lost: 7, hitRate: '30%', netProfit: -42.5 }
+  }
+  const res = await runCoachGptTurn({ apiKey: 'k', history: [], message: 'how am I doing on football?', callTool })
+  assert.deepEqual(toolCalledWith, { name: 'get_my_record', input: { sport: 'football' } })
+  assert.equal(res.text, "You're 3-7 on football, champ - those overs are bleeding you dry.")
+  assert.equal(res.error, null)
 })
