@@ -717,6 +717,14 @@ export default function AccountPage() {
           <label className="field-check">
             <input
               type="checkbox"
+              checked={user.notificationPrefs?.weeklyLeaderboardEmail ?? false}
+              onChange={() => toggleNotification('weeklyLeaderboardEmail')}
+            />
+            <span>Weekly leaderboard email (Monday morning)</span>
+          </label>
+          <label className="field-check">
+            <input
+              type="checkbox"
               checked={user.notificationPrefs?.streakReminders ?? false}
               onChange={() => toggleNotification('streakReminders')}
             />

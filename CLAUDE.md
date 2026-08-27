@@ -93,6 +93,7 @@ Netlify cron, configured per-file via `export const config = { schedule }`:
 | `auto-settle.js` | `*/30 * * * *` | settles open bets, pushes "bet settled" |
 | `alert-checks.js` | `*/30 * * * *` | pre-kickoff push, odds alerts, results for followed teams/players, spend-limit buddy alerts, BetMates Plus trial-ending reminder, paid-group renewal reminder (merged - see file header; dropped from `*/15` to `*/30` to cut credit usage pre-launch) |
 | `weekly-recap.js` | `0 20 * * 0` | Sunday 20:00 recap push |
+| `weekly-leaderboard-email.js` | `0 9 * * 1` | Monday 09:00 emails each opted-in member their groups' past-7-days leaderboard via Resend; opt-in `notification_prefs.weeklyLeaderboardEmail`, no-ops without `RESEND_API_KEY`/`DIGEST_FROM_EMAIL` |
 | `streak-reminders.js` | `*/30 * * * *` | push on a new 3/5/10 win-streak milestone; also nudges (once daily, 19:00 UTC) when the daily log-in streak is about to lapse |
 | `team-news-alerts.js` | `*/30 * * * *` | push when a followed team/player appears in a news headline |
 | `odds-snapshot.js` | `*/30 * * * *` | snapshots prices for open-bet legs (CLV) and followed fixtures (sharp-money) |
