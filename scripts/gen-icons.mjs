@@ -1,38 +1,31 @@
-// Generates the app's PWA icons: a football (soccer ball) glyph - amber
-// ball, dark pentagon + seam-line pattern - in the app's own palette,
-// rather than a plain solid circle. No image-processing dependency: the
-// pattern is the same one public/favicon.svg draws with real SVG shapes,
-// reimplemented here as per-pixel geometry tests (point-in-polygon for the
-// pentagon, point-to-segment distance for the seams) since PNGs need
-// actual pixels, not vector paths.
+// Generates the app's PWA icons: the BetMates mark - a betting slip (white
+// card with a perforated tear edge) and a green "settled" check on the brand
+// navy tile. It's the SAME mark public/favicon.svg draws with real SVG shapes,
+// reimplemented here as per-pixel geometry (rounded-rect + circle + thick-
+// segment distance tests) since PNGs need actual pixels, not vector paths - so
+// there's no image-processing dependency to run this.
 import { deflateSync } from 'node:zlib'
 import { writeFileSync, mkdirSync } from 'node:fs'
 
-const BG = [10, 10, 13] // #0a0a0d
-const BALL = [255, 61, 127] // #ff3d7f
-const SEAM = BG
+const NAVY = [35, 75, 122] // #234b7a - brand tile
+const WHITE = [255, 255, 255] // the slip
+const GREEN = [18, 161, 80] // #12a150 - the settled check
 
-// Geometry below is defined on a 100x100 canvas (matches favicon.svg) and
-// scaled to whatever `size` makePng is asked for.
-const CX = 50
-const CY = 50
-const BALL_R = 34
-const PENTAGON_R = 15
-const SEAM_END_R = 24
-const SEAM_WIDTH = 5.5
+// Geometry defined on a 100x100 canvas (matches favicon.svg) and scaled to
+// whatever `size` makePng is asked for.
+const SLIP = { x0: 28, y0: 23, x1: 72, y1: 77, r: 7 }
+const NOTCHES = [37, 50, 63].map((cy) => ({ cx: 28, cy, r: 3.4 }))
+const CHECK = [[37, 51], [45, 59], [64, 36]] // polyline
+const CHECK_WIDTH = 7.5
 
-function pentagonVertices() {
-  return Array.from({ length: 5 }, (_, i) => {
-    const theta = ((-90 + 72 * i) * Math.PI) / 180
-    return [CX + PENTAGON_R * Math.cos(theta), CY + PENTAGON_R * Math.sin(theta)]
-  })
-}
-
-function seamEnds() {
-  return Array.from({ length: 5 }, (_, i) => {
-    const theta = ((-90 + 72 * i) * Math.PI) / 180
-    return [CX + SEAM_END_R * Math.cos(theta), CY + SEAM_END_R * Math.sin(theta)]
-  })
+// Point inside an axis-aligned rounded rectangle (corner radius r). dx/dy are
+// how far the point pushes into a corner region; within r of the corner arc =
+// inside.
+function inRoundedRect(px, py, { x0, y0, x1, y1, r }) {
+  if (px < x0 || px > x1 || py < y0 || py > y1) return false
+  const dx = Math.max(x0 + r - px, 0, px - (x1 - r))
+  const dy = Math.max(y0 + r - py, 0, py - (y1 - r))
+  return dx * dx + dy * dy <= r * r
 }
 
 function distToSegment(px, py, [x1, y1], [x2, y2]) {
@@ -41,25 +34,7 @@ function distToSegment(px, py, [x1, y1], [x2, y2]) {
   const lenSq = dx * dx + dy * dy
   let t = lenSq ? ((px - x1) * dx + (py - y1) * dy) / lenSq : 0
   t = Math.max(0, Math.min(1, t))
-  const nx = x1 + t * dx
-  const ny = y1 + t * dy
-  return Math.hypot(px - nx, py - ny)
-}
-
-// Convex polygon, so a single winding-direction cross-product sign check
-// is enough - no even-odd ray casting needed.
-function inConvexPolygon(px, py, points) {
-  let sign = 0
-  for (let i = 0; i < points.length; i++) {
-    const [x1, y1] = points[i]
-    const [x2, y2] = points[(i + 1) % points.length]
-    const cross = (x2 - x1) * (py - y1) - (y2 - y1) * (px - x1)
-    if (cross === 0) continue
-    const s = cross > 0 ? 1 : -1
-    if (sign === 0) sign = s
-    else if (s !== sign) return false
-  }
-  return true
+  return Math.hypot(px - (x1 + t * dx), py - (y1 + t * dy))
 }
 
 function crc32(buf) {
@@ -88,39 +63,33 @@ function chunk(type, data) {
 }
 
 function makePng(size, { maskablePad = false } = {}) {
+  // Maskable icons keep their content inside a safe zone (the launcher clips
+  // the edges); the navy tile still fills the whole frame full-bleed.
   const pad = maskablePad ? Math.floor(size * 0.15) : 0
   const scale = (size - pad * 2) / 100
-  const toPx = (canvasCoord) => pad + canvasCoord * scale
+  const toPx = (c) => pad + c * scale
 
-  const pentagon = pentagonVertices().map(([x, y]) => [toPx(x), toPx(y)])
-  const seams = seamEnds().map(([x, y]) => [toPx(x), toPx(y)])
-  const ballCx = toPx(CX)
-  const ballCy = toPx(CY)
-  const ballR = BALL_R * scale
-  const seamWidth = Math.max(1, SEAM_WIDTH * scale)
+  const slip = { x0: toPx(SLIP.x0), y0: toPx(SLIP.y0), x1: toPx(SLIP.x1), y1: toPx(SLIP.y1), r: SLIP.r * scale }
+  const notches = NOTCHES.map((n) => ({ cx: toPx(n.cx), cy: toPx(n.cy), r: n.r * scale }))
+  const check = CHECK.map(([x, y]) => [toPx(x), toPx(y)])
+  const checkHalf = Math.max(1, (CHECK_WIDTH * scale) / 2)
 
   const raw = Buffer.alloc(size * (1 + size * 4))
   for (let y = 0; y < size; y++) {
     const rowStart = y * (1 + size * 4)
     raw[rowStart] = 0 // filter type: none
     for (let x = 0; x < size; x++) {
-      const inBall = (x - ballCx) ** 2 + (y - ballCy) ** 2 <= ballR ** 2
-
-      let color = BG
-      if (inBall) {
-        color = BALL
-        if (inConvexPolygon(x, y, pentagon)) {
-          color = SEAM
-        } else {
-          for (let i = 0; i < 5; i++) {
-            if (distToSegment(x, y, pentagon[i], seams[i]) <= seamWidth / 2) {
-              color = SEAM
-              break
-            }
+      let color = NAVY // full-bleed brand tile
+      if (inRoundedRect(x, y, slip) && !notches.some((n) => (x - n.cx) ** 2 + (y - n.cy) ** 2 <= n.r ** 2)) {
+        color = WHITE
+        // The check sits on the slip - draw it last, over the white.
+        for (let i = 0; i < check.length - 1; i++) {
+          if (distToSegment(x, y, check[i], check[i + 1]) <= checkHalf) {
+            color = GREEN
+            break
           }
         }
       }
-
       const off = rowStart + 1 + x * 4
       raw[off] = color[0]
       raw[off + 1] = color[1]
@@ -147,4 +116,4 @@ mkdirSync('public/icons', { recursive: true })
 writeFileSync('public/icons/icon-192.png', makePng(192))
 writeFileSync('public/icons/icon-512.png', makePng(512))
 writeFileSync('public/icons/icon-maskable-512.png', makePng(512, { maskablePad: true }))
-console.log('Generated football-icon PWA icons in public/icons/')
+console.log('Generated BetMates slip-check PWA icons in public/icons/')

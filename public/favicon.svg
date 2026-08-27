@@ -1,12 +1,11 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">
-  <mask id="stub-notches">
-    <rect width="100" height="100" fill="#fff"/>
-    <circle cx="100" cy="22" r="6" fill="#000"/>
-    <circle cx="100" cy="38" r="6" fill="#000"/>
-    <circle cx="100" cy="54" r="6" fill="#000"/>
-    <circle cx="100" cy="70" r="6" fill="#000"/>
-    <circle cx="100" cy="86" r="6" fill="#000"/>
-  </mask>
-  <rect width="100" height="100" rx="20" fill="#234b7a" mask="url(#stub-notches)"/>
-  <text x="41" y="66" text-anchor="middle" font-family="-apple-system,'Segoe UI',Arial,sans-serif" font-weight="800" font-size="46" letter-spacing="-2" fill="#ffffff">BM</text>
+  <!-- BetMates mark: a betting slip (white card, perforated tear edge) with a
+       green "settled" check, on the brand navy tile. One mark shared with the
+       PWA icons (scripts/gen-icons.mjs draws the same geometry per-pixel). -->
+  <rect width="100" height="100" rx="22" fill="#234b7a"/>
+  <rect x="28" y="23" width="44" height="54" rx="7" fill="#ffffff"/>
+  <circle cx="28" cy="37" r="3.4" fill="#234b7a"/>
+  <circle cx="28" cy="50" r="3.4" fill="#234b7a"/>
+  <circle cx="28" cy="63" r="3.4" fill="#234b7a"/>
+  <path d="M37 51 L45 59 L64 36" fill="none" stroke="#12a150" stroke-width="7.5" stroke-linecap="round" stroke-linejoin="round"/>
 </svg>
