@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext.jsx'
+import { useToast } from '../context/ToastContext.jsx'
 import * as dataStore from '../lib/dataStore.js'
 import { startGroupCheckout } from '../api/groupBillingClient.js'
 import { computeStats } from '../utils/trackerStats.js'
@@ -22,6 +23,7 @@ export default function JoinGroupPage() {
   const [searchParams] = useSearchParams()
   const returningFromCheckout = searchParams.get('subscribed') === '1'
   const { user } = useAuth()
+  const { showToast } = useToast()
   const navigate = useNavigate()
   const [group, setGroup] = useState(null)
   const [showPaywall, setShowPaywall] = useState(false)
@@ -51,7 +53,16 @@ export default function JoinGroupPage() {
   function joinAndEnter() {
     dataStore
       .joinGroupByCode(code, user.id)
-      .then((joined) => navigate(`/groups/${joined.id}`, { replace: true }))
+      .then((joined) => {
+        // A fast redirect can read as nothing having happened - this fires
+        // right before the navigate, same as every other join/create flow
+        // in the app (ManageSheet's create/join forms don't need one since
+        // they stay on /groups and the new chip just appears, but landing
+        // straight on the group's own page here has no other visible
+        // "that worked" signal).
+        showToast(`Joined ${joined.name}`)
+        navigate(`/groups/${joined.id}`, { replace: true })
+      })
       .catch((err) => setError(err.message))
   }
 
