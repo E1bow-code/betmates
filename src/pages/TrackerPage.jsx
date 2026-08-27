@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { Fragment, useEffect, useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext.jsx'
 import { useOddsFormat } from '../context/OddsFormatContext.jsx'
@@ -55,6 +55,7 @@ import {
   CalendarIcon,
   ChartBarIcon
 } from '../components/icons/Icons.jsx'
+import { MoreIcon } from '../components/icons/NavIcons.jsx'
 
 const BADGE_ICON = {
   flame: FlameIcon,
@@ -90,6 +91,13 @@ export default function TrackerPage() {
   const [rebetDone, setRebetDone] = useState(null)
   const [editingEntry, setEditingEntry] = useState(null)
   const [showAddEntry, setShowAddEntry] = useState(false)
+  // Edit/Log again/Share used to sit as three always-visible buttons on
+  // every row alongside the status control - collapsed behind one "⋯"
+  // per row instead, same idea as BetCard.jsx's own moderation-menu. Only
+  // one row's menu open at a time (a single id, not a Set) since opening
+  // a second row's actions while the first is still showing has no real
+  // use case and just means more to scroll past.
+  const [openActionsId, setOpenActionsId] = useState(null)
   const runAsync = useAsyncAction()
 
   useEffect(() => {
@@ -414,7 +422,8 @@ export default function TrackerPage() {
                   )
                 : null
             return (
-              <div key={entry.id} className={`tracker-row status-${entry.status}`}>
+              <Fragment key={entry.id}>
+              <div className={`tracker-row status-${entry.status}`}>
                 <div className="tracker-row-main">
                   {selections.length > 1 && <div className="bet-card-leg-count">{selections.length}-leg bet builder</div>}
                   {selections.map((selection, i) => {
@@ -471,8 +480,26 @@ export default function TrackerPage() {
                   ) : (
                     <span className={`chip chip--pill chip--sm chip--outline bet-status-pill status-${entry.status}`}>{STATUS_LABEL[entry.status]}</span>
                   )}
+                  <button
+                    className="btn btn-ghost btn-small"
+                    onClick={() => setOpenActionsId((id) => (id === entry.id ? null : entry.id))}
+                    aria-label="More actions"
+                    aria-expanded={openActionsId === entry.id}
+                  >
+                    <MoreIcon width={16} height={16} />
+                  </button>
+                </div>
+              </div>
+              {openActionsId === entry.id && (
+                <div className="bet-card-more-menu">
                   {entry.status === 'open' && (
-                    <button className="btn btn-ghost btn-small" onClick={() => setEditingEntry(entry)}>
+                    <button
+                      className="btn btn-ghost btn-small"
+                      onClick={() => {
+                        setEditingEntry(entry)
+                        setOpenActionsId(null)
+                      }}
+                    >
                       Edit
                     </button>
                   )}
@@ -481,11 +508,12 @@ export default function TrackerPage() {
                     onClick={() => handleRebet(entry)}
                     disabled={rebetting === entry.id}
                   >
-                    {rebetDone === entry.id ? 'Logged ✓' : rebetting === entry.id ? 'Adding…' : 'Bet again'}
+                    {rebetDone === entry.id ? 'Logged ✓' : rebetting === entry.id ? 'Adding…' : 'Log again'}
                   </button>
                   <ShareImageButton post={entry} />
                 </div>
-              </div>
+              )}
+            </Fragment>
             )
           })}
           </div>
