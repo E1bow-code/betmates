@@ -46,6 +46,15 @@ async function fetchSportOdds(sport) {
 }
 
 export default async () => {
+  // Master off-switch. This whole odds-cache system spends real Odds API
+  // credits, so it ships dormant: no ingest cron does anything until
+  // ODDS_INGEST_ENABLED is explicitly set to 'true' in Netlify (turn it on only
+  // after the odds_cache table exists). Until then the proxies keep serving
+  // live/mock exactly as before - merging this never starts a cost clock.
+  if (process.env.ODDS_INGEST_ENABLED !== 'true') {
+    return json({ ingested: 0, reason: 'ingest disabled' })
+  }
+
   // No key configured anywhere - nothing to ingest, and the proxy keeps
   // serving mock. Not an error (the app runs with zero keys by design).
   if (!SUPABASE_URL || !SERVICE_ROLE_KEY || !ODDS_API_KEY) {

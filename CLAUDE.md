@@ -102,6 +102,16 @@ Netlify cron, configured per-file via `export const config = { schedule }`:
 | `ufc-ingest.js` | `0 */8 * * *` | same, for the UFC/MMA list (`ufc.js`) |
 | `sport-ingest.js` | `0 */12 * * *` | same, per generic sport (`sport.js`); `ODDS_INGEST_SPORTS` allowlists which - NOT free-tier-safe with all nine on, see file header |
 
+The three `*-ingest.js` crons are the only paid-per-run scheduled functions
+(they spend Odds API credits), so they ship **dormant behind an explicit
+`ODDS_INGEST_ENABLED` env flag**: each returns `{ ingested: 0, reason: 'ingest
+disabled' }` and touches no provider unless `ODDS_INGEST_ENABLED === 'true'`.
+Turn the odds-cache system on deliberately: apply the `odds_cache` block from
+`supabase/schema.sql`, set `ODDS_INGEST_ENABLED=true`, and scope
+`ODDS_INGEST_SPORTS` to stay inside the free tier. With the flag unset (the
+default), the odds proxies keep serving live/mock exactly as before - so
+merging this changes nothing until you opt in.
+
 `alert-checks.js` (and every other scheduled function above) runs with
 nobody signed in, so it uses `SUPABASE_SERVICE_ROLE_KEY` and bypasses RLS -
 the only place that's true.

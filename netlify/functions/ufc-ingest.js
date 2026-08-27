@@ -29,6 +29,12 @@ function json(body) {
 }
 
 export default async () => {
+  // Master off-switch - see odds-ingest.js. Ships dormant; nothing runs until
+  // ODDS_INGEST_ENABLED is set to 'true' in Netlify.
+  if (process.env.ODDS_INGEST_ENABLED !== 'true') {
+    return json({ ingested: 0, reason: 'ingest disabled' })
+  }
+
   if (!SUPABASE_URL || !SERVICE_ROLE_KEY || !ODDS_API_KEY) {
     return json({ ingested: 0, reason: 'not configured' })
   }
