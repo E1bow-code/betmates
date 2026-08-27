@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { computePickemLeaderboard } from '../utils/pickem.js'
 import Avatar from './Avatar.jsx'
+import UserLink from './UserLink.jsx'
 import { TargetIcon } from './icons/Icons.jsx'
 
 // Separate from the real-money Leaderboard above it on GroupFeedPage - this
@@ -24,7 +25,7 @@ export default function PickemLeaderboard({ posts, memberNames }) {
             <div key={row.userId} className={i === 0 ? 'leaderboard-row leaderboard-row-top' : 'leaderboard-row'}>
               <span className="leaderboard-rank">#{i + 1}</span>
               <Avatar name={row.name} size={24} />
-              <span className="leaderboard-name">{row.name}</span>
+              <UserLink id={row.userId} displayName={row.name} className="leaderboard-name" />
               <span className="leaderboard-pnl tone-good">
                 {row.wins}-{row.losses}
               </span>

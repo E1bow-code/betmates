@@ -1,8 +1,15 @@
 import { useEffect, useState } from 'react'
 import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom'
+import posthog from 'posthog-js'
 import { useAuth } from '../context/AuthContext.jsx'
+import { useToast } from '../context/ToastContext.jsx'
 import * as dataStore from '../lib/dataStore.js'
 import { startGroupCheckout } from '../api/groupBillingClient.js'
+import { computeStats } from '../utils/trackerStats.js'
+import { tipsterBadge } from '../utils/tipsterBadge.js'
+import { TargetIcon, BadgeCheckIcon } from '../components/icons/Icons.jsx'
+
+const TIPSTER_BADGE_ICON = { sharp: TargetIcon, reliable: BadgeCheckIcon }
 
 // Landing spot for a shared invite link (see src/lib/share.js's
 // groupInviteUrl) once the user is signed in. A free group joins and
@@ -17,17 +24,47 @@ export default function JoinGroupPage() {
   const [searchParams] = useSearchParams()
   const returningFromCheckout = searchParams.get('subscribed') === '1'
   const { user } = useAuth()
+  const { showToast } = useToast()
   const navigate = useNavigate()
   const [group, setGroup] = useState(null)
   const [showPaywall, setShowPaywall] = useState(false)
   const [error, setError] = useState(null)
   const [checkoutBusy, setCheckoutBusy] = useState(false)
   const [checkoutError, setCheckoutError] = useState(null)
+  const [ownerStats, setOwnerStats] = useState(null)
+  const [followerCount, setFollowerCount] = useState(null)
+
+  // Same computeStats/tipsterBadge chain the Discover tab and GoProSheet's
+  // pitch step already use, over the owner's own public settled bets - so
+  // whoever's about to pay sees the exact track record that justified the
+  // price, not just a bare number.
+  useEffect(() => {
+    if (!showPaywall || !group?.createdBy) return
+    let cancelled = false
+    dataStore.listBetPostsByUser(group.createdBy).then((posts) => {
+      if (cancelled) return
+      setOwnerStats(computeStats(posts.filter((p) => p.visibility === 'public' && !p.stakeHidden)))
+    })
+    dataStore.getFollowerCount(group.createdBy).then((c) => !cancelled && setFollowerCount(c))
+    return () => {
+      cancelled = true
+    }
+  }, [showPaywall, group?.createdBy])
 
   function joinAndEnter() {
     dataStore
       .joinGroupByCode(code, user.id)
-      .then((joined) => navigate(`/groups/${joined.id}`, { replace: true }))
+      .then((joined) => {
+        // A fast redirect can read as nothing having happened - this fires
+        // right before the navigate, same as every other join/create flow
+        // in the app (ManageSheet's create/join forms don't need one since
+        // they stay on /groups and the new chip just appears, but landing
+        // straight on the group's own page here has no other visible
+        // "that worked" signal).
+        posthog.capture('group_joined', { is_paid_group: !!group?.priceAmount })
+        showToast(`Joined ${joined.name}`)
+        navigate(`/groups/${joined.id}`, { replace: true })
+      })
       .catch((err) => setError(err.message))
   }
 
@@ -125,6 +162,41 @@ export default function JoinGroupPage() {
           <h1>{group.name}</h1>
         </div>
         <div className="paywall-card">
+          {ownerStats &&
+            (() => {
+              const badge = tipsterBadge(ownerStats)
+              const BadgeIcon = badge && TIPSTER_BADGE_ICON[badge.icon]
+              return (
+                <div className="paywall-owner-pitch">
+                  {badge && (
+                    <span className="chip chip--pill chip--sm chip--outline-accent tipster-badge icon-row">
+                      {BadgeIcon && <BadgeIcon width={13} height={13} />} {badge.label}
+                    </span>
+                  )}
+                  <div className="stat-tiles">
+                    <div className="stat-tile">
+                      <div className="stat-tile-value">{ownerStats.winRate === null ? '-' : `${ownerStats.winRate}%`}</div>
+                      <div className="stat-tile-label">Win rate</div>
+                    </div>
+                    <div className={`stat-tile ${ownerStats.roi === null ? '' : ownerStats.roi >= 0 ? 'tone-good' : 'tone-bad'}`}>
+                      <div className="stat-tile-value">
+                        {ownerStats.roi === null ? '-' : `${ownerStats.roi >= 0 ? '+' : ''}${ownerStats.roi}%`}
+                      </div>
+                      <div className="stat-tile-label">ROI</div>
+                    </div>
+                    <div className="stat-tile">
+                      <div className="stat-tile-value">{ownerStats.decidedCount}</div>
+                      <div className="stat-tile-label">Picks</div>
+                    </div>
+                  </div>
+                  {followerCount !== null && (
+                    <p className="hint">
+                      {followerCount} follower{followerCount === 1 ? '' : 's'}
+                    </p>
+                  )}
+                </div>
+              )
+            })()}
           <p>
             This is a paid group - £{Number(group.priceAmount).toFixed(2)}/month for access to its picks and chat.
           </p>

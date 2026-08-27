@@ -11,17 +11,23 @@ import GroupCoachTake from '../components/GroupCoachTake.jsx'
 import PickemLeaderboard from '../components/PickemLeaderboard.jsx'
 import TablePredictorPanel from '../components/TablePredictorPanel.jsx'
 import Avatar from '../components/Avatar.jsx'
+import UserLink from '../components/UserLink.jsx'
+import GoProSheet from '../components/GoProSheet.jsx'
 import ReferralTierBadge from '../components/ReferralTierBadge.jsx'
 import EmptyState from '../components/EmptyState.jsx'
 import { shareOrCopy, groupInviteUrl } from '../lib/share.js'
+import { notifyGroup } from '../lib/notify.js'
 import { useAsyncAction } from '../lib/useAsyncAction.js'
 import PullToRefresh from '../components/PullToRefresh.jsx'
 import SportHeroBanner from '../components/SportHeroBanner.jsx'
+import CollapsibleSection from '../components/CollapsibleSection.jsx'
 import CoachGptLink from '../components/CoachGptLink.jsx'
 import { startConnectOnboarding } from '../api/groupBillingClient.js'
 import { computeGroupEarnings } from '../utils/groupEarnings.js'
 import { groupSubscribersToCsv, downloadCsv } from '../lib/csvExport.js'
 import { CommentIcon } from '../components/icons/Icons.jsx'
+
+const EXTRAS_EXPANDED_KEY = 'betmates:groupExtrasExpanded'
 
 export default function GroupFeedPage() {
   const { id } = useParams()
@@ -55,7 +61,23 @@ export default function GroupFeedPage() {
   const [connecting, setConnecting] = useState(false)
   const [connectError, setConnectError] = useState(null)
   const [subscribers, setSubscribers] = useState(null)
+  const [showGoPro, setShowGoPro] = useState(false)
+  // Recap/Coach's take/Leaderboard/Pick'em/Tournament - collapsed by
+  // default so the feed itself (why you're actually here) is the first
+  // thing you see, not five stacked widgets above it. Remembered per
+  // browser once opened, same idea as AccountPage's own group-expansion
+  // memory, not per-group - it's a "do I want to see this stuff" habit,
+  // not something that varies group to group.
+  const [extrasOpen, setExtrasOpen] = useState(() => localStorage.getItem(EXTRAS_EXPANDED_KEY) === '1')
   const runAsync = useAsyncAction()
+
+  function toggleExtras() {
+    setExtrasOpen((open) => {
+      const next = !open
+      localStorage.setItem(EXTRAS_EXPANDED_KEY, next ? '1' : '0')
+      return next
+    })
+  }
 
   function refresh() {
     return Promise.all([dataStore.getGroup(id), dataStore.listBetPosts(id), dataStore.listGroupMembers(id), dataStore.listSharedInGroup(id)])
@@ -242,6 +264,19 @@ export default function GroupFeedPage() {
     if (!ok) return
     setMessages((m) => [...(m ?? []), message])
     setMessageBody('')
+    // Gated on 'groupChat' (opt-out, defaults on) rather than sent
+    // unconditionally like DirectMessagePage's notifyFriend - a group chat
+    // can get busy with several people talking at once, unlike a 1:1 DM.
+    notifyGroup(
+      id,
+      {
+        title: `${user.displayName} messaged in ${group?.name ?? 'the group'}`,
+        body,
+        url: `/#/groups/${id}`
+      },
+      user.id,
+      'groupChat'
+    )
   }
 
   return (
@@ -249,7 +284,7 @@ export default function GroupFeedPage() {
       <SportHeroBanner sport="group" />
       <div className="topbar">
         <Link to="/groups" className="back">
-          &larr; Social
+          &larr; Groups
         </Link>
         <h1>{group?.name ?? 'Group'}</h1>
         {group && (
@@ -270,6 +305,11 @@ export default function GroupFeedPage() {
           <button className={tab === 'predictor' ? 'mode-tab active' : 'mode-tab'} onClick={() => setTab('predictor')}>
             Predictor
           </button>
+          {isCreator && (
+            <button className={tab === 'settings' ? 'mode-tab active' : 'mode-tab'} onClick={() => setTab('settings')}>
+              Settings
+            </button>
+          )}
         </div>
       </div>
 
@@ -277,29 +317,39 @@ export default function GroupFeedPage() {
         <>
           {error && <div className="error">Hmm, couldn't load this group: {error}</div>}
           {!error && items === null && <div className="loading">Catching up on the feed…</div>}
-          {posts && posts.length > 0 && <GroupRecapCard posts={posts} memberNames={memberNames} />}
-          {posts && posts.length > 0 && <GroupCoachTake posts={posts} memberNames={memberNames} />}
-          {posts && posts.length > 0 && (
-            <Leaderboard
-              posts={posts}
-              memberNames={memberNames}
-              currentUserId={user.id}
-              closes={closes}
-              groupId={id}
-              referralCounts={referralCounts}
-            />
-          )}
-          {posts && posts.length > 0 && <PickemLeaderboard posts={posts} memberNames={memberNames} />}
+
           {posts && (
-            <GroupTournamentSection
-              groupId={id}
-              groupName={group?.name ?? 'the group'}
-              posts={posts}
-              memberNames={memberNames}
-              currentUserId={user.id}
-              isCreator={isCreator}
-            />
+            <CollapsibleSection title="Recap, leaderboard & more" open={extrasOpen} onToggle={toggleExtras}>
+              {posts.length > 0 && (
+                <>
+                  <GroupRecapCard posts={posts} memberNames={memberNames} />
+                  <GroupCoachTake posts={posts} memberNames={memberNames} />
+                  <Leaderboard
+                    posts={posts}
+                    memberNames={memberNames}
+                    currentUserId={user.id}
+                    closes={closes}
+                    groupId={id}
+                    referralCounts={referralCounts}
+                  />
+                  <PickemLeaderboard posts={posts} memberNames={memberNames} />
+                </>
+              )}
+              {/* Unlike the four above, a tournament doesn't need any bets
+                  posted yet to start - it scores whatever comes in during its
+                  own window - so this stays reachable even for a brand new,
+                  still-empty group (matches its original, looser gate). */}
+              <GroupTournamentSection
+                groupId={id}
+                groupName={group?.name ?? 'the group'}
+                posts={posts}
+                memberNames={memberNames}
+                currentUserId={user.id}
+                isCreator={isCreator}
+              />
+            </CollapsibleSection>
           )}
+
           {items && !items.length && (
             <EmptyState
               icon={<CommentIcon width={26} height={26} />}
@@ -327,7 +377,7 @@ export default function GroupFeedPage() {
           <div className="topbar-actions group-chat-actions">
             <CoachGptLink />
           </div>
-          {messages === null && <div className="loading">Loading chat…</div>}
+          {messages === null && <div className="loading">Catching up on the chat…</div>}
           {messages && !messages.length && (
             <EmptyState icon={<CommentIcon width={26} height={26} />} title="No messages yet" subtitle="Say something to get the chat going." />
           )}
@@ -339,7 +389,11 @@ export default function GroupFeedPage() {
                   <div key={m.id} className={mine ? 'chat-message chat-message-mine' : 'chat-message'}>
                     {!mine && <Avatar name={memberNames[m.userId] ?? 'Someone'} size={26} />}
                     <div className="chat-bubble">
-                      {!mine && <div className="chat-author">{memberNames[m.userId] ?? 'Someone'}</div>}
+                      {!mine && (
+                        <div className="chat-author">
+                          <UserLink id={m.userId} displayName={memberNames[m.userId] ?? 'Someone'} />
+                        </div>
+                      )}
                       <div>{m.body}</div>
                     </div>
                   </div>
@@ -363,128 +417,24 @@ export default function GroupFeedPage() {
 
       {tab === 'members' && (
         <div>
-          {isCreator && (
-            <div className="group-actions">
-              {renaming ? (
-                <form className="chat-input-row" onSubmit={handleRename}>
-                  <input
-                    value={nameInput}
-                    onChange={(e) => setNameInput(e.target.value)}
-                    maxLength={60}
-                    autoFocus
-                  />
-                  <button className="btn btn-primary btn-small" type="submit" disabled={savingName || !nameInput.trim()}>
-                    Save
-                  </button>
-                  <button className="btn btn-ghost btn-small" type="button" onClick={() => setRenaming(false)}>
-                    Cancel
-                  </button>
-                </form>
-              ) : (
-                <button className="btn btn-secondary btn-small" onClick={startRename}>
-                  Rename group
-                </button>
-              )}
-            </div>
-          )}
-
-          {isCreator && (
-            <label className="filter-toggle">
-              <input
-                type="checkbox"
-                checked={group?.isDiscoverable ?? false}
-                onChange={handleToggleDiscoverable}
-                disabled={savingDiscoverable}
-              />
-              <span>List this group publicly in Discover</span>
-            </label>
-          )}
-
-          {isCreator && (
-            <div className="group-billing-panel">
-              {!group?.stripeConnectChargesEnabled ? (
-                <>
-                  <button className="btn btn-secondary btn-small" onClick={handleConnectPayouts} disabled={connecting}>
-                    {connecting ? 'Redirecting…' : 'Connect payouts (Stripe)'}
-                  </button>
-                  <p className="hint">Charge members a monthly price for this group once payouts are connected.</p>
-                  {connectError && <p className="error">{connectError}</p>}
-                </>
-              ) : (
-                <>
-                  <form className="chat-input-row" onSubmit={handleSavePrice}>
-                    <input
-                      type="number"
-                      min="0"
-                      step="0.5"
-                      placeholder="£ per month (blank = free)"
-                      value={priceInput}
-                      onChange={(e) => setPriceInput(e.target.value)}
-                    />
-                    <button className="btn btn-primary btn-small" type="submit" disabled={savingPrice}>
-                      {savingPrice ? 'Saving…' : 'Save'}
-                    </button>
-                  </form>
-                  {group?.priceAmount ? (
-                    <>
-                      <p className="hint">£{Number(group.priceAmount).toFixed(2)}/month</p>
-                      {subscribers !== null &&
-                        (() => {
-                          const { grossMrr, netMrr } = computeGroupEarnings(subscribers.length, group.priceAmount)
-                          return (
-                            <>
-                              <h2 className="market-title">Earnings</h2>
-                              <div className="stat-tiles">
-                                <div className="stat-tile">
-                                  <div className="stat-tile-value">{subscribers.length}</div>
-                                  <div className="stat-tile-label">Paying members</div>
-                                </div>
-                                <div className="stat-tile">
-                                  <div className="stat-tile-value">£{grossMrr.toFixed(2)}</div>
-                                  <div className="stat-tile-label">Gross revenue</div>
-                                </div>
-                                <div className="stat-tile">
-                                  <div className="stat-tile-value">£{netMrr.toFixed(2)}</div>
-                                  <div className="stat-tile-label">Your est. earnings</div>
-                                </div>
-                              </div>
-                              <p className="hint">After BetMates' 10% fee - excludes Stripe's own processing fee.</p>
-                              {subscribers.length > 0 && (
-                                <>
-                                  <div className="manage-list">
-                                    {subscribers.map((s) => (
-                                      <div key={s.id} className="manage-list-row">
-                                        <span>{s.displayName}</span>
-                                      </div>
-                                    ))}
-                                  </div>
-                                  <button className="btn btn-ghost btn-small" onClick={handleExportSubscribers}>
-                                    Export as CSV
-                                  </button>
-                                </>
-                              )}
-                            </>
-                          )
-                        })()}
-                    </>
-                  ) : (
-                    <p className="hint">This group is free to join.</p>
-                  )}
-                </>
-              )}
-            </div>
-          )}
-
           <div className="manage-list">
             {members.map((m) => (
               <div key={m.id} className="manage-list-row">
                 <span className="fixture-team">
                   <Avatar name={m.displayName} size={26} />
-                  <span>
-                    {m.displayName}
-                    {m.id === user.id && ' (you)'}
-                    <ReferralTierBadge count={m.referralCount} />
-                  </span>
+                  {m.id === user.id ? (
+                    <span>
+                      {m.displayName} (you)
+                      <ReferralTierBadge count={m.referralCount} />
+                    </span>
+                  ) : (
+                    <UserLink id={m.id} displayName={m.displayName}>
+                      <span>
+                        {m.displayName}
+                        <ReferralTierBadge count={m.referralCount} />
+                      </span>
+                    </UserLink>
+                  )}
                 </span>
                 {isCreator && m.id !== user.id && (
                   <button
@@ -509,6 +459,108 @@ export default function GroupFeedPage() {
           <button className="btn btn-ghost" onClick={handleLeave} disabled={leaving}>
             {leaving ? 'Leaving…' : 'Leave group'}
           </button>
+        </div>
+      )}
+
+      {tab === 'settings' && isCreator && (
+        <div>
+          <div className="group-actions">
+            {renaming ? (
+              <form className="chat-input-row" onSubmit={handleRename}>
+                <input
+                  value={nameInput}
+                  onChange={(e) => setNameInput(e.target.value)}
+                  maxLength={60}
+                  autoFocus
+                />
+                <button className="btn btn-primary btn-small" type="submit" disabled={savingName || !nameInput.trim()}>
+                  Save
+                </button>
+                <button className="btn btn-ghost btn-small" type="button" onClick={() => setRenaming(false)}>
+                  Cancel
+                </button>
+              </form>
+            ) : (
+              <button className="btn btn-secondary btn-small" onClick={startRename}>
+                Rename group
+              </button>
+            )}
+          </div>
+
+          <label className="filter-toggle">
+            <input
+              type="checkbox"
+              checked={group?.isDiscoverable ?? false}
+              onChange={handleToggleDiscoverable}
+              disabled={savingDiscoverable}
+            />
+            <span>List this group publicly in Discover</span>
+          </label>
+
+          <div className="group-billing-panel">
+            {group?.stripeConnectChargesEnabled && group?.priceAmount ? (
+              <>
+                <p className="hint">£{Number(group.priceAmount).toFixed(2)}/month</p>
+                {subscribers !== null &&
+                  (() => {
+                    const { grossMrr, netMrr } = computeGroupEarnings(subscribers.length, group.priceAmount)
+                    return (
+                      <>
+                        <h2 className="market-title">Earnings</h2>
+                        <div className="stat-tiles">
+                          <div className="stat-tile">
+                            <div className="stat-tile-value">{subscribers.length}</div>
+                            <div className="stat-tile-label">Paying members</div>
+                          </div>
+                          <div className="stat-tile">
+                            <div className="stat-tile-value">£{grossMrr.toFixed(2)}</div>
+                            <div className="stat-tile-label">Gross revenue</div>
+                          </div>
+                          <div className="stat-tile">
+                            <div className="stat-tile-value">£{netMrr.toFixed(2)}</div>
+                            <div className="stat-tile-label">Your est. earnings</div>
+                          </div>
+                        </div>
+                        <p className="hint">After BetMates' 10% fee - excludes Stripe's own processing fee.</p>
+                        {subscribers.length > 0 && (
+                          <>
+                            <div className="manage-list">
+                              {subscribers.map((s) => (
+                                <div key={s.id} className="manage-list-row">
+                                  <span>{s.displayName}</span>
+                                </div>
+                              ))}
+                            </div>
+                            <button className="btn btn-ghost btn-small" onClick={handleExportSubscribers}>
+                              Export as CSV
+                            </button>
+                          </>
+                        )}
+                      </>
+                    )
+                  })()}
+              </>
+            ) : (
+              <button className="btn btn-secondary btn-small" onClick={() => setShowGoPro(true)}>
+                Turn this into a paid group
+              </button>
+            )}
+          </div>
+
+          {showGoPro && (
+            <GoProSheet
+              group={group}
+              user={user}
+              onClose={() => setShowGoPro(false)}
+              priceInput={priceInput}
+              setPriceInput={setPriceInput}
+              savingPrice={savingPrice}
+              handleSavePrice={handleSavePrice}
+              connecting={connecting}
+              connectError={connectError}
+              handleConnectPayouts={handleConnectPayouts}
+            />
+          )}
         </div>
       )}
 

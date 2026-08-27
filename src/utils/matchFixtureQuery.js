@@ -96,6 +96,20 @@ export function matchFixtureQuery(fixtures, query, limit = 5) {
 // forced into participantNames above: scores each RUNNER (not the race as
 // a whole) against the course/race name/horse name, so "how's Frankel
 // doing in the 3:15" and "what's on at Ascot today" both work.
+// For CoachGPT's list_upcoming_events tool (netlify/functions/coachgpt.js) -
+// "what's on tonight/today" needs to browse fixtures by TIME, not by name
+// the way matchFixtureQuery/matchRaceQuery above do (a bare time-word query
+// like "what's on tonight" has nothing left to match on once STOPWORDS
+// strips "tonight" - confirmed live, CoachGPT had no way to actually answer
+// it). Pure predicate, `now` injectable so it's testable without mocking
+// Date.
+export function startsWithinHours(isoTimestamp, hours, now = Date.now()) {
+  if (!isoTimestamp) return false
+  const t = new Date(isoTimestamp).getTime()
+  if (Number.isNaN(t)) return false
+  return t >= now && t <= now + hours * 60 * 60 * 1000
+}
+
 export function matchRaceQuery(races, query, limit = 5) {
   const words = queryWords(query)
   if (!words.length) return []

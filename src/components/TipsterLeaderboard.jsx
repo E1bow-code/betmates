@@ -1,7 +1,8 @@
 import { useEffect, useState } from 'react'
-import { Link } from 'react-router-dom'
 import Avatar from './Avatar.jsx'
+import UserLink from './UserLink.jsx'
 import EmptyState from './EmptyState.jsx'
+import LeaderboardPodium from './LeaderboardPodium.jsx'
 import * as dataStore from '../lib/dataStore.js'
 import { LEADERBOARD_WINDOWS } from '../utils/dateWindows.js'
 import { MIN_SETTLED_TO_RANK } from '../utils/tipsters.js'
@@ -75,6 +76,17 @@ export default function TipsterLeaderboard({ rows, window, onWindowChange, curre
       )}
 
       {rows && rows.length > 0 && (
+        <LeaderboardPodium
+          entries={rows.slice(0, 3).map((row) => ({
+            userId: row.userId,
+            name: row.name,
+            value: `${row.roi >= 0 ? '+' : ''}${row.roi}%`,
+            tone: row.roi >= 0 ? 'good' : 'bad'
+          }))}
+        />
+      )}
+
+      {rows && rows.length > 0 && (
         <div className="tipster-list">
           {rows.map((row, i) => (
             <div key={row.userId} className={i === 0 ? 'tipster-row tipster-row-top' : 'tipster-row'}>
@@ -82,15 +94,9 @@ export default function TipsterLeaderboard({ rows, window, onWindowChange, curre
               <Avatar name={row.name} size={30} />
               <div className="tipster-main">
                 <div className="tipster-name-row">
-                  {row.code ? (
-                    <Link to={`/u/${row.code}`} className="tipster-name">
-                      {row.name}
-                    </Link>
-                  ) : (
-                    <span className="tipster-name">{row.name}</span>
-                  )}
+                  <UserLink id={row.userId} displayName={row.name} className="tipster-name" />
                   {row.badge && (
-                    <span className="tipster-badge icon-row">
+                    <span className="chip chip--pill chip--sm chip--outline-accent tipster-badge icon-row">
                       {(() => {
                         const BadgeIcon = TIPSTER_BADGE_ICON[row.badge.icon]
                         return BadgeIcon && <BadgeIcon width={13} height={13} />

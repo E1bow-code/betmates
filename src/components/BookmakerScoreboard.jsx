@@ -1,5 +1,6 @@
 import { MIN_SETTLED_TO_RANK } from '../utils/bookmakerScoreboard.js'
 import EmptyState from './EmptyState.jsx'
+import LeaderboardPodium from './LeaderboardPodium.jsx'
 import { BankIcon } from './icons/Icons.jsx'
 
 // Reuses Leaderboard.jsx's row markup (rank/name/pnl/meta, no Avatar since
@@ -20,6 +21,17 @@ export default function BookmakerScoreboard({ rows }) {
           icon={<BankIcon width={26} height={26} />}
           title="No bookmakers ranked yet"
           subtitle={`Settle at least ${MIN_SETTLED_TO_RANK} single-leg bets with the same bookmaker to make the board.`}
+        />
+      )}
+
+      {rows && rows.length > 0 && (
+        <LeaderboardPodium
+          entries={rows.slice(0, 3).map((row) => ({
+            userId: null,
+            name: row.bookmaker,
+            value: `${row.roi >= 0 ? '+' : ''}${row.roi}%`,
+            tone: row.roi >= 0 ? 'good' : 'bad'
+          }))}
         />
       )}
 

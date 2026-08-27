@@ -19,12 +19,12 @@ import { freezesGranted, computeStreakTransition } from '../utils/dailyStreak.js
 /**
  * @typedef {object} Profile
  * @property {string} id
- * @property {string} email
+ * @property {string|null} email
  * @property {string} displayName
- * @property {string} dob
+ * @property {string|null} dob
  * @property {string} friendCode
  * @property {string[]} bookmakerPrefs
- * @property {{betPosted: boolean, betSettled: boolean, oddsMoved: boolean, [key: string]: boolean}} notificationPrefs
+ * @property {{betPosted: boolean, betActivity: boolean, betSettled: boolean, oddsMoved: boolean, [key: string]: boolean}} notificationPrefs
  * @property {string} acceptedTermsAt
  * @property {string} createdAt
  * @property {boolean} isAdmin
@@ -188,17 +188,21 @@ import { freezesGranted, computeStreakTransition } from '../utils/dailyStreak.js
  * @property {string} generatedAt
  */
 
-/** @param {any} row @returns {Profile|null} */
-function mapProfile(row) {
+// privateRow is profile_private's own row (email/date_of_birth split out
+// of profiles - see schema.sql) - undefined for a caller that never
+// fetched it, not just missing on the row, since every real caller of
+// mapProfile is reading its OWN profile and always has one to pass.
+/** @param {any} row @param {{email: string, date_of_birth: string}} [privateRow] @returns {Profile|null} */
+function mapProfile(row, privateRow) {
   if (!row) return null
   return {
     id: row.id,
-    email: row.email,
+    email: privateRow?.email ?? null,
     displayName: row.display_name,
-    dob: row.date_of_birth,
+    dob: privateRow?.date_of_birth ?? null,
     friendCode: row.friend_code,
     bookmakerPrefs: row.bookmaker_prefs || [],
-    notificationPrefs: row.notification_prefs || { betPosted: true, betSettled: true, oddsMoved: false },
+    notificationPrefs: row.notification_prefs || { betPosted: true, betActivity: true, betSettled: true, oddsMoved: false },
     acceptedTermsAt: row.accepted_terms_at,
     createdAt: row.created_at,
     isAdmin: row.is_admin || false,
@@ -290,7 +294,9 @@ export async function getSession() {
   // still holds a valid, unexpired token) - that's a legitimate "signed
   // out" outcome here, not an error worth a 406 in the console.
   const { data: profile } = await supabase.from('profiles').select('*').eq('id', authUser.id).maybeSingle()
-  return mapProfile(profile)
+  if (!profile) return null
+  const { data: privateProfile } = await supabase.from('profile_private').select('email, date_of_birth').eq('id', authUser.id).maybeSingle()
+  return mapProfile(profile, privateProfile)
 }
 
 // The raw Supabase access token, for the handful of Netlify functions that
@@ -337,16 +343,22 @@ export async function signUp({ email, password, displayName, dob, referredByCode
     .from('profiles')
     .insert({
       id: authUser.id,
-      email,
       display_name: displayName,
-      date_of_birth: dob,
       accepted_terms_at: new Date().toISOString(),
       referred_by: referredBy
     })
     .select()
     .single()
   if (profileError) throw profileError
-  return mapProfile(profile)
+
+  const { data: privateProfile, error: privateError } = await supabase
+    .from('profile_private')
+    .insert({ id: authUser.id, email, date_of_birth: dob })
+    .select()
+    .single()
+  if (privateError) throw privateError
+
+  return mapProfile(profile, privateProfile)
 }
 
 /**
@@ -361,7 +373,9 @@ export async function signIn({ email, password }) {
   // auth row can outlive its profiles row (a manual/partial deletion, not
   // just the normal delete-account path, which removes both together).
   const { data: profile } = await supabase.from('profiles').select('*').eq('id', data.user.id).maybeSingle()
-  return mapProfile(profile)
+  if (!profile) return mapProfile(profile)
+  const { data: privateProfile } = await supabase.from('profile_private').select('email, date_of_birth').eq('id', data.user.id).maybeSingle()
+  return mapProfile(profile, privateProfile)
 }
 
 export async function signOut() {
@@ -490,26 +504,29 @@ export async function createGroup(name, userId) {
   return mapGroup(group)
 }
 
+// Goes through the join_group_by_code() function (schema.sql) rather than
+// a client-side lookup-then-insert - RLS can only see the row being
+// inserted, not an out-of-band code, so nothing at the database level
+// could actually validate the code before this; the function does that
+// check itself before inserting, security definer.
 /** @param {string} code @param {string} userId @returns {Promise<Group|null>} */
 export async function joinGroupByCode(code, userId) {
   if (!isSupabaseConfigured) return local.joinGroupByCode(code, userId)
-  const { data: group, error } = await supabase
-    .from('groups')
-    .select('*')
-    .ilike('invite_code', code.trim())
-    .single()
-  if (error || !group) throw new Error('No group found with that invite code.')
-  await supabase.from('group_members').upsert({ group_id: group.id, user_id: userId })
-  return mapGroup(group)
+  const { data, error } = await supabase.rpc('join_group_by_code', { _code: code.trim() })
+  if (error) throw new Error(error.message)
+  return mapGroup(data)
 }
 
 // The lookup half of joinGroupByCode, without the join - lets
 // JoinGroupPage preview a group (and its price) before deciding whether
 // to auto-join or show a paywall, instead of joining unconditionally.
+// Goes through get_group_preview_by_code() (schema.sql), same reasoning
+// as joinGroupByCode above - a private group's row was previously
+// readable by any signed-in user via a raw table select, code or not.
 /** @param {string} code @returns {Promise<Group|null>} */
 export async function getGroupByCode(code) {
   if (!isSupabaseConfigured) return local.getGroupByCode(code)
-  const { data, error } = await supabase.from('groups').select('*').ilike('invite_code', code.trim()).maybeSingle()
+  const { data, error } = await supabase.rpc('get_group_preview_by_code', { _code: code.trim() })
   if (error) throw error
   return mapGroup(data)
 }
@@ -999,11 +1016,25 @@ export async function createBetPost(post) {
 // the key stored on bet_posts.photo_url is the object path, not a
 // resolved URL; getPostPhotoUrl below resolves a short-lived signed URL
 // per read, same as getVideoPlaybackUrl.
+// Mirrors the storage.buckets file_size_limit/allowed_mime_types set
+// server-side (see supabase/schema.sql's migration) - this is purely a
+// nicer failure mode, not the real gate: it fails fast with a clear
+// message instead of uploading megabytes only to have Supabase Storage
+// reject it at the end. A direct API call bypassing the client still hits
+// the actual bucket-level limit regardless of whether this check exists.
+function assertUploadAllowed(file, maxBytes, allowedTypes, label) {
+  if (file.size > maxBytes) throw new Error(`${label} must be under ${Math.round(maxBytes / 1024 / 1024)}MB.`)
+  if (file.type && !allowedTypes.includes(file.type)) {
+    throw new Error(`${label} must be a ${allowedTypes.map((t) => t.split('/')[1]).join(', ')} file.`)
+  }
+}
+
 const PHOTO_EXT_BY_MIME = { 'image/jpeg': 'jpg', 'image/png': 'png', 'image/webp': 'webp', 'image/gif': 'gif' }
 
 /** @param {string} userId @param {Blob} blob @returns {Promise<string>} */
 export async function uploadPostPhoto(userId, blob) {
   if (!isSupabaseConfigured) return local.uploadPostPhoto(userId, blob)
+  assertUploadAllowed(blob, 10 * 1024 * 1024, Object.keys(PHOTO_EXT_BY_MIME), 'Photo')
   const ext = PHOTO_EXT_BY_MIME[blob.type] || 'jpg'
   const path = `${userId}/${Date.now()}.${ext}`
   const { error } = await supabase.storage.from('post-photos').upload(path, blob)
@@ -1026,6 +1057,7 @@ export async function getPostPhotoUrl(photoKey) {
 /** @param {string} userId @param {Blob} blob @returns {Promise<string>} */
 export async function uploadPostVideo(userId, blob) {
   if (!isSupabaseConfigured) return local.uploadPostVideo(userId, blob)
+  assertUploadAllowed(blob, 50 * 1024 * 1024, Object.keys(VIDEO_EXT_BY_MIME), 'Video')
   const ext = VIDEO_EXT_BY_MIME[blob.type] || 'webm'
   const path = `${userId}/${Date.now()}.${ext}`
   const { error } = await supabase.storage.from('post-videos').upload(path, blob)
@@ -1163,6 +1195,17 @@ export async function listFollowing(userId) {
   return data.map((row) => row.following_id)
 }
 
+// Count only, not the follower list itself - used to show "N followers" as
+// a pitch stat (GoProSheet, JoinGroupPage's paywall) without pulling every
+// follower's id down just to take .length client-side.
+/** @param {string} userId @returns {Promise<number>} */
+export async function getFollowerCount(userId) {
+  if (!isSupabaseConfigured) return local.getFollowerCount(userId)
+  const { count, error } = await supabase.from('follows').select('*', { count: 'exact', head: true }).eq('following_id', userId)
+  if (error) throw error
+  return count ?? 0
+}
+
 // --- Blocks & reports ----------------------------------------------------
 // Public-feed-only (see BetCard.jsx variant='public') - group posts aren't
 // blockable since a group is already people you chose to be around.
@@ -1228,7 +1271,7 @@ export async function reportPost(postId, reporterId, reason) {
  * @property {string} createdAt
  * @property {string} reporterName
  * @property {string} postId
- * @property {{id: string, authorName: string, event: string, stake: number|null, status: string}} post
+ * @property {{id: string, userId: string, authorName: string, event: string, stake: number|null, status: string}} post
  */
 /** @returns {Promise<PostReport[]>} */
 export async function listAllReports() {
@@ -1244,7 +1287,7 @@ export async function listAllReports() {
     .filter((row) => row.post) // the post's own delete policy cascades its reports away too, but guard anyway
     .map((row) => {
       const reporter = /** @type {{display_name: string}|null} */ (/** @type {unknown} */ (row.reporter))
-      const post = /** @type {{id: string, selections: any[], stake: number|null, status: string, author: {display_name: string}|null}} */ (
+      const post = /** @type {{id: string, user_id: string, selections: any[], stake: number|null, status: string, author: {display_name: string}|null}} */ (
         /** @type {unknown} */ (row.post)
       )
       return {
@@ -1255,6 +1298,7 @@ export async function listAllReports() {
         postId: row.post_id,
         post: {
           id: post.id,
+          userId: post.user_id,
           authorName: post.author?.display_name ?? 'Someone',
           event: post.selections?.[0]?.event ?? 'Bet',
           stake: post.stake,
@@ -1368,6 +1412,77 @@ export async function listComments(betId) {
     .order('created_at', { ascending: true })
   if (error) throw error
   return data.map(mapComment)
+}
+
+// For ActivityContext.jsx's in-app "commented" notification kind - feeds
+// off betIds the caller already fetched (its own listBetPostsByUser call),
+// rather than re-querying bet_posts here just to find them. excludeUserId
+// drops the viewer's own comments on their own posts (nothing to notify
+// yourself about). Comment-author names weren't previously threaded
+// through to any caller, so this joins profiles the same way
+// listAllReports.js does for its own post author.
+/**
+ * @param {string[]} betIds
+ * @param {string} excludeUserId
+ * @returns {Promise<{id: string, betId: string, userId: string, name: string, body: string, createdAt: string}[]>}
+ */
+export async function listRecentCommentsOnPosts(betIds, excludeUserId) {
+  if (!betIds.length) return []
+  if (!isSupabaseConfigured) return local.listRecentCommentsOnPosts(betIds, excludeUserId)
+  const { data, error } = await supabase
+    .from('bet_comments')
+    .select('id, bet_id, user_id, body, created_at, commenter:profiles!bet_comments_user_id_fkey(display_name)')
+    .in('bet_id', betIds)
+    .neq('user_id', excludeUserId)
+    .order('created_at', { ascending: false })
+    .limit(50)
+  if (error) throw error
+  return data.map((row) => {
+    const commenter = /** @type {{display_name: string}|null} */ (/** @type {unknown} */ (row.commenter))
+    return {
+      id: row.id,
+      betId: row.bet_id,
+      userId: row.user_id,
+      name: commenter?.display_name ?? 'Someone',
+      body: row.body,
+      createdAt: row.created_at
+    }
+  })
+}
+
+// Same shape/purpose as listRecentCommentsOnPosts, for the "reacted"
+// notification kind - reactions push-notify the author only while the bet
+// is still live (see BetCard.jsx's toggleReaction), but this in-app feed
+// deliberately isn't live-gated: a reaction is still worth surfacing after
+// the fact even if the viewer missed the live push, same reasoning as why
+// comments get an in-app fallback at all.
+/**
+ * @param {string[]} betIds
+ * @param {string} excludeUserId
+ * @returns {Promise<{id: string, betId: string, userId: string, name: string, emoji: string, createdAt: string}[]>}
+ */
+export async function listRecentReactionsOnPosts(betIds, excludeUserId) {
+  if (!betIds.length) return []
+  if (!isSupabaseConfigured) return local.listRecentReactionsOnPosts(betIds, excludeUserId)
+  const { data, error } = await supabase
+    .from('bet_reactions')
+    .select('id, bet_id, user_id, emoji, created_at, reactor:profiles!bet_reactions_user_id_fkey(display_name)')
+    .in('bet_id', betIds)
+    .neq('user_id', excludeUserId)
+    .order('created_at', { ascending: false })
+    .limit(50)
+  if (error) throw error
+  return data.map((row) => {
+    const reactor = /** @type {{display_name: string}|null} */ (/** @type {unknown} */ (row.reactor))
+    return {
+      id: row.id,
+      betId: row.bet_id,
+      userId: row.user_id,
+      name: reactor?.display_name ?? 'Someone',
+      emoji: row.emoji,
+      createdAt: row.created_at
+    }
+  })
 }
 
 // Renders non-virtualized in potentially unbounded lists (PublicFeedView.jsx
@@ -1716,6 +1831,7 @@ export async function updateStakingPlan(userId, { bankrollAmount, stakingRule })
 /** @param {string} userId @param {File} file @returns {Promise<string>} */
 export async function uploadAvatar(userId, file) {
   if (!isSupabaseConfigured) return local.uploadAvatar(userId, file)
+  assertUploadAllowed(file, 5 * 1024 * 1024, Object.keys(PHOTO_EXT_BY_MIME), 'Photo')
   const ext = file.name.split('.').pop() || 'jpg'
   const path = `${userId}/avatar.${ext}`
   const { error: uploadError } = await supabase.storage.from('avatars').upload(path, file, { upsert: true })
@@ -1950,6 +2066,7 @@ const VIDEO_EXT_BY_MIME = { 'video/webm': 'webm', 'video/mp4': 'mp4', 'video/qui
 /** @param {string} userId @param {Blob} blob @returns {Promise<string>} */
 export async function uploadVideoBlob(userId, blob) {
   if (!isSupabaseConfigured) return local.uploadVideoBlob(userId, blob)
+  assertUploadAllowed(blob, 50 * 1024 * 1024, Object.keys(VIDEO_EXT_BY_MIME), 'Video')
   const ext = VIDEO_EXT_BY_MIME[blob.type] || 'webm'
   const path = `${userId}/${Date.now()}.${ext}`
   const { error } = await supabase.storage.from('videos').upload(path, blob)
@@ -2007,6 +2124,44 @@ export async function addFriendByCode(code, userId) {
 
   const { error } = await supabase.from('friendships').insert({ user_a: userId, user_b: target.id })
   if (error) throw error
+  return { id: target.id, displayName: target.display_name }
+}
+
+/** @param {string} userId @param {string} otherId @returns {Promise<boolean>} */
+export async function isFriend(userId, otherId) {
+  if (!isSupabaseConfigured) return local.isFriend(userId, otherId)
+  const { data, error } = await supabase
+    .from('friendships')
+    .select('id')
+    .or(`and(user_a.eq.${userId},user_b.eq.${otherId}),and(user_a.eq.${otherId},user_b.eq.${userId})`)
+    .maybeSingle()
+  if (error) throw error
+  return !!data
+}
+
+// addFriendByCode minus the code-resolution step, for internal contexts
+// (a group member, a comment author) where the caller already has the
+// person's real id but never had a friend code to type in. Same RLS
+// policy as addFriendByCode's insert ("user adds a friendship as
+// themselves") already allows this - it was never scoped to "came from a
+// code lookup."
+/** @param {string} userId @param {string} otherId @returns {Promise<{id: string, displayName: string}>} */
+export async function addFriend(userId, otherId) {
+  if (!isSupabaseConfigured) return local.addFriend(userId, otherId)
+  if (otherId === userId) throw new Error("That's you.")
+
+  const { data: existing } = await supabase
+    .from('friendships')
+    .select('id')
+    .or(`and(user_a.eq.${userId},user_b.eq.${otherId}),and(user_a.eq.${otherId},user_b.eq.${userId})`)
+    .maybeSingle()
+  if (existing) throw new Error('Already friends.')
+
+  const { error } = await supabase.from('friendships').insert({ user_a: userId, user_b: otherId })
+  if (error) throw error
+
+  const { data: target, error: profileError } = await supabase.from('profiles').select('id, display_name').eq('id', otherId).single()
+  if (profileError) throw profileError
   return { id: target.id, displayName: target.display_name }
 }
 
@@ -2202,8 +2357,8 @@ export async function listSharedWithMe(userId) {
   return data.map(mapSharedVideoRow)
 }
 
-// The merge SocialFeedPage's Tips segment and PublicFeedView's interleaved
-// Home feed both need: own+friends' posts and clips shared with the viewer
+// The merge FriendsPage's tip feed and PublicFeedView's interleaved Home
+// feed both need: own+friends' posts and clips shared with the viewer
 // are two separate queries that can overlap (a friend shares their own
 // clip with you), deduped by id+sharedAt so a shared-and-own copy of the
 // same video never renders twice, sorted by whichever timestamp is more

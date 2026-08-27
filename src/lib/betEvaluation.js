@@ -200,15 +200,22 @@ export function evaluateEntryDetailed(entry, games, raceResults) {
 // A void leg in an otherwise-winning multi doesn't sink the bet, but it must
 // not be paid on either - the standard bookmaker rule is to set that leg to
 // odds 1.00 and re-price the accumulator, so the punter gets the rest of the
-// multi at its real price. The stored potentialReturn was computed at bet
-// time from every leg (see BetBuilderSheet), so without this correction a
-// postponed fixture or a non-runner pays out as if it had won.
+// multi at its real price.
 //
-// Returns undefined when there's nothing to correct (no void legs, or the
-// whole bet voided and the stake just comes back), which is exactly the
-// "leave potential_return alone" signal both settle paths already use.
+// Recomputes stake x odds unconditionally now, not only when a void leg
+// needs adjusting - "the stored potentialReturn was computed honestly at
+// bet time" was true of the legitimate client (BetBuilderSheet), but both
+// bet_posts/manual_entries' UPDATE policies let the row's own author set
+// potential_return to anything via a raw API call up until settlement,
+// with no server-side check that it matches stake x odds. For a plain win
+// with no void legs, this used to trust whatever number was already on
+// the row (see the "leave potential_return alone" comment this replaced)
+// - a whole-app security audit confirmed live that an inflated
+// potential_return set that way survived settlement untouched, since
+// this function was the one place that could have corrected it and
+// didn't. It still leaves a genuinely-unresolvable case alone (see the
+// two remaining early returns below) rather than writing a wrong number.
 export function voidAdjustedReturn(entry, outcomes) {
-  if (!outcomes.some((o) => o === 'void')) return undefined
   if (outcomes.every((o) => o === 'void')) return undefined
   if (!Number.isFinite(Number(entry.stake))) return undefined
   const odds = entry.selections.reduce((acc, leg, i) => (outcomes[i] === 'void' ? acc : acc * Number(leg.odds)), 1)

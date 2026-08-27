@@ -12,6 +12,7 @@ import { useBetSlip } from '../context/BetSlipContext.jsx'
 import { useOddsFormat } from '../context/OddsFormatContext.jsx'
 import { useOddsMovement, movementKey, useOddsHistory, historyKey } from '../lib/oddsMemory.js'
 import { useBacking } from '../lib/backing.js'
+import { useMyBookiesOnly } from '../lib/useMyBookiesOnly.js'
 import TeamBadge from '../components/TeamBadge.jsx'
 import PlayerPhoto from '../components/PlayerPhoto.jsx'
 import OddsMoveIndicator from '../components/OddsMoveIndicator.jsx'
@@ -38,7 +39,7 @@ export default function GenericEventDetailPage() {
   const config = GENERIC_SPORTS[sportKey]
   const [event, setEvent] = useState(null)
   const [error, setError] = useState(null)
-  const [myBookiesOnly, setMyBookiesOnly] = useState(false)
+  const [myBookiesOnly, setMyBookiesOnly] = useMyBookiesOnly()
   const [alertTarget, setAlertTarget] = useState(null)
   const [expandedOutcome, setExpandedOutcome] = useState(null)
   const [expandedMarkets, setExpandedMarkets] = useState(new Set())
@@ -213,7 +214,7 @@ export default function GenericEventDetailPage() {
                           name
                         )}
                         {backingCount > 0 && (
-                          <span className="backing-badge icon-row">
+                          <span className="chip chip--sharp chip--sm chip--outline-accent backing-badge icon-row">
                             <FlameIcon width={14} height={14} /> {backingCount} backing
                           </span>
                         )}
@@ -299,7 +300,7 @@ function LoadingState() {
           &larr; Odds
         </Link>
       </div>
-      <div className="loading">Loading odds…</div>
+      <div className="loading">Pulling the latest odds…</div>
     </div>
   )
 }

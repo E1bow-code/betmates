@@ -18,6 +18,11 @@ const SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY
 const ODDS_API_KEY = process.env.ODDS_API_KEY
 const REGION = 'uk'
 const MARKETS = 'h2h'
+// Mirror ufc.js's near-term window so the durable cache never stores the
+// speculative far-future "cards" the MMA feed carries (see ufc.js's
+// MAX_DAYS_AHEAD for the why). Keeps the DB clean rather than relying only on
+// the proxy filtering junk back out at serve time.
+const MAX_DAYS_AHEAD = 60
 
 function json(body) {
   return new Response(JSON.stringify(body), { status: 200, headers: { 'content-type': 'application/json' } })
@@ -38,7 +43,11 @@ export default async () => {
     // blanking it (the proxy's DB_MAX_AGE handles genuinely stale rows).
     if (!events.length) return json({ ingested: 0, reason: 'no upstream data' })
 
-    const fights = events.map(reshapeEvent).sort((a, b) => new Date(a.kickoff) - new Date(b.kickoff))
+    const cutoff = Date.now() + MAX_DAYS_AHEAD * 24 * 60 * 60 * 1000
+    const fights = events
+      .map(reshapeEvent)
+      .filter((f) => new Date(f.kickoff).getTime() <= cutoff)
+      .sort((a, b) => new Date(a.kickoff) - new Date(b.kickoff))
 
     const supabase = createClient(SUPABASE_URL, SERVICE_ROLE_KEY)
     const { error } = await supabase

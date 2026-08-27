@@ -3,6 +3,7 @@ import * as dataStore from '../lib/dataStore.js'
 import { getEachWayTerms, computeEachWayReturn } from '../utils/eachWay.js'
 import { useEscapeKey } from '../lib/useEscapeKey.js'
 import { useDelayedClose } from '../lib/useDelayedClose.js'
+import { useToast } from '../context/ToastContext.jsx'
 
 // Fixes a mis-typed stake, or gives up on a bet entirely - only ever shown
 // for the author's own bets while still open (see BetCard.jsx/TrackerPage.jsx
@@ -11,6 +12,7 @@ import { useDelayedClose } from '../lib/useDelayedClose.js'
 // those are a record of what was actually picked at the time, not
 // something to revise after the fact.
 export default function EditBetSheet({ entry, onClose, onUpdated, onDeleted }) {
+  const { showToast } = useToast()
   const [stake, setStake] = useState(String(entry.stake ?? ''))
   const [stakeHidden, setStakeHidden] = useState(Boolean(entry.stakeHidden))
   const [saving, setSaving] = useState(false)
@@ -49,6 +51,7 @@ export default function EditBetSheet({ entry, onClose, onUpdated, onDeleted }) {
         await dataStore.updateManualEntry(entry.id, { stake: stakeNum, potentialReturn })
       }
       onUpdated?.()
+      showToast('Bet updated')
       onClose()
     } catch (err) {
       setError(err.message)
@@ -68,6 +71,7 @@ export default function EditBetSheet({ entry, onClose, onUpdated, onDeleted }) {
         await dataStore.deleteManualEntry(entry.id)
       }
       onDeleted?.()
+      showToast('Bet deleted')
       onClose()
     } catch (err) {
       setError(err.message)

@@ -9,7 +9,7 @@ import { SparkIcon } from '../components/icons/Icons.jsx'
 
 // All of a user's DM threads in one place, sorted by most recent message -
 // the only other way to reach a thread is one friend at a time from the
-// Friends list (ManageSheet.jsx). "Unread" here is approximate: it's driven
+// friends list (src/pages/FriendsPage.jsx). "Unread" here is approximate: it's driven
 // by the same single last-seen-messages timestamp the nav badge uses (see
 // ActivityContext.jsx), not a true per-thread read receipt, so opening any
 // one thread clears the highlight on all of them - consistent with how the
@@ -41,8 +41,8 @@ export default function MessagesInboxPage() {
   return (
     <PullToRefresh onRefresh={refresh}>
       <div className="topbar">
-        <Link to="/groups" state={{ segment: 'tips' }} className="back">
-          &larr; Social
+        <Link to="/friends" className="back">
+          &larr; Friends
         </Link>
         <h1>Messages</h1>
       </div>
@@ -76,7 +76,7 @@ export default function MessagesInboxPage() {
           ))}
       </div>
 
-      {!error && conversations === null && <div className="loading">Loading conversations…</div>}
+      {!error && conversations === null && <div className="loading">Catching up on your messages…</div>}
       {conversations && !conversations.length && (
         <p className="hint">No conversations with friends yet - message someone from the Friends list to start one.</p>
       )}

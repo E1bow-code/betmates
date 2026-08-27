@@ -3,6 +3,7 @@ import * as dataStore from '../lib/dataStore.js'
 import { computeStats } from '../utils/trackerStats.js'
 import { useEscapeKey } from '../lib/useEscapeKey.js'
 import { useDelayedClose } from '../lib/useDelayedClose.js'
+import UserLink from './UserLink.jsx'
 import { MedalIcon } from './icons/Icons.jsx'
 
 // Compares two of the user's own groups head-to-head - same aggregate math
@@ -117,7 +118,7 @@ function GroupTotals({ totals }) {
       <div className="h2h-meta">{stats.settledCount} settled</div>
       {topBettor && (
         <div className="h2h-meta icon-row">
-          <MedalIcon width={14} height={14} /> {topBettor.name} +£{topBettor.profit.toFixed(2)}
+          <MedalIcon width={14} height={14} /> <UserLink id={topBettor.userId} displayName={topBettor.name} /> +£{topBettor.profit.toFixed(2)}
         </div>
       )}
     </>

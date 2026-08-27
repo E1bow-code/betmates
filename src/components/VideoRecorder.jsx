@@ -3,6 +3,7 @@ import { useAuth } from '../context/AuthContext.jsx'
 import * as dataStore from '../lib/dataStore.js'
 import { useEscapeKey } from '../lib/useEscapeKey.js'
 import { useDelayedClose } from '../lib/useDelayedClose.js'
+import { useToast } from '../context/ToastContext.jsx'
 
 const MAX_SECONDS = 60
 
@@ -15,6 +16,7 @@ const MAX_SECONDS = 60
 
 export default function VideoRecorder({ onClose, onPosted }) {
   const { user } = useAuth()
+  const { showToast } = useToast()
   const [mode, setMode] = useState('choose') // choose | recording | preview
   const [seconds, setSeconds] = useState(0)
   const [blob, setBlob] = useState(null)
@@ -131,6 +133,7 @@ export default function VideoRecorder({ onClose, onPosted }) {
         tag: tag.trim() || null
       })
       onPosted?.(post)
+      showToast('Tip posted')
       onClose()
     } catch (err) {
       setError(err.message)

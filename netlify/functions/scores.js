@@ -22,6 +22,7 @@
 // cost credits twice.
 import { cacheGet, cacheSet } from '../../src/lib/apiCache.js'
 import { TENNIS_DYNAMIC_KEY } from '../../src/lib/sportsConfig.js'
+import { logProviderError } from '../../src/lib/logProviderError.js'
 
 const SCORES_TTL = 3 * 60 * 1000
 // In-play scores change by the minute, so the live view caches far more
@@ -54,7 +55,13 @@ async function fetchOddsApiGames(rawKeys, apiKey, live) {
     keys.map(async (sportKey) => {
       const cached = cacheGet(`${cachePrefix}-${sportKey}`)
       if (cached) return cached
-      const apiUrl = `https://api.the-odds-api.com/v4/sports/${sportKey}/scores/?apiKey=${apiKey}&daysFrom=3`
+      // encodeURIComponent, not a raw interpolation - sportKey comes from
+      // the client's own `keys` query param, unlike odds.js/sport.js
+      // where the sport key is always drawn from a fixed, server-known
+      // list. A raw `keys=x?apiKey=ATTACKER` would otherwise open a new
+      // query context inside this URL's path segment, letting an
+      // attacker's own params ride alongside (or replace) the real ones.
+      const apiUrl = `https://api.the-odds-api.com/v4/sports/${encodeURIComponent(sportKey)}/scores/?apiKey=${apiKey}&daysFrom=3`
       const res = await fetch(apiUrl)
       if (!res.ok) throw new Error(`${sportKey}: ${res.status}`)
       const events = await res.json()
@@ -62,6 +69,17 @@ async function fetchOddsApiGames(rawKeys, apiKey, live) {
       return events
     })
   )
+
+  // Unlike odds.js/ufc.js/sport.js's own fallback points, a rejected key
+  // here never surfaced anywhere before - it silently dropped out of the
+  // results below. This is the path auto-settle.js (every 30 min) and
+  // alert-checks.js (every 15 min) hit, both with sport keys tied to real
+  // open bets/followed fixtures - and since SCORES_TTL/LIVE_TTL are far
+  // shorter than either cron interval, most of their calls land here
+  // genuinely uncached. Logged once per request (not per key) so a
+  // multi-sport rejection doesn't spam the admin error log.
+  const rejected = results.filter((r) => r.status === 'rejected')
+  if (rejected.length) await logProviderError('scores', rejected.map((r) => r.reason?.message).join('; '))
 
   const events = results.filter((r) => r.status === 'fulfilled').flatMap((r) => r.value)
   // A game in progress reports scores with completed=false; a finished one
@@ -133,7 +151,12 @@ async function fetchSgoLeagueGames(league, sgoApiKey) {
 
   try {
     const startsAfter = new Date(Date.now() - 3 * 24 * 60 * 60 * 1000).toISOString()
-    const apiUrl = `https://api.sportsgameodds.com/v2/events?leagueID=${league}&finalized=true&startsAfter=${startsAfter}&limit=25&apiKey=${sgoApiKey}`
+    // encodeURIComponent - league is the client's own `sgoLeague` query
+    // param with no whitelist check, unlike fetchSgoGames' eventIDs above
+    // which already encodes. Unencoded, a value like
+    // "X&apiKey=ATTACKER&limit=9999" appends straight onto this query
+    // string with no new-context trick even needed.
+    const apiUrl = `https://api.sportsgameodds.com/v2/events?leagueID=${encodeURIComponent(league)}&finalized=true&startsAfter=${startsAfter}&limit=25&apiKey=${sgoApiKey}`
     const res = await fetch(apiUrl)
     if (!res.ok) throw new Error(`SportsGameOdds results: ${res.status}`)
     const body = await res.json()
@@ -178,7 +201,14 @@ export default async (req) => {
       headers: { 'content-type': 'application/json', 'x-data-source': 'live' }
     })
   } catch (err) {
-    return new Response(JSON.stringify({ error: err.message }), {
+    // Generic message, not err.message - every sibling proxy in this
+    // directory only logs its own error server-side and returns an
+    // empty/mock body, never reflects it to the caller. This one didn't
+    // match that, and low-level fetch failures at this layer are
+    // documented to sometimes embed the full request URL - including
+    // ?apiKey=... - in their message.
+    console.error('scores.js handler error:', err.message)
+    return new Response(JSON.stringify({ error: 'Failed to fetch scores' }), {
       status: 500,
       headers: { 'content-type': 'application/json' }
     })

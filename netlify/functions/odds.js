@@ -27,6 +27,7 @@ import { createClient } from '@supabase/supabase-js'
 import { FOOTBALL_SPORT_KEYS } from '../../src/lib/sportsConfig.js'
 import { cacheGet, cacheSet } from '../../src/lib/apiCache.js'
 import { reshapeEvent, reshapePlayerMarkets, reshapeExtraMarkets, EXTRA_MARKET_LABELS } from '../../src/lib/footballOddsShape.js'
+import { logProviderError } from '../../src/lib/logProviderError.js'
 
 const SUPABASE_URL = process.env.VITE_SUPABASE_URL
 // Read-only public reference data (RLS: "anyone can read odds cache"), so the
@@ -93,8 +94,13 @@ async function fetchLiveEvents(apiKey) {
     })
   )
   const events = results.filter((r) => r.status === 'fulfilled').flatMap((r) => r.value)
+  // Provider errors (quota exhausted, outage, etc.) shouldn't turn into a
+  // broken page - the caller falls back to sample odds, same as the no-key
+  // path. Logged to the admin error log (not just console) so it's diagnosable.
   if (!events.length && results.every((r) => r.status === 'rejected')) {
-    console.error('Odds provider error, falling back to mock:', results[0].reason?.message)
+    const detail = results[0].reason?.message
+    console.error('Odds provider error, falling back to mock:', detail)
+    await logProviderError('odds-football', detail ?? 'all sports rejected')
     return null
   }
   return events
@@ -180,6 +186,7 @@ export default async (req) => {
     return id ? await serveFixture(id, apiKey) : await serveList(apiKey)
   } catch (err) {
     console.error('Odds provider error, falling back to mock:', err.message)
+    await logProviderError('odds-football', err.message)
     return serveMock(id)
   }
 }

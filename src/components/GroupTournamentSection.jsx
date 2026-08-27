@@ -4,6 +4,7 @@ import { notifyGroup } from '../lib/notify.js'
 import { computeTournamentStandings } from '../utils/groupTournament.js'
 import { useAsyncAction } from '../lib/useAsyncAction.js'
 import Avatar from './Avatar.jsx'
+import UserLink from './UserLink.jsx'
 import { TrophyIcon } from './icons/Icons.jsx'
 
 const DURATIONS = [
@@ -81,7 +82,7 @@ export default function GroupTournamentSection({ groupId, groupName, posts, memb
       </button>
       {expanded && (
         <>
-          {!tournaments && <div className="loading">Loading tournaments…</div>}
+          {!tournaments && <div className="loading">Checking the standings…</div>}
 
           {tournaments && active && <ActiveTournament tournament={active} posts={posts} memberNames={memberNames} />}
 
@@ -171,7 +172,7 @@ function ActiveTournament({ tournament, posts, memberNames }) {
               <div key={row.userId} className={row.rank === 1 ? 'leaderboard-row leaderboard-row-top' : 'leaderboard-row'}>
                 <span className="leaderboard-rank">#{row.rank}</span>
                 <Avatar name={row.name} size={24} />
-                <span className="leaderboard-name">{row.name}</span>
+                <UserLink id={row.userId} displayName={row.name} className="leaderboard-name" />
                 <span className={`leaderboard-pnl ${value === null || value >= 0 ? 'tone-good' : 'tone-bad'}`}>
                   {tournament.metric === 'roi'
                     ? value === null

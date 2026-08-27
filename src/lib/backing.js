@@ -4,7 +4,7 @@ import * as dataStore from './dataStore.js'
 // "How many people (visible to you - your groups + the public feed) have
 // backed each side" for one fixture/fight/event - social proof, not a new
 // backend aggregate: just tallies legs off the same feeds the Leaderboard
-// already reads (see SocialFeedPage.jsx), matched by the exact event
+// already reads (see ExplorePage.jsx), matched by the exact event
 // string every leg already carries. Mixes every market's picks into one
 // tally since a single fixture rarely has name collisions across markets
 // (Home/Away team names vs "Over 2.5" vs "Yes"/"No"), and callers only ever

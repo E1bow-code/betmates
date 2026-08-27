@@ -4,7 +4,15 @@ import { supabase, isSupabaseConfigured } from './supabaseClient.js'
 // since a failed push send should never interrupt whoever just posted a
 // bet. Local (no-Supabase) mode has no server to send from, so this is a
 // no-op there.
-export async function notifyGroup(groupId, { title, body, url }, excludeUserId) {
+//
+// `gate` names a notification_prefs key send-push.js should check before
+// notifying a given member - pass 'betPosted' for an actual bet-post
+// announcement (see BetBuilderSheet.jsx) or 'groupChat' for a chat message
+// (see GroupFeedPage.jsx's handleSend); each gate has its own opt-in/
+// opt-out default in send-push.js's GATE_DEFAULTS. Omit `gate` for a group
+// event that isn't covered by either (a tournament starting, say) so it
+// stays ungated rather than silently inheriting someone else's toggle.
+export async function notifyGroup(groupId, { title, body, url }, excludeUserId, gate) {
   if (!isSupabaseConfigured) return
   try {
     const { data } = await supabase.auth.getSession()
@@ -13,7 +21,7 @@ export async function notifyGroup(groupId, { title, body, url }, excludeUserId) 
     await fetch('/api/send-push', {
       method: 'POST',
       headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({ accessToken, groupId, excludeUserId, title, body, url })
+      body: JSON.stringify({ accessToken, groupId, excludeUserId, title, body, url, gate })
     })
   } catch {
     // Best-effort - see comment above.
@@ -45,7 +53,11 @@ export async function notifyFollowers(posterId, { title, body, url }) {
     await fetch('/api/send-push', {
       method: 'POST',
       headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({ accessToken, followersOf: posterId, title, body, url })
+      // Only ever called for "someone you follow posted a new pick" (see
+      // BetBuilderSheet.jsx) - gated on the same betPosted pref as
+      // notifyGroup's bet-post path, not a separate toggle, since it's
+      // the same underlying event just reaching a different audience.
+      body: JSON.stringify({ accessToken, followersOf: posterId, title, body, url, gate: 'betPosted' })
     })
   } catch {
     // Best-effort - see comment above.

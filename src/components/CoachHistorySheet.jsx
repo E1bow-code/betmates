@@ -30,7 +30,7 @@ export default function CoachHistorySheet({ userId, activeSessionId, onSelect, o
         <div className="sheet-handle" />
         <h2 className="sheet-title">Past conversations</h2>
         {error && <div className="error">Couldn't load your history: {error}</div>}
-        {!error && sessions === null && <div className="loading">Loading…</div>}
+        {!error && sessions === null && <div className="loading">Pulling up your past chats…</div>}
         {sessions && !sessions.length && <p className="hint">No earlier conversations yet.</p>}
         {sessions && sessions.length > 0 && (
           <div className="conversation-list">

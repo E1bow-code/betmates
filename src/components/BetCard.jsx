@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { useAuth } from '../context/AuthContext.jsx'
 import { useOddsFormat } from '../context/OddsFormatContext.jsx'
 import * as dataStore from '../lib/dataStore.js'
@@ -9,6 +9,7 @@ import { isLive } from '../utils/liveStatus.js'
 import { notifyBetAuthor } from '../lib/notify.js'
 import { useAsyncAction } from '../lib/useAsyncAction.js'
 import { labelForTag, iconForTag } from '../lib/postTags.js'
+import { parseMatchup, resolveMatchupWinner } from '../utils/matchup.js'
 import { participantBadge } from '../utils/participantBadge.js'
 import CopyBetButton from './CopyBetButton.jsx'
 import BackBetButton from './BackBetButton.jsx'
@@ -16,9 +17,13 @@ import ShareImageButton from './ShareImageButton.jsx'
 import TeamBadge from './TeamBadge.jsx'
 import PlayerPhoto from './PlayerPhoto.jsx'
 import Avatar from './Avatar.jsx'
+import UserLink from './UserLink.jsx'
 import EditBetSheet from './EditBetSheet.jsx'
 import LiveBadge from './LiveBadge.jsx'
+import LiveScoreTag from './LiveScoreTag.jsx'
+import { useLiveScores } from '../lib/liveScores.js'
 import FixtureChatSheet from './FixtureChatSheet.jsx'
+import MatchupBanner from './MatchupBanner.jsx'
 import {
   FlameIcon,
   UnsureFaceIcon,
@@ -29,8 +34,10 @@ import {
   DiamondIcon,
   TargetIcon,
   LockIcon,
-  BrokenHeartIcon
+  BrokenHeartIcon,
+  ChevronIcon
 } from './icons/Icons.jsx'
+import { MoreIcon } from './icons/NavIcons.jsx'
 
 const POST_TAG_ICON = {
   horse: HorseIcon,
@@ -47,10 +54,12 @@ const POST_TAG_ICON = {
 // something our own icon set can reach) - only REACTION_ICON below is
 // new, for swapping the in-app button glyph for a real icon without
 // touching the data model.
-const REACTION_EMOJIS = ['🔥', '😬', '👍']
-const REACTION_LABEL = { '🔥': 'fire', '😬': 'grimace', '👍': 'thumbs up' }
+// Exported so NotificationsPage.jsx's "reacted" notification text can
+// share these labels instead of redeclaring its own copy that could drift.
+export const REACTION_EMOJIS = ['🔥', '😬', '👍']
+export const REACTION_LABEL = { '🔥': 'fire', '😬': 'grimace', '👍': 'thumbs up' }
 const REACTION_ICON = { '🔥': FlameIcon, '😬': UnsureFaceIcon, '👍': ThumbsUpIcon }
-const VOTE_OPTIONS = [
+export const VOTE_OPTIONS = [
   { key: 'lock_in', label: 'Lock in' },
   { key: 'not_sure', label: 'Not sure' },
   { key: 'not_happening', label: 'Not happening' }
@@ -63,8 +72,8 @@ const REPORT_REASONS = [
 ]
 
 // variant='public' is for the everyone-can-see feed (see
-// src/pages/SocialFeedPage.jsx's Feed segment): swaps the emoji reaction
-// row for a three-way confidence vote and adds a follow button, since
+// src/components/PublicFeedView.jsx, rendered on HomePage): swaps the emoji
+// reaction row for a three-way confidence vote and adds a follow button, since
 // there's no group membership here to imply "these are your mates". Block/
 // report only make sense here too - group posts are already people you
 // chose to be around, not unsolicited exposure.
@@ -80,6 +89,7 @@ export default function BetCard({ post, memberNames, memberAvatars, variant = 'g
   const [commentBody, setCommentBody] = useState('')
   const [status, setStatus] = useState(post.status)
   const [following, setFollowing] = useState(false)
+  const [resolvedProfiles, setResolvedProfiles] = useState({})
   const [showCardMenu, setShowCardMenu] = useState(false)
   const [showReport, setShowReport] = useState(false)
   const [reported, setReported] = useState(false)
@@ -143,6 +153,42 @@ export default function BetCard({ post, memberNames, memberAvatars, variant = 'g
     }
   }, [variant, post.userId, user.id])
 
+  // comments/reactions only ever carry a raw userId (see mapComment/
+  // mapReaction) - memberNames/memberAvatars covers group feeds (built from
+  // the group's own member list), but the public feed never has a bounded
+  // member set to build one from, so it doesn't pass those props at all.
+  // Without this, every comment/reaction on the public feed - including the
+  // viewer's own, right after posting - fell back to "Someone".
+  useEffect(() => {
+    const ids = new Set([...comments.map((c) => c.userId), ...reactions.map((r) => r.userId)])
+    const missing = [...ids].filter((id) => id && id !== user.id && !memberNames?.[id] && !resolvedProfiles[id])
+    if (!missing.length) return undefined
+    let cancelled = false
+    Promise.all(missing.map((id) => dataStore.getProfileById(id))).then((profiles) => {
+      if (cancelled) return
+      setResolvedProfiles((prev) => {
+        const next = { ...prev }
+        for (const p of profiles) if (p) next[p.id] = p
+        return next
+      })
+    })
+    return () => {
+      cancelled = true
+    }
+  }, [comments, reactions, memberNames, user.id])
+
+  function resolveName(id) {
+    if (!id) return 'Someone'
+    if (id === user.id) return memberNames?.[id] ?? user.displayName ?? 'Someone'
+    return memberNames?.[id] ?? resolvedProfiles[id]?.displayName ?? 'Someone'
+  }
+
+  function resolveAvatar(id) {
+    if (!id) return undefined
+    if (id === user.id) return memberAvatars?.[id] ?? user.avatarUrl
+    return memberAvatars?.[id] ?? resolvedProfiles[id]?.avatarUrl
+  }
+
   const isAuthor = post.userId === user.id
   const authorName = memberNames?.[post.userId] ?? post.authorName ?? 'Someone'
   const authorAvatarUrl = memberAvatars?.[post.userId] ?? post.authorAvatarUrl ?? null
@@ -150,11 +196,18 @@ export default function BetCard({ post, memberNames, memberAvatars, variant = 'g
   async function toggleReaction(key) {
     const { action, reaction } = await dataStore.toggleReaction(post.id, user.id, key)
     setReactions((r) => (action === 'added' ? [...r, reaction] : r.filter((x) => x.id !== reaction.id)))
-    if (action === 'added' && !isAuthor && live) {
+    // Used to only push while `live` (status open + kickoff passed) - the
+    // in-app Alerts fallback (ActivityContext.jsx's 'reacted' kind) never
+    // had that restriction, so a pre-kickoff or already-settled reaction
+    // showed up in Alerts but silently skipped the push. Now pushes
+    // unconditionally like comments already did; the "while your bet's
+    // live" framing only applies when it's actually true.
+    if (action === 'added' && !isAuthor) {
       const reactorName = memberNames?.[user.id] ?? user.displayName ?? 'Someone'
       const icon = REACTION_EMOJIS.includes(key) ? key : '🎯'
       const verb = REACTION_EMOJIS.includes(key) ? 'reacted' : `voted "${VOTE_OPTIONS.find((o) => o.key === key)?.label}"`
-      notifyBetAuthor(post.userId, { title: `${icon} ${reactorName} ${verb} while your bet's live`, body: '', url: '/#/groups' })
+      const title = live ? `${icon} ${reactorName} ${verb} while your bet's live` : `${icon} ${reactorName} ${verb} on your bet`
+      notifyBetAuthor(post.userId, { title, body: '', url: variant === 'public' ? '/#/dashboard' : '/#/groups' })
     }
   }
 
@@ -191,7 +244,7 @@ export default function BetCard({ post, memberNames, memberAvatars, variant = 'g
     setCommentBody('')
     if (!isAuthor) {
       const commenterName = memberNames?.[user.id] ?? user.displayName ?? 'Someone'
-      notifyBetAuthor(post.userId, { title: `💬 ${commenterName} commented`, body, url: '/#/groups' })
+      notifyBetAuthor(post.userId, { title: `💬 ${commenterName} commented`, body, url: variant === 'public' ? '/#/dashboard' : '/#/groups' })
     }
   }
 
@@ -221,13 +274,22 @@ export default function BetCard({ post, memberNames, memberAvatars, variant = 'g
   const live = status === 'open' && selections.some((s) => isLive(s.kickoff, s.sport ?? post.sport))
   const liveChatLeg = live && selections.find((s) => s.eventId && isLive(s.kickoff, s.sport ?? post.sport))
 
+  // Gated on `live` (kickoff estimate has actually passed), not just
+  // `open` - every open card in a feed independently polls /api/scores
+  // every 30s (see useLiveScores), so a card for a bet that doesn't kick
+  // off until next week has no business polling at all. Confirmed live:
+  // without this, a feed of N open bets was N concurrent pollers even
+  // though only the ones actually in-play could ever get a result back.
+  const openEntries = useMemo(() => (live ? [{ selections, sport: post.sport }] : []), [live, selections, post.sport])
+  const liveByEvent = useLiveScores(openEntries)
+
   return (
     <div className={`bet-card status-${status}`}>
       <div className="bet-card-header">
         <div className="bet-card-who">
           <Avatar name={authorName} photoUrl={authorAvatarUrl} />
           <div>
-            <span className="bet-card-author">{authorName}</span>
+            <UserLink id={post.userId} displayName={authorName} className="bet-card-author" />
             <span className="bet-card-time">{formatRelativeTime(post.createdAt)}</span>
             {post.groupName && <span className="bet-card-group-tag">in {post.groupName}</span>}
           </div>
@@ -257,15 +319,15 @@ export default function BetCard({ post, memberNames, memberAvatars, variant = 'g
               aria-label="More options"
               aria-expanded={showCardMenu}
             >
-              ⋯
+              <MoreIcon width={16} height={16} />
             </button>
           )}
         </div>
       </div>
 
       {/* variant='public' folds Follow, Edit+result, Back this bet, Share
-          image and Block/Report into one menu behind the header's "⋯" -
-          on the old layout these were scattered across a header toggle, a
+          image and Block/Report into one menu behind the header's MoreIcon
+          toggle - on the old layout these were scattered across a header toggle, a
           footer "More" toggle and always-visible buttons, ~9-11 clickable
           elements per card. Copy Bet and the comment toggle stay directly
           visible below since they're the actual engagement mechanic, not
@@ -338,7 +400,7 @@ export default function BetCard({ post, memberNames, memberAvatars, variant = 'g
           (() => {
             const TagIcon = POST_TAG_ICON[iconForTag(post.tag)]
             return (
-              <span className="post-tag-chip post-tag-chip-readonly icon-row">
+              <span className="chip chip--pill chip--md chip--filled-accent post-tag-chip post-tag-chip-readonly icon-row">
                 {TagIcon && <TagIcon width={13} height={13} />} {labelForTag(post.tag)}
               </span>
             )
@@ -349,16 +411,27 @@ export default function BetCard({ post, memberNames, memberAvatars, variant = 'g
 
         {selections.length > 0 && (
           <div className="bet-card-ticket">
+            {selections.length === 1 &&
+              (() => {
+                const matchup = parseMatchup(selections[0])
+                const winner = resolveMatchupWinner(selections[0], matchup, status)
+                return matchup && <MatchupBanner sport={selections[0].sport} {...matchup} winner={winner} />
+              })()}
+
             <div className="bet-card-ticket-header">
               <span className="bet-card-ticket-tag">{post.marketType}</span>
-              <span className={`bet-status-pill status-${status}`}>{STATUS_LABEL[status]}</span>
+              <span className={`chip chip--pill chip--sm chip--outline bet-status-pill status-${status}`}>{STATUS_LABEL[status]}</span>
             </div>
 
             {selections.map((selection, i) => {
               const badge = participantBadge(selection, post.sport)
+              const liveGame = status === 'open' ? liveByEvent.get(selection.event) : null
               return (
               <div key={i} className={selections.length > 1 ? 'bet-card-leg' : undefined}>
-                <div className="selection-event">{selection.event}</div>
+                <div className="selection-event">
+                  {selection.event}
+                  {liveGame && <LiveScoreTag game={liveGame} />}
+                </div>
                 <div className="selection-row">
                   <span>{selection.market}</span>
                   <span className="selection-pick">
@@ -383,7 +456,7 @@ export default function BetCard({ post, memberNames, memberAvatars, variant = 'g
               <div className="bet-card-stake bet-card-stake-hidden">Stake kept private</div>
             ) : (
               <>
-                <div className="bet-card-ticket-divider" />
+                <div className="chalk-divider chalk-divider--tear bet-card-ticket-divider" />
                 <div className="bet-card-stats">
                   {post.stake ? (
                     <div className="bet-card-stat">
@@ -445,11 +518,17 @@ export default function BetCard({ post, memberNames, memberAvatars, variant = 'g
         {variant === 'group' && reactions.length > 0 && (
           <p className="hint reaction-names">
             {REACTION_EMOJIS.filter((emoji) => reactions.some((r) => r.emoji === emoji)).map((emoji) => {
-              const names = reactions.filter((r) => r.emoji === emoji).map((r) => memberNames?.[r.userId] ?? 'Someone')
+              const reactors = reactions.filter((r) => r.emoji === emoji)
               const Icon = REACTION_ICON[emoji]
               return (
                 <span key={emoji} className="reaction-names-group">
-                  <Icon /> {names.join(', ')}
+                  <Icon />{' '}
+                  {reactors.map((r, i) => (
+                    <span key={r.userId ?? i}>
+                      <UserLink id={r.userId} displayName={resolveName(r.userId)} />
+                      {i < reactors.length - 1 && ', '}
+                    </span>
+                  ))}
                 </span>
               )
             })}
@@ -486,12 +565,13 @@ export default function BetCard({ post, memberNames, memberAvatars, variant = 'g
           )}
           {variant === 'group' && (
             <button
-              className="btn btn-ghost btn-small"
+              className="btn btn-ghost btn-small icon-row"
               type="button"
               onClick={() => setShowMoreActions((v) => !v)}
               aria-expanded={showMoreActions}
             >
-              {showMoreActions ? 'Less ▴' : 'More ▾'}
+              {showMoreActions ? 'Less' : 'More'}
+              <ChevronIcon width={13} height={13} style={showMoreActions ? { transform: 'rotate(180deg)' } : undefined} />
             </button>
           )}
         </div>
@@ -519,8 +599,8 @@ export default function BetCard({ post, memberNames, memberAvatars, variant = 'g
           {comments.length === 0 && <div className="comment-empty">No comments yet — be the first to weigh in.</div>}
           {comments.map((c) => (
             <div key={c.id} className="comment-row">
-              <Avatar name={memberNames?.[c.userId] ?? 'Someone'} photoUrl={memberAvatars?.[c.userId]} size={22} />
-              <span className="comment-author">{memberNames?.[c.userId] ?? 'Someone'}</span>
+              <Avatar name={resolveName(c.userId)} photoUrl={resolveAvatar(c.userId)} size={22} />
+              <UserLink id={c.userId} displayName={resolveName(c.userId)} className="comment-author" />
               <span>{c.body}</span>
             </div>
           ))}

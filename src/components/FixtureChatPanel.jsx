@@ -3,6 +3,7 @@ import { useAuth } from '../context/AuthContext.jsx'
 import * as dataStore from '../lib/dataStore.js'
 import { useAsyncAction } from '../lib/useAsyncAction.js'
 import Avatar from './Avatar.jsx'
+import UserLink from './UserLink.jsx'
 import { CommentIcon } from './icons/Icons.jsx'
 
 // A chat room scoped to one fixture/fight/event, open to any signed-in user
@@ -67,7 +68,11 @@ export default function FixtureChatPanel({ sport, eventId, eventLabel, defaultOp
                   <div key={m.id} className={mine ? 'chat-message chat-message-mine' : 'chat-message'}>
                     {!mine && <Avatar name={m.authorName} size={26} />}
                     <div className="chat-bubble">
-                      {!mine && <div className="chat-author">{m.authorName}</div>}
+                      {!mine && (
+                        <div className="chat-author">
+                          <UserLink id={m.userId} displayName={m.authorName} />
+                        </div>
+                      )}
                       <div>{m.body}</div>
                     </div>
                   </div>

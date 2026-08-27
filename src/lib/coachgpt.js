@@ -16,20 +16,28 @@
 
 // Preferred model first, then a fallback the key is far more likely to have
 // access to. A turn tries the preferred model; if THAT model is the problem
-// (e.g. the configured ANTHROPIC_API_KEY isn't entitled to it - a 404
+// (e.g. the configured key isn't entitled to it - a 404
 // model-not-found), it drops to the next rather than failing the whole reply,
 // since a coach that silently says nothing is worse than one on a slightly
 // smaller model. A bad key or rate limit fails identically on every model, so
 // those stop immediately and surface as a real error instead (see makeCaller).
+import { buildAnthropicRequest } from './anthropicRoute.js'
+
 export const COACHGPT_MODELS = ['claude-opus-5', 'claude-sonnet-5']
 export const COACHGPT_MODEL = COACHGPT_MODELS[0]
-const ANTHROPIC_VERSION = '2023-06-01'
-// Was bumped to 4 alongside web_search, then reverted - each round is a full
-// Anthropic round-trip, and this function is synchronous behind a ~30s edge
-// inactivity timeout with no streaming, so every round is real time out of a
-// hard, fixed budget. 3 is what the pre-existing (tested, working) turn
-// budget already used.
-const MAX_TOOL_ROUNDS = 3
+// Was bumped to 4 alongside web_search, then reverted, then 3 itself was cut
+// to 2 here after confirmed-live evidence: a real "best value bet this
+// weekend?" turn - the flagship broad question this whole tool loop exists
+// for - hit the full ~30s edge inactivity timeout twice in a row even after
+// speeding up the always-on lock_in_recommendation follow-up (see its own
+// comment). Each round is a full Anthropic round-trip with no streaming, so
+// every round is real time out of a hard, fixed budget; the system prompt
+// already pushes the model to batch every fixture it needs into ONE round's
+// worth of parallel tool calls rather than searching one at a time, so a
+// third round mostly only ever bought a follow-up re-search (a genuinely
+// ambiguous match, say) - a real but rarer case than the flagship query
+// timing out outright.
+const MAX_TOOL_ROUNDS = 2
 // Anthropic-hosted, not one of our own callTool implementations - the API
 // runs the search (and can chain several before returning) within the same
 // request, so it never touches the client-tool loop below. Capped at 1/turn -
@@ -62,6 +70,13 @@ export const COACHGPT_SYSTEM = [
   'tactics, say), call every tool you already know you need in the SAME',
   'turn rather than one at a time across several turns - you\'re on a tight',
   'reply-time budget, and calling them together is faster and just as good:',
+  '- list_upcoming_events(sport?): browses what\'s coming up SOON (a rolling',
+  '  near-term window, not a full week\'s schedule) - use this for "what\'s on',
+  '  tonight/today", "anything on right now?", or any question with no team/',
+  '  fighter/horse name to search for. find_fixture needs something to look',
+  '  up by name and will come back empty on a bare time-word question like',
+  '  "what\'s on tonight" - reach for this one instead, then find_fixture by',
+  '  name on anything from the list the user wants a price on.',
   '- find_fixture(query, sport?): looks up a specific upcoming fixture,',
   '  fight, or horse race and its prices, including pre-computed value',
   '  edges (where the best price beats the market average by a meaningful',
@@ -77,7 +92,17 @@ export const COACHGPT_SYSTEM = [
   '  immediately that racing odds here only ever cover today\'s card and',
   '  prices land same-day, not the night before - don\'t make them guess why',
   '  it\'s empty, and don\'t suggest "check back in a few minutes", since more',
-  '  searching won\'t find something that doesn\'t exist yet in our data.',
+  '  searching won\'t find something that doesn\'t exist yet in our data. A',
+  '  broad "today\'s racing tips"/"anything worth backing today" ask with no',
+  '  course or horse named is exactly what list_upcoming_events(sport:',
+  '  \'racing\') is for, same as it is for football - call that first to see',
+  '  every race still to go today, then in the SAME round call find_fixture',
+  '  with "<course> <race name>" together (both, from that list - course',
+  '  alone matches runners across every race there, not one field) for a',
+  '  handful of races worth a look, and give real priced tips from whatever',
+  '  comes back. Never ask the user to name a specific race first when',
+  '  they\'ve already asked broadly - that\'s the question this two-step',
+  '  lookup is built to answer.',
   '- get_player_profile(name): looks up bio/physical stats for a real',
   '  player or athlete.',
   '- get_recent_news(query?): pulls CURRENT sports headlines (live BBC Sport /',
@@ -185,6 +210,21 @@ export const COACHGPT_SYSTEM = [
 
 export const COACHGPT_TOOLS = [
   {
+    name: 'list_upcoming_events',
+    description:
+      'Browse what\'s coming up SOON across a sport (or every sport, if none given) - a rolling near-term window, not a full week\'s schedule. Use this for a bare "what\'s on tonight/today", "anything on right now?", or any question with no team/fighter/horse name to search for - find_fixture needs something to look up by name and comes back empty on a time-only question. Returns fixture names and kickoff times only, no prices - call find_fixture by name afterwards for odds on anything from the list.',
+    input_schema: {
+      type: 'object',
+      properties: {
+        sport: {
+          type: 'string',
+          description:
+            'Sport if the user named one: football, ufc, racing, tennis, basketball, hockey, baseball, nfl, rugbyLeague, rugbyUnion, cricket, or boxing. Omit for every sport at once.'
+        }
+      }
+    }
+  },
+  {
     name: 'find_fixture',
     description:
       'Look up a specific upcoming fixture, fight, or horse race (by team/fighter/horse name(s), a course, or a free-text description) and its prices, including which price beats the market average and by how much. Covers football, UFC, tennis, other team sports, and horse racing. Use this whenever the user asks about a specific match, fight, race, or team - always, even if you think you already know who\'s playing, since prices and fixtures change constantly.',
@@ -285,26 +325,32 @@ function systemPromptFor() {
   return `${COACHGPT_SYSTEM}\n\nToday's date is ${new Date().toISOString().slice(0, 10)}.`
 }
 
-async function callClaudeModel(apiKey, model, messages, extra) {
+async function callClaudeModel(apiKey, model, messages, extra, route) {
   try {
-    const res = await fetch('https://api.anthropic.com/v1/messages', {
-      method: 'POST',
-      headers: { 'content-type': 'application/json', 'x-api-key': apiKey, 'anthropic-version': ANTHROPIC_VERSION },
-      body: JSON.stringify({
-        model,
-        // Was 800, briefly tried 1600 and 1100 - both let a real deep-dive
-        // reply either blow the ~30s edge inactivity timeout or, worse, run
-        // out of budget and cut off mid-sentence with no error (confirmed
-        // live both ways). 950 leaves real margin under the timeout; the
-        // Format section below and systemPromptFor's date are what actually
-        // keep a deep answer substantive AND complete rather than trying to
-        // fill the ceiling or burning a slow search on the calendar.
-        max_tokens: 950,
-        system: systemPromptFor(),
-        messages,
-        ...extra
-      })
-    })
+    const { url, headers, body } = buildAnthropicRequest(apiKey, model, {
+      // Was 800, briefly tried 1600 and 1100 - both let a real deep-dive
+      // reply either blow the ~30s edge inactivity timeout or, worse, run
+      // out of budget and cut off mid-sentence with no error (confirmed
+      // live both ways). 950 leaves real margin under the timeout; the
+      // Format section below and systemPromptFor's date are what actually
+      // keep a deep answer substantive AND complete rather than trying to
+      // fill the ceiling or burning a slow search on the calendar.
+      max_tokens: 950,
+      // Confirmed live via debug logging: extended thinking was firing on
+      // these calls despite nothing here ever requesting it, and thinking
+      // tokens share the SAME max_tokens ceiling as the visible reply - one
+      // forced-fallback call spent 192 of its 194 output tokens on an
+      // invisible thinking block, leaving an empty string as the actual
+      // answer (surfaced to the user as "couldn't get a straight answer",
+      // indistinguishable from the coach going silent). It also just costs
+      // real generation time for a chat reply nobody reads the reasoning
+      // trace of. Explicitly disabled so every token goes to the answer.
+      thinking: { type: 'disabled' },
+      system: systemPromptFor(),
+      messages,
+      ...extra
+    }, route)
+    const res = await fetch(url, { method: 'POST', headers, body })
     if (!res.ok) {
       const detail = await res.text().catch(() => '')
       let type = ''
@@ -345,13 +391,13 @@ function classifyError(error) {
 // model answers, it's pinned for the rest of the turn so the (up to five)
 // sequential calls in a single turn don't each re-probe a dead preferred
 // model. Returns the same { data } | { error } shape as callClaudeModel.
-function makeCaller(apiKey) {
+function makeCaller(apiKey, route) {
   let chosen = null
   return async (messages, extra) => {
     const models = chosen ? [chosen] : COACHGPT_MODELS
     let lastError = null
     for (const model of models) {
-      const result = await callClaudeModel(apiKey, model, messages, extra)
+      const result = await callClaudeModel(apiKey, model, messages, extra, route)
       if (result.data) {
         chosen = model
         return { data: result.data }
@@ -388,7 +434,19 @@ function extractText(content) {
 // hasPick: false, but it can no longer just forget to mention a pick.
 // Costs one extra Anthropic request per turn; only made when there's a
 // real answer to classify.
-async function lockInRecommendation(call, messages, text) {
+//
+// Deliberately its own small model and short system prompt, not the pinned
+// main-turn model/COACHGPT_SYSTEM - classifying one already-written reply
+// needs none of the big coach persona prompt or Opus/Sonnet-level reasoning,
+// and this call runs on EVERY successful turn, unconditionally, inside the
+// same synchronous ~30s edge budget the main turn already ate into (see
+// MAX_TOOL_ROUNDS/WEB_SEARCH_MAX_USES comments above) - a real reply that
+// took 20+ seconds getting there had no margin left for a slow follow-up.
+const LOCK_IN_MODEL = 'claude-haiku-4-5-20251001'
+const LOCK_IN_SYSTEM =
+  'You classify one already-written reply from a sports-betting chat assistant. Read it and call lock_in_recommendation: did it name ONE specific selection as its lean?'
+
+async function lockInRecommendation(apiKey, messages, text, route) {
   const followUp = [
     ...messages,
     { role: 'assistant', content: text },
@@ -398,7 +456,12 @@ async function lockInRecommendation(call, messages, text) {
         'Call lock_in_recommendation now to record whether your reply above named one specific selection as your lean.'
     }
   ]
-  const { data } = await call(followUp, { tools: [RECOMMENDATION_TOOL], tool_choice: { type: 'tool', name: 'lock_in_recommendation' } })
+  const { data } = await callClaudeModel(apiKey, LOCK_IN_MODEL, followUp, {
+    system: LOCK_IN_SYSTEM,
+    max_tokens: 200,
+    tools: [RECOMMENDATION_TOOL],
+    tool_choice: { type: 'tool', name: 'lock_in_recommendation' }
+  }, route)
   const block = data?.content?.find((b) => b.type === 'tool_use' && b.name === 'lock_in_recommendation')
   return block?.input?.hasPick ? block.input : null
 }
@@ -415,10 +478,10 @@ async function lockInRecommendation(call, messages, text) {
 // "answered fine" - critical because a swallowed API failure used to surface
 // as an empty reply that wrongly blamed the user's phrasing. recommendation is
 // lock_in_recommendation's raw input, or null if it found no real pick.
-export async function runCoachGptTurn({ apiKey, history, message, callTool }) {
+export async function runCoachGptTurn({ apiKey, history, message, callTool, route }) {
   if (!apiKey) return { text: null, recommendation: null, error: 'no_key' }
 
-  const call = makeCaller(apiKey)
+  const call = makeCaller(apiKey, route)
   const messages = [...(history ?? []).map((m) => ({ role: m.role, content: m.content })), { role: 'user', content: message }]
 
   let text = null
@@ -481,6 +544,6 @@ export async function runCoachGptTurn({ apiKey, history, message, callTool }) {
     text += "\n\n*(Ran long and got cut off there, champ - ask me to keep going and I'll pick up where I left off.)*"
   }
 
-  const recommendation = text ? await lockInRecommendation(call, messages, text) : null
+  const recommendation = text ? await lockInRecommendation(apiKey, messages, text, route) : null
   return { text, recommendation, error: null }
 }

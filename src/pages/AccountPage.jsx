@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { Link, useLocation, useNavigate } from 'react-router-dom'
+import posthog from 'posthog-js'
 import { useAuth } from '../context/AuthContext.jsx'
 import { useOddsFormat } from '../context/OddsFormatContext.jsx'
 import { BOOKMAKERS } from '../lib/bookmakers.js'
@@ -19,11 +20,19 @@ import { computeXp, levelForXp, xpForLevel, xpForNextLevel, flairTierForLevel } 
 import { freezesGranted } from '../utils/dailyStreak.js'
 import Avatar from '../components/Avatar.jsx'
 import InstallGuide from '../components/InstallGuide.jsx'
+import UserLink from '../components/UserLink.jsx'
 import SportHeroBanner from '../components/SportHeroBanner.jsx'
 import { useAsyncAction } from '../lib/useAsyncAction.js'
-import { FlameIcon, SparkIcon, LockIcon, HandshakeIcon, MegaphoneIcon, TargetIcon, CrownIcon } from '../components/icons/Icons.jsx'
+import { FlameIcon, SparkIcon, LockIcon, HandshakeIcon, MegaphoneIcon, TargetIcon, CrownIcon, PencilIcon, ChevronIcon } from '../components/icons/Icons.jsx'
 
 const TIER_ICON = { handshake: HandshakeIcon, megaphone: MegaphoneIcon, target: TargetIcon, crown: CrownIcon }
+
+// Every notification pref below defaults to false when absent from a
+// stored profile - reactions/comments (betActivity) is the one exception,
+// since it went to everyone before this toggle existed (see
+// send-push.js). Only list defaults that AREN'T false here; toggleNotification
+// and the checkbox below both read from this so they can't drift apart.
+const NOTIFICATION_PREF_DEFAULTS = { betActivity: true, groupChat: true }
 
 const EXPANDED_KEY = 'betmates:accountExpanded'
 
@@ -35,19 +44,20 @@ function loadExpandedGroups() {
   }
 }
 
-// The bookmaker grid, notification checkboxes, and gambling-safety content
-// are the three genuinely long stretches on this page - grouped behind a
+// The bookmaker grid, notification checkboxes, gambling-safety content, and
+// the tail-end catch-all (blocked accounts/install guide/legal link) are
+// the genuinely long-or-numerous stretches on this page - grouped behind a
 // collapsed-by-default toggle (same idea as MoreMenu.jsx's groups) so the
-// page opens short and each is still one tap away. Short sections (share
-// profile, invite, danger zone) stay plain - collapsing a two-line block
-// just adds a click for no real space saved.
+// page opens short and each is still one tap away. Short, single-purpose
+// sections (share profile, invite, danger zone, sign out) stay plain -
+// collapsing a two-line block just adds a click for no real space saved.
 function AccountGroup({ id, title, expanded, onToggle, children }) {
   const open = expanded.has(id)
   return (
     <div className="account-group">
       <button className="account-group-toggle" type="button" onClick={() => onToggle(id)} aria-expanded={open}>
         <span>{title}</span>
-        <span className="market-header-meta">{open ? '▴' : '▾'}</span>
+        <ChevronIcon width={16} height={16} style={open ? { transform: 'rotate(180deg)' } : undefined} />
       </button>
       {open && <div className="account-group-body">{children}</div>}
     </div>
@@ -154,6 +164,7 @@ export default function AccountPage() {
   async function handleUpgrade(plan) {
     setCheckoutBusy(plan)
     setCheckoutError(null)
+    posthog.capture('premium_checkout_started', { plan })
     const accessToken = await dataStore.getAccessToken()
     const res = await startPremiumCheckout({ accessToken, plan })
     if (res.url) {
@@ -336,9 +347,20 @@ export default function AccountPage() {
     setExclusionSaving(false)
   }
 
+  // Every pref here defaults to false when absent from a stored profile
+  // EXCEPT betActivity, which defaults to true (see its checkbox below) -
+  // `!current[key]` alone flips the wrong thing for it: an existing user
+  // whose profile predates that key has current.betActivity === undefined,
+  // so `!undefined` computes true, the same value the checkbox is already
+  // implicitly showing - the first click looked like a no-op (confirmed
+  // live), and only a second click actually changed anything. Keyed off
+  // NOTIFICATION_PREF_DEFAULTS so toggling always flips the value the
+  // checkbox is actually displaying, not the raw (possibly-missing) stored
+  // one - and so the next opt-out-by-default pref doesn't hit the same bug.
   async function toggleNotification(key) {
     const current = user.notificationPrefs ?? {}
-    await runAsync(() => updateNotificationPrefs({ ...current, [key]: !current[key] }), "Couldn't save that - try again")
+    const effective = current[key] ?? NOTIFICATION_PREF_DEFAULTS[key] ?? false
+    await runAsync(() => updateNotificationPrefs({ ...current, [key]: !effective }), "Couldn't save that - try again")
   }
 
   async function handleSaveName(e) {
@@ -417,7 +439,9 @@ export default function AccountPage() {
       <div className="account-hero">
         <label className="avatar-upload">
           <Avatar name={user.displayName} photoUrl={user.avatarUrl} size={64} tier={tier} />
-          <span className="avatar-upload-badge" aria-hidden="true">{avatarUploading ? '…' : '✎'}</span>
+          <span className="avatar-upload-badge" aria-hidden="true">
+            {avatarUploading ? '…' : <PencilIcon width={11} height={11} />}
+          </span>
           <input
             type="file"
             accept="image/*"
@@ -636,7 +660,35 @@ export default function AccountPage() {
 
           <label className="field-check">
             <input type="checkbox" checked={user.notificationPrefs?.betPosted ?? false} onChange={() => toggleNotification('betPosted')} />
-            <span>Bet posted in a group</span>
+            <span>Bet posted in a group, or by someone you follow</span>
+          </label>
+          <label className="field-check">
+            {/* Defaults to true, not false like its siblings here - this is
+                the one opt-out (not opt-in) preference, since reaction/
+                comment pushes already went to everyone before this toggle
+                existed (see send-push.js) - showing it unchecked for
+                someone who's never touched it would misrepresent what
+                they're actually still getting. */}
+            <input
+              type="checkbox"
+              checked={user.notificationPrefs?.betActivity ?? NOTIFICATION_PREF_DEFAULTS.betActivity}
+              onChange={() => toggleNotification('betActivity')}
+            />
+            <span>Reactions and comments on your bets</span>
+          </label>
+          <label className="field-check">
+            {/* Also defaults to true - same "don't silently mute something
+                everyone already expects" reasoning as betActivity above.
+                Direct messages (a friend messaging you) have no toggle at
+                all - always sent, treated as transactional - but a group
+                chat can get busy with several people talking at once, so
+                this one's a real opt-out rather than always-on. */}
+            <input
+              type="checkbox"
+              checked={user.notificationPrefs?.groupChat ?? NOTIFICATION_PREF_DEFAULTS.groupChat}
+              onChange={() => toggleNotification('groupChat')}
+            />
+            <span>Group chat messages</span>
           </label>
           <label className="field-check">
             <input type="checkbox" checked={user.notificationPrefs?.betSettled ?? false} onChange={() => toggleNotification('betSettled')} />
@@ -979,42 +1031,44 @@ export default function AccountPage() {
         {referralShareStatus && <div className="hint">{referralShareStatus}</div>}
       </div>
 
-      {blockedUsers && blockedUsers.length > 0 && (
-        <div className="account-section">
-          <h2 className="market-title">Blocked accounts</h2>
-          <p className="hint">You won't see their posts on the public Feed, and they won't see yours.</p>
-          <div className="manage-list">
-            {blockedUsers.map((b) => (
-              <div key={b.id} className="manage-list-row">
-                <span>{b.displayName}</span>
-                <button className="btn btn-ghost btn-small" onClick={() => handleUnblock(b.id)}>
-                  Unblock
-                </button>
-              </div>
-            ))}
+      <AccountGroup id="more" title="More" expanded={expandedGroups} onToggle={toggleGroup}>
+        {blockedUsers && blockedUsers.length > 0 && (
+          <div className="account-section">
+            <h2 className="market-title">Blocked accounts</h2>
+            <p className="hint">You won't see their posts on the public Feed, and they won't see yours.</p>
+            <div className="manage-list">
+              {blockedUsers.map((b) => (
+                <div key={b.id} className="manage-list-row">
+                  <UserLink id={b.id} displayName={b.displayName} />
+                  <button className="btn btn-ghost btn-small" onClick={() => handleUnblock(b.id)}>
+                    Unblock
+                  </button>
+                </div>
+              ))}
+            </div>
           </div>
-        </div>
-      )}
-
-      <div className="account-section">
-        <h2 className="market-title">Install app</h2>
-        {isStandalone() ? (
-          <p className="hint">You're using the installed app already - nothing else to do.</p>
-        ) : isIOS() ? (
-          <InstallGuide />
-        ) : (
-          <p className="hint">
-            Look for an install icon in your browser's address bar (Chrome, Edge, and most Android browsers offer this
-            automatically) to add BetMates as an app.
-          </p>
         )}
-      </div>
 
-      <div className="account-section">
-        <Link to="/legal" className="back">
-          Terms &amp; Responsible Gambling
-        </Link>
-      </div>
+        <div className="account-section">
+          <h2 className="market-title">Install app</h2>
+          {isStandalone() ? (
+            <p className="hint">You're using the installed app already - nothing else to do.</p>
+          ) : isIOS() ? (
+            <InstallGuide />
+          ) : (
+            <p className="hint">
+              Look for an install icon in your browser's address bar (Chrome, Edge, and most Android browsers offer this
+              automatically) to add BetMates as an app.
+            </p>
+          )}
+        </div>
+
+        <div className="account-section">
+          <Link to="/legal" className="back">
+            Terms &amp; Responsible Gambling
+          </Link>
+        </div>
+      </AccountGroup>
 
       <div className="account-section danger-zone">
         <h2 className="market-title">Danger zone</h2>

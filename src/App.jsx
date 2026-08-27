@@ -36,8 +36,11 @@ const FixtureDetailPage = lazy(() => import('./pages/FixtureDetailPage.jsx'))
 const RaceDetailPage = lazy(() => import('./pages/RaceDetailPage.jsx'))
 const FightDetailPage = lazy(() => import('./pages/FightDetailPage.jsx'))
 const GenericEventDetailPage = lazy(() => import('./pages/GenericEventDetailPage.jsx'))
-const SocialFeedPage = lazy(() => import('./pages/SocialFeedPage.jsx'))
+const GroupsHomePage = lazy(() => import('./pages/GroupsHomePage.jsx'))
+const GroupsDiscoverPage = lazy(() => import('./pages/GroupsDiscoverPage.jsx'))
 const GroupFeedPage = lazy(() => import('./pages/GroupFeedPage.jsx'))
+const FriendsPage = lazy(() => import('./pages/FriendsPage.jsx'))
+const ExplorePage = lazy(() => import('./pages/ExplorePage.jsx'))
 const JoinGroupPage = lazy(() => import('./pages/JoinGroupPage.jsx'))
 const TrackerPage = lazy(() => import('./pages/TrackerPage.jsx'))
 const AccountPage = lazy(() => import('./pages/AccountPage.jsx'))
@@ -252,6 +255,7 @@ function Shell() {
           <Route path="/r/:code" element={<StashReferralCode />} />
           <Route path="/challenge/:code" element={<StashChallengeCode />} />
           <Route path="/u/:code" element={<PublicProfilePage />} />
+          <Route path="/user/:id" element={<PublicProfilePage />} />
           <Route path="/hall-of-fame" element={<HallOfFamePage />} />
           <Route path="*" element={<AuthPage />} />
         </Routes>
@@ -301,6 +305,12 @@ function Shell() {
   return (
     <ActivityProvider userId={user.id}>
       <BetSlipProvider>
+        {/* First tab stop on every page - NewsTickerBar alone puts ~15-20
+            real, tabbable headline links ahead of the actual app, with no
+            other way to bypass them. */}
+        <a href="#main-content" className="skip-link">
+          Skip to content
+        </a>
         <RouteTitle />
         <ScatteredSportPhotos />
         <NewsTickerBar headlines={newsHeadlines} />
@@ -312,8 +322,9 @@ function Shell() {
               {/* Keyed by pathname so React remounts this wrapper - and
                   replays its CSS mount animation - on every navigation,
                   giving page changes a soft settle instead of an instant
-                  cut (see .route-page in style.css). */}
-              <div className="route-page" key={location.pathname}>
+                  cut (see .route-page in style.css). id/tabIndex are the
+                  skip link's landing target. */}
+              <div className="route-page" id="main-content" tabIndex={-1} key={location.pathname}>
                 <Routes>
                   <Route path="/" element={<HomeRedirect />} />
                   <Route path="/dashboard" element={<HomePage />} />
@@ -322,8 +333,10 @@ function Shell() {
                   <Route path="/odds/racing/:id" element={<RaceDetailPage />} />
                   <Route path="/odds/ufc/:id" element={<FightDetailPage />} />
                   <Route path="/odds/:sportKey/:id" element={<GenericEventDetailPage />} />
-                  <Route path="/groups" element={<SocialFeedPage />} />
+                  <Route path="/groups" element={<GroupsHomePage />} />
                   <Route path="/groups/:id" element={<GroupFeedPage />} />
+                  <Route path="/groups/discover" element={<GroupsDiscoverPage />} />
+                  <Route path="/friends" element={<FriendsPage />} />
                   <Route path="/join/:code" element={<JoinGroupPage />} />
                   <Route path="/challenge/:code" element={<ChallengePage />} />
                   <Route path="/messages" element={<MessagesInboxPage />} />
@@ -332,12 +345,14 @@ function Shell() {
                   <Route path="/achievements" element={<AchievementsPage />} />
                   <Route path="/insights" element={<InsightsPage />} />
                   <Route path="/coach" element={<CoachGptPage />} />
+                  <Route path="/explore" element={<ExplorePage />} />
                   <Route path="/alerts" element={<NotificationsPage />} />
                   <Route path="/account" element={<AccountPage />} />
                   <Route path="/admin/reports" element={<AdminReportsPage />} />
                   <Route path="/admin/errors" element={<AdminErrorLogsPage />} />
                   <Route path="/admin/analytics" element={<AdminAnalyticsPage />} />
                   <Route path="/u/:code" element={<PublicProfilePage />} />
+                  <Route path="/user/:id" element={<PublicProfilePage />} />
                   <Route path="/hall-of-fame" element={<HallOfFamePage />} />
                   <Route path="/legal" element={<LegalPage />} />
                   <Route path="/help" element={<HelpPage />} />

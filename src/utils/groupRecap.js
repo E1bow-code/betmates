@@ -55,6 +55,7 @@ export function computeGroupRecap(posts, memberNames = {}, now = Date.now()) {
     const profit = betProfit(post)
     if (!biggestWin || profit > biggestWin.profit) {
       biggestWin = {
+        userId: post.userId,
         name: memberNames[post.userId] ?? 'Someone',
         profit,
         event: post.selections?.[0]?.event ?? null,

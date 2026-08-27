@@ -63,7 +63,7 @@ export default function PostPreview({
             (() => {
               const TagIcon = POST_TAG_ICON[iconForTag(tag)]
               return (
-                <span className="post-tag-chip post-tag-chip-readonly icon-row">
+                <span className="chip chip--pill chip--md chip--filled-accent post-tag-chip post-tag-chip-readonly icon-row">
                   {TagIcon && <TagIcon width={13} height={13} />} {labelForTag(tag)}
                 </span>
               )
@@ -76,7 +76,7 @@ export default function PostPreview({
             <div className="bet-card-ticket">
               <div className="bet-card-ticket-header">
                 <span className="bet-card-ticket-tag">{marketType}</span>
-                <span className="bet-status-pill status-open">Pending</span>
+                <span className="chip chip--pill chip--sm chip--outline bet-status-pill status-open">Pending</span>
               </div>
 
               {legs.map((leg, i) => {
@@ -108,7 +108,7 @@ export default function PostPreview({
                 <div className="bet-card-stake bet-card-stake-hidden">Stake kept private</div>
               ) : (
                 <>
-                  <div className="bet-card-ticket-divider" />
+                  <div className="chalk-divider chalk-divider--tear bet-card-ticket-divider" />
                   <div className="bet-card-stats">
                     {stake ? (
                       <div className="bet-card-stat">

@@ -9,10 +9,37 @@
 // identifying leaves the browser and the request body stays tiny. Stateless:
 // data in, coaching out.
 //
-// Missing ANTHROPIC_API_KEY degrades like every other proxy here: it returns
+// Missing COACH_ANTHROPIC_KEY degrades like every other proxy here: it returns
 // { configured: false } (HTTP 200) and the UI simply hides/skips rather than
-// erroring. Set ANTHROPIC_API_KEY in the Netlify env to switch it on.
+// erroring. Set COACH_ANTHROPIC_KEY in the Netlify env to switch it on - named
+// that rather than ANTHROPIC_API_KEY because Netlify's AI Gateway silently
+// intercepts the latter in local `netlify dev` (see coachgpt.js for the full
+// story); production was never affected, but the rename sidesteps it everywhere.
+//
+// OMNIROUTE_BASE_URL is the opt-in escape hatch to route this call through a
+// self-hosted OmniRoute gateway instead of straight to Anthropic - unset by
+// default, so nothing changes until it's deliberately configured. When set,
+// the credential swaps to OMNIROUTE_API_KEY (an OmniRoute key, not an
+// Anthropic one) and OMNIROUTE_MODEL_PREFIX (e.g. "cc/") is applied to the
+// model id, matching whatever provider prefix that OmniRoute instance was
+// set up with.
+import { createClient } from '@supabase/supabase-js'
 import { requestCoachTake } from '../../src/lib/coach.js'
+
+const SUPABASE_URL = process.env.VITE_SUPABASE_URL
+const ANON_KEY = process.env.VITE_SUPABASE_ANON_KEY
+const OMNIROUTE_BASE_URL = process.env.OMNIROUTE_BASE_URL
+const route = OMNIROUTE_BASE_URL ? { baseUrl: OMNIROUTE_BASE_URL, modelPrefix: process.env.OMNIROUTE_MODEL_PREFIX } : undefined
+
+// Passive takes (summary/bet/recap) get triggered just by navigating around
+// the app - Insights, an open bet in Tracker, a group's feed - not typed one
+// at a time like a CoachGPT chat message, so this needs to be generous
+// enough that real usage never brushes it, while still putting a hard
+// ceiling on what one account can cost. It exists purely to bound the abuse
+// case below, not to meter normal use the way coachgpt.js's
+// FREE_MONTHLY_MESSAGE_LIMIT does - hence a daily count, not monthly, and a
+// much higher number.
+const DAILY_FREE_TAKE_LIMIT = 50
 
 function json(body, status = 200) {
   return new Response(JSON.stringify(body), {
@@ -21,10 +48,60 @@ function json(body, status = 200) {
   })
 }
 
+// This function is reachable directly over HTTP by anyone, not just through
+// the app's own UI. Requiring a real signed-in session (below) is identity,
+// not a limit - a free signup is trivial to script, so on its own it didn't
+// stop anything. Confirmed live: with no check beyond identity, an
+// authenticated caller could generate unlimited real Claude completions
+// against invented bet-shaped JSON, burning the same COACH_ANTHROPIC_KEY
+// budget coachgpt.js's own message cap is trying to meter. coach_takes
+// (supabase/schema.sql) exists purely to count generations per user per day
+// so that has a real ceiling too. Same missing-Supabase-config-degrades-to-
+// unlimited contract as checkMessageAllowance in coachgpt.js - only a
+// genuinely unconfigured (local/no-backend) deploy skips this.
+async function resolveUser(accessToken) {
+  if (!SUPABASE_URL || !ANON_KEY) return { unconfigured: true }
+  if (!accessToken) return { unconfigured: false }
+  const userClient = createClient(SUPABASE_URL, ANON_KEY, { global: { headers: { Authorization: `Bearer ${accessToken}` } } })
+  const { data, error } = await userClient.auth.getUser()
+  if (error || !data?.user) return { unconfigured: false }
+  return { unconfigured: false, userClient, userId: data.user.id }
+}
+
+async function isOverDailyLimit(userClient, userId) {
+  const { data: profile } = await userClient.from('profiles').select('is_premium').eq('id', userId).single()
+  if (profile?.is_premium) return false
+
+  const startOfDay = new Date()
+  startOfDay.setUTCHours(0, 0, 0, 0)
+  const { count } = await userClient
+    .from('coach_takes')
+    .select('id', { count: 'exact', head: true })
+    .eq('user_id', userId)
+    .gte('created_at', startOfDay.toISOString())
+
+  return (count ?? 0) >= DAILY_FREE_TAKE_LIMIT
+}
+
+// Logged after a take is actually generated (not on every call - a request
+// that was gated out for having nothing worth coaching on, like an open bet
+// or too little history, never reaches this) so the count reflects real
+// usage/cost, same spirit as coachgpt.js only counting sent messages.
+// Best-effort: a logging failure shouldn't take down a reply that already
+// succeeded.
+async function logTake(userClient, userId) {
+  if (!userClient) return
+  try {
+    await userClient.from('coach_takes').insert({ user_id: userId })
+  } catch {
+    // best-effort - a logging failure shouldn't take down a reply that already succeeded
+  }
+}
+
 export default async (req) => {
   if (req.method !== 'POST') return json({ configured: true, error: 'POST only' }, 405)
 
-  const apiKey = process.env.ANTHROPIC_API_KEY
+  const apiKey = OMNIROUTE_BASE_URL ? process.env.OMNIROUTE_API_KEY : process.env.COACH_ANTHROPIC_KEY
   if (!apiKey) return json({ configured: false })
 
   let body
@@ -34,11 +111,18 @@ export default async (req) => {
     return json({ configured: true, error: 'Bad request body' }, 400)
   }
 
+  const { unconfigured, userClient, userId } = await resolveUser(body?.accessToken)
+  if (!unconfigured) {
+    if (!userClient) return json({ configured: true, take: null })
+    if (await isOverDailyLimit(userClient, userId)) return json({ configured: true, take: null, limited: true })
+  }
+
   // Bet review - only settled bets are worth a reaction; an open bet has no
   // outcome to react to.
   if (body?.bet) {
     if (!body.bet.status || body.bet.status === 'open') return json({ configured: true, take: null })
-    const take = await requestCoachTake({ bet: body.bet, apiKey, style: 'bet' })
+    const take = await requestCoachTake({ bet: body.bet, apiKey, style: 'bet', route })
+    if (take) await logTake(userClient, userId)
     return json({ configured: true, take })
   }
 
@@ -46,7 +130,8 @@ export default async (req) => {
   // to say, same "don't spend a token on nothing" rule as the other styles.
   if (body?.recap) {
     if (!(body.recap.settledCount >= 1)) return json({ configured: true, take: null })
-    const take = await requestCoachTake({ recap: body.recap, apiKey, style: 'group' })
+    const take = await requestCoachTake({ recap: body.recap, apiKey, style: 'group', route })
+    if (take) await logTake(userClient, userId)
     return json({ configured: true, take })
   }
 
@@ -55,6 +140,7 @@ export default async (req) => {
   // on "not enough data" - the UI gates on this too.
   if (!(body?.summary?.settled >= 2)) return json({ configured: true, take: null })
 
-  const take = await requestCoachTake({ summary: body.summary, apiKey, style: 'full' })
+  const take = await requestCoachTake({ summary: body.summary, apiKey, style: 'full', route })
+  if (take) await logTake(userClient, userId)
   return json({ configured: true, take })
 }

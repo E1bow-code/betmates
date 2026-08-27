@@ -191,7 +191,7 @@ export function signUp({ email, displayName, dob, referredByCode }) {
     displayName,
     dob,
     bookmakerPrefs: [],
-    notificationPrefs: { betPosted: true, betSettled: true, oddsMoved: false, kickoffReminders: false },
+    notificationPrefs: { betPosted: true, betActivity: true, betSettled: true, oddsMoved: false, kickoffReminders: false },
     friendCode: Math.random().toString(36).slice(2, 8).toUpperCase(),
     acceptedTermsAt: new Date().toISOString(),
     createdAt: new Date().toISOString(),
@@ -881,6 +881,34 @@ export function listComments(betId) {
   return delay(db.comments.filter((c) => c.betId === betId).sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()))
 }
 
+/** @param {string[]} betIds @param {string} excludeUserId @returns {Promise<any[]>} */
+export function listRecentCommentsOnPosts(betIds, excludeUserId) {
+  const db = readDb()
+  const names = Object.fromEntries(db.users.map((u) => [u.id, u.displayName]))
+  const betIdSet = new Set(betIds)
+  return delay(
+    db.comments
+      .filter((c) => betIdSet.has(c.betId) && c.userId !== excludeUserId)
+      .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
+      .slice(0, 50)
+      .map((c) => ({ id: c.id, betId: c.betId, userId: c.userId, name: names[c.userId] ?? 'Someone', body: c.body, createdAt: c.createdAt }))
+  )
+}
+
+/** @param {string[]} betIds @param {string} excludeUserId @returns {Promise<any[]>} */
+export function listRecentReactionsOnPosts(betIds, excludeUserId) {
+  const db = readDb()
+  const names = Object.fromEntries(db.users.map((u) => [u.id, u.displayName]))
+  const betIdSet = new Set(betIds)
+  return delay(
+    db.reactions
+      .filter((r) => betIdSet.has(r.betId) && r.userId !== excludeUserId)
+      .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
+      .slice(0, 50)
+      .map((r) => ({ id: r.id, betId: r.betId, userId: r.userId, name: names[r.userId] ?? 'Someone', emoji: r.emoji, createdAt: r.createdAt }))
+  )
+}
+
 // --- Bet copies (engagement tracking) -------------------------------------
 
 /** @param {string} originalBetId @param {string} copyingUserId @returns {Promise<any>} */
@@ -1293,6 +1321,28 @@ export function addFriendByCode(code, userId) {
   return delay({ id: target.id, displayName: target.displayName })
 }
 
+/** @param {string} userId @param {string} otherId @returns {Promise<boolean>} */
+export function isFriend(userId, otherId) {
+  const db = readDb()
+  return delay(db.friendships.some((f) => (f.userA === userId && f.userB === otherId) || (f.userA === otherId && f.userB === userId)))
+}
+
+// addFriendByCode minus the code-resolution step, for internal contexts
+// (a group member, a comment author) where the caller already has the
+// person's real id but never had a friend code to type in.
+/** @param {string} userId @param {string} otherId @returns {Promise<{id: string, displayName: string}>} */
+export function addFriend(userId, otherId) {
+  const db = readDb()
+  if (otherId === userId) return Promise.reject(new Error("That's you."))
+  const target = db.users.find((u) => u.id === otherId)
+  if (!target) return Promise.reject(new Error('User not found.'))
+  const already = db.friendships.some((f) => (f.userA === userId && f.userB === otherId) || (f.userA === otherId && f.userB === userId))
+  if (already) return Promise.reject(new Error(`You and ${target.displayName} are already friends.`))
+  db.friendships.push({ id: uid('friend'), userA: userId, userB: otherId, createdAt: new Date().toISOString() })
+  writeDb(db)
+  return delay({ id: target.id, displayName: target.displayName })
+}
+
 /** @param {string} userId @returns {Promise<{id: string, displayName: string}[]>} */
 export function listFriends(userId) {
   const db = readDb()
@@ -1498,6 +1548,13 @@ export function listFollowing(userId) {
   return delay(ids)
 }
 
+/** @param {string} userId @returns {Promise<number>} */
+export function getFollowerCount(userId) {
+  const db = readDb()
+  const count = db.follows.filter((f) => f.followingId === userId).length
+  return delay(count)
+}
+
 // --- Blocks & reports ----------------------------------------------------
 
 /** @param {string} userId @param {string} blockedId @returns {Promise<true>} */
@@ -1556,7 +1613,7 @@ export function reportPost(postId, reporterId, reason) {
 // --- Report moderation ---------------------------------------------------
 
 /**
- * @returns {Promise<{id: string, reason: string, createdAt: string, reporterName: string, postId: string, post: {id: string, authorName: string, event: string, stake: number|null, status: string}}[]>}
+ * @returns {Promise<{id: string, reason: string, createdAt: string, reporterName: string, postId: string, post: {id: string, userId: string, authorName: string, event: string, stake: number|null, status: string}}[]>}
  */
 export function listAllReports() {
   const db = readDb()
@@ -1574,6 +1631,7 @@ export function listAllReports() {
           postId: r.postId,
           post: {
             id: post.id,
+            userId: post.userId,
             authorName: names[post.userId] ?? 'Someone',
             event: post.selections?.[0]?.event ?? 'Bet',
             stake: post.stake,

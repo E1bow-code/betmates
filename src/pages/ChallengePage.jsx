@@ -55,7 +55,7 @@ export default function ChallengePage() {
   }
 
   if (state === 'friend' && friend) {
-    return <HeadToHeadSheet friend={friend} onClose={() => navigate('/groups')} />
+    return <HeadToHeadSheet friend={friend} onClose={() => navigate('/friends')} />
   }
 
   return (
@@ -73,7 +73,7 @@ export default function ChallengePage() {
             </button>
           </>
         )}
-        <button className="btn btn-ghost" onClick={() => navigate('/groups')}>
+        <button className="btn btn-ghost" onClick={() => navigate('/friends')}>
           Back to BetMates
         </button>
       </div>

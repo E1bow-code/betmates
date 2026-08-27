@@ -36,7 +36,9 @@ export default function LandingPitch({ onGetStarted }) {
       <div className="landing-features">
         {FEATURES.map(({ Icon, title, body }) => (
           <div className="landing-feature" key={title}>
-            <Icon className="landing-feature-icon" width={22} height={22} />
+            <div className="landing-feature-icon-tile">
+              <Icon width={24} height={24} />
+            </div>
             <div>
               <div className="landing-feature-title">{title}</div>
               <p className="landing-feature-body">{body}</p>

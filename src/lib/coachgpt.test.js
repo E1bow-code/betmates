@@ -100,10 +100,9 @@ test('a tool_use round runs the tool then answers from the result', async () => 
 })
 
 test('exhausting the tool-round budget forces a final no-tools answer', async () => {
-  // Three tool_use rounds (the MAX_TOOL_ROUNDS budget), then a forced call with
+  // Two tool_use rounds (the MAX_TOOL_ROUNDS budget), then a forced call with
   // no tools must still produce a real reply rather than nothing.
   stubFetch([
-    toolReply('find_fixture', { query: 'x' }),
     toolReply('find_fixture', { query: 'x' }),
     toolReply('find_fixture', { query: 'x' }),
     textReply('Here is the read even without a clean lookup.'),

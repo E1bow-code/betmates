@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
+import posthog from 'posthog-js'
 import { useAuth } from '../context/AuthContext.jsx'
 import { requestPasswordReset } from '../lib/dataStore.js'
 import { isSupabaseConfigured } from '../lib/supabaseClient.js'
@@ -24,6 +25,7 @@ export default function AuthPage() {
   const [error, setError] = useState(null)
   const [submitting, setSubmitting] = useState(false)
   const [resetSent, setResetSent] = useState(false)
+  const [showPassword, setShowPassword] = useState(false)
   const [bannerUrl, setBannerUrl] = useState(null)
 
   useEffect(() => {
@@ -37,6 +39,7 @@ export default function AuthPage() {
     try {
       await requestPasswordReset(email)
       setResetSent(true)
+      posthog.capture('password_reset_requested')
     } catch (err) {
       setError(err.message)
     } finally {
@@ -53,9 +56,13 @@ export default function AuthPage() {
         if (!acceptedTerms) throw new Error('You must confirm your age and accept the Terms to continue.')
         const referredByCode = localStorage.getItem(PENDING_REFERRAL_KEY)
         localStorage.removeItem(PENDING_REFERRAL_KEY)
-        await signUp({ email, password, displayName, dob, referredByCode })
+        const newUser = await signUp({ email, password, displayName, dob, referredByCode })
+        posthog.identify(newUser.id)
+        posthog.capture('user_signed_up', { referred: !!referredByCode })
       } else {
-        await signIn({ email, password })
+        const existing = await signIn({ email, password })
+        posthog.identify(existing.id)
+        posthog.capture('user_signed_in')
       }
     } catch (err) {
       setError(err.message)
@@ -145,14 +152,24 @@ export default function AuthPage() {
 
           <label className="field">
             <span>Password</span>
-            <input
-              type="password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              required
-              minLength={6}
-              autoComplete={mode === 'signup' ? 'new-password' : 'current-password'}
-            />
+            <div className="input-password">
+              <input
+                type={showPassword ? 'text' : 'password'}
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                required
+                minLength={6}
+                autoComplete={mode === 'signup' ? 'new-password' : 'current-password'}
+              />
+              <button
+                type="button"
+                className="input-password-toggle"
+                onClick={() => setShowPassword((v) => !v)}
+                aria-label={showPassword ? 'Hide password' : 'Show password'}
+              >
+                {showPassword ? 'Hide' : 'Show'}
+              </button>
+            </div>
           </label>
 
           {mode === 'signup' && (

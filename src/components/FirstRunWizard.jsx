@@ -4,7 +4,7 @@ import { useAuth } from '../context/AuthContext.jsx'
 import { useAsyncAction } from '../lib/useAsyncAction.js'
 import { BOOKMAKERS } from '../lib/bookmakers.js'
 import ManualEntrySheet from './ManualEntrySheet.jsx'
-import { CelebrateIcon } from './icons/Icons.jsx'
+import { CelebrateIcon, StarIcon } from './icons/Icons.jsx'
 
 // A handful of well-known Premier League clubs to offer as a starting point
 // - not the full fixture list (that's what the Odds tab is for), just
@@ -120,10 +120,10 @@ export default function FirstRunWizard({ onDone }) {
                   <button
                     key={name}
                     type="button"
-                    className={followedTeams.has(name) ? 'first-run-chip active' : 'first-run-chip'}
+                    className={followedTeams.has(name) ? 'first-run-chip active icon-row' : 'first-run-chip icon-row'}
                     onClick={() => toggleTeam(name)}
                   >
-                    {followedTeams.has(name) ? '★' : '☆'} {name}
+                    <StarIcon width={12} height={12} filled={followedTeams.has(name)} /> {name}
                   </button>
                 ))}
           </div>

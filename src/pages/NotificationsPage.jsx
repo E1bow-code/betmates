@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { Link } from 'react-router-dom'
+import { useNavigate } from 'react-router-dom'
 import { useActivity } from '../context/ActivityContext.jsx'
 import { useAuth } from '../context/AuthContext.jsx'
 import { useOddsFormat } from '../context/OddsFormatContext.jsx'
@@ -8,9 +8,20 @@ import { formatRelativeTime } from '../utils/format.js'
 import { formatOdds } from '../utils/oddsFormat.js'
 import EmptyState from '../components/EmptyState.jsx'
 import SportHeroBanner from '../components/SportHeroBanner.jsx'
+import UserLink from '../components/UserLink.jsx'
+import { REACTION_EMOJIS, VOTE_OPTIONS } from '../components/BetCard.jsx'
 import { BellIcon, CommentIcon, CheckIcon, XIcon, MinusIcon } from '../components/icons/Icons.jsx'
 
 const SETTLED_ICON = { won: CheckIcon, lost: XIcon, void: MinusIcon }
+
+// Same reacted/voted split BetCard.jsx's own toggleReaction push-notification
+// title uses - kept in one place (REACTION_EMOJIS/VOTE_OPTIONS are exported
+// from there) so the two can't silently drift on what counts as a vote.
+function reactionVerb(emoji) {
+  if (REACTION_EMOJIS.includes(emoji)) return `reacted ${emoji} to`
+  const label = VOTE_OPTIONS.find((o) => o.key === emoji)?.label ?? emoji
+  return `voted "${label}" on`
+}
 
 // A real tab rather than a floating bell dropdown - matches how the rest of
 // the app navigates (Odds/Social/Tracker/Account are all pages, not
@@ -103,24 +114,72 @@ export default function NotificationsPage() {
   )
 }
 
+// Was three plain <Link>s wrapping the same row content - fine until the
+// author name inside needed its own link to their profile, since a nested
+// <a> inside an <a> is invalid HTML and misbehaves. The row itself is now a
+// div driving navigation via useNavigate (role="link" + Enter/Space keep it
+// keyboard-accessible the way a real <a> was for free), and the inner
+// UserLink stops the click from bubbling up to the row's own navigation.
 function NotificationRow({ item }) {
+  const navigate = useNavigate()
   const rowClass =
     item.kind === 'settled'
       ? `tracker-row icon-row notification-row status-${item.status}`
       : 'tracker-row icon-row notification-row'
-  const content = (
-    <>
+
+  const isSocial = item.kind === 'posted' || item.kind === 'commented' || item.kind === 'reacted'
+
+  function goToRowTarget() {
+    if (isSocial && item.groupId) navigate(`/groups/${item.groupId}`)
+    else if (isSocial) navigate('/dashboard')
+    else navigate('/tracker')
+  }
+
+  return (
+    <div
+      className={rowClass}
+      role="link"
+      tabIndex={0}
+      onClick={goToRowTarget}
+      onKeyDown={(e) => {
+        if (e.key === 'Enter' || e.key === ' ') {
+          e.preventDefault()
+          goToRowTarget()
+        }
+      }}
+    >
       <span className="icon-row-badge">
-        {(() => {
-          const Icon = item.kind === 'posted' ? CommentIcon : SETTLED_ICON[item.status]
-          return Icon && <Icon width={18} height={18} />
-        })()}
+        {item.kind === 'reacted' ? (
+          REACTION_EMOJIS.includes(item.emoji) ? item.emoji : '🎯'
+        ) : (
+          (() => {
+            const Icon = item.kind === 'posted' || item.kind === 'commented' ? CommentIcon : SETTLED_ICON[item.status]
+            return Icon && <Icon width={18} height={18} />
+          })()
+        )}
       </span>
       <div className="tracker-row-main">
         <div className="selection-event">
           {item.kind === 'posted' ? (
             <>
-              <strong>{item.name}</strong> posted a bet on {item.event}
+              <strong onClick={(e) => e.stopPropagation()}>
+                <UserLink id={item.userId} displayName={item.name} />
+              </strong>{' '}
+              posted a bet on {item.event}
+            </>
+          ) : item.kind === 'commented' ? (
+            <>
+              <strong onClick={(e) => e.stopPropagation()}>
+                <UserLink id={item.userId} displayName={item.name} />
+              </strong>{' '}
+              commented on your bet on {item.event}: "{item.body}"
+            </>
+          ) : item.kind === 'reacted' ? (
+            <>
+              <strong onClick={(e) => e.stopPropagation()}>
+                <UserLink id={item.userId} displayName={item.name} />
+              </strong>{' '}
+              {reactionVerb(item.emoji)} your bet on {item.event}
             </>
           ) : (
             <>
@@ -131,28 +190,8 @@ function NotificationRow({ item }) {
         <div className="race-card-meta">{formatRelativeTime(item.at)}</div>
       </div>
       {item.kind === 'settled' && (
-        <span className={`bet-status-pill status-${item.status}`}>{item.status === 'won' ? 'Won' : item.status === 'lost' ? 'Lost' : 'Void'}</span>
+        <span className={`chip chip--pill chip--sm chip--outline bet-status-pill status-${item.status}`}>{item.status === 'won' ? 'Won' : item.status === 'lost' ? 'Lost' : 'Void'}</span>
       )}
-    </>
-  )
-
-  if (item.kind === 'posted' && item.groupId) {
-    return (
-      <Link to={`/groups/${item.groupId}`} className={rowClass}>
-        {content}
-      </Link>
-    )
-  }
-  if (item.kind === 'posted') {
-    return (
-      <Link to="/groups" state={{ segment: 'feed' }} className={rowClass}>
-        {content}
-      </Link>
-    )
-  }
-  return (
-    <Link to="/tracker" className={rowClass}>
-      {content}
-    </Link>
+    </div>
   )
 }

@@ -12,6 +12,7 @@ import { useBetSlip } from '../context/BetSlipContext.jsx'
 import { useOddsFormat } from '../context/OddsFormatContext.jsx'
 import { useOddsMovement, movementKey, useOddsHistory, historyKey } from '../lib/oddsMemory.js'
 import { useBacking } from '../lib/backing.js'
+import { useMyBookiesOnly } from '../lib/useMyBookiesOnly.js'
 import TeamBadge from '../components/TeamBadge.jsx'
 import PlayerPhoto from '../components/PlayerPhoto.jsx'
 import OddsMoveIndicator from '../components/OddsMoveIndicator.jsx'
@@ -38,7 +39,7 @@ export default function FixtureDetailPage() {
   const { format } = useOddsFormat()
   const [fixture, setFixture] = useState(null)
   const [error, setError] = useState(null)
-  const [myBookiesOnly, setMyBookiesOnly] = useState(false)
+  const [myBookiesOnly, setMyBookiesOnly] = useMyBookiesOnly()
   const [alertTarget, setAlertTarget] = useState(null)
   const [expandedOutcome, setExpandedOutcome] = useState(null)
   const [expandedMarkets, setExpandedMarkets] = useState(new Set())
@@ -158,6 +159,10 @@ export default function FixtureDetailPage() {
         <FixtureChatPanel sport="football" eventId={fixture.id} eventLabel={`${fixture.homeTeam} v ${fixture.awayTeam}`} />
       </div>
 
+      {!fixture.markets.length && (
+        <div className="empty">No odds posted for this one yet — check back closer to kick-off.</div>
+      )}
+
       {fixture.markets.map((market) => {
         const marketOpen = expandedMarkets.has(market.key)
         return (
@@ -212,7 +217,7 @@ export default function FixtureDetailPage() {
                           outcome.name
                         )}
                         {backingCount > 0 && (
-                          <span className="backing-badge icon-row">
+                          <span className="chip chip--sharp chip--sm chip--outline-accent backing-badge icon-row">
                             <FlameIcon width={14} height={14} /> {backingCount} backing
                           </span>
                         )}
@@ -298,7 +303,7 @@ function LoadingState() {
           &larr; Fixtures
         </Link>
       </div>
-      <div className="loading">Loading odds…</div>
+      <div className="loading">Pulling the latest odds…</div>
     </div>
   )
 }

@@ -14,7 +14,8 @@ import { MORE_MENU_ICONS } from './icons/MoreMenuIcons.jsx'
 const ITEM_DESC = {
   '/odds': 'Best odds across the bookies',
   '/messages': 'Chats with your mates',
-  '/coach': 'Ask the AI betting coach'
+  '/coach': 'Ask the AI betting coach',
+  '/explore': 'Leaderboards, tipsters, and sport news'
 }
 
 const EXPANDED_KEY = 'betmates:moreMenuExpanded'
@@ -127,10 +128,10 @@ export default function MoreMenu() {
   )
 }
 
-function MoreMenuItem({ to, label, desc, badge, onNavigate }) {
+function MoreMenuItem({ to, label, desc, badge, featured, onNavigate }) {
   const Icon = MORE_MENU_ICONS[to]
   return (
-    <Link to={to} className="more-menu-item" onClick={onNavigate}>
+    <Link to={to} className={featured ? 'more-menu-item more-menu-item--featured' : 'more-menu-item'} onClick={onNavigate}>
       {Icon && (
         <span className="more-menu-item-icon" aria-hidden="true">
           <Icon />
@@ -150,13 +151,20 @@ function MoreMenuItem({ to, label, desc, badge, onNavigate }) {
   )
 }
 
+// Discover gets a distinct, featured treatment (see .more-menu-item--featured
+// in style.css) rather than blending into the flat list below it - on
+// mobile especially, everything here sits behind the "More" trigger/sheet,
+// which is one extra tap deeper than BottomNav, so the single most-used
+// destination in this drawer needs to actually stand out once you're in it,
+// not just be first in the list.
 function MoreMenuContents({ groups, expanded, onToggleGroup, onNavigate }) {
   const { hasUnseenMessages } = useActivity()
   return (
     <div className="more-menu-list">
-      <MoreMenuItem to="/odds" label="Discover" desc={ITEM_DESC['/odds']} onNavigate={onNavigate} />
+      <MoreMenuItem to="/odds" label="Discover" desc={ITEM_DESC['/odds']} featured onNavigate={onNavigate} />
       <MoreMenuItem to="/messages" label="Messages" desc={ITEM_DESC['/messages']} badge={hasUnseenMessages} onNavigate={onNavigate} />
       <MoreMenuItem to="/coach" label="CoachGPT" desc={ITEM_DESC['/coach']} onNavigate={onNavigate} />
+      <MoreMenuItem to="/explore" label="Explore" desc={ITEM_DESC['/explore']} onNavigate={onNavigate} />
       {groups.map((group) => (
         <div key={group.key} className="more-menu-group">
           <button type="button" className="more-menu-group-toggle" onClick={() => onToggleGroup(group.key)}>

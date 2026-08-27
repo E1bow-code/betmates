@@ -7,16 +7,35 @@
 create extension if not exists "pgcrypto";
 
 -- One row per auth.users user; created at sign-up (see src/lib/dataStore.js).
+-- Deliberately holds nothing sensitive - "signed-in users can read any
+-- profile" below grants any authenticated user the whole row (needed for
+-- the friend-code lookup, the public Feed's author names, follow buttons,
+-- and every embedded profiles(...) join across dataStore.js), so anything
+-- that shouldn't be that widely readable belongs on profile_private
+-- instead, not here.
 create table profiles (
   id uuid primary key references auth.users(id) on delete cascade,
-  email text not null,
   display_name text not null,
-  date_of_birth date not null,
   bookmaker_prefs text[] not null default '{}',
-  notification_prefs jsonb not null default '{"betPosted": true, "betSettled": true, "oddsMoved": false, "kickoffReminders": false}',
+  notification_prefs jsonb not null default '{"betPosted": true, "betActivity": true, "betSettled": true, "oddsMoved": false, "kickoffReminders": false}',
   friend_code text not null unique default upper(substr(md5(random()::text), 1, 6)),
   accepted_terms_at timestamptz not null default now(),
   created_at timestamptz not null default now()
+);
+
+-- Split out of profiles (2026-08-26): email and date_of_birth were on the
+-- broadly-readable table above, meaning any signed-in user could read
+-- either for anyone via the API directly, not just through the app's own
+-- UI (which never asked for them). Neither is actually read anywhere
+-- except the owner's own session (src/lib/dataStore.js's getSession/
+-- signUp/signIn) - email for AccountPage's display, date_of_birth for
+-- nothing at all client-side, purely regulatory capture at signup - so a
+-- separate owner-only table closes the leak without touching any of the
+-- public profile reads above.
+create table profile_private (
+  id uuid primary key references profiles(id) on delete cascade,
+  email text not null,
+  date_of_birth date not null
 );
 
 create table groups (
@@ -120,6 +139,7 @@ create table odds_snapshots (
 -- --- Row Level Security ----------------------------------------------------
 
 alter table profiles enable row level security;
+alter table profile_private enable row level security;
 alter table groups enable row level security;
 alter table group_members enable row level security;
 alter table bet_posts enable row level security;
@@ -134,22 +154,88 @@ create policy "insert own profile" on profiles for insert with check (auth.uid()
 -- Broader than "read own profile only": the friend-code lookup (add a
 -- friend by code), the public Feed (showing author names), and follow
 -- buttons all need to resolve OTHER people's basic profile info, not just
--- your own. Trade-off: email and date_of_birth become readable by any
--- signed-in user, not just the profile owner. Tighten later with a
--- narrower public "handles" view if that's not acceptable.
+-- your own. Safe to grant the whole row now that profiles holds nothing
+-- sensitive - see profile_private below for what isn't.
 create policy "signed-in users can read any profile" on profiles for select using (auth.role() = 'authenticated');
 
--- Creator must be able to read the group back immediately after creating it,
--- before their own group_members row exists (Supabase's insert().select()
--- does the INSERT then a SELECT in one request; without this, that
--- read-back gets blocked by RLS and reports as a generic insert failure).
--- Also broad enough for "join with a code": looking a group up by its
--- invite_code has to work before the joiner has a group_members row.
--- Trade-off (same shape as the profiles policy above): any signed-in user
--- can technically list all groups' names/codes, not just ones they're in.
-create policy "signed-in users can read any group" on groups for select using (auth.role() = 'authenticated');
+create policy "read own private profile" on profile_private for select using (auth.uid() = id);
+create policy "insert own private profile" on profile_private for insert with check (auth.uid() = id);
+
+-- Members (including the creator, whose own group_members row lands a
+-- moment after the groups insert via createGroup - see below) read their
+-- own groups' full rows. Previously "any signed-in user can read any
+-- group", which let anyone list every group's name/invite_code, not just
+-- ones they're in - narrowed now that the code-lookup and discoverable-
+-- browse cases below have their own dedicated, narrower paths.
+create policy "members can read their own groups" on groups for select using (
+  is_group_member(id, auth.uid()) or created_by = auth.uid()
+);
+
+-- SocialFeedPage.jsx's Discover segment needs to browse every group
+-- flagged discoverable, not just ones the caller's already in - name and
+-- price only, same intent as before, just scoped to the one column that
+-- actually makes a group "discoverable" rather than every row.
+create policy "signed-in users can browse discoverable groups" on groups for select using (
+  is_discoverable = true
+);
+
 create policy "any signed-in user can create a group" on groups for insert with check (auth.uid() = created_by);
 create policy "creator renames their group" on groups for update using (auth.uid() = created_by);
+
+-- Narrow, code-gated alternative to the old blanket "read any group" -
+-- JoinGroupPage.jsx previews a group (name/price) before deciding whether
+-- to join or hit a paywall, for a group the caller isn't a member of yet
+-- and that may not be discoverable at all (a private group's whole point).
+-- security definer so it can read past the select policies above; the
+-- gate is knowing the real invite_code, not blanket table access - this
+-- is the fix for groups being enumerable by any signed-in user.
+create or replace function get_group_preview_by_code(_code text)
+returns groups
+language sql
+security definer
+stable
+set search_path = public
+as $$
+  select * from groups where invite_code ilike _code limit 1;
+$$;
+grant execute on function get_group_preview_by_code(text) to authenticated;
+
+-- Replaces joinGroupByCode's old client-side "look the group up, then
+-- insert membership" - group_members' own insert policy below has no way
+-- to check a caller-supplied code against the group being joined (RLS
+-- policies see the row being inserted, not an out-of-band string), so
+-- that path never actually validated the code at the database level: any
+-- signed-in user could add themselves to any free group by id, invite
+-- code or not. This function is the real gate - security definer so it
+-- can insert past group_members' policy too, having done its own check.
+create or replace function join_group_by_code(_code text)
+returns groups
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  target groups;
+begin
+  select * into target from groups where invite_code ilike _code limit 1;
+  if target.id is null then
+    raise exception 'No group found with that invite code.';
+  end if;
+
+  if target.price_amount is not null and not exists (
+    select 1 from group_subscriptions s
+    where s.group_id = target.id and s.subscriber_id = auth.uid() and s.status in ('active', 'trialing')
+  ) then
+    raise exception 'This group needs an active subscription to join.';
+  end if;
+
+  insert into group_members (group_id, user_id) values (target.id, auth.uid())
+  on conflict (group_id, user_id) do nothing;
+
+  return target;
+end;
+$$;
+grant execute on function join_group_by_code(text) to authenticated;
 
 -- A policy on group_members that subqueries group_members itself causes
 -- "infinite recursion detected in policy" - Postgres re-evaluates the same
@@ -246,10 +332,16 @@ create policy "members post bets as themselves" on bet_posts for insert with che
 -- break the self-report transition into 'won'/'lost'/'void' this policy is
 -- meant to allow. using still gates which rows can be touched at all
 -- (must be open going in); with check only re-confirms ownership.
+-- with check also re-confirms group_id membership (not just ownership,
+-- per the comment above) - without it, an author could repoint an open
+-- post's group_id at a group they were never a member of, injecting it
+-- into that group's feed via the "members read bet posts in their
+-- groups" select policy above, which trusts group_id alone. Mirrors the
+-- same membership check the insert policy already requires.
 create policy "author updates own open bet post" on bet_posts for update using (
   auth.uid() = user_id and status = 'open'
 ) with check (
-  auth.uid() = user_id
+  auth.uid() = user_id and (group_id is null or is_group_member(group_id, auth.uid()))
 );
 create policy "author deletes own open bet post" on bet_posts for delete using (
   auth.uid() = user_id and status = 'open'
@@ -298,6 +390,41 @@ create policy "user updates own open tracker entry" on manual_entries for update
 create policy "user deletes own open tracker entry" on manual_entries for delete using (
   auth.uid() = user_id and status = 'open'
 );
+
+-- Neither UPDATE policy above restricts which columns change, only that
+-- the row is open and stays owned by the same user - same shape hole as
+-- guard_premium_fields, but on `selections` instead of a Stripe field.
+-- src/components/EditBetSheet.jsx never exposes editing selections/odds/
+-- market ("a record of what was actually picked at the time, not
+-- something to revise after the fact") - it's insert-time-only by
+-- design, which makes locking it here zero legitimate-use cost. Without
+-- this, a raw update to an OPEN bet's own selections (e.g. once the real
+-- final score is already known) let the score-verified auto-settle path
+-- - the "objective" backstop that isn't just self-reported - confirm a
+-- fabricated result as a genuine, system-verified win.
+create or replace function guard_locked_selections()
+returns trigger
+language plpgsql
+security definer
+set search_path = public
+as $$
+begin
+  if auth.role() in ('anon', 'authenticated') then
+    new.selections := old.selections;
+  end if;
+  return new;
+end;
+$$;
+
+drop trigger if exists guard_locked_selections_on_bet_posts on bet_posts;
+create trigger guard_locked_selections_on_bet_posts
+  before update on bet_posts
+  for each row execute function guard_locked_selections();
+
+drop trigger if exists guard_locked_selections_on_manual_entries on manual_entries;
+create trigger guard_locked_selections_on_manual_entries
+  before update on manual_entries
+  for each row execute function guard_locked_selections();
 
 -- fixtures / odds_snapshots are public reference data cached by the
 -- Netlify Function (netlify/functions/odds-snapshot.js) using the service
@@ -416,20 +543,17 @@ create table push_subscriptions (
 
 alter table push_subscriptions enable row level security;
 
+-- Deliberately the ONLY select policy - push_subscriptions holds raw Web
+-- Push credentials (endpoint/keys), and every legitimate reader is a
+-- Netlify Function on the service-role key (auto-settle.js,
+-- alert-checks.js, send-push.js, etc.), which bypasses RLS entirely and
+-- doesn't need a policy at all. send-push.js used to authenticate as the
+-- poster's own token instead and relied on broader read policies here
+-- (group-mates/friends/commenters/followers) to both fetch subscriptions
+-- AND enforce the relationship - moved to service-role plus explicit
+-- relationship checks in code, so those policies are gone rather than
+-- narrowed.
 create policy "user manages own push subscriptions" on push_subscriptions for all using (auth.uid() = user_id) with check (auth.uid() = user_id);
-
--- netlify/functions/send-push.js authenticates as the poster (their own
--- access token, not a service-role key - there isn't one configured for
--- this project) and needs to look up their group-mates' subscriptions to
--- fan a notification out to them. Broadens read access to "anyone who
--- shares a group with you" rather than only your own rows.
-create policy "group-mates can read push subscriptions to notify them" on push_subscriptions for select using (
-  exists (
-    select 1 from group_members mine
-    join group_members theirs on theirs.group_id = mine.group_id
-    where mine.user_id = auth.uid() and theirs.user_id = push_subscriptions.user_id
-  )
-);
 
 -- Kickoff reminders (netlify/functions/alert-checks.js, a scheduled
 -- function) need to scan every user's open bets, not just one poster's own
@@ -510,8 +634,31 @@ alter table direct_messages enable row level security;
 create policy "user reads own direct messages" on direct_messages for select using (
   auth.uid() = sender_id or auth.uid() = recipient_id
 );
+-- security definer for the same reason as is_group_member() above - a raw
+-- subquery here would run under the SENDER's own RLS on blocks ("user
+-- reads own blocks" = auth.uid() = blocker_id), so a sender who isn't the
+-- blocker could never see the recipient's block row and the check below
+-- would silently pass every time. Confirmed live: without this, a blocked
+-- sender's message still went through.
+create or replace function is_blocked_by(_blocker_id uuid, _blocked_id uuid)
+returns boolean
+language sql
+security definer
+stable
+set search_path = public
+as $$
+  select exists (select 1 from blocks where blocker_id = _blocker_id and blocked_id = _blocked_id);
+$$;
+
+-- Messaging is deliberately open to anyone, not just friends (see
+-- PublicProfilePage.jsx's Message button - clickable-profiles made this
+-- reachable from any profile on purpose). What "Block" implies but didn't
+-- actually enforce: the recipient having blocked the sender should stop
+-- a new message landing, even though blocks were originally scoped to
+-- just the public feed (see blocks table comment).
 create policy "user sends direct messages as themselves" on direct_messages for insert with check (
   auth.uid() = sender_id
+  and not is_blocked_by(recipient_id, sender_id)
 );
 
 -- --- Profile photos --------------------------------------------------------
@@ -615,44 +762,6 @@ drop trigger if exists profiles_sync_referral_count on profiles;
 create trigger profiles_sync_referral_count
 after insert on profiles
 for each row execute function sync_referral_count();
-
--- --- Direct message push notifications ------------------------------------
--- Same idea as the group-mates policy above, but for friends instead of
--- group members - lets the sender's own token (see send-push.js's friendId
--- branch) look up the recipient's subscription to notify them of a new DM.
-create policy "friends can read each other's push subscriptions" on push_subscriptions for select using (
-  exists (
-    select 1 from friendships f
-    where (f.user_a = auth.uid() and f.user_b = push_subscriptions.user_id)
-       or (f.user_b = auth.uid() and f.user_a = push_subscriptions.user_id)
-  )
-);
-
--- --- Bet comment push notifications -----------------------------------
--- Same idea again, for send-push.js's authorId branch: a comment can land
--- on a public-feed post from someone who's neither a group-mate nor a
--- friend of the poster, so neither policy above would cover it. Scoped
--- tightly to "you've actually just commented on one of their bets", not a
--- blanket grant.
-create policy "commenters can read the bet author's push subscriptions" on push_subscriptions for select using (
-  exists (
-    select 1 from bet_comments c
-    join bet_posts p on p.id = c.bet_id
-    where c.user_id = auth.uid() and p.user_id = push_subscriptions.user_id
-  )
-);
-
--- --- New-pick push notifications for followers -----------------------
--- send-push.js's followersOf branch: the poster's own token needs to read
--- their followers' subscriptions to announce a new public pick. followersOf
--- is always the caller's own id (auth.uid()), so this only ever exposes a
--- follower's subscription to the specific person they chose to follow.
-create policy "followed users can read their followers' push subscriptions" on push_subscriptions for select using (
-  exists (
-    select 1 from follows f
-    where f.following_id = auth.uid() and f.follower_id = push_subscriptions.user_id
-  )
-);
 
 -- --- Responsible gambling: spending limit -----------------------------
 -- A self-set weekly/monthly stake cap (see src/pages/AccountPage.jsx and
@@ -940,7 +1049,13 @@ create policy "members read entries for their group's predictors" on predictor_e
 create policy "members submit their own entry" on predictor_entries for insert with check (
   auth.uid() = user_id and exists (select 1 from predictors p where p.id = predictor_entries.predictor_id and is_group_member(p.group_id, auth.uid()))
 );
-create policy "members update their own entry" on predictor_entries for update using (auth.uid() = user_id) with check (auth.uid() = user_id);
+-- with check re-confirms predictor_id still belongs to a group the user
+-- is in, mirroring the insert policy above - without it, a user could
+-- repoint their own entry's predictor_id at a predictor in a group they
+-- were never a member of.
+create policy "members update their own entry" on predictor_entries for update using (auth.uid() = user_id) with check (
+  auth.uid() = user_id and exists (select 1 from predictors p where p.id = predictor_entries.predictor_id and is_group_member(p.group_id, auth.uid()))
+);
 
 -- --- Team news push alerts -------------------------------------------------
 -- netlify/functions/team-news-alerts.js - the push half of the Social tab's
@@ -1044,11 +1159,41 @@ alter table coach_messages add column if not exists grounding jsonb;
 -- reply actually leaned on (netlify/functions/coachgpt.js's
 -- lock_in_recommendation tool, matched back to the full leg from
 -- grounding) and how it settled - null/null until netlify/functions/
--- coach-settle.js resolves it. No new RLS policy: reads reuse the select
--- policy above, and coach-settle.js runs under the service-role key
--- (same as auto-settle.js), which bypasses RLS entirely for the update.
+-- coach-settle.js resolves it. recommendation is legitimately client-
+-- inserted (the real assistant reply's own recommendation, computed
+-- server-side by coachgpt.js and persisted by the client via
+-- addCoachMessage), so it isn't guarded - but result never legitimately
+-- arrives with the insert (the comment above already says as much: null
+-- until coach-settle.js resolves it later). "insert own coach messages"
+-- has no column restriction beyond user_id, so a raw
+-- `insert({ ..., result: 'won' })` bypassed the LLM AND coach-settle.js
+-- entirely, forging an apparent win onto CoachGPT's own scoreboard -
+-- guarded the same way as guard_is_admin/guard_premium_fields above.
 alter table coach_messages add column if not exists recommendation jsonb;
 alter table coach_messages add column if not exists result text check (result in ('won', 'lost', 'void'));
+
+create or replace function guard_coach_message_result()
+returns trigger
+language plpgsql
+security definer
+set search_path = public
+as $$
+begin
+  if auth.role() in ('anon', 'authenticated') then
+    if tg_op = 'INSERT' then
+      new.result := null;
+    else
+      new.result := old.result;
+    end if;
+  end if;
+  return new;
+end;
+$$;
+
+drop trigger if exists guard_coach_message_result_on_coach_messages on coach_messages;
+create trigger guard_coach_message_result_on_coach_messages
+  before insert or update on coach_messages
+  for each row execute function guard_coach_message_result();
 
 -- session_id: groups turns into one conversation. CoachGptPage.jsx starts a
 -- fresh uuid (stored client-side in localStorage) each time the user hits
@@ -1075,6 +1220,35 @@ end $$;
 alter table coach_messages alter column session_id set not null;
 alter table coach_messages alter column session_id set default gen_random_uuid();
 create index if not exists coach_messages_session_id_idx on coach_messages(session_id);
+
+-- One row per generated "Coach's take" (netlify/functions/coach.js's
+-- summary/bet/recap styles - Insights' page-level take, Tracker's per-bet
+-- review, and a group's weekly recap) - unlike coach_messages above, this
+-- endpoint never had a usage cap of its own. coach.js already required a
+-- real signed-in session, but that alone is a weak deterrent (a free
+-- signup is trivial to script), and confirmed live: nothing stopped an
+-- authenticated caller from generating unlimited real Claude completions
+-- against invented bet-shaped JSON, burning the same COACH_ANTHROPIC_KEY
+-- budget coachgpt.js's FREE_MONTHLY_MESSAGE_LIMIT is trying to meter. This
+-- table exists purely so coach.js can count "takes generated today" per
+-- user and cap it - no client ever reads or displays these rows the way
+-- coach_messages renders as a real chat history.
+create table coach_takes (
+  id uuid primary key default gen_random_uuid(),
+  user_id uuid not null references profiles(id) on delete cascade,
+  created_at timestamptz not null default now()
+);
+
+alter table coach_takes enable row level security;
+
+create policy "user reads own coach take usage" on coach_takes for select using (
+  auth.uid() = user_id
+);
+create policy "user inserts own coach take usage" on coach_takes for insert with check (
+  auth.uid() = user_id
+);
+
+create index coach_takes_user_id_created_at_idx on coach_takes (user_id, created_at);
 
 -- --- Value-edge push alerts -------------------------------------------------
 -- netlify/functions/alert-checks.js's runValueEdgeAlerts - the proactive
@@ -1249,6 +1423,16 @@ alter table profiles add column if not exists streak_freezes_used integer not nu
 -- streak_milestone_notified above.
 alter table profiles add column if not exists streak_reminder_sent_date date;
 
+-- Watermark for netlify/functions/weekly-recap.js - every other scheduled
+-- push here has one of these (team_news_notified_at, streak_reminder_
+-- sent_date, kickoff_reminder_sent_at) specifically so a second
+-- invocation in the same window can't double-send; weekly-recap.js never
+-- had one, so simply calling its public URL twice (it has no caller auth
+-- at all, same as its siblings) fanned out a full duplicate push to
+-- every opted-in user with a settled bet that week, each time. No new
+-- RLS policy: "user updates own profile" already covers this.
+alter table profiles add column if not exists weekly_recap_sent_at timestamptz;
+
 -- --- Group tournaments -------------------------------------------------
 -- A seasonal mini-league scoped to one group, ranking every member (not
 -- just two, unlike the `challenges` 1v1 above) by profit or ROI over the
@@ -1405,6 +1589,18 @@ alter table profiles add column if not exists stripe_subscription_id text;
 alter table profiles add column if not exists premium_status text;
 alter table profiles add column if not exists trial_reminder_sent_at timestamptz;
 
+-- Was `before update` only (no insert branch) - guard_is_admin's own
+-- comment right above explains exactly why that's a hole ("The insert
+-- policy has the same hole at sign-up time"), but this trigger was
+-- written without the INSERT case that comment warns about: a fresh
+-- `supabase.from('profiles').insert({ ...normal signup fields...,
+-- is_premium: true })` at account-creation time never touched this
+-- trigger at all (wrong `before update` registration below) AND the
+-- function itself had no `tg_op = 'INSERT'` branch to null these fields
+-- out even if it had fired - free permanent Plus, no Stripe involved.
+-- Confirmed live via a real WCAG-style audit of this file, not
+-- eyeballed. Fixed the same way guard_is_admin already does it: false/
+-- null on insert, hold the previous value on update.
 create or replace function guard_premium_fields()
 returns trigger
 language plpgsql
@@ -1413,12 +1609,21 @@ set search_path = public
 as $$
 begin
   if auth.role() in ('anon', 'authenticated') then
-    new.is_premium := old.is_premium;
-    new.premium_until := old.premium_until;
-    new.stripe_customer_id := old.stripe_customer_id;
-    new.stripe_subscription_id := old.stripe_subscription_id;
-    new.premium_status := old.premium_status;
-    new.trial_reminder_sent_at := old.trial_reminder_sent_at;
+    if tg_op = 'INSERT' then
+      new.is_premium := false;
+      new.premium_until := null;
+      new.stripe_customer_id := null;
+      new.stripe_subscription_id := null;
+      new.premium_status := null;
+      new.trial_reminder_sent_at := null;
+    else
+      new.is_premium := old.is_premium;
+      new.premium_until := old.premium_until;
+      new.stripe_customer_id := old.stripe_customer_id;
+      new.stripe_subscription_id := old.stripe_subscription_id;
+      new.premium_status := old.premium_status;
+      new.trial_reminder_sent_at := old.trial_reminder_sent_at;
+    end if;
   end if;
   return new;
 end;
@@ -1426,7 +1631,7 @@ $$;
 
 drop trigger if exists guard_premium_fields_on_profiles on profiles;
 create trigger guard_premium_fields_on_profiles
-  before update on profiles
+  before insert or update on profiles
   for each row execute function guard_premium_fields();
 
 -- --- Post photos -------------------------------------------------------
@@ -1520,6 +1725,10 @@ alter table groups add column if not exists price_currency text not null default
 alter table groups add column if not exists stripe_connect_account_id text;
 alter table groups add column if not exists stripe_connect_charges_enabled boolean not null default false;
 
+-- Same "before update only, no insert branch" hole guard_premium_fields
+-- had - "any signed-in user can create a group" has no column
+-- restriction, so `insert({ ..., stripe_connect_charges_enabled: true })`
+-- at group-creation time went straight through unguarded.
 create or replace function guard_group_connect_fields()
 returns trigger
 language plpgsql
@@ -1528,8 +1737,13 @@ set search_path = public
 as $$
 begin
   if auth.role() in ('anon', 'authenticated') then
-    new.stripe_connect_account_id := old.stripe_connect_account_id;
-    new.stripe_connect_charges_enabled := old.stripe_connect_charges_enabled;
+    if tg_op = 'INSERT' then
+      new.stripe_connect_account_id := null;
+      new.stripe_connect_charges_enabled := false;
+    else
+      new.stripe_connect_account_id := old.stripe_connect_account_id;
+      new.stripe_connect_charges_enabled := old.stripe_connect_charges_enabled;
+    end if;
   end if;
   return new;
 end;
@@ -1537,7 +1751,7 @@ $$;
 
 drop trigger if exists guard_group_connect_fields_on_groups on groups;
 create trigger guard_group_connect_fields_on_groups
-  before update on groups
+  before insert or update on groups
   for each row execute function guard_group_connect_fields();
 
 -- One row per active-or-lapsed paid membership. season_results-shaped:
@@ -1572,14 +1786,27 @@ create policy "group owner reads their group's subscriptions" on group_subscript
   exists (select 1 from groups g where g.id = group_id and g.created_by = auth.uid())
 );
 
--- Tightened from the original unconditional "any signed-in user can add
--- themselves" - a paid group can now only be self-joined with an active
--- subscription already on record. Service-role inserts (the webhook,
--- after a successful checkout) bypass RLS entirely, so this only blocks
--- a client trying to skip payment by calling the insert directly.
+-- Tightened twice now: first from the original unconditional "any
+-- signed-in user can add themselves" to require an active subscription
+-- for a paid group (service-role inserts - the webhook, after a
+-- successful checkout - bypass RLS entirely, so this only ever blocked a
+-- client trying to skip payment by calling the insert directly). Second
+-- tightening here: the paid-group check alone still let anyone add
+-- themselves to any FREE group by id, invite code or not, since nothing
+-- checked they were the creator or the group was actually discoverable -
+-- a real invite-code-only group gave zero real protection at the
+-- database level. Direct self-insert now only covers the two genuinely
+-- code-less cases (creating your own group, joining a discoverable one);
+-- a private group by code goes through join_group_by_code() above
+-- instead, which is the only path that actually validates the code.
 drop policy if exists "user joins a group as themselves" on group_members;
 create policy "user joins a group as themselves" on group_members for insert with check (
-  auth.uid() = user_id and (
+  auth.uid() = user_id
+  and (
+    exists (select 1 from groups g where g.id = group_id and g.created_by = auth.uid())
+    or exists (select 1 from groups g where g.id = group_id and g.is_discoverable = true)
+  )
+  and (
     not exists (select 1 from groups g where g.id = group_id and g.price_amount is not null)
     or exists (
       select 1 from group_subscriptions s

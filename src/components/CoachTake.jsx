@@ -7,7 +7,7 @@ import { SparkIcon } from './icons/Icons.jsx'
 
 // "Coach's take" - a short, AI-written read on the user's own record. Renders
 // nothing at all until it has something to say, so an unconfigured backend
-// (no ANTHROPIC_API_KEY) or a too-thin history is simply invisible rather than
+// (no COACH_ANTHROPIC_KEY) or a too-thin history is simply invisible rather than
 // an empty box. The heavy lifting - and the never-tip framing - lives in
 // netlify/functions/coach.js; this just asks and displays.
 export default function CoachTake({ entries }) {

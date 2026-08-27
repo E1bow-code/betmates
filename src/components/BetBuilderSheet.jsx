@@ -17,7 +17,20 @@ import { useEscapeKey } from '../lib/useEscapeKey.js'
 import { useDelayedClose } from '../lib/useDelayedClose.js'
 import { computeStats } from '../utils/trackerStats.js'
 import { tipsterBadge } from '../utils/tipsterBadge.js'
-import { PICKER_SPORTS, SPORT_LABEL, loadItemsForSport, labelFor, normalizeItem, groupByCompetition } from '../lib/quickPick.js'
+import {
+  PICKER_SPORTS,
+  SPORT_LABEL,
+  loadItemsForSport,
+  normalizeItem,
+  groupByCompetition,
+  participantsFor,
+  participantTypeFor
+} from '../lib/quickPick.js'
+import { formatKickoff, formatCountdown } from '../utils/format.js'
+import { isLive } from '../utils/liveStatus.js'
+import TeamBadge from './TeamBadge.jsx'
+import PlayerPhoto from './PlayerPhoto.jsx'
+import LiveBadge from './LiveBadge.jsx'
 import {
   LinkIcon,
   CameraIcon,
@@ -37,6 +50,57 @@ import {
 } from './icons/Icons.jsx'
 import { POST_TAGS } from '../lib/postTags.js'
 import PostPreview from './PostPreview.jsx'
+
+// One row in the Event picker's expanded list, or the single collapsed
+// summary row once something's picked (selected=true, which swaps the
+// click target to reopen the list and adds a "Change" hint) - a native
+// <select> can't render a photo/countdown per option, which is the whole
+// reason this replaced one. Reuses the exact .race-card/.fixture-team
+// markup OddsListPage's own FixtureCard/FightCard/EventCard rows already
+// use, just as a <button> instead of a <Link> (this doesn't navigate) and
+// without the odds column (nothing's been priced yet at this point in the
+// flow - Market/Selection are separate steps below).
+function PickerEventRow({ sportKey, item, onSelect, selected }) {
+  const participantType = participantTypeFor(sportKey)
+  const kickoff = sportKey === 'racing' ? item.offTime : item.kickoff
+  const Photo = participantType === 'player' ? PlayerPhoto : TeamBadge
+  const photoProp = participantType === 'player' ? 'name' : 'team'
+  const [a, b] = sportKey === 'racing' ? [null, null] : participantsFor(sportKey, item)
+
+  return (
+    <button
+      type="button"
+      className={selected ? 'race-card picker-event-row selected' : 'race-card picker-event-row'}
+      onClick={() => onSelect(item.id)}
+    >
+      <div className="race-card-time">
+        <span className="off-time">{formatKickoff(kickoff)}</span>
+        {isLive(kickoff, sportKey) ? <LiveBadge /> : <span className="countdown">{formatCountdown(kickoff)}</span>}
+      </div>
+      <div className="race-card-main">
+        {sportKey === 'racing' ? (
+          <div className="race-card-title">
+            {item.course} · {item.raceName}
+          </div>
+        ) : (
+          <div className="race-card-title fixture-teams-row">
+            <span className="fixture-team">
+              {participantType && a && <Photo {...{ [photoProp]: a }} sport={sportKey} size={20} />}
+              <span>{a}</span>
+            </span>
+            <span className="fixture-vs">v</span>
+            <span className="fixture-team">
+              {participantType && b && <Photo {...{ [photoProp]: b }} sport={sportKey} size={20} />}
+              <span>{b}</span>
+            </span>
+          </div>
+        )}
+        <div className="race-card-meta">{sportKey === 'racing' ? `${item.runners?.length ?? 0} runners` : item.competition}</div>
+      </div>
+      {selected && <span className="race-card-fav picker-event-change">Change</span>}
+    </button>
+  )
+}
 
 const POST_TAG_ICON = {
   horse: HorseIcon,
@@ -63,7 +127,7 @@ const POST_TAG_ICON = {
 // Odds tab same as before.
 
 export default function BetBuilderSheet() {
-  const { user } = useAuth()
+  const { user, refreshUser } = useAuth()
   const navigate = useNavigate()
   const { legs, toggleLeg, removeLeg, clearSlip, sheetOpen, closeSheet } = useBetSlip()
   const { format } = useOddsFormat()
@@ -88,15 +152,38 @@ export default function BetBuilderSheet() {
   const [pickerLoading, setPickerLoading] = useState(false)
   const [pickerEventId, setPickerEventId] = useState('')
   const [pickerMarketKey, setPickerMarketKey] = useState('')
+  // The Event picker shows itself as an expanded list until something's
+  // picked, then collapses to a single summary row (reopened via its own
+  // "Change" button) - a native <select> can't render a photo+countdown
+  // per row, which is the whole reason this replaced one.
+  const [pickerEventListOpen, setPickerEventListOpen] = useState(true)
+  // The quick-pick used to vanish for good the moment one leg existed -
+  // fine for "tap a price on the Odds tab" (that flow never closes, you
+  // can tap as many prices as you like across as many fixtures as you
+  // like before opening this sheet), but the ONLY way to add a second leg
+  // through the composer's own inline picker was to close the sheet and
+  // go find another price on the Odds tab. A UFC card is exactly the case
+  // where that matters most - every fight is just one moneyline market,
+  // so a same-fight bet builder is a non-starter and the picker's own
+  // Sport/Event/Market/Selection flow was the only way to combine two
+  // DIFFERENT fights into a multi without leaving the sheet. This
+  // re-reveals it on demand instead of only ever showing it once.
+  const [addingPick, setAddingPick] = useState(false)
 
   const hasPick = legs.length > 0
 
+  // Refetches every time the sheet opens, not just once on mount - this
+  // sheet is mounted permanently at the App shell level (see App.jsx), so a
+  // mount-only fetch would go stale the moment someone creates or joins a
+  // group anywhere else in the app and then opens this sheet without a full
+  // page reload.
   useEffect(() => {
+    if (!sheetOpen) return
     dataStore.listMyGroups(user.id).then((gs) => {
       setGroups(gs)
       if (gs.length) setGroupId(gs[0].id)
     })
-  }, [user.id])
+  }, [user.id, sheetOpen])
 
   // Loads the Event dropdown's options whenever the sheet is showing the
   // picker (zero legs) and either just opened or the Sport dropdown
@@ -111,6 +198,7 @@ export default function BetBuilderSheet() {
     setPickerItems(null)
     setPickerEventId('')
     setPickerMarketKey('')
+    setPickerEventListOpen(true)
     loadItemsForSport(pickerSport)
       .then((items) => {
         if (!cancelled) setPickerItems(items)
@@ -190,6 +278,26 @@ export default function BetBuilderSheet() {
 
   function pickOutcome(outcome) {
     toggleLeg(outcome.leg)
+    setAddingPick(false)
+  }
+
+  function selectPickerEvent(id) {
+    setPickerEventId(id)
+    setPickerMarketKey('')
+    setPickerEventListOpen(false)
+  }
+
+  // Reopening the quick-pick for a second leg shouldn't leave it parked on
+  // whatever fight/market the FIRST leg came from - confirmed live, that
+  // read as "nothing happened" since the panel reappears looking almost
+  // identical to how it was left. Resets the Event/Market selection back
+  // to a blank picker (same sport, no refetch needed - pickerItems is
+  // still fresh) rather than the fuller sport-change reset above.
+  function startAddingPick() {
+    setPickerEventId('')
+    setPickerMarketKey('')
+    setPickerEventListOpen(true)
+    setAddingPick(true)
   }
 
   function onClose() {
@@ -278,8 +386,10 @@ export default function BetBuilderSheet() {
           body: activitySummary(),
           url: `/#/groups/${groupId}`
         },
-        user.id
+        user.id,
+        'betPosted'
       )
+      refreshUser()
       clearSlip()
       removePhoto()
       removeVideo()
@@ -316,6 +426,7 @@ export default function BetBuilderSheet() {
         tag
       })
       notifyPublicFollowers()
+      refreshUser()
       clearSlip()
       removePhoto()
       removeVideo()
@@ -337,7 +448,7 @@ export default function BetBuilderSheet() {
   function notifyPublicFollowers() {
     const title = `${user.displayName} posted a new pick`
     const body = activitySummary()
-    const url = '/#/groups'
+    const url = '/#/dashboard'
     dataStore
       .listBetPostsByUser(user.id)
       .then((posts) => {
@@ -389,7 +500,7 @@ export default function BetBuilderSheet() {
           </div>
         </div>
 
-        {hasPick ? (
+        {hasPick && (
           <div className="bet-slip-legs">
             {legs.map((leg) => (
               <div key={`${leg.event}|${leg.market}|${leg.selection}`} className="selection-summary bet-slip-leg">
@@ -408,7 +519,15 @@ export default function BetBuilderSheet() {
               </div>
             ))}
           </div>
-        ) : (
+        )}
+
+        {hasPick && !addingPick && (
+          <button type="button" className="btn btn-ghost btn-small add-another-pick" onClick={startAddingPick}>
+            + Add another pick
+          </button>
+        )}
+
+        {(!hasPick || addingPick) && (
           <div className="quick-pick">
             <p className="quick-pick-title">Attach a pick (optional)</p>
             <label className="field">
@@ -421,36 +540,46 @@ export default function BetBuilderSheet() {
                 ))}
               </select>
             </label>
-            <label className="field">
+            <div className="field">
               <span>Event</span>
-              <select
-                value={pickerEventId}
-                onChange={(e) => {
-                  setPickerEventId(e.target.value)
-                  setPickerMarketKey('')
-                }}
-                disabled={pickerLoading || !pickerItems?.length}
-              >
-                <option value="">
-                  {pickerLoading ? 'Loading…' : pickerItems && !pickerItems.length ? 'No upcoming events' : 'Choose an event'}
-                </option>
-                {pickerGroups
-                  ? pickerGroups.map((group) => (
-                      <optgroup key={group.competition} label={group.competition}>
-                        {group.items.map((item) => (
-                          <option key={item.id} value={item.id}>
-                            {labelFor(pickerSport, item)}
-                          </option>
-                        ))}
-                      </optgroup>
-                    ))
-                  : pickerItems?.map((item) => (
-                      <option key={item.id} value={item.id}>
-                        {labelFor(pickerSport, item)}
-                      </option>
-                    ))}
-              </select>
-            </label>
+              {pickerLoading ? (
+                <div className="picker-event-status">Loading…</div>
+              ) : !pickerItems?.length ? (
+                <div className="picker-event-status">No upcoming events</div>
+              ) : pickerEventListOpen ? (
+                <div className="picker-event-list">
+                  {pickerGroups
+                    ? pickerGroups.map((group) => (
+                        <div key={group.competition} className="league-group">
+                          {pickerGroups.length > 1 && <h3 className="league-group-title">{group.competition}</h3>}
+                          <div className="race-list">
+                            {group.items.map((item) => (
+                              <PickerEventRow key={item.id} sportKey={pickerSport} item={item} onSelect={selectPickerEvent} />
+                            ))}
+                          </div>
+                        </div>
+                      ))
+                    : (
+                        <div className="race-list">
+                          {pickerItems.map((item) => (
+                            <PickerEventRow key={item.id} sportKey={pickerSport} item={item} onSelect={selectPickerEvent} />
+                          ))}
+                        </div>
+                      )}
+                </div>
+              ) : (
+                pickerItem && (
+                  <div className="race-list">
+                    <PickerEventRow
+                      sportKey={pickerSport}
+                      item={pickerItem}
+                      onSelect={() => setPickerEventListOpen(true)}
+                      selected
+                    />
+                  </div>
+                )
+              )}
+            </div>
             {pickerNormalized && (
               <label className="field">
                 <span>Market</span>
@@ -486,6 +615,7 @@ export default function BetBuilderSheet() {
           </div>
         )}
 
+
         {legs.length > 1 && (
           <div className="potential-return">
             Combined odds: <strong>{formatOdds(combinedOdds, format)}</strong>
@@ -520,7 +650,11 @@ export default function BetBuilderSheet() {
                 <button
                   key={t.key}
                   type="button"
-                  className={tag === t.key ? 'post-tag-chip active icon-row' : 'post-tag-chip icon-row'}
+                  className={
+                    tag === t.key
+                      ? 'chip chip--pill chip--md chip--filled-accent post-tag-chip active icon-row'
+                      : 'chip chip--pill chip--md chip--filled-neutral post-tag-chip icon-row'
+                  }
                   onClick={() => setTag(tag === t.key ? null : t.key)}
                 >
                   {Icon && <Icon width={14} height={14} />} {t.label}
@@ -597,28 +731,28 @@ export default function BetBuilderSheet() {
               <SparkIcon width={15} height={15} /> Heads-up
             </p>
             {user.stakeLimitAmount && periodSpend !== null && stakeNum > 0 && periodSpend + stakeNum > user.stakeLimitAmount && (
-              <div className="limit-warning">
+              <div className="sanity-check-row">
                 <WarningIcon className="icon-lead" /> This would take you to £{(periodSpend + stakeNum).toFixed(2)} of your £
                 {Number(user.stakeLimitAmount).toFixed(2)} {user.stakeLimitPeriod === 'monthly' ? 'monthly' : 'weekly'} limit.
               </div>
             )}
 
             {lossChasing && (
-              <div className="limit-warning">
+              <div className="sanity-check-row">
                 <EyesIcon className="icon-lead" /> Your last logged bet lost at £{lossChasing.lastStake.toFixed(2)} - this one's{' '}
                 {lossChasing.increasePct}% bigger. No judgement, just flagging it.
               </div>
             )}
 
             {stakingWarning && (
-              <div className="limit-warning">
+              <div className="sanity-check-row">
                 <RulerIcon className="icon-lead" /> Your staking plan suggests £{stakingWarning.suggestion.toFixed(2)} a bet - this
                 one's {stakingWarning.overPct}% over that.
               </div>
             )}
 
             {bigStake && (
-              <div className="limit-warning">
+              <div className="sanity-check-row">
                 <TrendUpIcon className="icon-lead" /> That's {bigStake.multiple}x your average stake (£{bigStake.avgStake.toFixed(2)}) -
                 no judgement, just flagging it.
               </div>
@@ -677,23 +811,19 @@ export default function BetBuilderSheet() {
 
         {error && <div className="auth-error">{error}</div>}
 
-        {/* One clear primary action, not four equal buttons. With a group you
-            share to it; without one, posting to everyone is the primary. Saving
-            privately is the quiet tertiary, and closing is the × up top - no
-            need for a fourth full-width Cancel button down here. */}
+        {/* One clear primary action, not four equal buttons. Posting to the
+            public feed is the main attraction regardless of whether the
+            user has groups - sharing with just one group is the secondary
+            option underneath it, not the other way round. Saving privately
+            is the quiet tertiary, and closing is the × up top - no need for
+            a fourth full-width Cancel button down here. */}
         <div className="sheet-actions">
-          {groups.length > 0 ? (
-            <>
-              <button className="btn btn-primary" onClick={handlePost} disabled={submitting || !canSubmit}>
-                {submitting ? 'Posting…' : 'Share with the group'}
-              </button>
-              <button className="btn btn-secondary" onClick={handlePostPublic} disabled={submitting || !canSubmit}>
-                {submitting ? 'Posting…' : 'Post to everyone'}
-              </button>
-            </>
-          ) : (
-            <button className="btn btn-primary" onClick={handlePostPublic} disabled={submitting || !canSubmit}>
-              {submitting ? 'Posting…' : 'Post to everyone'}
+          <button className="btn btn-primary" onClick={handlePostPublic} disabled={submitting || !canSubmit}>
+            {submitting ? 'Posting…' : 'Post to everyone'}
+          </button>
+          {groups.length > 0 && (
+            <button className="btn btn-secondary" onClick={handlePost} disabled={submitting || !canSubmit}>
+              {submitting ? 'Posting…' : 'Share with the group'}
             </button>
           )}
           {hasPick && (

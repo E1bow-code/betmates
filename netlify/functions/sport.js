@@ -30,6 +30,7 @@ import { GENERIC_SPORTS } from '../../src/lib/sportsConfig.js'
 import { createClient } from '@supabase/supabase-js'
 import { cacheGet, cacheSet } from '../../src/lib/apiCache.js'
 import { pickLink } from '../../src/lib/oddsLinks.js'
+import { logProviderError } from '../../src/lib/logProviderError.js'
 
 const SUPABASE_URL = process.env.VITE_SUPABASE_URL
 const SUPABASE_ANON_KEY = process.env.VITE_SUPABASE_ANON_KEY
@@ -103,6 +104,7 @@ export async function fetchLiveSportItems(sportParam, config) {
       return { items: await fetchSgoItems(sgoApiKey, config), dataSource: 'live' }
     } catch (err) {
       console.error('SportsGameOdds error, degrading to empty:', err.message)
+      await logProviderError(`sgo-${sportParam}`, err.message)
       return { items: [], dataSource: 'live-empty' }
     }
   }
@@ -126,7 +128,9 @@ export async function fetchLiveSportItems(sportParam, config) {
     // Provider errors (quota exhausted, outage, etc.) degrade to an empty
     // board rather than an error page.
     if (!events.length && results.every((r) => r.status === 'rejected')) {
-      console.error('Odds provider error, degrading to empty:', results[0].reason?.message)
+      const detail = results[0].reason?.message
+      console.error('Odds provider error, degrading to empty:', detail)
+      await logProviderError(`odds-${sportParam}`, detail ?? 'all keys rejected')
       return { items: [], dataSource: 'live-empty' }
     }
 
@@ -134,6 +138,7 @@ export async function fetchLiveSportItems(sportParam, config) {
     return { items, dataSource: 'live' }
   } catch (err) {
     console.error('Odds provider error, degrading to empty:', err.message)
+    await logProviderError(`odds-${sportParam}`, err.message)
     return { items: [], dataSource: 'live-empty' }
   }
 }
@@ -333,7 +338,17 @@ function groupSgoOutcomes(event, betTypeID, homeName, awayName, nameFor, teamFor
       const decimal = americanToDecimal(bm.odds)
       if (!decimal) continue
       if (!outcomesByName.has(name)) outcomesByName.set(name, { team, odds: [] })
-      outcomesByName.get(name).odds.push({ bookmaker: sgoBookmakerLabel(bookmakerId), decimal })
+      // SGO's deeplink is genuinely selection-specific (unlike the plain
+      // event-page links most UK bookmakers return via The Odds API's
+      // pickLink() below) - it lands the bettor straight on this exact bet,
+      // not just the fixture. Only a handful of the biggest US books have
+      // one at any given time (SGO's own rollout, not something to expect
+      // universally) - `isBetslipLink` mirrors pickLink()'s shape so
+      // GenericEventDetailPage.jsx's link/linkIsBetslip wiring needs no
+      // changes to pick this up.
+      outcomesByName
+        .get(name)
+        .odds.push({ bookmaker: sgoBookmakerLabel(bookmakerId), decimal, link: bm.deeplink ?? null, isBetslipLink: Boolean(bm.deeplink) })
     }
   }
   return [...outcomesByName.entries()]

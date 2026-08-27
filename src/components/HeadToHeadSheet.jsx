@@ -4,6 +4,7 @@ import * as dataStore from '../lib/dataStore.js'
 import { computeStats } from '../utils/trackerStats.js'
 import { useEscapeKey } from '../lib/useEscapeKey.js'
 import { useDelayedClose } from '../lib/useDelayedClose.js'
+import UserLink from './UserLink.jsx'
 import ChallengeSection from './ChallengeSection.jsx'
 
 // Compares two people using only bets both of them could actually see -
@@ -48,7 +49,9 @@ export default function HeadToHeadSheet({ friend, onClose }) {
                 <H2HStats stats={rows.mine} />
               </div>
               <div className="h2h-col">
-                <div className="h2h-name">{friend.displayName}</div>
+                <div className="h2h-name">
+                  <UserLink id={friend.id} displayName={friend.displayName} />
+                </div>
                 <H2HStats stats={rows.theirs} />
               </div>
             </div>

@@ -5,6 +5,7 @@ import { computeChallengeStats, pickChallengeWinner, formatChallengeValue } from
 import { shareChallengeImage } from '../lib/shareImage.js'
 import { shareOrCopy, challengeUrl } from '../lib/share.js'
 import { useAsyncAction } from '../lib/useAsyncAction.js'
+import UserLink from './UserLink.jsx'
 import { SwordsIcon, LinkIcon } from './icons/Icons.jsx'
 
 const DURATIONS = [
@@ -48,7 +49,7 @@ export default function ChallengeSection({ user, friend, myPosts, theirPosts }) 
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user.id, friend.id])
 
-  if (!challenges) return <div className="loading">Loading challenges…</div>
+  if (!challenges) return <div className="loading">Checking the scoreboard…</div>
 
   const now = Date.now()
   const active = challenges.find((c) => new Date(c.endsAt).getTime() > now)
@@ -136,7 +137,7 @@ export default function ChallengeSection({ user, friend, myPosts, theirPosts }) 
         </button>
       </div>
 
-      {active && <ActiveChallenge challenge={active} stats={statsFor(active)} friendName={friend.displayName} />}
+      {active && <ActiveChallenge challenge={active} stats={statsFor(active)} friendId={friend.id} friendName={friend.displayName} />}
 
       {!active && (
         <form className="challenge-start" onSubmit={handleStart}>
@@ -174,12 +175,21 @@ export default function ChallengeSection({ user, friend, myPosts, theirPosts }) 
         <div className="challenge-history">
           {past.slice(0, 3).map((c) => {
             const { mine, theirs, winner } = statsFor(c)
-            const resultLabel =
-              winner === 'a' ? 'You won' : winner === 'b' ? `${friend.displayName} won` : winner === 'tie' ? 'Tied' : 'No result'
             return (
               <div key={c.id} className="challenge-history-row">
                 <span className="challenge-history-label">
-                  {METRIC_LABEL[c.metric]} · {resultLabel}
+                  {METRIC_LABEL[c.metric]} ·{' '}
+                  {winner === 'a' ? (
+                    'You won'
+                  ) : winner === 'b' ? (
+                    <>
+                      <UserLink id={friend.id} displayName={friend.displayName} /> won
+                    </>
+                  ) : winner === 'tie' ? (
+                    'Tied'
+                  ) : (
+                    'No result'
+                  )}
                 </span>
                 <span className="challenge-history-score">
                   {formatChallengeValue(mine, c.metric)} – {formatChallengeValue(theirs, c.metric)}
@@ -202,7 +212,7 @@ export default function ChallengeSection({ user, friend, myPosts, theirPosts }) 
   )
 }
 
-function ActiveChallenge({ challenge, stats, friendName }) {
+function ActiveChallenge({ challenge, stats, friendId, friendName }) {
   const left = daysLeft(challenge.endsAt)
   return (
     <div className="challenge-active">
@@ -213,7 +223,7 @@ function ActiveChallenge({ challenge, stats, friendName }) {
         </span>
       </div>
       <div className="challenge-active-row">
-        <span>{friendName}</span>
+        <UserLink id={friendId} displayName={friendName} />
         <span className={stats.winner === 'b' ? 'challenge-value tone-good' : 'challenge-value'}>
           {formatChallengeValue(stats.theirs, challenge.metric)}
         </span>

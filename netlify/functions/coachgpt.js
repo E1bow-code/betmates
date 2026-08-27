@@ -5,8 +5,18 @@
 // job via the ordinary data layer (dataStore.js's
 // listCoachMessages/addCoachMessage), not this function's.
 //
-// Missing ANTHROPIC_API_KEY degrades like every other proxy here:
+// Missing COACH_ANTHROPIC_KEY degrades like every other proxy here:
 // { configured: false } at HTTP 200, never a crash.
+//
+// Named COACH_ANTHROPIC_KEY, not ANTHROPIC_API_KEY - Netlify's AI Gateway
+// silently intercepts the latter name in local `netlify dev` and swaps in
+// its own short-lived proxy token, which this function then sends straight
+// to api.anthropic.com and gets a real 401 back. Confirmed live: the
+// intercepted value was a fresh ~413-char JWT every dev-server restart,
+// completely invisible in netlify dev's own env-injection log (it's
+// neither the .env.local value nor the dashboard value). Production was
+// never affected - the interception is local-dev-only - but the rename
+// avoids the collision everywhere rather than just working around it locally.
 //
 // One real auth check DOES exist here now (P2-M): the free/Plus message
 // allowance needs to know who's asking, so the client sends its Supabase
@@ -16,7 +26,7 @@
 // the actual access control, no admin client needed for a read-only check.
 import { createClient } from '@supabase/supabase-js'
 import { runCoachGptTurn } from '../../src/lib/coachgpt.js'
-import { matchFixtureQuery, matchRaceQuery } from '../../src/utils/matchFixtureQuery.js'
+import { matchFixtureQuery, matchRaceQuery, startsWithinHours } from '../../src/utils/matchFixtureQuery.js'
 import { computeBestValue } from '../../src/utils/bestValue.js'
 import { getPlayerProfile } from '../../src/lib/playerProfile.js'
 import { GENERIC_SPORTS, apiKeysForSport, sgoLeagueForSport } from '../../src/lib/sportsConfig.js'
@@ -24,17 +34,35 @@ import { GENERIC_SPORTS, apiKeysForSport, sgoLeagueForSport } from '../../src/li
 const SUPABASE_URL = process.env.VITE_SUPABASE_URL
 const ANON_KEY = process.env.VITE_SUPABASE_ANON_KEY
 const FREE_MONTHLY_MESSAGE_LIMIT = 10
+// OMNIROUTE_BASE_URL is the opt-in escape hatch to route this call through a
+// self-hosted OmniRoute gateway instead of straight to Anthropic - see
+// coach.js's header comment for the full contract. Unset by default, so
+// nothing changes until it's deliberately configured.
+const OMNIROUTE_BASE_URL = process.env.OMNIROUTE_BASE_URL
+const COACH_ROUTE = OMNIROUTE_BASE_URL ? { baseUrl: OMNIROUTE_BASE_URL, modelPrefix: process.env.OMNIROUTE_MODEL_PREFIX } : undefined
 
-// Missing accessToken/Supabase config means either local/no-backend mode or
-// a signed-out caller - either way there's no per-user allowance to track,
-// so this degrades to "unlimited" rather than blocking a mode that was
-// never metered in the first place.
+// Missing Supabase config means local/no-backend mode, which was never
+// metered in the first place - degrades to "unlimited" same as every
+// other proxy's missing-API-key contract.
+//
+// A missing/invalid accessToken on an otherwise-configured (real,
+// deployed) backend is a DIFFERENT case and must NOT take the same
+// unlimited path - this function is reachable directly over HTTP by
+// anyone, not just through the app's own UI, so "no token" here means
+// "unauthenticated caller", not "local dev". This used to return
+// `limited: false` for both cases, which meant simply omitting
+// accessToken from the request body (or sending a garbage/expired one)
+// bypassed the free/Plus message cap entirely - confirmed live, an
+// unauthenticated curl to this endpoint got a real Claude reply with no
+// allowance check at all. Fails closed now: anything that isn't a real,
+// currently-valid session is treated as at the limit.
 async function checkMessageAllowance(accessToken) {
-  if (!accessToken || !SUPABASE_URL || !ANON_KEY) return { limited: false }
+  if (!SUPABASE_URL || !ANON_KEY) return { limited: false }
+  if (!accessToken) return { limited: true }
 
   const userClient = createClient(SUPABASE_URL, ANON_KEY, { global: { headers: { Authorization: `Bearer ${accessToken}` } } })
   const { data: userData, error: userError } = await userClient.auth.getUser()
-  if (userError || !userData?.user) return { limited: false }
+  if (userError || !userData?.user) return { limited: true }
 
   const { data: profile } = await userClient.from('profiles').select('is_premium').eq('id', userData.user.id).single()
   if (profile?.is_premium) return { limited: false }
@@ -297,6 +325,60 @@ async function toolGetResults(siteUrl, { sport } = {}) {
   return { sport: key, results }
 }
 
+// "What's on tonight/today" browses by TIME, unlike find_fixture which
+// needs a name to search on and comes back empty for a bare time-word
+// question (matchFixtureQuery's STOPWORDS deliberately strip "tonight"/
+// "today" as name-search noise - confirmed live, CoachGPT had no way to
+// actually answer "what sports on tonight"). 20 hours covers "tonight"/
+// "today"/"this evening" without needing to reason about UK BST/GMT
+// calendar-day boundaries exactly - anything 20+ hours out is squarely
+// "later in the week" by any reasonable reading. Racing races get no
+// upper bound since our racing data is structurally always today's card
+// already (see COACHGPT_SYSTEM's own note) - just "hasn't run yet".
+const UPCOMING_WINDOW_HOURS = 20
+const UPCOMING_LIMIT = 15
+
+function summariseUpcomingFixture(fixture, sportKey) {
+  return {
+    sport: sportKey,
+    competition: fixture.competition,
+    homeTeam: fixture.homeTeam ?? fixture.participantA ?? fixture.fighterA,
+    awayTeam: fixture.awayTeam ?? fixture.participantB ?? fixture.fighterB,
+    kickoff: fixture.kickoff
+  }
+}
+
+async function toolListUpcoming(siteUrl, { sport } = {}) {
+  const normalisedSport = sport && SPORT_ORDER.includes(sport) ? sport : null
+  const sportsToCheck = normalisedSport ? [normalisedSport] : SPORT_ORDER
+  const now = Date.now()
+
+  const perSport = await Promise.all(
+    sportsToCheck.map(async (key) => {
+      if (key === 'racing') {
+        const races = await fetchListFor(siteUrl, key)
+        return (Array.isArray(races) ? races : [])
+          .filter((race) => {
+            const t = new Date(race.offTime).getTime()
+            return !Number.isNaN(t) && t >= now
+          })
+          .map((race) => ({ sport: 'racing', course: race.course, raceName: race.raceName, offTime: race.offTime, runnerCount: race.runners?.length ?? 0 }))
+      }
+      const fixtures = await fetchListFor(siteUrl, key)
+      return (Array.isArray(fixtures) ? fixtures : [])
+        .filter((f) => startsWithinHours(f.kickoff, UPCOMING_WINDOW_HOURS, now))
+        .map((f) => summariseUpcomingFixture(f, key))
+    })
+  )
+
+  const events = perSport
+    .flat()
+    .sort((a, b) => new Date(a.kickoff ?? a.offTime).getTime() - new Date(b.kickoff ?? b.offTime).getTime())
+    .slice(0, UPCOMING_LIMIT)
+
+  return { count: events.length, events }
+}
+
 // lock_in_recommendation's tool input carries bare identity fields
 // (eventId/marketKey/outcomeName, or raceId/horseId) - matched back
 // against the last grounding array (built from the RAW fixture/runner
@@ -331,7 +413,7 @@ function matchRecommendation(recommendation, grounding) {
 export default async (req) => {
   if (req.method !== 'POST') return json({ configured: true, error: 'POST only' }, 405)
 
-  const apiKey = process.env.ANTHROPIC_API_KEY
+  const apiKey = OMNIROUTE_BASE_URL ? process.env.OMNIROUTE_API_KEY : process.env.COACH_ANTHROPIC_KEY
   if (!apiKey) return json({ configured: false })
 
   let body
@@ -349,15 +431,25 @@ export default async (req) => {
 
   const siteUrl = process.env.URL || new URL(req.url).origin
 
-  // Last find_fixture call's grounding wins - if the model calls it again
-  // later in the same turn (a clarifying re-search, say) that's a better
-  // signal of what the final reply is actually about than an earlier call.
-  let lastGrounding = null
+  // Every find_fixture call's grounding accumulates - a "best value this
+  // weekend?" turn routinely looks up several fixtures before settling on
+  // one as the actual lean, and that lean is very often NOT the last one
+  // searched (confirmed live: a reply naming Newcastle as the pick after
+  // Hull and Arsenal were checked and rejected first). Keeping only the
+  // last call's grounding meant matchRecommendation had nothing to match
+  // the real pick against whenever it wasn't the final lookup, silently
+  // dropping the "Log this" row and the scoreboard entry for a pick the
+  // model stated in plain English. Deduped by the same identity
+  // LogThisRow keys on, so a fixture re-searched twice this turn (a
+  // clarifying re-check) only offers one button, keeping the later
+  // (fresher-priced) copy.
+  let allGrounding = []
   const callTool = async (name, input) => {
+    if (name === 'list_upcoming_events') return toolListUpcoming(siteUrl, input)
     if (name === 'find_fixture') {
       const groundingOut = {}
       const result = await toolFindFixture(siteUrl, input, groundingOut)
-      lastGrounding = groundingOut.value ?? null
+      if (groundingOut.value) allGrounding = [...allGrounding, ...groundingOut.value]
       return result
     }
     if (name === 'get_player_profile') return toolGetPlayerProfile(input.name)
@@ -366,17 +458,20 @@ export default async (req) => {
     return { error: `Unknown tool: ${name}` }
   }
 
-  const { text, recommendation, error } = await runCoachGptTurn({ apiKey, history: body?.history, message, callTool })
+  const { text, recommendation, error } = await runCoachGptTurn({ apiKey, history: body?.history, message, callTool, route: COACH_ROUTE })
+  const dedupedGrounding = allGrounding.length
+    ? Array.from(new Map(allGrounding.map((leg) => [`${leg.selection}-${leg.eventId ?? leg.horseId ?? leg.event}`, leg])).values())
+    : null
   // A follow-up like "who do you like there?" often answers straight from
   // `history` without calling find_fixture again this turn, leaving
-  // lastGrounding null even though the reply clearly leans on a fixture
+  // dedupedGrounding null even though the reply clearly leans on a fixture
   // looked up earlier - fall back to the grounding the client carried over
   // from that earlier message so lock_in_recommendation still has
   // something real to match against. The "Log this" row on THIS message
-  // stays tied to this turn's own lookup only (lastGrounding, unseeded) -
+  // stays tied to this turn's own lookups only (dedupedGrounding, unseeded) -
   // no fallback there, so it never shows stale legs under a reply that
   // didn't itself look anything up.
-  const matchGrounding = lastGrounding ?? body?.priorGrounding ?? null
+  const matchGrounding = dedupedGrounding ?? body?.priorGrounding ?? null
   return json({
     configured: true,
     reply: text,
@@ -385,7 +480,7 @@ export default async (req) => {
     // nothing to say - lets the client show "the coach is down" instead of the
     // misleading "couldn't get a straight answer, try rephrasing".
     error: error ?? null,
-    grounding: text ? lastGrounding : null,
+    grounding: text ? dedupedGrounding : null,
     recommendation: matchRecommendation(recommendation, matchGrounding)
   })
 }

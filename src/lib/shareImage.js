@@ -8,12 +8,14 @@
 // happens to have set for their own browsing.
 
 const COLORS = {
-  bg: '#15120f',
-  surface: '#201a15',
-  border: '#423527',
-  text: '#f2ece2',
-  textDim: '#a8998a',
-  accent: '#e0a339'
+  bg: '#0a0a0d',
+  surface: '#16161c',
+  border: '#322f3d',
+  text: '#f3f0f5',
+  textDim: '#8f8b9c',
+  accent: '#ff3d7f',
+  good: '#3de0c9',
+  bad: '#ff8a3d'
 }
 
 const WIDTH = 640
@@ -44,7 +46,7 @@ export async function renderBetSlipImage(post) {
   // wrapped event text will be, so the real canvas can be sized correctly
   // before anything is drawn (canvas height can't grow after the fact).
   const measure = document.createElement('canvas').getContext('2d')
-  measure.font = '600 20px -apple-system, sans-serif'
+  measure.font = '600 20px "IBM Plex Sans", sans-serif'
   const legLines = legs.map((leg) => wrapText(measure, leg.event, contentWidth))
 
   let height = 150 // header
@@ -66,10 +68,10 @@ export async function renderBetSlipImage(post) {
   let y = padding
 
   ctx.fillStyle = COLORS.accent
-  ctx.font = '700 24px Georgia, serif'
+  ctx.font = '700 24px "Big Shoulders Display", sans-serif'
   ctx.fillText('BetMates', padding, y)
   ctx.fillStyle = COLORS.textDim
-  ctx.font = '600 13px -apple-system, sans-serif'
+  ctx.font = '600 13px "IBM Plex Sans", sans-serif'
   ctx.textAlign = 'right'
   ctx.fillText(legs.length > 1 ? `${legs.length}-LEG BET BUILDER` : 'BET SLIP', WIDTH - padding, y - 2)
   ctx.textAlign = 'left'
@@ -83,26 +85,26 @@ export async function renderBetSlipImage(post) {
 
   legs.forEach((leg, i) => {
     ctx.fillStyle = COLORS.text
-    ctx.font = '600 20px -apple-system, sans-serif'
+    ctx.font = '600 20px "IBM Plex Sans", sans-serif'
     for (const line of legLines[i]) {
       ctx.fillText(line, padding, y)
       y += 27
     }
     y += 4
     ctx.fillStyle = COLORS.textDim
-    ctx.font = '15px -apple-system, sans-serif'
+    ctx.font = '15px "IBM Plex Sans", sans-serif'
     ctx.fillText(leg.market, padding, y)
     ctx.textAlign = 'right'
     ctx.fillStyle = COLORS.accent
-    ctx.font = '700 20px ui-monospace, Consolas, monospace'
+    ctx.font = '700 20px "IBM Plex Mono", monospace'
     ctx.fillText(leg.odds.toFixed(2), WIDTH - padding, y)
     ctx.textAlign = 'left'
     y += 8
     ctx.fillStyle = COLORS.text
-    ctx.font = '600 16px -apple-system, sans-serif'
+    ctx.font = '600 16px "IBM Plex Sans", sans-serif'
     ctx.fillText(leg.selection, padding, y + 18)
     ctx.fillStyle = COLORS.textDim
-    ctx.font = '13px -apple-system, sans-serif'
+    ctx.font = '13px "IBM Plex Sans", sans-serif'
     ctx.textAlign = 'right'
     ctx.fillText(leg.bookmaker, WIDTH - padding, y + 18)
     ctx.textAlign = 'left'
@@ -122,10 +124,10 @@ export async function renderBetSlipImage(post) {
   if (legs.length > 1) {
     const combined = legs.reduce((acc, l) => acc * l.odds, 1)
     ctx.fillStyle = COLORS.textDim
-    ctx.font = '15px -apple-system, sans-serif'
+    ctx.font = '15px "IBM Plex Sans", sans-serif'
     ctx.fillText('Combined odds', padding, y)
     ctx.fillStyle = COLORS.accent
-    ctx.font = '700 20px ui-monospace, Consolas, monospace'
+    ctx.font = '700 20px "IBM Plex Mono", monospace'
     ctx.textAlign = 'right'
     ctx.fillText(combined.toFixed(2), WIDTH - padding, y)
     ctx.textAlign = 'left'
@@ -134,11 +136,11 @@ export async function renderBetSlipImage(post) {
 
   if (post.stake && !post.stakeHidden) {
     ctx.fillStyle = COLORS.textDim
-    ctx.font = '15px -apple-system, sans-serif'
+    ctx.font = '15px "IBM Plex Sans", sans-serif'
     ctx.fillText(`£${post.stake} staked`, padding, y)
     if (post.potentialReturn) {
       ctx.fillStyle = COLORS.accent
-      ctx.font = '700 16px -apple-system, sans-serif'
+      ctx.font = '700 16px "IBM Plex Sans", sans-serif'
       ctx.textAlign = 'right'
       ctx.fillText(`returns £${Number(post.potentialReturn).toFixed(2)}`, WIDTH - padding, y)
       ctx.textAlign = 'left'
@@ -147,7 +149,7 @@ export async function renderBetSlipImage(post) {
   }
 
   ctx.fillStyle = COLORS.textDim
-  ctx.font = '12px -apple-system, sans-serif'
+  ctx.font = '12px "IBM Plex Sans", sans-serif'
   ctx.fillText('BetMates does not place bets or hold funds. 18+. Gamble responsibly.', padding, height - padding + 20)
 
   return new Promise((resolve) => canvas.toBlob(resolve, 'image/png'))
@@ -191,10 +193,10 @@ export async function renderLeaderboardImage({ name, rank, profit, winRate, roi,
 
   let y = padding
   ctx.fillStyle = COLORS.accent
-  ctx.font = '700 24px Georgia, serif'
+  ctx.font = '700 24px "Big Shoulders Display", sans-serif'
   ctx.fillText('BetMates', padding, y)
   ctx.fillStyle = COLORS.textDim
-  ctx.font = '600 13px -apple-system, sans-serif'
+  ctx.font = '600 13px "IBM Plex Sans", sans-serif'
   ctx.textAlign = 'right'
   ctx.fillText(`${windowLabel.toUpperCase()} LEADERBOARD`, WIDTH - padding, y - 2)
   ctx.textAlign = 'left'
@@ -207,31 +209,31 @@ export async function renderLeaderboardImage({ name, rank, profit, winRate, roi,
   y += 70
 
   ctx.fillStyle = COLORS.accent
-  ctx.font = '800 56px Georgia, serif'
+  ctx.font = '800 56px "Big Shoulders Display", sans-serif'
   ctx.fillText(`#${rank}`, padding, y)
 
   ctx.fillStyle = COLORS.text
-  ctx.font = '600 26px -apple-system, sans-serif'
+  ctx.font = '600 26px "IBM Plex Sans", sans-serif'
   ctx.textAlign = 'right'
   ctx.fillText(name, WIDTH - padding, y - 8)
   y += 20
 
   y += 60
-  ctx.fillStyle = good ? '#5fbf74' : '#e0665a'
-  ctx.font = '800 48px ui-monospace, Consolas, monospace'
+  ctx.fillStyle = good ? COLORS.good : COLORS.bad
+  ctx.font = '800 48px "IBM Plex Mono", monospace'
   ctx.textAlign = 'left'
   ctx.fillText(`${good ? '+' : ''}£${profit.toFixed(2)}`, padding, y)
   ctx.textAlign = 'left'
   y += 50
 
   ctx.fillStyle = COLORS.textDim
-  ctx.font = '15px -apple-system, sans-serif'
+  ctx.font = '15px "IBM Plex Sans", sans-serif'
   const winRateText = winRate === null ? '-' : `${winRate}% win rate`
   const roiText = roi === null ? '-' : `${roi >= 0 ? '+' : ''}${roi}% ROI`
   ctx.fillText(`${winRateText} · ${roiText}`, padding, y)
 
   ctx.fillStyle = COLORS.textDim
-  ctx.font = '12px -apple-system, sans-serif'
+  ctx.font = '12px "IBM Plex Sans", sans-serif'
   ctx.fillText('BetMates does not place bets or hold funds. 18+. Gamble responsibly.', padding, height - padding + 20)
 
   return new Promise((resolve) => canvas.toBlob(resolve, 'image/png'))
@@ -260,10 +262,10 @@ export async function renderRecapImage({ rows, periodLabel }) {
 
   let y = padding
   ctx.fillStyle = COLORS.accent
-  ctx.font = '700 24px Georgia, serif'
+  ctx.font = '700 24px "Big Shoulders Display", sans-serif'
   ctx.fillText('BetMates', padding, y)
   ctx.fillStyle = COLORS.textDim
-  ctx.font = '600 13px -apple-system, sans-serif'
+  ctx.font = '600 13px "IBM Plex Sans", sans-serif'
   ctx.textAlign = 'right'
   ctx.fillText(`${periodLabel.toUpperCase()} RECAP`, WIDTH - padding, y - 2)
   ctx.textAlign = 'left'
@@ -277,11 +279,11 @@ export async function renderRecapImage({ rows, periodLabel }) {
 
   for (const row of rows) {
     ctx.fillStyle = COLORS.textDim
-    ctx.font = '600 13px ui-monospace, Consolas, monospace'
+    ctx.font = '600 13px "IBM Plex Mono", monospace'
     ctx.textAlign = 'left'
     ctx.fillText(row.label.toUpperCase(), padding, y)
-    ctx.fillStyle = row.tone === 'good' ? '#5fbf74' : row.tone === 'bad' ? '#e0665a' : COLORS.text
-    ctx.font = '700 17px ui-monospace, Consolas, monospace'
+    ctx.fillStyle = row.tone === 'good' ? COLORS.good : row.tone === 'bad' ? COLORS.bad : COLORS.text
+    ctx.font = '700 17px "IBM Plex Mono", monospace'
     ctx.textAlign = 'right'
     ctx.fillText(row.value, WIDTH - padding, y)
     ctx.textAlign = 'left'
@@ -311,7 +313,7 @@ export async function renderRecapImage({ rows, periodLabel }) {
   y += 40
 
   ctx.fillStyle = COLORS.textDim
-  ctx.font = '12px -apple-system, sans-serif'
+  ctx.font = '12px "IBM Plex Sans", sans-serif'
   ctx.fillText('BetMates does not place bets or hold funds. 18+. Gamble responsibly.', padding, y)
 
   return new Promise((resolve) => canvas.toBlob(resolve, 'image/png'))
@@ -328,7 +330,7 @@ export async function renderCoachImage({ take, name }) {
   const bodyLineHeight = 30
 
   const measure = document.createElement('canvas').getContext('2d')
-  measure.font = '400 22px Georgia, serif'
+  measure.font = '400 22px "Big Shoulders Display", sans-serif'
   const lines = wrapText(measure, take, contentWidth)
 
   const height = 150 + lines.length * bodyLineHeight + 96
@@ -345,10 +347,10 @@ export async function renderCoachImage({ take, name }) {
 
   let y = padding
   ctx.fillStyle = COLORS.accent
-  ctx.font = '700 24px Georgia, serif'
+  ctx.font = '700 24px "Big Shoulders Display", sans-serif'
   ctx.fillText('BetMates', padding, y)
   ctx.fillStyle = COLORS.textDim
-  ctx.font = '600 13px -apple-system, sans-serif'
+  ctx.font = '600 13px "IBM Plex Sans", sans-serif'
   ctx.textAlign = 'right'
   ctx.fillText("🧠 COACH'S TAKE", WIDTH - padding, y - 2)
   ctx.textAlign = 'left'
@@ -362,12 +364,12 @@ export async function renderCoachImage({ take, name }) {
 
   // Oversized opening quote mark as a visual anchor.
   ctx.fillStyle = COLORS.accent
-  ctx.font = '700 60px Georgia, serif'
+  ctx.font = '700 60px "Big Shoulders Display", sans-serif'
   ctx.fillText('“', padding - 6, y + 30)
   y += 44
 
   ctx.fillStyle = COLORS.text
-  ctx.font = '400 22px Georgia, serif'
+  ctx.font = '400 22px "Big Shoulders Display", sans-serif'
   for (const line of lines) {
     ctx.fillText(line, padding, y)
     y += bodyLineHeight
@@ -375,11 +377,11 @@ export async function renderCoachImage({ take, name }) {
   y += 20
 
   ctx.fillStyle = COLORS.textDim
-  ctx.font = 'italic 14px Georgia, serif'
+  ctx.font = 'italic 14px "Big Shoulders Display", sans-serif'
   ctx.fillText(name ? `— ${name}'s record, read by the Coach` : '— your own record, never a tip', padding, y)
 
   ctx.fillStyle = COLORS.textDim
-  ctx.font = '12px -apple-system, sans-serif'
+  ctx.font = '12px "IBM Plex Sans", sans-serif'
   ctx.fillText('BetMates does not place bets or hold funds. 18+. Gamble responsibly.', padding, height - padding + 20)
 
   return new Promise((resolve) => canvas.toBlob(resolve, 'image/png'))
@@ -444,14 +446,14 @@ function drawChallengeColumn(ctx, { x, width, y, name, value, isWinner }) {
   const cx = x + width / 2
   if (isWinner) {
     ctx.fillStyle = COLORS.accent
-    ctx.font = '22px -apple-system, sans-serif'
+    ctx.font = '22px "IBM Plex Sans", sans-serif'
     ctx.fillText('🏆', cx, y - 14)
   }
   ctx.fillStyle = COLORS.text
-  ctx.font = '600 20px -apple-system, sans-serif'
+  ctx.font = '600 20px "IBM Plex Sans", sans-serif'
   ctx.fillText(name, cx, y + 16)
-  ctx.fillStyle = isWinner ? COLORS.accent : COLORS.textDim
-  ctx.font = '800 36px ui-monospace, Consolas, monospace'
+  ctx.fillStyle = isWinner ? COLORS.good : COLORS.textDim
+  ctx.font = '800 36px "IBM Plex Mono", monospace'
   ctx.fillText(value, cx, y + 68)
   ctx.textAlign = 'left'
 }
@@ -480,10 +482,10 @@ export async function renderChallengeImage({ metric, days, nameA, valueA, nameB,
 
   let y = padding
   ctx.fillStyle = COLORS.accent
-  ctx.font = '700 24px Georgia, serif'
+  ctx.font = '700 24px "Big Shoulders Display", sans-serif'
   ctx.fillText('BetMates', padding, y)
   ctx.fillStyle = COLORS.textDim
-  ctx.font = '600 13px -apple-system, sans-serif'
+  ctx.font = '600 13px "IBM Plex Sans", sans-serif'
   ctx.textAlign = 'right'
   ctx.fillText(`${days}-DAY ${metricLabel} CHALLENGE`, WIDTH - padding, y - 2)
   ctx.textAlign = 'left'
@@ -508,14 +510,14 @@ export async function renderChallengeImage({ metric, days, nameA, valueA, nameB,
 
   y += 140
   ctx.fillStyle = COLORS.textDim
-  ctx.font = '600 15px -apple-system, sans-serif'
+  ctx.font = '600 15px "IBM Plex Sans", sans-serif'
   ctx.textAlign = 'center'
   const resultText = winner === 'tie' ? "It's a tie" : winner === 'a' ? `${nameA} wins` : winner === 'b' ? `${nameB} wins` : 'Still to be decided'
   ctx.fillText(resultText, WIDTH / 2, y)
   ctx.textAlign = 'left'
 
   ctx.fillStyle = COLORS.textDim
-  ctx.font = '12px -apple-system, sans-serif'
+  ctx.font = '12px "IBM Plex Sans", sans-serif'
   ctx.fillText('BetMates does not place bets or hold funds. 18+. Gamble responsibly.', padding, height - padding + 20)
 
   return new Promise((resolve) => canvas.toBlob(resolve, 'image/png'))
@@ -562,10 +564,10 @@ export async function renderInviteImage({ name, code }) {
 
   let y = padding
   ctx.fillStyle = COLORS.accent
-  ctx.font = '700 24px Georgia, serif'
+  ctx.font = '700 24px "Big Shoulders Display", sans-serif'
   ctx.fillText('BetMates', padding, y)
   ctx.fillStyle = COLORS.textDim
-  ctx.font = '600 13px -apple-system, sans-serif'
+  ctx.font = '600 13px "IBM Plex Sans", sans-serif'
   ctx.textAlign = 'right'
   ctx.fillText("YOU'RE INVITED", WIDTH - padding, y - 2)
   ctx.textAlign = 'left'
@@ -579,7 +581,7 @@ export async function renderInviteImage({ name, code }) {
 
   // The hook - who's inviting.
   ctx.fillStyle = COLORS.text
-  ctx.font = '700 34px Georgia, serif'
+  ctx.font = '700 34px "Big Shoulders Display", sans-serif'
   const hook = wrapText(ctx, `${inviter} wants you on BetMates`, WIDTH - padding * 2)
   for (const line of hook) {
     ctx.fillText(line, padding, y)
@@ -589,7 +591,7 @@ export async function renderInviteImage({ name, code }) {
 
   // What it is.
   ctx.fillStyle = COLORS.textDim
-  ctx.font = '18px -apple-system, sans-serif'
+  ctx.font = '18px "IBM Plex Sans", sans-serif'
   const pitch = wrapText(ctx, 'Track your bets, compare the best odds, and settle the score with your mates.', WIDTH - padding * 2)
   for (const line of pitch) {
     ctx.fillText(line, padding, y)
@@ -613,16 +615,16 @@ export async function renderInviteImage({ name, code }) {
       ctx.strokeRect(padding, y, WIDTH - padding * 2, chipH)
     }
     ctx.fillStyle = COLORS.textDim
-    ctx.font = '600 12px -apple-system, sans-serif'
+    ctx.font = '600 12px "IBM Plex Sans", sans-serif'
     ctx.fillText('JOIN WITH CODE', padding + 16, y + 20)
     ctx.fillStyle = COLORS.accent
-    ctx.font = '700 22px ui-monospace, Consolas, monospace'
+    ctx.font = '700 22px "IBM Plex Mono", monospace'
     ctx.fillText(String(code).toUpperCase(), padding + 16, y + 41)
     y += chipH
   }
 
   ctx.fillStyle = COLORS.textDim
-  ctx.font = '12px -apple-system, sans-serif'
+  ctx.font = '12px "IBM Plex Sans", sans-serif'
   ctx.fillText('BetMates does not place bets or hold funds. 18+. Gamble responsibly.', padding, height - padding + 20)
 
   return new Promise((resolve) => canvas.toBlob(resolve, 'image/png'))
@@ -671,10 +673,10 @@ export async function renderChallengeInviteImage({ name, statLabel, statValue, c
 
   let y = padding
   ctx.fillStyle = COLORS.accent
-  ctx.font = '700 24px Georgia, serif'
+  ctx.font = '700 24px "Big Shoulders Display", sans-serif'
   ctx.fillText('BetMates', padding, y)
   ctx.fillStyle = COLORS.textDim
-  ctx.font = '600 13px -apple-system, sans-serif'
+  ctx.font = '600 13px "IBM Plex Sans", sans-serif'
   ctx.textAlign = 'right'
   ctx.fillText('⚔️ I CHALLENGE YOU', WIDTH - padding, y - 2)
   ctx.textAlign = 'left'
@@ -688,7 +690,7 @@ export async function renderChallengeInviteImage({ name, statLabel, statValue, c
 
   // The dare.
   ctx.fillStyle = COLORS.text
-  ctx.font = '700 30px Georgia, serif'
+  ctx.font = '700 30px "Big Shoulders Display", sans-serif'
   const hook = wrapText(ctx, `${challenger} bets you can't beat this`, WIDTH - padding * 2)
   for (const line of hook) {
     ctx.fillText(line, padding, y)
@@ -699,18 +701,18 @@ export async function renderChallengeInviteImage({ name, statLabel, statValue, c
   // The headline stat, big.
   if (statValue) {
     ctx.fillStyle = COLORS.accent
-    ctx.font = '800 60px Georgia, serif'
+    ctx.font = '800 60px "Big Shoulders Display", sans-serif'
     ctx.fillText(String(statValue), padding, y)
     y += 20
     ctx.fillStyle = COLORS.textDim
-    ctx.font = '600 13px -apple-system, sans-serif'
+    ctx.font = '600 13px "IBM Plex Sans", sans-serif'
     ctx.fillText(String(statLabel || '').toUpperCase(), padding, y)
     y += 34
   }
 
   // The pitch.
   ctx.fillStyle = COLORS.textDim
-  ctx.font = '17px -apple-system, sans-serif'
+  ctx.font = '17px "IBM Plex Sans", sans-serif'
   const pitch = wrapText(ctx, 'Log your bets, track your record, and see who really knows their stuff.', WIDTH - padding * 2)
   for (const line of pitch) {
     ctx.fillText(line, padding, y)
@@ -734,15 +736,15 @@ export async function renderChallengeInviteImage({ name, statLabel, statValue, c
       ctx.strokeRect(padding, y, WIDTH - padding * 2, chipH)
     }
     ctx.fillStyle = COLORS.textDim
-    ctx.font = '600 12px -apple-system, sans-serif'
+    ctx.font = '600 12px "IBM Plex Sans", sans-serif'
     ctx.fillText('TAKE THEM ON — JOIN WITH CODE', padding + 16, y + 19)
     ctx.fillStyle = COLORS.accent
-    ctx.font = '700 20px ui-monospace, Consolas, monospace'
+    ctx.font = '700 20px "IBM Plex Mono", monospace'
     ctx.fillText(String(code).toUpperCase(), padding + 16, y + 39)
   }
 
   ctx.fillStyle = COLORS.textDim
-  ctx.font = '12px -apple-system, sans-serif'
+  ctx.font = '12px "IBM Plex Sans", sans-serif'
   ctx.fillText('BetMates does not place bets or hold funds. 18+. Gamble responsibly.', padding, height - padding + 20)
 
   return new Promise((resolve) => canvas.toBlob(resolve, 'image/png'))

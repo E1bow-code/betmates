@@ -64,6 +64,11 @@ export default async (req) => {
     const session = await stripe.checkout.sessions.create({
       mode: 'subscription',
       customer: customerId,
+      // Stripe's newer Managed Payments is on by default for this account
+      // and requires a tax_code on every line item's product - not
+      // something this app has opted into (no Stripe Tax setup), so it's
+      // turned off here rather than maintaining a tax_code per Price.
+      managed_payments: { enabled: false },
       line_items: [{ price: priceId, quantity: 1 }],
       // 7 days free before the first charge - stripe-webhook.js's
       // isActiveStatus() already treats 'trialing' as active, so this

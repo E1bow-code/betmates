@@ -1,5 +1,6 @@
 import { useEffect } from 'react'
 import { useLocation } from 'react-router-dom'
+import posthog from 'posthog-js'
 
 // Keeps document.title in step with the current route so each screen has its
 // own title in the browser tab, history, bookmarks and the PWA switcher -
@@ -10,6 +11,8 @@ const EXACT = {
   '/dashboard': 'Home',
   '/odds': 'Odds',
   '/groups': 'Mates',
+  '/friends': 'Friends',
+  '/explore': 'Explore',
   '/tracker': 'Tracker',
   '/insights': 'Insights',
   '/achievements': 'Achievements',
@@ -43,6 +46,10 @@ export default function RouteTitle() {
   useEffect(() => {
     const section = titleFor(pathname)
     document.title = section ? `${section} · BetMates` : 'BetMates'
+    // Capture a pageview on every hash-router navigation. posthog.init() is
+    // consent-gated (see src/lib/analytics.js) so this is a silent no-op
+    // until the user has accepted cookies.
+    posthog.capture('$pageview')
   }, [pathname])
   return null
 }

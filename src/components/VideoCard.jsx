@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import Avatar from './Avatar.jsx'
+import UserLink from './UserLink.jsx'
 import ShareVideoSheet from './ShareVideoSheet.jsx'
 import * as dataStore from '../lib/dataStore.js'
 import { computeStats } from '../utils/trackerStats.js'
@@ -65,17 +66,17 @@ export default function VideoCard({ post }) {
         <div className="bet-card-who">
           <Avatar name={post.authorName} />
           <div>
-            <span className="bet-card-author">
+            <UserLink id={post.authorId} className="bet-card-author">
               {post.authorName}
               {badge && (
                 <span
-                  className="tipster-badge icon-row"
+                  className="chip chip--pill chip--sm chip--outline-accent tipster-badge icon-row"
                   title={`${badge.label} - ${authorStats.decidedCount}+ decided public picks`}
                 >
                   {BadgeIcon && <BadgeIcon width={13} height={13} />} {badge.label}
                 </span>
               )}
-            </span>
+            </UserLink>
             <span className="bet-card-group-tag">
               {post.sharedByName ? `shared by ${post.sharedByName} · ` : ''}
               {timeAgo(post.sharedAt ?? post.createdAt)}
@@ -94,7 +95,7 @@ export default function VideoCard({ post }) {
 
       <div className="video-caption">{post.caption}</div>
       {post.tag && (
-        <div className="video-tag icon-row">
+        <div className="chip chip--sharp chip--sm chip--outline-accent video-tag icon-row">
           <PinIcon width={14} height={14} /> {post.tag}
         </div>
       )}

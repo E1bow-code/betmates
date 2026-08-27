@@ -9,8 +9,11 @@ import { CheckIcon } from '../components/icons/Icons.jsx'
 // Companion to AdminReportsPage.jsx - same is_admin gating (client-side for
 // UX, "admins read/delete error logs" RLS policies in schema.sql for the
 // real enforcement), same report-list/report-card markup so this didn't
-// need its own CSS. Feeds from src/components/ErrorBoundary.jsx, which is
-// the only thing that ever writes here.
+// need its own CSS. Fed by two writers sharing this one table: the client's
+// own src/components/ErrorBoundary.jsx (a signed-in/out user's route crashed)
+// and src/lib/logProviderError.js (a Netlify Function's odds/racing/scores
+// provider degraded to mock/empty - see its own header comment), tagged
+// route: "provider:<source>" so the two are easy to tell apart below.
 export default function AdminErrorLogsPage() {
   const { user } = useAuth()
   const [logs, setLogs] = useState(null)
@@ -58,7 +61,8 @@ export default function AdminErrorLogsPage() {
           {logs.map((log) => (
             <div key={log.id} className="report-card">
               <div className="report-card-meta">
-                {formatRelativeTime(log.createdAt)} · {log.route || 'unknown route'} · {log.userId ? 'signed in' : 'signed out'}
+                {formatRelativeTime(log.createdAt)} · {log.route || 'unknown route'} ·{' '}
+                {log.userId ? 'signed in' : log.route?.startsWith('provider:') ? 'server' : 'signed out'}
               </div>
               <div className="report-card-title">{log.message}</div>
               {log.stack && (

@@ -14,6 +14,7 @@ import { createClient } from '@supabase/supabase-js'
 import { cacheGet, cacheSet } from '../../src/lib/apiCache.js'
 import { UFC_SPORT_KEY } from '../../src/lib/sportsConfig.js'
 import { reshapeEvent } from '../../src/lib/ufcOddsShape.js'
+import { logProviderError } from '../../src/lib/logProviderError.js'
 
 const SUPABASE_URL = process.env.VITE_SUPABASE_URL
 const SUPABASE_ANON_KEY = process.env.VITE_SUPABASE_ANON_KEY
@@ -26,12 +27,31 @@ const LIST_TTL = 20 * 60 * 1000
 // How stale a cron-written row may be before the proxy ignores it and goes
 // live - see netlify/functions/odds.js's DB_MAX_AGE.
 const DB_MAX_AGE = 12 * 60 * 60 * 1000
+// The Odds API's MMA feed carries a long tail of speculative/rumoured
+// far-future "cards" - fighters listed against opponents they were never
+// actually booked with, sometimes the same fighter appearing in two
+// different fixtures on the same day. Real UFC events are only ever
+// confirmed something like 6-10 weeks out, so anything further than this
+// is noise rather than a genuine near-term card - confirmed live, this
+// cut real garbage (duplicate/impossible pairings months out) without
+// touching the normal near-term list.
+const MAX_DAYS_AHEAD = 60
 
 function json(body, source) {
   return new Response(JSON.stringify(body), {
     status: 200,
     headers: { 'content-type': 'application/json', 'x-data-source': source }
   })
+}
+
+// Drop the speculative far-future cards (see MAX_DAYS_AHEAD). Applied at serve
+// time to whatever source the list came from - DB cache, in-memory cache, or a
+// live fetch - so the same near-term window is served no matter where the data
+// originated (the durable cache never surfaces months-out garbage even if a
+// cron happened to store it).
+function withinWindow(fights) {
+  const cutoff = Date.now() + MAX_DAYS_AHEAD * 24 * 60 * 60 * 1000
+  return fights.filter((f) => new Date(f.kickoff).getTime() <= cutoff)
 }
 
 async function serveMock(id) {
@@ -67,6 +87,7 @@ async function resolveFights(apiKey) {
   const res = await fetch(apiUrl)
   if (!res.ok) {
     console.error(`Odds provider error (${res.status}), falling back to mock`)
+    await logProviderError('odds-ufc', `HTTP ${res.status}`)
     return null
   }
   const events = await res.json()
@@ -82,10 +103,12 @@ export default async (req) => {
   try {
     const base = await resolveFights(apiKey)
     if (!base) return serveMock(id)
-    const body = id ? base.fights.find((f) => f.id === id) ?? null : base.fights
+    const fights = withinWindow(base.fights)
+    const body = id ? fights.find((f) => f.id === id) ?? null : fights
     return json(body, base.source)
   } catch (err) {
     console.error('Odds provider error, falling back to mock:', err.message)
+    await logProviderError('odds-ufc', err.message)
     return serveMock(id)
   }
 }
