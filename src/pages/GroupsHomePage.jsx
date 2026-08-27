@@ -4,6 +4,7 @@ import { useAuth } from '../context/AuthContext.jsx'
 import { useActivity } from '../context/ActivityContext.jsx'
 import * as dataStore from '../lib/dataStore.js'
 import BetCard from '../components/BetCard.jsx'
+import Avatar from '../components/Avatar.jsx'
 import ManageSheet from '../components/ManageSheet.jsx'
 import GroupVsGroupSheet from '../components/GroupVsGroupSheet.jsx'
 import EmptyState from '../components/EmptyState.jsx'
@@ -97,8 +98,13 @@ export default function GroupsHomePage() {
       {groups && groups.length > 0 && (
         <div className="group-chip-row">
           {groups.map((g) => (
-            <Link key={g.id} to={`/groups/${g.id}`} className="chip chip--pill chip--outline group-chip">
-              {g.name}
+            <Link key={g.id} to={`/groups/${g.id}`} className="group-card">
+              <Avatar name={g.name} size={40} />
+              <span className="group-card-name">{g.name}</span>
+              <span className="group-card-meta">
+                {g.memberCount} member{g.memberCount === 1 ? '' : 's'}
+                {g.priceAmount != null && <span className="chip chip--pill chip--sm chip--filled-accent">Paid</span>}
+              </span>
             </Link>
           ))}
         </div>

@@ -10,6 +10,7 @@ import { computeTipsterRankings } from '../utils/tipsters.js'
 import { computeBookmakerScoreboard } from '../utils/bookmakerScoreboard.js'
 import { computeTrendingPicks } from '../utils/trending.js'
 import TipsterLeaderboard from '../components/TipsterLeaderboard.jsx'
+import LeaderboardPodium from '../components/LeaderboardPodium.jsx'
 import BookmakerScoreboard from '../components/BookmakerScoreboard.jsx'
 import FplPanel from '../components/FplPanel.jsx'
 import EmptyState from '../components/EmptyState.jsx'
@@ -199,6 +200,17 @@ export default function ExplorePage() {
             Ranked by profit across every group you're in, plus the public feed - hidden-stake bets don't count.{' '}
             <Link to="/hall-of-fame">See the all-time Hall of Fame →</Link>
           </p>
+
+          {leaderboardRows && leaderboardRows.length > 0 && (
+            <LeaderboardPodium
+              entries={leaderboardRows.slice(0, 3).map((row) => ({
+                userId: row.userId,
+                name: row.name,
+                value: `${row.profit >= 0 ? '+' : ''}£${row.profit.toFixed(2)}`,
+                tone: row.profit >= 0 ? 'good' : 'bad'
+              }))}
+            />
+          )}
 
           <div className="mode-switcher">
             {LEADERBOARD_WINDOWS.map((w) => (

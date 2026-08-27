@@ -84,6 +84,20 @@
   --radius-pill: 999px;
   --radius-circle: 50%;
 
+  /* Elevation scale - three tiers standing in for what used to be 30 one-off
+     box-shadow literals with no shared recipe. --shadow-card is the resting-
+     elevation recipe that was already hand-copied verbatim at 3+ sites
+     (results-panel group, .value-finder, .horse-of-the-day) before this -
+     now the single source those and the rest of the accent-highlight-card
+     family (.limit-warning, #plus, .coach-card, etc.) pull from.
+     --shadow-float is the fixed/floating-trigger recipe (.more-menu-trigger,
+     .coach-fab) already proven twice. --shadow-modal is new - .sheet had no
+     shadow at all despite being the app's most common overlay, so it only
+     had the backdrop dim to read as "above" the page. */
+  --shadow-card: 0 1px 2px rgba(0, 0, 0, 0.28), 0 6px 18px rgba(0, 0, 0, 0.18);
+  --shadow-float: 0 2px 10px rgba(0, 0, 0, 0.35);
+  --shadow-modal: 0 -2px 2px rgba(0, 0, 0, 0.24), 0 -12px 32px rgba(0, 0, 0, 0.4);
+
   /* Type scale - same story as spacing: the file had 43 distinct font-size
      values with no ratio system before this. --text-3xl is deliberately
      the ONE shared "biggest text on the page" size - the dashboard
@@ -368,7 +382,7 @@ body.slip-bar-open .app-content {
   padding: var(--space-10) 18px;
   border-radius: var(--radius-md);
   font-size: var(--text-base);
-  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.3);
+  box-shadow: var(--shadow-float);
   animation: toast-in 0.2s ease-out;
   max-width: 90vw;
   text-align: center;
@@ -413,7 +427,7 @@ body.slip-bar-open .app-content {
   color: var(--text);
   border: 1px solid var(--border);
   border-radius: var(--radius-sharp);
-  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.35);
+  box-shadow: var(--shadow-float);
 }
 
 /* CoachGPT's floating entry point (src/components/CoachLauncher.jsx) -
@@ -436,7 +450,7 @@ body.slip-bar-open .app-content {
   color: var(--accent-ink);
   border: 1px solid var(--accent-dim);
   border-radius: var(--radius-pill);
-  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.35);
+  box-shadow: var(--shadow-float);
   font-size: var(--text-xl);
   text-decoration: none;
   /* Draggable (see CoachLauncher.jsx): none stops the drag gesture from
@@ -509,8 +523,9 @@ body.slip-bar-open .app-content {
    one thing here worth tapping first, not just item #1 in a row of equals. */
 .more-menu-item--featured {
   border: 1px solid var(--accent);
-  border-radius: var(--radius-lg);
+  border-radius: var(--radius-card);
   background: color-mix(in srgb, var(--accent) 12%, transparent);
+  box-shadow: var(--shadow-card);
   margin: var(--space-4) var(--space-4) var(--space-10);
   padding: var(--space-14) var(--space-16);
 }
@@ -995,7 +1010,7 @@ body.slip-bar-open .app-content {
 
 .auth-form { display: flex; flex-direction: column; gap: var(--space-14); }
 .auth-error { color: var(--bad); font-size: var(--text-base); }
-.limit-warning { background: color-mix(in srgb, var(--accent) 15%, transparent); border: 1px solid var(--accent); border-radius: var(--radius-lg); padding: var(--space-10) var(--space-12); font-size: var(--text-base); color: var(--text); }
+.limit-warning { background: color-mix(in srgb, var(--accent) 15%, transparent); border: 1px solid var(--accent); border-radius: var(--radius-card); box-shadow: var(--shadow-card); padding: var(--space-10) var(--space-12); font-size: var(--text-base); color: var(--text); }
 /* Pre-bet sanity check (opt-in, see AccountPage's preBetSanityCheck toggle) -
    groups up to 4 independent warnings under one heading instead of stacking
    4 separate .limit-warning cards, which read as noisy/repetitive together. */
@@ -1097,26 +1112,30 @@ body.slip-bar-open .app-content {
 
 .danger-zone { border: 1px solid var(--bad); border-radius: var(--radius-sharp); padding: var(--space-12); }
 
+/* Quiet row-card idiom (Floodhouse redesign installment 1): every row is
+   its own small bordered/rounded card with a gap between rows instead of
+   the old single bordered wrapper + row border-bottom dividers. Deliberately
+   quiet - --radius-md, no shadow, no accent tint - so a long list still
+   scans like a list, not a stack of hero callouts (see --shadow-card /
+   --radius-card, the louder tier reserved for accent-highlight cards). */
 .conversation-list {
   display: flex;
   flex-direction: column;
-  border: 1px solid var(--border);
-  border-radius: var(--radius-sharp);
-  overflow: hidden;
-  background: linear-gradient(180deg, var(--surface) 0%, var(--surface-2) 100%);
+  gap: var(--space-4);
 }
 .conversation-row {
   display: flex;
   align-items: center;
   gap: var(--space-10);
   padding: var(--space-10) var(--space-12);
-  border-bottom: 1px solid var(--border);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--surface);
   text-decoration: none;
   color: var(--text);
   transition: background-color 0.15s ease;
 }
 .conversation-row:hover, .conversation-row:focus-visible { background: rgba(var(--accent-rgb), 0.06); }
-.conversation-list .conversation-row:last-child { border-bottom: none; }
 .conversation-row-coach-avatar { background: var(--accent); color: var(--accent-ink); }
 .conversation-row-main { flex: 1; min-width: 0; }
 .conversation-row-name { font-weight: 600; font-size: var(--text-md); }
@@ -1130,7 +1149,7 @@ body.slip-bar-open .app-content {
 
 /* CoachHistorySheet.jsx's session list - .conversation-row on a <button>
    instead of a <Link>, since picking one switches state in place. */
-button.conversation-row { width: 100%; background: none; border: none; border-bottom: 1px solid var(--border); font: inherit; text-align: left; cursor: pointer; }
+button.conversation-row { width: 100%; font: inherit; text-align: left; cursor: pointer; }
 .conversation-row-active { background: rgba(var(--accent-rgb), 0.1); }
 
 /* Discover-groups row - .conversation-row's spacing/border, but a <div>
@@ -1140,19 +1159,17 @@ button.conversation-row { width: 100%; background: none; border: none; border-bo
 .discover-group-list {
   display: flex;
   flex-direction: column;
-  border: 1px solid var(--border);
-  border-radius: var(--radius-sharp);
-  overflow: hidden;
-  background: linear-gradient(180deg, var(--surface) 0%, var(--surface-2) 100%);
+  gap: var(--space-4);
 }
 .discover-group-row {
   display: flex;
   align-items: center;
   gap: var(--space-10);
   padding: var(--space-10) var(--space-12);
-  border-bottom: 1px solid var(--border);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--surface);
 }
-.discover-group-list .discover-group-row:last-child { border-bottom: none; }
 .discover-group-row-main { flex: 1; min-width: 0; }
 .discover-group-row-name { font-weight: 600; font-size: var(--text-md); display: flex; align-items: center; gap: var(--space-6); }
 .discover-group-row-meta { font-size: 0.8rem; color: var(--text-dim); }
@@ -1410,6 +1427,7 @@ button.conversation-row { width: 100%; background: none; border: none; border-bo
 #plus {
   border: 1px solid var(--accent-dim);
   border-radius: var(--radius-card);
+  box-shadow: var(--shadow-card);
   padding: var(--space-16);
   background: linear-gradient(180deg, rgba(var(--accent-rgb), 0.06) 0%, transparent 55%), var(--surface);
 }
@@ -1545,9 +1563,10 @@ button.conversation-row { width: 100%; background: none; border: none; border-bo
    in the same .race-list, but built from <details>/<summary> rather than
    an anchor since there's no separate page to link to. */
 .race-result-card {
-  border-bottom: 1px solid var(--border);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--surface);
 }
-.race-list .race-result-card:last-child { border-bottom: none; }
 .race-result-summary {
   display: flex;
   align-items: center;
@@ -1650,7 +1669,7 @@ button.conversation-row { width: 100%; background: none; border: none; border-bo
 /* Markets / outcomes (fixture detail) - a plain divided list, like a
    printed odds board, not stacked cards. */
 .market-block { margin-bottom: var(--space-14); }
-.market-title { font-size: 0.88rem; margin: 0 0 5px; }
+.market-title { font-size: var(--text-md); margin: 0 0 5px; }
 
 /* Collapsible market header (fixture/fight/event detail) - a market with
    a lot of outcomes (Anytime Goalscorer, Alternate Total Goals) used to
@@ -1677,17 +1696,16 @@ button.conversation-row { width: 100%; background: none; border: none; border-bo
 .outcome-list {
   display: flex;
   flex-direction: column;
-  border: 1px solid var(--border);
-  border-radius: var(--radius-sharp);
-  overflow: hidden;
-  background: linear-gradient(180deg, var(--surface) 0%, var(--surface-2) 100%);
+  gap: var(--space-4);
 }
 
 .outcome-row {
   display: flex;
   flex-direction: column;
-  background: transparent;
-  border-bottom: 1px solid var(--border);
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  overflow: hidden;
   color: var(--text);
   font-size: 0.88rem;
   width: 100%;
@@ -1760,7 +1778,6 @@ button.conversation-row { width: 100%; background: none; border: none; border-bo
 
 .outcome-alert-link { align-self: flex-end; }
 
-.outcome-list .outcome-row:last-child { border-bottom: none; }
 .outcome-row.is-selected,
 .runner-best-btn.is-selected {
   background: var(--surface-2);
@@ -1887,6 +1904,7 @@ button.conversation-row { width: 100%; background: none; border: none; border-bo
   margin: 0 auto;
   background: var(--surface);
   border-radius: 16px 16px var(--radius-flat) var(--radius-flat);
+  box-shadow: var(--shadow-modal);
   padding: var(--space-12) 18px max(18px, env(safe-area-inset-bottom, 0));
   display: flex;
   flex-direction: column;
@@ -1903,7 +1921,7 @@ button.conversation-row { width: 100%; background: none; border: none; border-bo
 @keyframes sheet-out { to { transform: translateY(24px); opacity: 0; } }
 
 .sheet-handle { width: 36px; height: 4px; background: var(--border); border-radius: var(--radius-sharp); margin: 0 auto; }
-.sheet-title { margin: 0; font-size: 1.1rem; }
+.sheet-title { margin: 0; font-size: var(--text-xl); }
 .sheet-actions { display: flex; flex-direction: column; gap: var(--space-8); }
 
 /* Sticky sheet header (used by the post composer) - keeps the title and the
@@ -2229,18 +2247,39 @@ button.conversation-row { width: 100%; background: none; border: none; border-bo
 .news-feed-title { font-size: 0.9rem; line-height: 1.35; }
 
 .group-chip-row { display: flex; gap: var(--space-8); overflow-x: auto; padding: var(--space-4) 0 var(--space-10); }
-/* Shape/tone now come from the chip base (chip chip--pill chip--outline
-   in the JSX) - full-brightness text (not the base's dim) and its own
-   font-size/padding stay local, since this is a nav link to a whole
-   group and needs to read more prominently than a small status tag. */
-.group-chip {
+/* Groups home's entry point into each group (Floodhouse redesign
+   installment 1) - a real card (avatar/initial, name, member count) rather
+   than a plain name-only pill, since this is a nav link into a whole group
+   and is the entry point to the app's core social feature. Narrower than
+   .rank-teaser's 220-260px (that's a wide icon+text+chevron row; this is a
+   compact vertical avatar/name/meta card, so a proportionate width instead
+   of the same number). */
+.group-card {
   flex-shrink: 0;
-  padding: var(--space-8) var(--space-16);
-  font-size: var(--text-base);
-  font-weight: 600;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-4);
+  text-align: center;
+  min-width: 130px;
+  max-width: 150px;
+  padding: var(--space-14) var(--space-10);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-card);
+  background: var(--surface);
+  box-shadow: var(--shadow-card);
   color: var(--text);
   text-decoration: none;
 }
+.group-card-name {
+  font-weight: 700;
+  font-size: var(--text-base);
+  max-width: 100%;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.group-card-meta { font-size: var(--text-xs); color: var(--text-dim); display: flex; align-items: center; gap: var(--space-4); }
 
 .friend-chip-btn { font-family: inherit; cursor: pointer; display: flex; align-items: center; gap: var(--space-4); }
 .friend-chip-vs { color: var(--accent); font-size: var(--text-xs); text-transform: uppercase; letter-spacing: 0.03em; }
@@ -2499,8 +2538,42 @@ button.conversation-row { width: 100%; background: none; border: none; border-bo
 .avatar-tier-gold { box-shadow: 0 0 0 2px var(--accent), 0 0 6px 1px rgba(var(--accent-rgb), 0.5); }
 .avatar-tier-diamond { box-shadow: 0 0 0 2px #7ec8e3, 0 0 8px 2px rgba(126, 200, 227, 0.6); }
 
-/* Leaderboard - a scoreboard, not stacked cards: one bordered panel, rows
-   divided by hairlines, rank + P&L set in tabular monospace. */
+/* Top-3 podium teaser (LeaderboardPodium.jsx) - a 3-up row of glanceable
+   cards above the full ranked list, gold/silver/bronze via the same
+   avatar-tier-* glow used for achievement flair elsewhere. Kept content-
+   light (avatar/name/one number) on purpose so 3 fit side by side even on a
+   narrow phone; the full list below still carries every rank in full
+   detail, this is only ever a teaser for it. */
+.leaderboard-podium {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: var(--space-8);
+  margin: var(--space-4) 0 var(--space-10);
+}
+.leaderboard-podium-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-4);
+  text-align: center;
+  min-width: 0;
+  padding: var(--space-12) var(--space-6);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-card);
+  background: var(--surface);
+  box-shadow: var(--shadow-card);
+  text-decoration: none;
+  color: inherit;
+}
+.leaderboard-podium-card--gold { border-color: var(--accent-dim); background: linear-gradient(180deg, rgba(var(--accent-rgb), 0.1) 0%, transparent 65%), var(--surface); }
+.leaderboard-podium-name { font-weight: 700; font-size: var(--text-sm); max-width: 100%; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.leaderboard-podium-value { font-family: var(--font-mono); font-variant-numeric: tabular-nums; font-weight: 700; font-size: var(--text-md); }
+.leaderboard-podium-value.tone-good { color: var(--accent); }
+.leaderboard-podium-value.tone-bad { color: var(--bad); }
+
+/* Leaderboard - the full ranked list below the podium teaser above: rows
+   are the quiet row-card idiom (see .tracker-row/.race-card etc.), rank +
+   P&L set in tabular monospace. */
 .leaderboard { margin: var(--space-12) 0; }
 .fixture-chat { margin: var(--space-16) 0; }
 
@@ -2628,22 +2701,20 @@ button.conversation-row { width: 100%; background: none; border: none; border-bo
 .leaderboard-list {
   display: flex;
   flex-direction: column;
+  gap: var(--space-4);
   margin-top: var(--space-2);
-  border: 1px solid var(--border);
-  border-radius: var(--radius-sharp);
-  overflow: hidden;
 }
 .leaderboard-row {
   display: flex;
   align-items: center;
   gap: var(--space-10);
   background: var(--surface);
-  border-bottom: 1px solid var(--border);
+  border: 1px solid var(--border);
   border-left: 3px solid transparent;
+  border-radius: var(--radius-md);
   padding: var(--space-8) var(--space-14) var(--space-8) 11px;
   font-size: var(--text-base);
 }
-.leaderboard-list .leaderboard-row:last-child { border-bottom: none; }
 
 /* Top row gets the same left-stripe treatment as a won bet or a settled
    tracker row - the app's one recurring signal for "this one's the good
@@ -2729,6 +2800,7 @@ button.conversation-row { width: 100%; background: none; border: none; border-bo
   background: var(--surface-2);
   border: 1px solid var(--border);
   border-radius: var(--radius-card);
+  box-shadow: var(--shadow-card);
   padding: var(--space-12) var(--space-14);
   display: flex;
   flex-direction: column;
@@ -3139,6 +3211,7 @@ button.conversation-row { width: 100%; background: none; border: none; border-bo
 .group-recap-card {
   border: 1px solid var(--border);
   border-radius: var(--radius-card);
+  box-shadow: var(--shadow-card);
   background: var(--surface);
   padding: var(--space-14);
   margin-bottom: var(--space-14);
@@ -3283,10 +3356,7 @@ button.conversation-row { width: 100%; background: none; border: none; border-bo
 .tracker-list {
   display: flex;
   flex-direction: column;
-  border: 1px solid var(--border);
-  border-radius: var(--radius-sharp);
-  overflow: hidden;
-  background: linear-gradient(180deg, var(--surface) 0%, var(--surface-2) 100%);
+  gap: var(--space-4);
 }
 /* Icon-led tracker row - Hall of Fame records and Insights facts both
    read as a plaque, not a bet-history line: the icon gets its own bordered
@@ -3311,12 +3381,12 @@ button.conversation-row { width: 100%; background: none; border: none; border-bo
   justify-content: space-between;
   align-items: center;
   gap: var(--space-10);
-  background: transparent;
-  border-bottom: 1px solid var(--border);
+  background: var(--surface);
+  border: 1px solid var(--border);
   border-left: 3px solid transparent;
+  border-radius: var(--radius-md);
   padding: var(--space-12) var(--space-14) var(--space-12) 11px;
 }
-.tracker-list .tracker-row:last-child { border-bottom: none; }
 
 /* Won/lost/void reads at a glance off the left edge, like a marker pen
    through a row on a paper results sheet - .tracker-row is shared well
@@ -3419,20 +3489,46 @@ button.conversation-row { width: 100%; background: none; border: none; border-bo
    below only apply inside this strip, folding both into one flex row. */
 .home-greeting-text { font-size: var(--text-2xl); margin: var(--space-6) 0 var(--space-10); text-wrap: balance; }
 
-.home-stats-strip {
+.home-stat-chips {
   display: flex;
-  align-items: stretch;
   gap: var(--space-8);
   overflow-x: auto;
-  margin: 0 0 var(--space-14);
+  margin: 0 0 var(--space-10);
   padding-bottom: var(--space-2);
   scrollbar-width: none;
   -webkit-overflow-scrolling: touch;
 }
-.home-stats-strip::-webkit-scrollbar { display: none; }
-.home-stats-strip > * { flex: 0 0 auto; }
-.home-stats-strip .rank-teaser { margin: 0; min-width: 220px; max-width: 260px; }
-.home-stats-strip .home-highlights { display: contents; }
+.home-stat-chips::-webkit-scrollbar { display: none; }
+.home-stat-chips > * { flex: 0 0 auto; }
+
+/* Home's bento row (Floodhouse redesign installment 1) - RankTeaser and
+   HomeHighlights used to sit in the same horizontal-scroll strip as the
+   streak chips above; now they get their own small grid of richer cards
+   below the chips, each on --radius-card/--shadow-card so the app's most-
+   visited screen has a real hero moment instead of everything reading as
+   one flat row of pills. RankTeaser spans the full row (it's wide content -
+   rank, group name, context text - that doesn't shrink well into a narrow
+   cell); HomeHighlights' own cards escape into the same grid via
+   display: contents, same trick the old strip used. */
+.home-bento {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: var(--space-8);
+  margin: 0 0 var(--space-14);
+}
+.home-bento .rank-teaser {
+  grid-column: 1 / -1;
+  margin: 0;
+  border-radius: var(--radius-card);
+  box-shadow: var(--shadow-card);
+}
+.home-bento .home-highlights { display: contents; }
+.home-bento .home-highlight-card {
+  min-width: 0;
+  max-width: none;
+  border-radius: var(--radius-card);
+  box-shadow: var(--shadow-card);
+}
 
 /* Now a pure chip composition (chip chip--pill chip--md chip--filled-
    accent in the JSX) - no unique CSS left. */
@@ -3563,7 +3659,7 @@ button.conversation-row { width: 100%; background: none; border: none; border-bo
 }
 .account-group-toggle:hover { color: var(--accent); }
 .account-group-body .account-section:first-child { margin-top: var(--space-4); }
-.account-name { font-weight: 700; font-size: 1.1rem; }
+.account-name { font-weight: 700; font-size: var(--text-lg); }
 .account-identity { display: flex; align-items: center; gap: var(--space-12); }
 .profile-identity-row { display: flex; align-items: center; justify-content: space-between; gap: var(--space-12); }
 .account-name-row { display: flex; align-items: center; gap: var(--space-8); }
@@ -3640,7 +3736,7 @@ button.conversation-row { width: 100%; background: none; border: none; border-bo
   margin-bottom: var(--space-8);
   background: linear-gradient(180deg, var(--surface) 0%, var(--surface-2) 100%);
 }
-.account-hero .account-name { font-size: 1.25rem; }
+.account-hero .account-name { font-size: var(--text-xl); }
 .account-hero-hint { margin-bottom: var(--space-10); }
 .account-mono { font-family: var(--font-mono); }
 
@@ -3776,19 +3872,14 @@ button.conversation-row { width: 100%; background: none; border: none; border-bo
   border-top: 1px dashed var(--border);
 }
 
-/* Race / fixture / fight list - one bordered panel, rows divided by
-   hairlines, like a results sheet rather than a stack of cards. The subtle
-   top-to-bottom gradient lives on the panel, not each row, so the whole
-   sheet reads as one continuous surface with a little depth instead of a
-   flat fill - rows themselves stay transparent so it isn't a repeating
-   banded pattern. */
+/* Race / fixture / fight list - quiet row-card idiom (Floodhouse redesign
+   installment 1): each row is its own small bordered/rounded card with a
+   gap between rows, rather than the old single bordered panel divided by
+   hairlines. */
 .race-list {
   display: flex;
   flex-direction: column;
-  border: 1px solid var(--border);
-  border-radius: var(--radius-sharp);
-  overflow: hidden;
-  background: linear-gradient(180deg, var(--surface) 0%, var(--surface-2) 100%);
+  gap: var(--space-4);
 }
 
 /* Each row reads as a torn ticket stub: time and price sit in their own
@@ -3797,14 +3888,14 @@ button.conversation-row { width: 100%; background: none; border: none; border-bo
 .race-card {
   display: flex;
   align-items: stretch;
-  background: transparent;
-  border-bottom: 1px solid var(--border);
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  overflow: hidden;
   text-decoration: none;
   color: var(--text);
   transition: background-color 0.15s ease;
 }
-
-.race-list .race-card:last-child { border-bottom: none; }
 
 a.race-card:hover, a.race-card:focus-visible { background: rgba(var(--accent-rgb), 0.07); }
 
@@ -4243,14 +4334,12 @@ a.race-card:hover, a.race-card:focus-visible { background: rgba(var(--accent-rgb
    so the desktop breakpoints below still win where they apply.
    ============================================================ */
 
-/* Depth + crisper edges on the grouped "sheet" surfaces, so lists read
-   as one defined panel lifting off the background rather than a flat
-   block that blends into it. */
-.race-list,
-.outcome-list,
-.stat-tiles,
-.conversation-list {
-  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.28), 0 6px 18px rgba(0, 0, 0, 0.18);
+/* .stat-tiles is still a single bordered grid panel (unaffected by the
+   quiet row-card idiom above, which only applies to row lists) - keep its
+   lift. .race-list/.outcome-list/.conversation-list moved their depth onto
+   each row's own border instead of a shared wrapper panel. */
+.stat-tiles {
+  box-shadow: var(--shadow-card);
 }
 
 /* Bottom nav gets a real separation from the content scrolling under it. */
@@ -4323,11 +4412,11 @@ a.btn,
    as a value cue (like the per-outcome badge) but framed as its own panel. */
 .value-finder {
   border: 1px solid var(--accent-dim);
-  border-radius: var(--radius-lg);
+  border-radius: var(--radius-card);
   overflow: hidden;
   margin: var(--space-4) 0 var(--space-12);
   background: linear-gradient(180deg, rgba(var(--accent-rgb), 0.08) 0%, transparent 60%), var(--surface);
-  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.28), 0 6px 18px rgba(0, 0, 0, 0.18);
+  box-shadow: var(--shadow-card);
 }
 .value-finder-head {
   display: flex;
@@ -4369,11 +4458,11 @@ a.btn,
 .horse-of-the-day {
   display: block;
   border: 1px solid var(--accent-dim);
-  border-radius: var(--radius-lg);
+  border-radius: var(--radius-card);
   margin: var(--space-4) 0 var(--space-12);
   padding: var(--space-10) var(--space-12);
   background: linear-gradient(180deg, rgba(var(--accent-rgb), 0.08) 0%, transparent 60%), var(--surface);
-  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.28), 0 6px 18px rgba(0, 0, 0, 0.18);
+  box-shadow: var(--shadow-card);
   text-decoration: none;
   color: inherit;
 }
@@ -4393,13 +4482,14 @@ a.btn,
   gap: var(--space-10);
   padding: var(--space-10) var(--space-12);
   border: 1px solid var(--border);
-  border-radius: var(--radius-lg);
+  border-radius: var(--radius-md);
   background: var(--surface);
-  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.24);
 }
 .tipster-row-top {
   border-color: var(--accent-dim);
+  border-radius: var(--radius-card);
   background: linear-gradient(180deg, rgba(var(--accent-rgb), 0.08) 0%, transparent 60%), var(--surface);
+  box-shadow: var(--shadow-card);
 }
 .tipster-row .leaderboard-rank { font-family: var(--font-mono); font-weight: 700; color: var(--text-dim); min-width: 24px; }
 .tipster-row-top .leaderboard-rank { color: var(--accent); }
@@ -4430,7 +4520,7 @@ a.btn,
   padding: var(--space-14) var(--space-16);
   margin: var(--space-14) 0;
   background: linear-gradient(180deg, rgba(var(--accent-rgb), 0.07) 0%, transparent 55%), var(--surface);
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.28);
+  box-shadow: var(--shadow-card);
 }
 .coach-card-head { display: flex; align-items: center; gap: var(--space-8); margin-bottom: var(--space-8); }
 .coach-card-badge { font-size: 1.05rem; line-height: 1; }
@@ -4514,6 +4604,7 @@ a.btn,
   position: relative;
   border: 1px solid var(--accent-dim);
   border-radius: var(--radius-card);
+  box-shadow: var(--shadow-card);
   padding: var(--space-14) var(--space-16);
   margin: var(--space-12) 0;
   background: linear-gradient(180deg, rgba(var(--accent-rgb), 0.08) 0%, transparent 60%), var(--surface);
@@ -4566,7 +4657,7 @@ a.btn,
   background: var(--surface);
   border: 1px solid var(--border);
   border-radius: var(--radius-lg);
-  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.35);
+  box-shadow: var(--shadow-float);
   padding: var(--space-14) var(--space-16);
   display: flex;
   flex-direction: column;

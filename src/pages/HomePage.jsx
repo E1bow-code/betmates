@@ -91,20 +91,28 @@ export default function HomePage() {
       </h1>
 
       {hasStatsStrip && (
-        <div className="home-stats-strip">
-          {streak.count >= 2 && (
-            <span className="chip chip--pill chip--md chip--filled-accent home-stat-chip">
-              {streak.type === 'won' ? <FlameIcon /> : <SnowflakeIcon />} {streak.count}-{streak.type === 'won' ? 'win' : 'loss'} streak
-            </span>
+        <>
+          {(streak.count >= 2 || user.streakCurrentCount >= 1) && (
+            <div className="home-stat-chips">
+              {streak.count >= 2 && (
+                <span className="chip chip--pill chip--md chip--filled-accent home-stat-chip">
+                  {streak.type === 'won' ? <FlameIcon /> : <SnowflakeIcon />} {streak.count}-{streak.type === 'won' ? 'win' : 'loss'} streak
+                </span>
+              )}
+              {user.streakCurrentCount >= 1 && (
+                <span className="chip chip--pill chip--md chip--filled-accent home-stat-chip">
+                  <CalendarIcon /> {user.streakCurrentCount}-day streak{!loggedToday && ' · log today'}
+                </span>
+              )}
+            </div>
           )}
-          {user.streakCurrentCount >= 1 && (
-            <span className="chip chip--pill chip--md chip--filled-accent home-stat-chip">
-              <CalendarIcon /> {user.streakCurrentCount}-day streak{!loggedToday && ' · log today'}
-            </span>
+          {(rankTeaser || highlights.length > 0) && (
+            <div className="home-bento">
+              {rankTeaser && <RankTeaser {...rankTeaser} />}
+              <HomeHighlights highlights={highlights} />
+            </div>
           )}
-          {rankTeaser && <RankTeaser {...rankTeaser} />}
-          <HomeHighlights highlights={highlights} />
-        </div>
+        </>
       )}
 
       {entries && <HomeInviteNudge user={user} entryCount={entries.length} />}

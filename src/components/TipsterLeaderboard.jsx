@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import Avatar from './Avatar.jsx'
 import UserLink from './UserLink.jsx'
 import EmptyState from './EmptyState.jsx'
+import LeaderboardPodium from './LeaderboardPodium.jsx'
 import * as dataStore from '../lib/dataStore.js'
 import { LEADERBOARD_WINDOWS } from '../utils/dateWindows.js'
 import { MIN_SETTLED_TO_RANK } from '../utils/tipsters.js'
@@ -71,6 +72,17 @@ export default function TipsterLeaderboard({ rows, window, onWindowChange, curre
           icon={<TargetIcon width={26} height={26} />}
           title="No ranked tipsters yet"
           subtitle={`Post picks publicly and settle at least ${MIN_SETTLED_TO_RANK} to make the board.`}
+        />
+      )}
+
+      {rows && rows.length > 0 && (
+        <LeaderboardPodium
+          entries={rows.slice(0, 3).map((row) => ({
+            userId: row.userId,
+            name: row.name,
+            value: `${row.roi >= 0 ? '+' : ''}${row.roi}%`,
+            tone: row.roi >= 0 ? 'good' : 'bad'
+          }))}
         />
       )}
 
