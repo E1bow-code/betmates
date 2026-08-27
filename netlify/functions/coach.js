@@ -39,7 +39,7 @@ const route = OMNIROUTE_BASE_URL ? { baseUrl: OMNIROUTE_BASE_URL, modelPrefix: p
 // case below, not to meter normal use the way coachgpt.js's
 // FREE_MONTHLY_MESSAGE_LIMIT does - hence a daily count, not monthly, and a
 // much higher number.
-const DAILY_FREE_TAKE_LIMIT = 50
+const DAILY_FREE_TAKE_LIMIT = 30
 
 function json(body, status = 200) {
   return new Response(JSON.stringify(body), {

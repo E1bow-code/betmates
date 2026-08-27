@@ -1933,6 +1933,10 @@ button.conversation-row { width: 100%; font: inherit; text-align: left; cursor: 
 
 .first-run-log-bet { display: flex; justify-content: center; padding: var(--space-20) 0; }
 
+/* First-run "get your mates in" step - create/join a group and share the invite */
+.first-run-group { display: flex; flex-direction: column; gap: var(--space-14); margin: var(--space-14) 0; }
+.first-run-group-ready { display: flex; flex-direction: column; gap: var(--space-10); margin: var(--space-14) 0; }
+
 /* Bet builder sheet */
 .sheet-backdrop {
   position: fixed;

@@ -77,7 +77,9 @@ export default function LegalPage() {
           </p>
           <p>
             <strong>Where it lives.</strong> Data is stored with Supabase, our database and authentication
-            provider. We don't sell data, and there's no third-party analytics or ad tracking built into the app.
+            provider. We don't sell data, and there's no ad tracking. We use privacy-focused product analytics
+            (PostHog) to understand how the app is used - but only if you accept analytics cookies in the
+            consent banner. Decline, and no analytics load at all.
           </p>
           <p>
             <strong>On your device.</strong> A few preferences - theme, whether you've seen the onboarding tour,

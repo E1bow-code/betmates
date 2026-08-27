@@ -3,6 +3,7 @@ import * as dataStore from '../lib/dataStore.js'
 import { useAuth } from '../context/AuthContext.jsx'
 import { useAsyncAction } from '../lib/useAsyncAction.js'
 import { BOOKMAKERS } from '../lib/bookmakers.js'
+import { shareOrCopy, groupInviteUrl } from '../lib/share.js'
 import ManualEntrySheet from './ManualEntrySheet.jsx'
 import { CelebrateIcon, StarIcon } from './icons/Icons.jsx'
 
@@ -28,6 +29,7 @@ const STARTER_TEAMS = [
 ]
 
 const STEPS = [
+  { title: 'Get your mates in', body: "BetMates is a competition - it's no fun solo. Start a group and share the link, or join a mate's with their code." },
   { title: 'Follow your teams', body: "Pick a few - they'll show up under \"My teams only\" on the Odds tab." },
   { title: 'Add your bookmakers', body: 'Filters the odds board down to accounts you actually hold, and speeds up Copy Bet.' },
   { title: 'Log your first bet', body: "One from a screenshot, a bet slip, or just typed in - whatever you've already got on." }
@@ -49,6 +51,12 @@ export default function FirstRunWizard({ onDone }) {
   const [loadingFollows, setLoadingFollows] = useState(true)
   const [showManualEntry, setShowManualEntry] = useState(false)
   const [firstBetLogged, setFirstBetLogged] = useState(false)
+  // Group step: the group the user has just created/joined (or already had),
+  // so we can show its invite link to share with mates from minute one.
+  const [myGroup, setMyGroup] = useState(null)
+  const [groupName, setGroupName] = useState('')
+  const [joinCode, setJoinCode] = useState('')
+  const [inviteCopied, setInviteCopied] = useState(false)
 
   useEffect(() => {
     let cancelled = false
@@ -57,10 +65,54 @@ export default function FirstRunWizard({ onDone }) {
       setFollowedTeams(new Set(list.filter((p) => p.sport === 'football').map((p) => p.name)))
       setLoadingFollows(false)
     })
+    // If they already belong to a group, surface its invite link straight away.
+    dataStore.listMyGroups(user.id).then((groups) => {
+      if (cancelled || !groups || !groups.length) return
+      setMyGroup(groups[0])
+    })
     return () => {
       cancelled = true
     }
   }, [user.id])
+
+  async function createGroup() {
+    const name = groupName.trim()
+    if (!name) return
+    let created = null
+    const ok = await runAsync(async () => {
+      created = await dataStore.createGroup(name, user.id)
+    }, "Couldn't create the group - try again")
+    if (ok && created) {
+      setMyGroup(created)
+      setGroupName('')
+    }
+  }
+
+  async function joinGroup() {
+    const code = joinCode.trim()
+    if (!code) return
+    let joined = null
+    const ok = await runAsync(async () => {
+      joined = await dataStore.joinGroupByCode(code, user.id)
+    }, "Couldn't find a group with that code - check it and try again")
+    if (ok && joined) {
+      setMyGroup(joined)
+      setJoinCode('')
+    }
+  }
+
+  async function shareInvite() {
+    if (!myGroup?.inviteCode) return
+    const result = await shareOrCopy({
+      title: `Join "${myGroup.name}" on BetMates`,
+      text: `Join my group "${myGroup.name}" on BetMates`,
+      url: groupInviteUrl(myGroup.inviteCode)
+    })
+    if (result === 'copied') {
+      setInviteCopied(true)
+      setTimeout(() => setInviteCopied(false), 2000)
+    }
+  }
 
   // Optimistic: flips the chip immediately rather than waiting on the
   // follow/unfollow round-trip, then reverts if it turns out to have
@@ -112,7 +164,52 @@ export default function FirstRunWizard({ onDone }) {
 
         <p className="hint">{STEPS[step].body}</p>
 
-        {step === 0 && (
+        {step === 0 &&
+          (myGroup ? (
+            <div className="first-run-group-ready">
+              <p className="tone-good icon-row">
+                You&apos;re in <strong>{myGroup.name}</strong>. Now get your mates in <CelebrateIcon width={16} height={16} />
+              </p>
+              <div className="manage-list">
+                <div className="manage-list-row">
+                  <span>Invite code</span>
+                  <span className="manage-list-code">{myGroup.inviteCode}</span>
+                  <button className="btn btn-primary btn-small" type="button" onClick={shareInvite}>
+                    Share link
+                  </button>
+                </div>
+              </div>
+              {inviteCopied && <div className="hint">Invite link copied - drop it in your group chat.</div>}
+            </div>
+          ) : (
+            <div className="first-run-group">
+              <div className="field">
+                <span>Start a group</span>
+                <div className="inline-form">
+                  <input
+                    placeholder="What should we call it? (e.g. The Lads)"
+                    value={groupName}
+                    onChange={(e) => setGroupName(e.target.value)}
+                    maxLength={40}
+                  />
+                  <button className="btn btn-primary" type="button" onClick={createGroup} disabled={!groupName.trim()}>
+                    Create
+                  </button>
+                </div>
+              </div>
+              <div className="field">
+                <span>Or join a mate&apos;s with their code</span>
+                <div className="inline-form">
+                  <input placeholder="Invite code" value={joinCode} onChange={(e) => setJoinCode(e.target.value.toUpperCase())} maxLength={8} />
+                  <button className="btn btn-ghost" type="button" onClick={joinGroup} disabled={!joinCode.trim()}>
+                    Join
+                  </button>
+                </div>
+              </div>
+            </div>
+          ))}
+
+        {step === 1 && (
           <div className="first-run-chip-grid">
             {loadingFollows
               ? null
@@ -129,7 +226,7 @@ export default function FirstRunWizard({ onDone }) {
           </div>
         )}
 
-        {step === 1 && (
+        {step === 2 && (
           <div className="first-run-chip-grid">
             {BOOKMAKERS.map((name) => (
               <button
@@ -144,7 +241,7 @@ export default function FirstRunWizard({ onDone }) {
           </div>
         )}
 
-        {step === 2 && (
+        {step === 3 && (
           <div className="first-run-log-bet">
             {firstBetLogged ? (
               <p className="tone-good icon-row">
