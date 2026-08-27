@@ -166,15 +166,23 @@ export default async (req) => {
     // not be able to swap out the hardcoded betActivity check for
     // whichever pref happens to favour them - reaction/comment pushes on
     // someone else's bet always respect that one specific opt-out,
-    // full stop. `gate` itself is also constrained to the one key a
-    // legitimate caller actually sends (notify.js's notifyGroup/
-    // notifyFollowers), rather than trusting an arbitrary caller-supplied
-    // string as a notification_prefs property name.
-    const ALLOWED_GATES = new Set(['betPosted'])
+    // full stop. `gate` itself is also constrained to the specific keys a
+    // legitimate caller actually sends (notify.js's notifyGroup passes
+    // 'betPosted' or 'groupChat', notifyFollowers passes 'betPosted'),
+    // rather than trusting an arbitrary caller-supplied string as a
+    // notification_prefs property name.
+    // Each gate's default when the pref key is absent (a profile that
+    // predates the toggle, or one that's never touched it) - false means
+    // opt-in (only send once someone's explicitly turned it on), true
+    // means opt-out (send unless explicitly turned off), same "don't
+    // silently mute something everyone already expects" reasoning
+    // betActivity above uses for reactions/comments.
+    const GATE_DEFAULTS = { betPosted: false, groupChat: true }
     if (authorId) {
       targetUserIds = await optedIn(targetUserIds, (prefs) => prefs?.betActivity !== false)
-    } else if (gate && ALLOWED_GATES.has(gate)) {
-      targetUserIds = await optedIn(targetUserIds, (prefs) => prefs?.[gate] === true)
+    } else if (gate && gate in GATE_DEFAULTS) {
+      const defaultOn = GATE_DEFAULTS[gate]
+      targetUserIds = await optedIn(targetUserIds, (prefs) => (prefs?.[gate] ?? defaultOn) === true)
     }
     if (!targetUserIds.length) return new Response(JSON.stringify({ sent: 0 }), { status: 200 })
 

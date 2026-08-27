@@ -16,6 +16,7 @@ import GoProSheet from '../components/GoProSheet.jsx'
 import ReferralTierBadge from '../components/ReferralTierBadge.jsx'
 import EmptyState from '../components/EmptyState.jsx'
 import { shareOrCopy, groupInviteUrl } from '../lib/share.js'
+import { notifyGroup } from '../lib/notify.js'
 import { useAsyncAction } from '../lib/useAsyncAction.js'
 import PullToRefresh from '../components/PullToRefresh.jsx'
 import SportHeroBanner from '../components/SportHeroBanner.jsx'
@@ -263,6 +264,19 @@ export default function GroupFeedPage() {
     if (!ok) return
     setMessages((m) => [...(m ?? []), message])
     setMessageBody('')
+    // Gated on 'groupChat' (opt-out, defaults on) rather than sent
+    // unconditionally like DirectMessagePage's notifyFriend - a group chat
+    // can get busy with several people talking at once, unlike a 1:1 DM.
+    notifyGroup(
+      id,
+      {
+        title: `${user.displayName} messaged in ${group?.name ?? 'the group'}`,
+        body,
+        url: `/#/groups/${id}`
+      },
+      user.id,
+      'groupChat'
+    )
   }
 
   return (

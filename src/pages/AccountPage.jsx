@@ -31,7 +31,7 @@ const TIER_ICON = { handshake: HandshakeIcon, megaphone: MegaphoneIcon, target: 
 // since it went to everyone before this toggle existed (see
 // send-push.js). Only list defaults that AREN'T false here; toggleNotification
 // and the checkbox below both read from this so they can't drift apart.
-const NOTIFICATION_PREF_DEFAULTS = { betActivity: true }
+const NOTIFICATION_PREF_DEFAULTS = { betActivity: true, groupChat: true }
 
 const EXPANDED_KEY = 'betmates:accountExpanded'
 
@@ -673,6 +673,20 @@ export default function AccountPage() {
               onChange={() => toggleNotification('betActivity')}
             />
             <span>Reactions and comments on your bets</span>
+          </label>
+          <label className="field-check">
+            {/* Also defaults to true - same "don't silently mute something
+                everyone already expects" reasoning as betActivity above.
+                Direct messages (a friend messaging you) have no toggle at
+                all - always sent, treated as transactional - but a group
+                chat can get busy with several people talking at once, so
+                this one's a real opt-out rather than always-on. */}
+            <input
+              type="checkbox"
+              checked={user.notificationPrefs?.groupChat ?? NOTIFICATION_PREF_DEFAULTS.groupChat}
+              onChange={() => toggleNotification('groupChat')}
+            />
+            <span>Group chat messages</span>
           </label>
           <label className="field-check">
             <input type="checkbox" checked={user.notificationPrefs?.betSettled ?? false} onChange={() => toggleNotification('betSettled')} />

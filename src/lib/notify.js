@@ -5,10 +5,12 @@ import { supabase, isSupabaseConfigured } from './supabaseClient.js'
 // bet. Local (no-Supabase) mode has no server to send from, so this is a
 // no-op there.
 //
-// `gate` names a notification_prefs key send-push.js should require to be
-// true before notifying a given member - pass 'betPosted' for an actual
-// bet-post announcement (see BetBuilderSheet.jsx), or omit it for a
-// group event that isn't a bet post (a tournament starting, say) so it
+// `gate` names a notification_prefs key send-push.js should check before
+// notifying a given member - pass 'betPosted' for an actual bet-post
+// announcement (see BetBuilderSheet.jsx) or 'groupChat' for a chat message
+// (see GroupFeedPage.jsx's handleSend); each gate has its own opt-in/
+// opt-out default in send-push.js's GATE_DEFAULTS. Omit `gate` for a group
+// event that isn't covered by either (a tournament starting, say) so it
 // stays ungated rather than silently inheriting someone else's toggle.
 export async function notifyGroup(groupId, { title, body, url }, excludeUserId, gate) {
   if (!isSupabaseConfigured) return
