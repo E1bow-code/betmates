@@ -25,6 +25,7 @@
 // set up with.
 import { createClient } from '@supabase/supabase-js'
 import { requestCoachTake } from '../../src/lib/coach.js'
+import { withinLlmBudget } from '../../src/lib/llmBudget.js'
 
 const SUPABASE_URL = process.env.VITE_SUPABASE_URL
 const ANON_KEY = process.env.VITE_SUPABASE_ANON_KEY
@@ -117,10 +118,19 @@ export default async (req) => {
     if (await isOverDailyLimit(userClient, userId)) return json({ configured: true, take: null, limited: true })
   }
 
+  // Global daily spend breaker - a soft ceiling across ALL users on top of the
+  // per-user isOverDailyLimit above, so a runaway can't run the bill unbounded.
+  // Checked only once we're past the per-user + worth-coaching gates, i.e. right
+  // where a real model call is about to happen. Fails open (see llmBudget.js).
+  async function underBudget() {
+    return withinLlmBudget(userClient, 1)
+  }
+
   // Bet review - only settled bets are worth a reaction; an open bet has no
   // outcome to react to.
   if (body?.bet) {
     if (!body.bet.status || body.bet.status === 'open') return json({ configured: true, take: null })
+    if (!(await underBudget())) return json({ configured: true, take: null, limited: true })
     const take = await requestCoachTake({ bet: body.bet, apiKey, style: 'bet', route })
     if (take) await logTake(userClient, userId)
     return json({ configured: true, take })
@@ -130,6 +140,7 @@ export default async (req) => {
   // to say, same "don't spend a token on nothing" rule as the other styles.
   if (body?.recap) {
     if (!(body.recap.settledCount >= 1)) return json({ configured: true, take: null })
+    if (!(await underBudget())) return json({ configured: true, take: null, limited: true })
     const take = await requestCoachTake({ recap: body.recap, apiKey, style: 'group', route })
     if (take) await logTake(userClient, userId)
     return json({ configured: true, take })
@@ -140,6 +151,7 @@ export default async (req) => {
   // on "not enough data" - the UI gates on this too.
   if (!(body?.summary?.settled >= 2)) return json({ configured: true, take: null })
 
+  if (!(await underBudget())) return json({ configured: true, take: null, limited: true })
   const take = await requestCoachTake({ summary: body.summary, apiKey, style: 'full', route })
   if (take) await logTake(userClient, userId)
   return json({ configured: true, take })
