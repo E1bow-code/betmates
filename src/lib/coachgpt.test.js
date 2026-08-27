@@ -143,6 +143,29 @@ test('a personal-record question runs get_my_record then answers from it', async
   assert.equal(res.error, null)
 })
 
+test('get_team_form is offered to the model, requiring a team', () => {
+  const tool = COACHGPT_TOOLS.find((t) => t.name === 'get_team_form')
+  assert.ok(tool, 'get_team_form should be in COACHGPT_TOOLS')
+  assert.deepEqual(tool.input_schema.required, ['team'])
+})
+
+test('a "how are they doing" question runs get_team_form then answers from it', async () => {
+  stubFetch([
+    toolReply('get_team_form', { team: 'Arsenal' }),
+    textReply('Arsenal are flying - won 2 of their last 3, champ.'),
+    lockReply(false)
+  ])
+  let toolCalledWith = null
+  const callTool = async (name, input) => {
+    toolCalledWith = { name, input }
+    return { available: true, team: 'Arsenal', played: 3, won: 2, drawn: 0, lost: 1 }
+  }
+  const res = await runCoachGptTurn({ apiKey: 'k', history: [], message: 'how are arsenal doing?', callTool })
+  assert.deepEqual(toolCalledWith, { name: 'get_team_form', input: { team: 'Arsenal' } })
+  assert.equal(res.text, 'Arsenal are flying - won 2 of their last 3, champ.')
+  assert.equal(res.error, null)
+})
+
 test('get_coach_record is offered to the model as a tool', () => {
   const record = COACHGPT_TOOLS.find((t) => t.name === 'get_coach_record')
   assert.ok(record, 'get_coach_record should be in COACHGPT_TOOLS')
