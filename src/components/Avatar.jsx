@@ -1,6 +1,6 @@
-// Cool/energetic set to match the Floodhouse palette in style.css, rather
+// Electric/night set to match the Photo Finish palette in style.css, rather
 // than the default-Tailwind rainbow every AI-generated avatar picker uses.
-const PALETTE = ['#baff29', '#ef5b4e', '#3fb8af', '#4f8ed9', '#c77dd8', '#e8b34c', '#6bcf7f', '#ff8f5e']
+const PALETTE = ['#ff3d7f', '#3de0c9', '#4f8ed9', '#c77dd8', '#e8b34c', '#6bcf7f', '#ff8a3d', '#7d5fff']
 
 function colorFor(name) {
   let hash = 0

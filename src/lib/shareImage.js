@@ -8,12 +8,14 @@
 // happens to have set for their own browsing.
 
 const COLORS = {
-  bg: '#0e1a13',
-  surface: '#152820',
-  border: '#33503f',
-  text: '#eef2ec',
-  textDim: '#8fa696',
-  accent: '#baff29'
+  bg: '#0a0a0d',
+  surface: '#16161c',
+  border: '#322f3d',
+  text: '#f3f0f5',
+  textDim: '#8f8b9c',
+  accent: '#ff3d7f',
+  good: '#3de0c9',
+  bad: '#ff8a3d'
 }
 
 const WIDTH = 640
@@ -217,7 +219,7 @@ export async function renderLeaderboardImage({ name, rank, profit, winRate, roi,
   y += 20
 
   y += 60
-  ctx.fillStyle = good ? COLORS.accent : '#ef5b4e'
+  ctx.fillStyle = good ? COLORS.good : COLORS.bad
   ctx.font = '800 48px "IBM Plex Mono", monospace'
   ctx.textAlign = 'left'
   ctx.fillText(`${good ? '+' : ''}£${profit.toFixed(2)}`, padding, y)
@@ -280,7 +282,7 @@ export async function renderRecapImage({ rows, periodLabel }) {
     ctx.font = '600 13px "IBM Plex Mono", monospace'
     ctx.textAlign = 'left'
     ctx.fillText(row.label.toUpperCase(), padding, y)
-    ctx.fillStyle = row.tone === 'good' ? COLORS.accent : row.tone === 'bad' ? '#ef5b4e' : COLORS.text
+    ctx.fillStyle = row.tone === 'good' ? COLORS.good : row.tone === 'bad' ? COLORS.bad : COLORS.text
     ctx.font = '700 17px "IBM Plex Mono", monospace'
     ctx.textAlign = 'right'
     ctx.fillText(row.value, WIDTH - padding, y)
@@ -450,7 +452,7 @@ function drawChallengeColumn(ctx, { x, width, y, name, value, isWinner }) {
   ctx.fillStyle = COLORS.text
   ctx.font = '600 20px "IBM Plex Sans", sans-serif'
   ctx.fillText(name, cx, y + 16)
-  ctx.fillStyle = isWinner ? COLORS.accent : COLORS.textDim
+  ctx.fillStyle = isWinner ? COLORS.good : COLORS.textDim
   ctx.font = '800 36px "IBM Plex Mono", monospace'
   ctx.fillText(value, cx, y + 68)
   ctx.textAlign = 'left'

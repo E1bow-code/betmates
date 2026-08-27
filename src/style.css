@@ -1,17 +1,20 @@
-/* Floodhouse palette: a deep, cool pine-green ground (not the old warm
-   espresso-brown, not a generic navy-black either) with an LED-lime accent
-   for prices/CTAs/wins - the stadium-floodlight-at-night energy of a real
-   sportsbook app, not a paper betting-slip. Numbers get their own display
-   and mono faces (Big Shoulders Display / IBM Plex Sans / IBM Plex Mono -
-   see --font-display/--font-body/--font-mono below) in place of the old
-   Georgia serif + system-sans pairing.
+/* Photo Finish palette: true near-black (not the old pine-green-black)
+   with a hot magenta accent for prices/CTAs/brand chrome - scoreboard-
+   flash-at-the-line energy. Deliberately not another green-or-blue
+   sportsbook (Bet365, DraftKings, FanDuel all live there) - magenta is
+   the one competitors don't own. "Won/positive" gets its own --good
+   (a cyan-teal, not magenta) so win/loss stays instantly scannable -
+   reusing the brand accent for both "tap this" and "you won this" would
+   have collapsed two different signals into one color. Numbers keep
+   their own display and mono faces (Big Shoulders Display / IBM Plex
+   Sans / IBM Plex Mono - see --font-display/--font-body/--font-mono
+   below).
 
-   Layout language (revised for the rounded-card feed pass): the feed -
-   bet posts, the nested bet-slip "ticket" inside each post, status pills,
-   segmented tabs, the primary Copy Bet action - is soft and pill-first,
-   closer to a consumer social app than the old sharp-cornered-slip look.
-   That treatment is scoped to the feed/nav surfaces, not applied blanket
-   app-wide:
+   Layout language (unchanged by the repaint): the feed - bet posts, the
+   nested bet-slip "ticket" inside each post, status pills, segmented
+   tabs, the primary Copy Bet action - is soft and pill-first, closer to
+   a consumer social app than a sharp-cornered-slip look. That treatment
+   is scoped to the feed/nav surfaces, not applied blanket app-wide:
    - listings (fixtures, races, fights, tracker rows) stay a single
      divided list, like a results sheet - not stacked boxed cards
    - leaderboard and stats stay a scoreboard: monospace tabular numbers,
@@ -19,28 +22,32 @@
    - sheets/forms keep their existing moderate-radius buttons - only the
      feed card and its action row went fully pill/rounded */
 :root {
-  --bg: #0e1a13;
-  --bg-rgb: 14, 26, 19;
-  --surface: #152820;
-  --surface-2: #1d3428;
-  --border: #33503f; /* lifted brighter than --surface-2 for crisp edge definition on cards/lists */
-  --text: #eef2ec;
-  --text-dim: #8fa696;
-  --accent: #baff29; /* LED-lime - floodlit-pitch pop against the cool pine ground */
-  --accent-rgb: 186, 255, 41;
-  --accent-dim: #94cc1f;
-  --accent-ink: #0e1a13;
-  --bad: #ef5b4e;
-  --bad-rgb: 239, 91, 78;
-  --bad-dim: #c94a3f;
+  --bg: #0a0a0d;
+  --bg-rgb: 10, 10, 13;
+  --surface: #16161c;
+  --surface-2: #1e1e26;
+  --border: #322f3d; /* lifted brighter than --surface-2 for crisp edge definition on cards/lists */
+  --text: #f3f0f5;
+  --text-dim: #8f8b9c;
+  --accent: #ff3d7f; /* hot magenta - the scoreboard-flash brand color, prices/CTAs/chrome */
+  --accent-rgb: 255, 61, 127;
+  --accent-dim: #d1315f;
+  --accent-ink: #0a0a0d;
+  /* Positive/won - deliberately NOT --accent (see palette comment above).
+     A cool cyan-teal reads as "good" the way green traditionally does,
+     without collapsing into the brand's own magenta. */
+  --good: #3de0c9;
+  --good-rgb: 61, 224, 201;
+  --good-dim: #2bb39f;
+  --bad: #ff8a3d;
+  --bad-rgb: 255, 138, 61;
+  --bad-dim: #d1701f;
   /* Text on a --bad background - flips per theme, same reasoning as
      --accent-ink: dark theme's --bad is bright enough that white text on
-     it only clears 3.35:1 (WCAG AA needs 4.5:1 for normal-size text,
-     e.g. .btn-danger's label) - confirmed with a real luminance
-     calculation, not eyeballed. --bg reads at 5.34:1 instead. Light
-     theme's --bad is dark enough that white already clears AA
-     comfortably (4.81:1), so it keeps the old always-white behavior there. */
-  --bad-ink: #0e1a13;
+     it fails AA, dark ink clears it comfortably instead. Light theme's
+     --bad is dark enough that white already clears AA comfortably, so it
+     keeps the old always-white behavior there. */
+  --bad-ink: #0a0a0d;
   --font-display: 'Big Shoulders Display', 'Arial Narrow', sans-serif;
   --font-body: 'IBM Plex Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
   --font-mono: 'IBM Plex Mono', ui-monospace, 'SF Mono', Consolas, 'Roboto Mono', monospace;
@@ -115,36 +122,35 @@
   --text-3xl: 2rem;
 }
 
-/* Light mode keeps the same Floodhouse identity - a pale sage/mint paper
-   ground with deep pine-black ink, rather than switching to a generic
-   white-and-blue SaaS palette. The accent darkens from the dark theme's
-   LED-lime to a deep olive here since the bright dark-mode lime would
-   fail contrast on a light ground - same darkening move the old palette
-   made for its own accent. --accent and --bad are both darkened one
-   notch further than the first pass shipped with (#5c7f16/#c94436) -
-   both cleared AA against --surface (4.66:1 / 4.81:1) but fell just
-   short against --bg specifically (4.25:1 / 4.39:1, WCAG needs 4.5:1),
-   caught by an actual WCAG contrast calculation post-ship, not
-   eyeballing - both text colors get used directly on --bg in plenty of
-   places (stat-tile values, tone-good/tone-bad text), not just on cards.
-   Toggled via a `data-theme` attribute on <html> (see src/lib/theme.js)
-   instead of prefers-color-scheme, since this is a deliberate, saved
-   user choice rather than following the OS. */
+/* Light mode keeps the same Photo Finish identity - a pale cool-mauve
+   paper ground with near-black ink, rather than switching to a generic
+   white-and-blue SaaS palette. Accent/good/bad all darken from their
+   dark-theme values since the bright dark-mode versions would fail
+   contrast on a light ground - each verified against both --surface and
+   --bg directly (both text colors get used on --bg in plenty of places -
+   stat-tile values, tone-good/tone-bad text - not just on cards), same
+   rigor the old Floodhouse palette's own light theme applied. Toggled via
+   a `data-theme` attribute on <html> (see src/lib/theme.js) instead of
+   prefers-color-scheme, since this is a deliberate, saved user choice
+   rather than following the OS. */
 :root[data-theme='light'] {
-  --bg: #f1f6ee;
-  --bg-rgb: 241, 246, 238;
+  --bg: #f7f4f6;
+  --bg-rgb: 247, 244, 246;
   --surface: #ffffff;
-  --surface-2: #e4ecdd;
-  --border: #cddbc3;
-  --text: #13241a;
-  --text-dim: #5c7267;
-  --accent: #557614; /* darkened from #5c7f16 - see comment above */
-  --accent-rgb: 85, 118, 20;
-  --accent-dim: #486613;
-  --accent-ink: #fbfff5;
-  --bad: #c33f31; /* darkened from #c94436 - see comment above */
-  --bad-rgb: 195, 63, 49;
-  --bad-dim: #a3392e;
+  --surface-2: #ede7ec;
+  --border: #ddd4db;
+  --text: #1c1420;
+  --text-dim: #6b606f;
+  --accent: #c41f63; /* darkened from the dark theme's #ff3d7f - see comment above */
+  --accent-rgb: 196, 31, 99;
+  --accent-dim: #a01850;
+  --accent-ink: #fff;
+  --good: #0a7a69; /* darkened from the dark theme's #3de0c9 */
+  --good-rgb: 10, 122, 105;
+  --good-dim: #086355;
+  --bad: #b85a12; /* darkened from the dark theme's #ff8a3d */
+  --bad-rgb: 184, 90, 18;
+  --bad-dim: #9a4a0e;
   --bad-ink: #fff;
   color-scheme: light;
 }
@@ -1590,10 +1596,11 @@ button.conversation-row { width: 100%; font: inherit; text-align: left; cursor: 
 .result-row:first-child { border-bottom: 1px dashed var(--border); padding-bottom: var(--space-6); margin-bottom: var(--space-4); }
 .result-score { font-family: var(--font-mono); font-variant-numeric: tabular-nums; font-weight: 700; color: var(--text-dim); }
 
-/* The winning side's score pops in accent; the loser fades - the final
-   score reads at a glance instead of needing to compare two numbers. */
+/* The winning side's score pops in --good (not --accent - this is a "won"
+   signal, not a brand-chrome one); the loser fades - the final score
+   reads at a glance instead of needing to compare two numbers. */
 .result-row-winner > span:first-child { color: var(--text); font-weight: 600; }
-.result-row-winner .result-score { color: var(--accent); }
+.result-row-winner .result-score { color: var(--good); }
 .result-row:not(.result-row-winner) > span:first-child { color: var(--text-dim); }
 
 /* Race results (Odds -> Racing -> Results): a finishing order, not a
@@ -1622,7 +1629,7 @@ button.conversation-row { width: 100%; font: inherit; text-align: left; cursor: 
 .race-result-meta { font-size: var(--text-sm); color: var(--text-dim); }
 .race-result-podium { flex-shrink: 0; text-align: right; display: flex; flex-direction: column; gap: 1px; }
 .race-result-place { font-size: 0.78rem; white-space: nowrap; }
-.race-result-place-1 { color: var(--accent); font-weight: 700; }
+.race-result-place-1 { color: var(--good); font-weight: 700; }
 .race-result-place-2,
 .race-result-place-3 { color: var(--text-dim); }
 
@@ -2124,7 +2131,7 @@ button.conversation-row { width: 100%; font: inherit; text-align: left; cursor: 
   background: var(--surface);
   color: var(--text-dim);
 }
-.fight-history-result.tone-good { background: rgba(var(--accent-rgb), 0.16); color: var(--accent); }
+.fight-history-result.tone-good { background: rgba(var(--good-rgb), 0.16); color: var(--good); }
 .fight-history-result.tone-bad { background: rgba(var(--bad-rgb), 0.16); color: var(--bad); }
 .fight-history-main { flex: 1; min-width: 0; text-align: left; }
 .fight-history-opponent { display: block; font-size: var(--text-base); font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
@@ -2344,7 +2351,7 @@ button.conversation-row { width: 100%; font: inherit; text-align: left; cursor: 
 }
 .h2h-name { font-weight: 700; margin-bottom: var(--space-8); }
 .h2h-stat { font-size: 1.3rem; font-weight: 700; font-family: var(--font-mono); font-variant-numeric: tabular-nums; }
-.h2h-stat.tone-good { color: var(--accent); }
+.h2h-stat.tone-good { color: var(--good); }
 .h2h-stat.tone-bad { color: var(--bad); }
 .h2h-stat-label { font-size: var(--text-xs); color: var(--text-dim); text-transform: uppercase; letter-spacing: 0.03em; margin-bottom: var(--space-8); }
 .h2h-meta { font-size: var(--text-sm); color: var(--text-dim); margin-top: var(--space-2); }
@@ -2366,7 +2373,7 @@ button.conversation-row { width: 100%; font: inherit; text-align: left; cursor: 
 }
 .challenge-active-row { display: flex; align-items: center; justify-content: space-between; padding: var(--space-4) 0; font-weight: 600; }
 .challenge-value { font-family: var(--font-mono); font-variant-numeric: tabular-nums; font-weight: 700; color: var(--text-dim); }
-.challenge-value.tone-good { color: var(--accent); }
+.challenge-value.tone-good { color: var(--good); }
 /* Quiet row-card idiom (see .tracker-row/.race-card etc.) - shared by
    ChallengeSection's past-challenge history and GroupTournamentSection's
    past-tournament history. */
@@ -2623,7 +2630,7 @@ button.conversation-row { width: 100%; font: inherit; text-align: left; cursor: 
 .leaderboard-podium-card--gold { border-color: var(--accent-dim); background: linear-gradient(180deg, rgba(var(--accent-rgb), 0.1) 0%, transparent 65%), var(--surface); }
 .leaderboard-podium-name { font-weight: 700; font-size: var(--text-sm); max-width: 100%; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .leaderboard-podium-value { font-family: var(--font-mono); font-variant-numeric: tabular-nums; font-weight: 700; font-size: var(--text-md); }
-.leaderboard-podium-value.tone-good { color: var(--accent); }
+.leaderboard-podium-value.tone-good { color: var(--good); }
 .leaderboard-podium-value.tone-bad { color: var(--bad); }
 
 /* Leaderboard - the full ranked list below the podium teaser above: rows
@@ -2775,9 +2782,10 @@ button.conversation-row { width: 100%; font: inherit; text-align: left; cursor: 
 
 /* Top row gets the same left-stripe treatment as a won bet or a settled
    tracker row - the app's one recurring signal for "this one's the good
-   one" - instead of just a flat background tint. */
-.leaderboard-row-top { background: var(--surface-2); border-left-color: var(--accent); }
-.leaderboard-row-top .leaderboard-rank { color: var(--accent); }
+   one" - instead of just a flat background tint. --good, not --accent -
+   same reasoning as .tone-good everywhere else. */
+.leaderboard-row-top { background: var(--surface-2); border-left-color: var(--good); }
+.leaderboard-row-top .leaderboard-rank { color: var(--good); }
 .leaderboard-rank {
   color: var(--text-dim);
   width: 22px;
@@ -2788,7 +2796,7 @@ button.conversation-row { width: 100%; font: inherit; text-align: left; cursor: 
 }
 .leaderboard-name { flex: 1; font-weight: 600; }
 .leaderboard-pnl { font-weight: 700; font-family: var(--font-mono); font-variant-numeric: tabular-nums; }
-.leaderboard-pnl.tone-good { color: var(--accent); }
+.leaderboard-pnl.tone-good { color: var(--good); }
 .leaderboard-pnl.tone-bad { color: var(--bad); }
 .leaderboard-meta { color: var(--text-dim); font-size: var(--text-sm); font-family: var(--font-mono); font-variant-numeric: tabular-nums; }
 .leaderboard-list-standalone { margin-top: var(--space-10); }
@@ -2824,7 +2832,7 @@ button.conversation-row { width: 100%; font: inherit; text-align: left; cursor: 
 .season-champions-period { color: var(--text-dim); width: 92px; flex-shrink: 0; }
 .season-champions-name { flex: 1; font-weight: 600; }
 .season-champions-profit { font-weight: 700; font-family: var(--font-mono); font-variant-numeric: tabular-nums; }
-.season-champions-profit.tone-good { color: var(--accent); }
+.season-champions-profit.tone-good { color: var(--good); }
 .season-champions-profit.tone-bad { color: var(--bad); }
 
 /* Bet feed / bet cards - a rounded post card with its own nested
@@ -2927,7 +2935,7 @@ button.conversation-row { width: 100%; font: inherit; text-align: left; cursor: 
   font-family: var(--font-mono);
 }
 
-.bet-status-pill.status-won { border-color: var(--accent); color: var(--accent); }
+.bet-status-pill.status-won { border-color: var(--good); color: var(--good); }
 .bet-status-pill.status-lost { border-color: var(--bad); color: var(--bad); }
 
 .bet-card-caption { font-size: 0.88rem; color: var(--text); margin: 0; }
@@ -3250,9 +3258,9 @@ button.conversation-row { width: 100%; font: inherit; text-align: left; cursor: 
 .profile-stat-tiles { grid-template-columns: repeat(5, 1fr); }
 .admin-stat-tiles { grid-template-columns: repeat(3, 1fr); }
 .stat-tile-value { font-weight: 700; font-size: 1.05rem; }
-.stat-tile.tone-good { background: linear-gradient(180deg, rgba(var(--accent-rgb), 0.12) 0%, transparent 75%); }
+.stat-tile.tone-good { background: linear-gradient(180deg, rgba(var(--good-rgb), 0.12) 0%, transparent 75%); }
 .stat-tile.tone-bad { background: linear-gradient(180deg, rgba(var(--bad-rgb), 0.12) 0%, transparent 75%); }
-.stat-tile.tone-good .stat-tile-value { color: var(--accent); }
+.stat-tile.tone-good .stat-tile-value { color: var(--good); }
 .stat-tile.tone-bad .stat-tile-value { color: var(--bad); }
 .stat-tile-label { font-size: var(--text-xs); color: var(--text-dim); text-transform: uppercase; margin-top: var(--space-2); letter-spacing: 0.03em; }
 
@@ -3280,7 +3288,7 @@ button.conversation-row { width: 100%; font: inherit; text-align: left; cursor: 
 .group-recap-highlights { display: flex; flex-direction: column; gap: var(--space-6); }
 .group-recap-line { display: flex; align-items: baseline; gap: var(--space-8); font-size: var(--text-base); }
 .group-recap-line-icon { flex-shrink: 0; }
-.group-recap-line .tone-good { color: var(--accent); font-weight: 700; }
+.group-recap-line .tone-good { color: var(--good); font-weight: 700; }
 .group-recap-line .tone-bad { color: var(--bad); font-weight: 700; }
 
 .badge-row { display: flex; flex-wrap: wrap; gap: var(--space-8); margin-bottom: var(--space-12); }
@@ -3327,7 +3335,7 @@ button.conversation-row { width: 100%; font: inherit; text-align: left; cursor: 
 .limit-progress-fill { height: 100%; border-radius: var(--radius-pill); background: var(--text-dim); transition: width 0.3s ease; }
 .limit-progress-fill.tone-warn { background: var(--accent); }
 .limit-progress-fill.tone-bad { background: var(--bad); }
-.limit-progress-fill.tone-good { background: var(--accent); }
+.limit-progress-fill.tone-good { background: var(--good); }
 
 .achievements-grid {
   display: grid;
@@ -3378,7 +3386,7 @@ button.conversation-row { width: 100%; font: inherit; text-align: left; cursor: 
 .pnl-chart-svg { width: 100%; height: 60px; display: block; }
 .pnl-chart-zero { stroke: var(--border); stroke-width: 1; stroke-dasharray: 3 3; }
 .pnl-chart-line { fill: none; stroke-width: 2; }
-.pnl-chart-line.tone-good { stroke: var(--accent); }
+.pnl-chart-line.tone-good { stroke: var(--good); }
 .pnl-chart-line.tone-bad { stroke: var(--bad); }
 .pnl-chart-caption { font-size: var(--text-sm); color: var(--text-dim); margin-top: var(--space-4); }
 
@@ -3409,7 +3417,7 @@ button.conversation-row { width: 100%; font: inherit; text-align: left; cursor: 
 }
 .sport-breakdown-name { flex: 1; font-weight: 600; }
 .sport-breakdown-pnl { font-weight: 700; font-family: var(--font-mono); font-variant-numeric: tabular-nums; }
-.sport-breakdown-pnl.tone-good { color: var(--accent); }
+.sport-breakdown-pnl.tone-good { color: var(--good); }
 .sport-breakdown-pnl.tone-bad { color: var(--bad); }
 .sport-breakdown-meta { color: var(--text-dim); font-size: var(--text-sm); font-family: var(--font-mono); font-variant-numeric: tabular-nums; }
 
@@ -3452,7 +3460,7 @@ button.conversation-row { width: 100%; font: inherit; text-align: left; cursor: 
    through a row on a paper results sheet - .tracker-row is shared well
    beyond Tracker itself (Hall of Fame, Insights, notifications, public
    profiles), so every one of those picks this up for free. */
-.tracker-row.status-won { border-left-color: var(--accent); }
+.tracker-row.status-won { border-left-color: var(--good); }
 .tracker-row.status-lost { border-left-color: var(--bad); }
 .tracker-row.status-void { border-left-color: var(--text-dim); }
 .tracker-row.status-triggered { border-left-color: var(--accent); }
@@ -3658,11 +3666,11 @@ button.conversation-row { width: 100%; font: inherit; text-align: left; cursor: 
 }
 .scoreboard-headline-label { font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.06em; color: var(--text-dim); margin: 0 0 var(--space-2); }
 .scoreboard-headline-value { font-family: var(--font-mono); font-variant-numeric: tabular-nums; font-size: 2.3rem; font-weight: 700; line-height: 1; }
-.scoreboard-headline-value.tone-good { color: var(--accent); }
+.scoreboard-headline-value.tone-good { color: var(--good); }
 .scoreboard-headline-value.tone-bad { color: var(--bad); }
 .scoreboard-side-stats { display: flex; flex-direction: column; gap: var(--space-10); text-align: right; flex-shrink: 0; }
 .scoreboard-side-stat-value { font-family: var(--font-mono); font-variant-numeric: tabular-nums; font-weight: 700; font-size: 1.05rem; }
-.scoreboard-side-stat-value.tone-good { color: var(--accent); }
+.scoreboard-side-stat-value.tone-good { color: var(--good); }
 .scoreboard-side-stat-value.tone-bad { color: var(--bad); }
 .scoreboard-side-stat-label { font-size: 0.64rem; color: var(--text-dim); text-transform: uppercase; letter-spacing: 0.03em; }
 
@@ -4606,7 +4614,7 @@ a.btn,
 .tipster-meta { font-size: 0.72rem; color: var(--text-dim); margin-top: var(--space-2); }
 .tipster-numbers { text-align: right; flex-shrink: 0; }
 .tipster-roi { font-family: var(--font-mono); font-variant-numeric: tabular-nums; font-weight: 700; font-size: 1.1rem; }
-.tipster-roi.tone-good { color: var(--accent); }
+.tipster-roi.tone-good { color: var(--good); }
 .tipster-roi.tone-bad { color: var(--bad); }
 .tipster-roi-label { font-size: 0.6rem; color: var(--text-dim); text-transform: uppercase; letter-spacing: 0.04em; }
 
