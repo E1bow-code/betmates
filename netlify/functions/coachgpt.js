@@ -31,6 +31,7 @@ import { computeBestValue } from '../../src/utils/bestValue.js'
 import { getPlayerProfile } from '../../src/lib/playerProfile.js'
 import { GENERIC_SPORTS, apiKeysForSport, sgoLeagueForSport } from '../../src/lib/sportsConfig.js'
 import { summariseCoachRecord } from '../../src/utils/coachRecord.js'
+import { withinLlmBudget } from '../../src/lib/llmBudget.js'
 
 const SUPABASE_URL = process.env.VITE_SUPABASE_URL
 const ANON_KEY = process.env.VITE_SUPABASE_ANON_KEY
@@ -543,6 +544,16 @@ export default async (req) => {
 
   const { limited, userClient, userId } = await checkMessageAllowance(body?.accessToken)
   if (limited) return json({ configured: true, limited: true, reply: null, grounding: null, recommendation: null })
+
+  // Global daily spend breaker on top of the per-user allowance above: a soft
+  // ceiling across ALL users so a runaway can't run the bill unbounded. A chat
+  // turn fans out to several model calls (up to MAX_TOOL_ROUNDS of tool use +
+  // the forced no-tools reply + the lock-in call), so it bumps the budget by
+  // more than a passive Coach take. Fails open (see llmBudget.js); surfaces as
+  // the same graceful `limited` state the client already handles.
+  if (!(await withinLlmBudget(userClient, 4))) {
+    return json({ configured: true, limited: true, reply: null, grounding: null, recommendation: null })
+  }
 
   const siteUrl = process.env.URL || new URL(req.url).origin
 

@@ -1863,3 +1863,62 @@ create table odds_cache (
 -- want for a table users consume but never author.
 alter table odds_cache enable row level security;
 create policy "anyone can read odds cache" on odds_cache for select using (true);
+
+-- Durable, cross-instance cache for netlify/functions/scores.js, the same idea
+-- as odds_cache but WRITE-THROUGH rather than cron-filled: /api/scores is hit
+-- on demand (live-score polling, the settle/alert crons, the Results tab) with
+-- no ingest job in front of it, so src/lib/apiCache.js's per-warm-instance map
+-- was the only cache - and it's empty on every cold start, so concurrent
+-- instances each re-fetch and multiply Odds API / SportsGameOdds credits. This
+-- table lets the first fetch of a key serve every other instance until it
+-- expires. cache_key mirrors apiCache's keys (scores-<sportKey>,
+-- scores-live-<sportKey>, scores-sgo-*, scores-sgo-league-<league>). expires_at
+-- (not fetched_at) because live vs completed rows carry very different TTLs.
+-- Written by scores.js with the service-role key; a stale row past expires_at
+-- is simply ignored, and old rows are harmless (overwritten on next fetch).
+create table scores_cache (
+  cache_key text primary key,
+  payload jsonb not null,
+  expires_at timestamptz not null,
+  fetched_at timestamptz not null default now()
+);
+alter table scores_cache enable row level security;
+create policy "anyone can read scores cache" on scores_cache for select using (true);
+
+-- Global daily LLM spend breaker (see src/lib/llmBudget.js). A soft safety
+-- valve on TOP of each endpoint's per-user caps: it bounds total model calls
+-- across ALL users per UTC day so a runaway - a scripted flood of free
+-- signups, a bug in a loop - can't run the Anthropic bill unbounded. Counts in
+-- "call-units": each request bumps by its worst-case number of model calls
+-- (a CoachGPT chat message can fan out to several; a passive Coach take is
+-- one). One row per day.
+create table llm_budget (
+  day date primary key,
+  calls integer not null default 0
+);
+alter table llm_budget enable row level security;
+-- No select/insert/update policy on purpose: with RLS on, anon/authenticated
+-- can neither read nor write it directly - only the security-definer RPC below
+-- (and the service role) touch it, so a client can't read or forge the tally.
+
+-- Atomically add _n call-units to today's row and report whether the running
+-- total is still within _max. Security definer so a user-token client may call
+-- it without a direct table grant. Returns true when the call is within budget
+-- (allow), false once the cap is exceeded (block). A blocked call still counts,
+-- which only makes the breaker slightly conservative - blocked calls cost no
+-- tokens anyway.
+create or replace function bump_llm_budget(_max integer, _n integer default 1)
+returns boolean
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare _calls integer;
+begin
+  insert into llm_budget (day, calls) values (current_date, _n)
+  on conflict (day) do update set calls = llm_budget.calls + _n
+  returning calls into _calls;
+  return _calls <= _max;
+end;
+$$;
+grant execute on function bump_llm_budget(integer, integer) to anon, authenticated;

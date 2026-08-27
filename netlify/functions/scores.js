@@ -20,6 +20,7 @@
 // request, since different callers ask for different combinations -
 // TrackerPage loading twice in a few minutes for the same games shouldn't
 // cost credits twice.
+import { createClient } from '@supabase/supabase-js'
 import { cacheGet, cacheSet } from '../../src/lib/apiCache.js'
 import { TENNIS_DYNAMIC_KEY } from '../../src/lib/sportsConfig.js'
 import { logProviderError } from '../../src/lib/logProviderError.js'
@@ -29,6 +30,47 @@ const SCORES_TTL = 3 * 60 * 1000
 // briefly than the completed-game data settlement reads.
 const LIVE_TTL = 30 * 1000
 const TENNIS_KEYS_TTL = 30 * 60 * 1000
+
+const SUPABASE_URL = process.env.VITE_SUPABASE_URL
+const SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY
+
+// Durable, cross-instance cache (scores_cache table) sitting in front of
+// apiCache.js's per-warm-instance map. Unlike odds.js this path has no ingest
+// cron, so the in-memory map alone re-fetched from the provider on every cold
+// start and under concurrency each instance ran its own credits down. This
+// lets the first fetch of a key serve every other instance until it expires -
+// write-through, with the service-role key (the read policy is public, but the
+// write isn't). No-ops when Supabase isn't configured, so a keyless/local
+// deploy behaves exactly as before; every DB call fails soft to a miss so a
+// cache hiccup can never break a scores response.
+let _cacheDb
+function cacheDb() {
+  if (_cacheDb !== undefined) return _cacheDb
+  _cacheDb = SUPABASE_URL && SERVICE_ROLE_KEY ? createClient(SUPABASE_URL, SERVICE_ROLE_KEY) : null
+  return _cacheDb
+}
+async function durableGet(key) {
+  const db = cacheDb()
+  if (!db) return null
+  try {
+    const { data } = await db.from('scores_cache').select('payload, expires_at').eq('cache_key', key).maybeSingle()
+    if (!data || new Date(data.expires_at).getTime() <= Date.now()) return null
+    return data.payload
+  } catch {
+    return null
+  }
+}
+async function durableSet(key, payload, ttl) {
+  const db = cacheDb()
+  if (!db) return
+  try {
+    await db
+      .from('scores_cache')
+      .upsert({ cache_key: key, payload, expires_at: new Date(Date.now() + ttl).toISOString(), fetched_at: new Date().toISOString() })
+  } catch {
+    // best-effort - a cache write failure must never fail the response
+  }
+}
 
 async function resolveTennisKeys(apiKey) {
   const cached = cacheGet('scores-tennis-keys')
@@ -53,8 +95,14 @@ async function fetchOddsApiGames(rawKeys, apiKey, live) {
 
   const results = await Promise.allSettled(
     keys.map(async (sportKey) => {
-      const cached = cacheGet(`${cachePrefix}-${sportKey}`)
+      const ck = `${cachePrefix}-${sportKey}`
+      const cached = cacheGet(ck)
       if (cached) return cached
+      const durable = await durableGet(ck)
+      if (durable) {
+        cacheSet(ck, durable, ttl)
+        return durable
+      }
       // encodeURIComponent, not a raw interpolation - sportKey comes from
       // the client's own `keys` query param, unlike odds.js/sport.js
       // where the sport key is always drawn from a fixed, server-known
@@ -65,7 +113,8 @@ async function fetchOddsApiGames(rawKeys, apiKey, live) {
       const res = await fetch(apiUrl)
       if (!res.ok) throw new Error(`${sportKey}: ${res.status}`)
       const events = await res.json()
-      cacheSet(`${cachePrefix}-${sportKey}`, events, ttl)
+      cacheSet(ck, events, ttl)
+      await durableSet(ck, events, ttl)
       return events
     })
   )
@@ -121,8 +170,13 @@ async function fetchSgoGames(ids, sgoApiKey, live) {
   const cacheKey = `scores-sgo-${live ? 'live' : 'final'}-${sorted.join(',')}`
   const cached = cacheGet(cacheKey)
   if (cached) return cached
-
   const ttl = live ? LIVE_TTL : SCORES_TTL
+  const durable = await durableGet(cacheKey)
+  if (durable) {
+    cacheSet(cacheKey, durable, ttl)
+    return durable
+  }
+
   try {
     const apiUrl = `https://api.sportsgameodds.com/v2/events?eventIDs=${encodeURIComponent(sorted.join(','))}&apiKey=${sgoApiKey}`
     const res = await fetch(apiUrl)
@@ -130,6 +184,7 @@ async function fetchSgoGames(ids, sgoApiKey, live) {
     const body = await res.json()
     const games = reshapeSgoResults(body.data ?? [], live)
     cacheSet(cacheKey, games, ttl)
+    await durableSet(cacheKey, games, ttl)
     return games
   } catch {
     // Same "degrade rather than error the whole response" contract as the
@@ -148,6 +203,11 @@ async function fetchSgoLeagueGames(league, sgoApiKey) {
   const cacheKey = `scores-sgo-league-${league}`
   const cached = cacheGet(cacheKey)
   if (cached) return cached
+  const durable = await durableGet(cacheKey)
+  if (durable) {
+    cacheSet(cacheKey, durable, SCORES_TTL)
+    return durable
+  }
 
   try {
     const startsAfter = new Date(Date.now() - 3 * 24 * 60 * 60 * 1000).toISOString()
@@ -162,6 +222,7 @@ async function fetchSgoLeagueGames(league, sgoApiKey) {
     const body = await res.json()
     const games = reshapeSgoResults(body.data ?? [], false)
     cacheSet(cacheKey, games, SCORES_TTL)
+    await durableSet(cacheKey, games, SCORES_TTL)
     return games
   } catch {
     return []
