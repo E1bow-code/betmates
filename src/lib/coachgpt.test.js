@@ -142,3 +142,27 @@ test('a personal-record question runs get_my_record then answers from it', async
   assert.equal(res.text, "You're 3-7 on football, champ - those overs are bleeding you dry.")
   assert.equal(res.error, null)
 })
+
+test('get_coach_record is offered to the model as a tool', () => {
+  const record = COACHGPT_TOOLS.find((t) => t.name === 'get_coach_record')
+  assert.ok(record, 'get_coach_record should be in COACHGPT_TOOLS')
+  // Optional sport filter, nothing required - a bare "what's your record" must work.
+  assert.deepEqual(record.input_schema.required ?? [], [])
+})
+
+test("a question about the coach's own tips runs get_coach_record then answers from it", async () => {
+  stubFetch([
+    toolReply('get_coach_record', {}),
+    textReply("I'm 6-4 with you this season, +3.2 units - and I'll stand by every one."),
+    lockReply(false)
+  ])
+  let toolCalledWith = null
+  const callTool = async (name, input) => {
+    toolCalledWith = { name, input }
+    return { available: true, scope: 'all sports', settledPicks: 10, won: 6, lost: 4, void: 0, hitRate: '60%', unitsProfit: 3.2, roi: '32%' }
+  }
+  const res = await runCoachGptTurn({ apiKey: 'k', history: [], message: 'how have your tips done?', callTool })
+  assert.deepEqual(toolCalledWith, { name: 'get_coach_record', input: {} })
+  assert.equal(res.text, "I'm 6-4 with you this season, +3.2 units - and I'll stand by every one.")
+  assert.equal(res.error, null)
+})

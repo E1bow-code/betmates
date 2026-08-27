@@ -124,6 +124,16 @@ export const COACHGPT_SYSTEM = [
   '  before any personalised staking or strategy steer, so the advice is',
   '  grounded in what they ACTUALLY bet, not generic theory. If it comes back',
   '  unavailable (not signed in, or no settled bets yet), say so plainly.',
+  '- get_coach_record(sport?): YOUR OWN tipster record - how the picks you',
+  '  have locked in for this user have actually settled. Returns your',
+  '  won/lost/void counts and hit rate, net units up or down, ROI at level',
+  '  stakes, and a breakdown by sport. Reach for it when asked how your tips',
+  '  have done ("what\'s your record", "are your picks any good this season"),',
+  '  and to keep yourself honest before doubling down on a lean. Own the bad',
+  '  runs as readily as the good ones. Only ever quote the real figures it',
+  '  returns - a handful of picks is an early read, not a verdict; say so. If',
+  '  it comes back unavailable (not signed in, or no settled picks yet), say',
+  '  so plainly rather than inventing a record.',
   '- web_search: real-time web search for anything the four tools above',
   '  don\'t cover - head-to-head history, injury detail beyond a headline,',
   '  tactical/matchup analysis, expert previews, weather at a venue, a',
@@ -304,6 +314,20 @@ export const COACHGPT_TOOLS = [
         sport: {
           type: 'string',
           description: 'Optional sport filter: football, ufc, racing, tennis, basketball, hockey, baseball, nfl, rugbyLeague, rugbyUnion, cricket, or boxing. Omit for their whole record across every sport.'
+        }
+      }
+    }
+  },
+  {
+    name: 'get_coach_record',
+    description:
+      'YOUR OWN tipster record - how the picks you have locked in for this user have actually settled. Returns your won/lost/void counts, hit rate, net units up or down, ROI at level stakes, and a breakdown by sport. Reach for it whenever the user asks how your tips have done ("what\'s your record", "are your picks any good", "how are you doing this season") and any time you want to be honest about your own track record before doubling down on a new lean. Returns { available: false } when the user is not signed in or you have no settled picks for them yet - say so plainly rather than guessing.',
+    input_schema: {
+      type: 'object',
+      properties: {
+        sport: {
+          type: 'string',
+          description: 'Optional sport filter, e.g. football, ufc, racing, tennis, basketball. Omit for your whole record across every sport.'
         }
       }
     }

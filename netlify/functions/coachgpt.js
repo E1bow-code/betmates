@@ -30,6 +30,7 @@ import { matchFixtureQuery, matchRaceQuery, startsWithinHours } from '../../src/
 import { computeBestValue } from '../../src/utils/bestValue.js'
 import { getPlayerProfile } from '../../src/lib/playerProfile.js'
 import { GENERIC_SPORTS, apiKeysForSport, sgoLeagueForSport } from '../../src/lib/sportsConfig.js'
+import { summariseCoachRecord } from '../../src/utils/coachRecord.js'
 
 const SUPABASE_URL = process.env.VITE_SUPABASE_URL
 const ANON_KEY = process.env.VITE_SUPABASE_ANON_KEY
@@ -503,6 +504,27 @@ async function toolGetMyRecord(userClient, userId, input = {}) {
   return summariseRecord(bets, sport || 'all sports')
 }
 
+// CoachGPT's OWN tipster record - its settled lock_in_recommendation picks for
+// this user. Reads coach_messages under the user's token/RLS (never the
+// service role - that would leak other users' picks), and only ever reads
+// `result`; the column is trigger-guarded against forged wins and settlement
+// is coach-settle.js's job alone. Mirrors toolGetMyRecord's degrade-to-
+// unavailable contract: a query error or empty history reads as "no record",
+// never a throw. The compact summary is built by the pure summariseCoachRecord.
+async function toolGetCoachRecord(userClient, userId, input = {}) {
+  if (!userClient || !userId) return { available: false, reason: 'not signed in' }
+  const sport = typeof input.sport === 'string' ? input.sport.trim() : ''
+  const { data, error } = await userClient
+    .from('coach_messages')
+    .select('recommendation, result')
+    .eq('user_id', userId)
+    .not('recommendation', 'is', null)
+    .in('result', ['won', 'lost', 'void'])
+  if (error) return { available: false, reason: 'no settled picks yet' }
+  const rows = sport ? (data ?? []).filter((m) => (m.recommendation?.sport || '') === sport) : (data ?? [])
+  return summariseCoachRecord(rows, sport || 'all sports')
+}
+
 export default async (req) => {
   if (req.method !== 'POST') return json({ configured: true, error: 'POST only' }, 405)
 
@@ -549,6 +571,7 @@ export default async (req) => {
     if (name === 'get_recent_news') return toolGetNews(siteUrl, input)
     if (name === 'get_recent_results') return toolGetResults(siteUrl, input)
     if (name === 'get_my_record') return toolGetMyRecord(userClient, userId, input)
+    if (name === 'get_coach_record') return toolGetCoachRecord(userClient, userId, input)
     return { error: `Unknown tool: ${name}` }
   }
 
