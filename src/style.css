@@ -492,12 +492,10 @@ body.slip-bar-open .app-content {
   border: 1.5px solid var(--bg);
 }
 
-/* One continuous divided list - a results-sheet row for each destination,
-   sharp corners and a bottom hairline rather than .sport-pill's rounded
-   shape (that shape is reserved for sport/segment tabs, see style.css's
-   header comment). Shared by both the mobile sheet and the desktop block. */
-.more-menu-list { display: flex; flex-direction: column; }
-.more-menu-list > *:last-child { border-bottom: none; }
+/* Quiet row-card idiom (see .tracker-row/.race-card etc.) instead of a
+   continuous divided list - each destination is its own bordered/rounded
+   row. Shared by both the mobile sheet and the desktop block. */
+.more-menu-list { display: flex; flex-direction: column; gap: var(--space-4); }
 
 .more-menu-item {
   position: relative;
@@ -508,7 +506,9 @@ body.slip-bar-open .app-content {
   color: var(--text);
   text-decoration: none;
   font-size: var(--text-md);
-  border-bottom: 1px solid var(--border);
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
   transition: background 0.12s ease;
 }
 .more-menu-item:active { background: var(--surface-2); }
@@ -526,7 +526,7 @@ body.slip-bar-open .app-content {
   border-radius: var(--radius-card);
   background: color-mix(in srgb, var(--accent) 12%, transparent);
   box-shadow: var(--shadow-card);
-  margin: var(--space-4) var(--space-4) var(--space-10);
+  margin-bottom: var(--space-6);
   padding: var(--space-14) var(--space-16);
 }
 .more-menu-item--featured .more-menu-item-icon {
@@ -560,16 +560,19 @@ body.slip-bar-open .app-content {
 /* Quiet "leads somewhere" affordance on the trailing edge. */
 .more-menu-chevron { flex: none; color: var(--text-dim); font-size: var(--text-xl); line-height: 1; }
 
-.more-menu-group { border-bottom: 1px solid var(--border); }
+.more-menu-group { display: flex; flex-direction: column; gap: var(--space-4); }
 
+/* Same row-card toggle as .account-group-toggle (installment 3) - a
+   collapsible section is a collapsible section, same idiom everywhere. */
 .more-menu-group-toggle {
   width: 100%;
   display: flex;
   align-items: center;
   justify-content: space-between;
-  background: none;
-  border: none;
-  padding: var(--space-12) var(--space-16);
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  padding: var(--space-10) var(--space-16);
   font-size: 0.72rem;
   font-weight: 700;
   letter-spacing: 0.06em;
@@ -581,10 +584,9 @@ body.slip-bar-open .app-content {
 
 .more-menu-caret { color: var(--text-dim); font-size: 0.8rem; }
 
-.more-menu-group-items { display: flex; flex-direction: column; background: var(--surface-2); }
+.more-menu-group-items { display: flex; flex-direction: column; gap: var(--space-4); padding-left: var(--space-12); }
 .more-menu-group-items .more-menu-item { font-size: 0.9rem; }
-.more-menu-group-items .more-menu-item-icon { width: 30px; height: 30px; background: var(--surface); }
-.more-menu-group-items .more-menu-item:last-child { border-bottom: none; }
+.more-menu-group-items .more-menu-item-icon { width: 30px; height: 30px; background: var(--surface-2); }
 
 .more-menu-desktop { display: none; }
 
@@ -3320,22 +3322,19 @@ button.conversation-row { width: 100%; font: inherit; text-align: left; cursor: 
 .sport-breakdown {
   display: flex;
   flex-direction: column;
-  border: 1px solid var(--border);
-  border-radius: var(--radius-sharp);
-  overflow: hidden;
+  gap: var(--space-4);
   margin-bottom: var(--space-16);
-  background: linear-gradient(180deg, var(--surface) 0%, var(--surface-2) 100%);
 }
 .sport-breakdown-row {
   display: flex;
   align-items: center;
   gap: var(--space-10);
-  background: transparent;
-  border-bottom: 1px solid var(--border);
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
   padding: var(--space-8) var(--space-14);
   font-size: var(--text-base);
 }
-.sport-breakdown-row:last-child { border-bottom: none; }
 .sport-breakdown-rank {
   font-family: var(--font-mono);
   font-variant-numeric: tabular-nums;
@@ -3578,9 +3577,16 @@ button.conversation-row { width: 100%; font: inherit; text-align: left; cursor: 
 }
 .home-record-tip-btn:hover, .home-record-tip-btn:focus-visible { border-color: var(--accent-dim); outline: none; }
 
+/* Same hero-panel treatment as .account-hero/.race-header/
+   .profile-identity-row (installment 4) - the all-time P&L headline is
+   Tracker's one genuine "moment", same category as those three, not a list
+   this contradicts the app's "scoreboard stays one panel, not many cards"
+   rule for - that rule is about not fragmenting the list below into
+   boxes, and still holds (see .tracker-list's quiet row-card treatment). */
 .scoreboard-panel {
   border: 1px solid var(--border);
-  border-radius: var(--radius-sharp);
+  border-radius: var(--radius-card);
+  box-shadow: var(--shadow-card);
   background: linear-gradient(180deg, var(--surface) 0%, var(--surface-2) 100%);
   padding: 18px 18px var(--space-16);
   margin-bottom: 22px;
@@ -3672,7 +3678,23 @@ button.conversation-row { width: 100%; font: inherit; text-align: left; cursor: 
 .account-group-body .account-section:first-child { margin-top: var(--space-4); }
 .account-name { font-weight: 700; font-size: var(--text-lg); }
 .account-identity { display: flex; align-items: center; gap: var(--space-12); }
-.profile-identity-row { display: flex; align-items: center; justify-content: space-between; gap: var(--space-12); }
+/* Same hero-panel treatment as .account-hero/.race-header (installment 4) -
+   this is the page that works fully logged out and is every "share my
+   profile" link's destination, so it earns the identity-moment panel at
+   least as much as the private AccountPage version does. */
+.profile-identity-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-12);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-card);
+  box-shadow: var(--shadow-card);
+  background: linear-gradient(180deg, var(--surface) 0%, var(--surface-2) 100%);
+  padding: var(--space-16);
+  margin-bottom: var(--space-8);
+}
+.profile-identity-row .account-name { font-size: var(--text-xl); }
 .account-name-row { display: flex; align-items: center; gap: var(--space-8); }
 /* Was two separate .tipster-badge declarations (a sharp/bordered version
    here, plus a pill/different-border version ~800 lines later near
@@ -3736,13 +3758,17 @@ button.conversation-row { width: 100%; font: inherit; text-align: left; cursor: 
 
 /* Account identity reads as a small profile card up top instead of a bare
    avatar+name row - the one place on this page that earns a bordered
-   panel, everything below it is plain settings rows. */
+   panel, everything below it is plain settings rows. Same hero-panel
+   treatment as .race-header/.profile-identity-row (installment 4) - one
+   consistent "identity moment" idiom across the app instead of three
+   independently-varying ones. */
 .account-hero {
   display: flex;
   align-items: center;
   gap: var(--space-14);
   border: 1px solid var(--border);
-  border-radius: var(--radius-sharp);
+  border-radius: var(--radius-card);
+  box-shadow: var(--shadow-card);
   padding: var(--space-16);
   margin-bottom: var(--space-8);
   background: linear-gradient(180deg, var(--surface) 0%, var(--surface-2) 100%);
@@ -3792,12 +3818,13 @@ button.conversation-row { width: 100%; font: inherit; text-align: left; cursor: 
   margin-left: var(--space-4);
 }
 
+/* Quiet row-card idiom (see .tracker-row/.race-card etc.) - shared by
+   FriendsPage's friend list, GroupFeedPage's Members tab, AccountPage's
+   Blocked accounts, ManageSheet's group list, and TablePredictorPanel. */
 .manage-list {
   display: flex;
   flex-direction: column;
-  border: 1px solid var(--border);
-  border-radius: var(--radius-sharp);
-  overflow: hidden;
+  gap: var(--space-4);
   margin: var(--space-4) 0 var(--space-6);
 }
 .manage-list-row {
@@ -3805,12 +3832,12 @@ button.conversation-row { width: 100%; font: inherit; text-align: left; cursor: 
   justify-content: space-between;
   align-items: center;
   gap: var(--space-8);
-  background: var(--surface-2);
-  border-bottom: 1px solid var(--border);
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
   padding: var(--space-8) var(--space-12);
   font-size: 0.88rem;
 }
-.manage-list .manage-list-row:last-child { border-bottom: none; }
 .manage-list-code { color: var(--text-dim); font-size: var(--text-sm); }
 
 .back {
@@ -4072,29 +4099,36 @@ a.race-card:hover, a.race-card:focus-visible { background: rgba(var(--accent-rgb
   }
 }
 
-/* Race header - shared across every detail page (fixture/race/fight/event),
-   so the dashed rule under it is the same "torn off" divider the rest of
-   the app uses before an action row, not new territory. */
-.race-header { padding: var(--space-4) var(--space-4) var(--space-16); border-bottom: 1px dashed var(--border); margin-bottom: var(--space-12); }
+/* Race header - shared across every detail page (fixture/race/fight/event) -
+   the single most-viewed "moment" in the app (every odds tap lands here),
+   so it earns the same bordered/gradient hero-panel treatment as
+   .account-hero/.profile-identity-row rather than reading as a bare padded
+   div with one dashed underline. */
+.race-header {
+  border: 1px solid var(--border);
+  border-radius: var(--radius-card);
+  box-shadow: var(--shadow-card);
+  background: linear-gradient(180deg, var(--surface) 0%, var(--surface-2) 100%);
+  padding: var(--space-14) var(--space-16);
+  margin-bottom: var(--space-12);
+}
 .race-header h1 { font-size: var(--text-xl); margin: 0 0 var(--space-4); }
 .race-header-meta { color: var(--text-dim); font-size: var(--text-base); }
 
-/* Runner list - same divided-panel treatment as race-list. */
+/* Runner list - quiet row-card idiom, same conversion .race-list already
+   got (see .race-list/.race-card). */
 .runner-list {
   display: flex;
   flex-direction: column;
-  border: 1px solid var(--border);
-  border-radius: var(--radius-sharp);
-  overflow: hidden;
+  gap: var(--space-4);
 }
 
 .runner-row {
   background: var(--surface);
-  border-bottom: 1px solid var(--border);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
   cursor: pointer;
 }
-
-.runner-list .runner-row:last-child { border-bottom: none; }
 
 .runner-summary {
   display: flex;
