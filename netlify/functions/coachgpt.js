@@ -57,15 +57,19 @@ const COACH_ROUTE = OMNIROUTE_BASE_URL ? { baseUrl: OMNIROUTE_BASE_URL, modelPre
 // allowance check at all. Fails closed now: anything that isn't a real,
 // currently-valid session is treated as at the limit.
 async function checkMessageAllowance(accessToken) {
-  if (!SUPABASE_URL || !ANON_KEY) return { limited: false }
-  if (!accessToken) return { limited: true }
+  if (!SUPABASE_URL || !ANON_KEY) return { limited: false, userClient: null, userId: null }
+  if (!accessToken) return { limited: true, userClient: null, userId: null }
 
   const userClient = createClient(SUPABASE_URL, ANON_KEY, { global: { headers: { Authorization: `Bearer ${accessToken}` } } })
   const { data: userData, error: userError } = await userClient.auth.getUser()
-  if (userError || !userData?.user) return { limited: true }
+  if (userError || !userData?.user) return { limited: true, userClient: null, userId: null }
+  const userId = userData.user.id
 
-  const { data: profile } = await userClient.from('profiles').select('is_premium').eq('id', userData.user.id).single()
-  if (profile?.is_premium) return { limited: false }
+  // The authenticated client and user id are handed back so the tool loop can
+  // reuse them (get_my_record reads the user's own bets under their token, and
+  // so under RLS) without a second getUser round-trip.
+  const { data: profile } = await userClient.from('profiles').select('is_premium').eq('id', userId).single()
+  if (profile?.is_premium) return { limited: false, userClient, userId }
 
   const startOfMonth = new Date()
   startOfMonth.setUTCDate(1)
@@ -73,11 +77,11 @@ async function checkMessageAllowance(accessToken) {
   const { count } = await userClient
     .from('coach_messages')
     .select('id', { count: 'exact', head: true })
-    .eq('user_id', userData.user.id)
+    .eq('user_id', userId)
     .eq('role', 'user')
     .gte('created_at', startOfMonth.toISOString())
 
-  return { limited: (count ?? 0) >= FREE_MONTHLY_MESSAGE_LIMIT }
+  return { limited: (count ?? 0) >= FREE_MONTHLY_MESSAGE_LIMIT, userClient, userId }
 }
 
 function json(body, status = 200) {
@@ -410,6 +414,95 @@ function matchRecommendation(recommendation, grounding) {
   )
 }
 
+// The user's OWN betting record - the differentiator no generic sports AI can
+// match. Reads their settled bets straight from the app's own tables under
+// their bearer token (so RLS returns only their rows), and hands the model a
+// compact summary - counts, hit rate, staked-vs-returned, net P&L, ROI, and
+// breakdowns - never the raw bet list. Money follows the app's convention:
+// potential_return is the payout, so a won bet's profit is payout - stake, a
+// lost bet is -stake, a void is flat.
+const round2 = (n) => Math.round((n + Number.EPSILON) * 100) / 100
+
+function betProfit(bet) {
+  const stake = Number(bet.stake) || 0
+  if (bet.status === 'won') return (Number(bet.potential_return) || 0) - stake
+  if (bet.status === 'lost') return -stake
+  return 0 // void: stake returned, no profit or loss
+}
+
+function breakdownBy(bets, key) {
+  const groups = new Map()
+  for (const bet of bets) {
+    const name = bet[key] || 'other'
+    if (!groups.has(name)) groups.set(name, { name, bets: 0, won: 0, netProfit: 0 })
+    const g = groups.get(name)
+    g.bets += 1
+    if (bet.status === 'won') g.won += 1
+    g.netProfit = round2(g.netProfit + betProfit(bet))
+  }
+  return [...groups.values()].sort((a, b) => b.bets - a.bets).slice(0, 6)
+}
+
+function summariseRecord(bets, scope) {
+  const won = bets.filter((b) => b.status === 'won').length
+  const lost = bets.filter((b) => b.status === 'lost').length
+  const voided = bets.filter((b) => b.status === 'void').length
+  const decided = won + lost // a void neither helps nor hurts a hit rate
+  const staked = bets.reduce((s, b) => s + (Number(b.stake) || 0), 0)
+  const netProfit = bets.reduce((s, b) => s + betProfit(b), 0)
+  const recent = [...bets]
+    .filter((b) => b.settled_at)
+    .sort((a, b) => new Date(b.settled_at) - new Date(a.settled_at))
+    .slice(0, 5)
+    .map((b) => ({
+      sport: b.sport,
+      market: b.market_type,
+      pick: Array.isArray(b.selections) ? b.selections[0]?.selection ?? null : null,
+      status: b.status,
+      profit: round2(betProfit(b))
+    }))
+  return {
+    available: true,
+    scope,
+    settledBets: bets.length,
+    won,
+    lost,
+    void: voided,
+    hitRate: decided ? `${Math.round((won / decided) * 100)}%` : null,
+    staked: round2(staked),
+    netProfit: round2(netProfit),
+    roi: staked ? `${Math.round((netProfit / staked) * 100)}%` : null,
+    bySport: breakdownBy(bets, 'sport'),
+    byMarket: breakdownBy(bets, 'market_type'),
+    recent,
+    note: bets.length < 10 ? 'Small sample - an early read, not a verdict.' : undefined
+  }
+}
+
+async function toolGetMyRecord(userClient, userId, input = {}) {
+  if (!userClient || !userId) return { available: false, reason: 'not signed in' }
+  const sport = typeof input.sport === 'string' ? input.sport.trim() : ''
+  const columns = 'sport, market_type, selections, stake, potential_return, status, settled_at'
+  const SETTLED = ['won', 'lost', 'void']
+  // manual_entries = the private Tracker; posts = bets shared to a group/feed.
+  // A given bet lives in one or the other, not both, so the two lists
+  // concatenate into the user's full settled history without double-counting.
+  // A query error (RLS, missing column) degrades to [] rather than throwing -
+  // a data hiccup should read as "no record" to the model, never a 500.
+  async function fetchFrom(table) {
+    let q = userClient.from(table).select(columns).eq('user_id', userId).in('status', SETTLED)
+    if (sport) q = q.eq('sport', sport)
+    const { data, error } = await q
+    return error ? [] : (data ?? [])
+  }
+  const [entries, posts] = await Promise.all([fetchFrom('manual_entries'), fetchFrom('posts')])
+  const bets = [...entries, ...posts]
+  if (!bets.length) {
+    return { available: false, reason: sport ? `no settled ${sport} bets yet` : 'no settled bets yet' }
+  }
+  return summariseRecord(bets, sport || 'all sports')
+}
+
 export default async (req) => {
   if (req.method !== 'POST') return json({ configured: true, error: 'POST only' }, 405)
 
@@ -426,7 +519,7 @@ export default async (req) => {
   const message = body?.message?.trim()
   if (!message) return json({ configured: true, error: 'Missing message' }, 400)
 
-  const { limited } = await checkMessageAllowance(body?.accessToken)
+  const { limited, userClient, userId } = await checkMessageAllowance(body?.accessToken)
   if (limited) return json({ configured: true, limited: true, reply: null, grounding: null, recommendation: null })
 
   const siteUrl = process.env.URL || new URL(req.url).origin
@@ -455,6 +548,7 @@ export default async (req) => {
     if (name === 'get_player_profile') return toolGetPlayerProfile(input.name)
     if (name === 'get_recent_news') return toolGetNews(siteUrl, input)
     if (name === 'get_recent_results') return toolGetResults(siteUrl, input)
+    if (name === 'get_my_record') return toolGetMyRecord(userClient, userId, input)
     return { error: `Unknown tool: ${name}` }
   }
 
