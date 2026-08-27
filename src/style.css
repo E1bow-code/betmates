@@ -26,19 +26,19 @@
   --bg-rgb: 10, 10, 13;
   --surface: #16161c;
   --surface-2: #1e1e26;
-  --border: #322f3d; /* lifted brighter than --surface-2 for crisp edge definition on cards/lists */
-  --text: #f3f0f5;
-  --text-dim: #8f8b9c;
-  --accent: #ff3d7f; /* hot magenta - the scoreboard-flash brand color, prices/CTAs/chrome */
-  --accent-rgb: 255, 61, 127;
-  --accent-dim: #d1315f;
+  --border: #2c3140; /* lifted, cooled slightly toward the navy accent for crisp edges on cards/lists */
+  --text: #f0f1f5;
+  --text-dim: #8b909f;
+  --accent: #6aa5ff; /* clean azure - the brand color in dark mode, a brighter sibling of the light theme's navy; prices/CTAs/chrome */
+  --accent-rgb: 106, 165, 255;
+  --accent-dim: #5387d6;
   --accent-ink: #0a0a0d;
   /* Positive/won - deliberately NOT --accent (see palette comment above).
-     A cool cyan-teal reads as "good" the way green traditionally does,
-     without collapsing into the brand's own magenta. */
-  --good: #3de0c9;
-  --good-rgb: 61, 224, 201;
-  --good-dim: #2bb39f;
+     A clear green reads as "won" the traditional way and stays distinct from
+     the blue brand accent, so win/loss never blurs into brand chrome. */
+  --good: #45d67f;
+  --good-rgb: 69, 214, 127;
+  --good-dim: #33ad63;
   --bad: #ff8a3d;
   --bad-rgb: 255, 138, 61;
   --bad-dim: #d1701f;
@@ -134,20 +134,20 @@
    prefers-color-scheme, since this is a deliberate, saved user choice
    rather than following the OS. */
 :root[data-theme='light'] {
-  --bg: #f7f4f6;
-  --bg-rgb: 247, 244, 246;
+  --bg: #f6f5f1; /* soft warm off-white - clean & bright, not stark white or pink */
+  --bg-rgb: 246, 245, 241;
   --surface: #ffffff;
-  --surface-2: #ede7ec;
-  --border: #ddd4db;
-  --text: #1c1420;
-  --text-dim: #6b606f;
-  --accent: #c41f63; /* darkened from the dark theme's #ff3d7f - see comment above */
-  --accent-rgb: 196, 31, 99;
-  --accent-dim: #a01850;
+  --surface-2: #eceae2;
+  --border: #e0ddd3;
+  --text: #1a1c20;
+  --text-dim: #6a6d76;
+  --accent: #234b7a; /* deep confident navy - the light-theme brand color (see comment above), prices/CTAs/chrome */
+  --accent-rgb: 35, 75, 122;
+  --accent-dim: #1a3a61;
   --accent-ink: #fff;
-  --good: #0a7a69; /* darkened from the dark theme's #3de0c9 */
-  --good-rgb: 10, 122, 105;
-  --good-dim: #086355;
+  --good: #157a45; /* clear green, darkened from the dark theme's #45d67f */
+  --good-rgb: 21, 122, 69;
+  --good-dim: #0f5e35;
   --bad: #b85a12; /* darkened from the dark theme's #ff8a3d */
   --bad-rgb: 184, 90, 18;
   --bad-dim: #9a4a0e;

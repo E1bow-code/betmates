@@ -1,23 +1,32 @@
-// Dark is the app's default (matches :root's base palette in style.css,
-// no data-theme attribute needed for it) - light is an explicit opt-in,
-// not a prefers-color-scheme follow, since it's meant to be a saved
-// choice in Account rather than tracking the OS setting.
+// Light is the app's default look - clean & bright (a data-theme='light'
+// attribute on <html>, matching :root[data-theme='light'] in style.css). Dark
+// is the explicit, saved opt-in (the bare :root palette). Not a
+// prefers-color-scheme follow - it's a deliberate choice in Account, not OS
+// tracking. index.html sets the attribute inline before first paint so the
+// default/light user never flashes the dark base palette on load.
 const KEY = 'betmates:theme'
 
 export function getStoredTheme() {
   return localStorage.getItem(KEY)
 }
 
+// Anything that isn't an explicit 'dark' resolves to light, so a brand-new
+// user (nothing stored) opens on the bright default.
+function resolve(theme) {
+  return theme === 'dark' ? 'dark' : 'light'
+}
+
 export function applyTheme(theme) {
-  if (theme === 'light') document.documentElement.setAttribute('data-theme', 'light')
+  const resolved = resolve(theme)
+  if (resolved === 'light') document.documentElement.setAttribute('data-theme', 'light')
   else document.documentElement.removeAttribute('data-theme')
-  // Keeps the mobile browser chrome/PWA status bar matching the page
-  // instead of staying dark when the page itself has gone light.
-  document.querySelector('meta[name="theme-color"]')?.setAttribute('content', theme === 'light' ? '#f7f4f6' : '#0a0a0d')
+  // Keep the mobile browser chrome / PWA status bar matching the page.
+  document.querySelector('meta[name="theme-color"]')?.setAttribute('content', resolved === 'light' ? '#f6f5f1' : '#0a0a0d')
 }
 
 export function setTheme(theme) {
-  if (theme === 'light') localStorage.setItem(KEY, 'light')
+  const resolved = resolve(theme)
+  if (resolved === 'dark') localStorage.setItem(KEY, 'dark')
   else localStorage.removeItem(KEY)
-  applyTheme(theme)
+  applyTheme(resolved)
 }

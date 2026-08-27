@@ -89,7 +89,7 @@ export default function AccountPage() {
   const [nameInput, setNameInput] = useState(user.displayName)
   const [nameSaving, setNameSaving] = useState(false)
   const [nameError, setNameError] = useState(null)
-  const [theme, setThemeState] = useState(getStoredTheme() === 'light' ? 'light' : 'dark')
+  const [theme, setThemeState] = useState(getStoredTheme() === 'dark' ? 'dark' : 'light')
   const [realityCheckMins, setRealityCheckMinsState] = useState(getRealityCheckMins)
   const [profileShareStatus, setProfileShareStatus] = useState(null)
   const [blockedUsers, setBlockedUsers] = useState(null)
