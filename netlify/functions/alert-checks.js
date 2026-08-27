@@ -661,5 +661,9 @@ export default async (req) => {
 }
 
 export const config = {
-  schedule: '*/15 * * * *'
+  // Dropped from */15 to */30 (matching every other scheduled function in
+  // this project) to cut credit usage while there's no real traffic yet to
+  // notice the extra lag on pre-kickoff/odds/results alerts - bump back to
+  // */15 once real usage data says the faster cadence actually matters.
+  schedule: '*/30 * * * *'
 }
