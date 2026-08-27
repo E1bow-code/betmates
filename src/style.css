@@ -835,7 +835,7 @@ body.slip-bar-open .app-content {
   padding: var(--space-12) var(--space-16);
   font-weight: 700;
   font-size: 0.9rem;
-  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.4);
+  box-shadow: var(--shadow-float);
 }
 .bet-slip-bar-odds { font-family: var(--font-mono); font-variant-numeric: tabular-nums; }
 
@@ -2008,7 +2008,8 @@ button.conversation-row { width: 100%; font: inherit; text-align: left; cursor: 
    deliberately doesn't try to fake a pace/shooting/passing wheel. */
 .player-card {
   border: 1px solid var(--accent-dim);
-  border-radius: var(--radius-lg);
+  border-radius: var(--radius-card);
+  box-shadow: var(--shadow-card);
   background: linear-gradient(180deg, var(--surface) 0%, var(--surface-2) 100%);
   padding: var(--space-14) var(--space-16) var(--space-16);
   text-align: center;
@@ -2770,18 +2771,19 @@ button.conversation-row { width: 100%; font: inherit; text-align: left; cursor: 
 
 /* Leaderboard.jsx's "Past champions" strip - deliberately quieter than the
    live standings above (smaller text, no rank/avatar column) since these
-   are archived history, not something to act on right now. */
+   are archived history, not something to act on right now. That's a
+   content-weight call, not a reason to keep the old wrapper+divider
+   scaffolding though - same quiet row-card idiom as .leaderboard-list
+   right above it (no shadow, small radius - already the "quiet"
+   treatment) instead of the pre-redesign divided-panel pattern. */
 .season-champions { margin-top: var(--space-14); }
 .season-champions-title { font-size: 0.8rem; font-weight: 700; color: var(--text-dim); margin: 0 0 var(--space-4); }
-.season-champions-list {
-  display: flex;
-  flex-direction: column;
+.season-champions-list { display: flex; flex-direction: column; gap: var(--space-4); }
+.season-champions-entry {
+  background: var(--surface);
   border: 1px solid var(--border);
-  border-radius: var(--radius-sharp);
-  overflow: hidden;
+  border-radius: var(--radius-md);
 }
-.season-champions-entry { border-bottom: 1px solid var(--border); }
-.season-champions-list .season-champions-entry:last-child { border-bottom: none; }
 .season-champions-row {
   display: flex;
   align-items: center;
