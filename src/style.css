@@ -3349,6 +3349,23 @@ button.conversation-row { width: 100%; font: inherit; text-align: left; cursor: 
    end up bunched into 3/5 of the row width instead of filling it. */
 .profile-stat-tiles { grid-template-columns: repeat(5, 1fr); }
 .admin-stat-tiles { grid-template-columns: repeat(3, 1fr); }
+
+/* CoachGPT's own daily-pick form (CoachGptPage's CoachForm) - his standalone
+   public record, distinct from the user's scoreboard above it. */
+.coach-form { margin: var(--space-12) 0 var(--space-16); }
+.coach-form-head { display: flex; align-items: baseline; gap: var(--space-8); flex-wrap: wrap; margin-bottom: var(--space-6); }
+.coach-form-title { margin: 0; font-size: 1rem; font-weight: 700; }
+.coach-form-sub { font-size: 0.78rem; color: var(--text-dim); }
+.coach-form .stat-tiles { margin: 0 0 var(--space-10); }
+.coach-form-picks { list-style: none; margin: 0; padding: 0; border: 1px solid var(--border); border-radius: var(--radius-sharp); overflow: hidden; }
+.coach-form-pick { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: center; gap: var(--space-8); padding: var(--space-8) var(--space-10); border-bottom: 1px solid var(--border); font-size: 0.86rem; }
+.coach-form-pick:last-child { border-bottom: none; }
+.cfp-date { color: var(--text-dim); font-variant-numeric: tabular-nums; white-space: nowrap; }
+.cfp-sel { font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.cfp-result { font-weight: 700; font-size: 0.72rem; letter-spacing: 0.02em; text-transform: uppercase; white-space: nowrap; }
+.cfp-result.tone-good { color: var(--good); }
+.cfp-result.tone-bad { color: var(--bad); }
+.cfp-result.tone-muted { color: var(--text-dim); }
 .stat-tile-value { font-weight: 700; font-size: 1.05rem; }
 .stat-tile.tone-good { background: linear-gradient(180deg, rgba(var(--good-rgb), 0.12) 0%, transparent 75%); }
 .stat-tile.tone-bad { background: linear-gradient(180deg, rgba(var(--bad-rgb), 0.12) 0%, transparent 75%); }

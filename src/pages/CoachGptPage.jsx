@@ -52,6 +52,72 @@ function CoachScoreboard({ record }) {
   )
 }
 
+function formatPickDate(iso) {
+  if (!iso) return '—'
+  const d = new Date(`${iso}T00:00:00`)
+  return Number.isNaN(d.getTime()) ? '—' : d.toLocaleDateString(undefined, { day: 'numeric', month: 'short' })
+}
+function resultTone(result) {
+  if (result === 'won') return 'tone-good'
+  if (result === 'lost') return 'tone-bad'
+  return 'tone-muted'
+}
+function resultLabel(result) {
+  if (result === 'won') return 'Won'
+  if (result === 'lost') return 'Lost'
+  if (result === 'void') return 'Void'
+  return 'Pending'
+}
+
+// CoachGPT's OWN pick-of-the-day form - the public coach_daily_picks record that
+// netlify/functions/coach-pick.js builds and coach-settle.js grades. Distinct
+// from CoachScoreboard above, which is the signed-in user's tally of Coach's
+// chat picks; this one is global (the same for everyone) and real fixtures only.
+// Reuses computeCoachRecord since a daily pick carries the same
+// recommendation/result shape a chat pick does, so the two can never disagree.
+function CoachForm({ record, picks }) {
+  if (!picks?.length) return null
+  const recent = picks.slice(0, 6)
+  return (
+    <div className="coach-form">
+      <div className="coach-form-head">
+        <h2 className="coach-form-title">Coach&apos;s form</h2>
+        <span className="coach-form-sub">his own daily picks on real fixtures</span>
+      </div>
+      {record ? (
+        <div className="stat-tiles">
+          <div className={`stat-tile ${record.winRate >= 50 ? 'tone-good' : record.winRate == null ? '' : 'tone-bad'}`}>
+            <div className="stat-tile-value">{record.winRate == null ? '—' : `${record.winRate}%`}</div>
+            <div className="stat-tile-label">Win rate</div>
+          </div>
+          <div className={`stat-tile ${record.profit >= 0 ? 'tone-good' : 'tone-bad'}`}>
+            <div className="stat-tile-value">{record.profit >= 0 ? '+' : ''}{record.profit.toFixed(1)}u</div>
+            <div className="stat-tile-label">Notional P&amp;L</div>
+          </div>
+          <div className="stat-tile">
+            <div className="stat-tile-value">{record.decidedCount}</div>
+            <div className="stat-tile-label">Picks settled</div>
+          </div>
+        </div>
+      ) : (
+        <p className="hint">No settled picks yet - Coach is still building his record.</p>
+      )}
+      <ul className="coach-form-picks">
+        {recent.map((p) => (
+          <li key={p.id} className="coach-form-pick">
+            <span className="cfp-date">{formatPickDate(p.pickDate)}</span>
+            <span className="cfp-sel">
+              {p.recommendation?.selection ?? '—'}
+              {p.recommendation?.odds ? ` @ ${Number(p.recommendation.odds).toFixed(2)}` : ''}
+            </span>
+            <span className={`cfp-result ${resultTone(p.result)}`}>{resultLabel(p.result)}</span>
+          </li>
+        ))}
+      </ul>
+    </div>
+  )
+}
+
 // "Log this" - a message's `grounding` (see netlify/functions/coachgpt.js's
 // groundFixtureOutcomes/groundRunner) is real BetSlip legs, not a parse of
 // CoachGPT's prose reply. Rather than guess which one it actually leaned on
@@ -97,6 +163,7 @@ export default function CoachGptPage() {
   const [error, setError] = useState(null)
   const [showHistory, setShowHistory] = useState(false)
   const [recordMessages, setRecordMessages] = useState(null)
+  const [dailyPicks, setDailyPicks] = useState(null)
   const [limited, setLimited] = useState(false)
   const runAsync = useAsyncAction()
   const prefillSent = useRef(false)
@@ -105,6 +172,8 @@ export default function CoachGptPage() {
   // `messages` so switching/starting chats doesn't make the scoreboard
   // flicker empty.
   const coachRecord = useMemo(() => computeCoachRecord(recordMessages), [recordMessages])
+  // Coach's own daily-pick form - global, so fetched once, not per user/session.
+  const coachForm = useMemo(() => computeCoachRecord(dailyPicks), [dailyPicks])
 
   useEffect(() => {
     dataStore
@@ -116,6 +185,10 @@ export default function CoachGptPage() {
   useEffect(() => {
     dataStore.listCoachMessages(user.id).then(setRecordMessages).catch(() => setRecordMessages([]))
   }, [user.id])
+
+  useEffect(() => {
+    dataStore.listCoachDailyPicks().then(setDailyPicks).catch(() => setDailyPicks([]))
+  }, [])
 
   function startNewChat() {
     const id = crypto.randomUUID()
@@ -248,6 +321,7 @@ export default function CoachGptPage() {
       </div>
       <p className="hint">Ask about a fixture or a player - CoachGPT will give you a real lean, backed by the actual odds and data on the board.</p>
       <CoachScoreboard record={coachRecord} />
+      <CoachForm record={coachForm} picks={dailyPicks} />
       {showHistory && (
         <CoachHistorySheet
           userId={user.id}
