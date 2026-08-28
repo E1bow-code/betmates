@@ -35,6 +35,21 @@ function isActiveStatus(status) {
   return status === 'active' || status === 'trialing'
 }
 
+// The subscription's current period end as an ISO string, or null.
+// current_period_end moved OFF the top-level Subscription and onto its items
+// in Stripe's 2025-03 ("basil") API versions - which stripe-node v22 defaults
+// toward, and this code pins no apiVersion - so a webhook delivered on a basil
+// version carries it only at subscription.items.data[0].current_period_end.
+// Reading only the top-level field left premium_until / group_subscriptions.
+// current_period_end null, which silently killed the trial-ending and paid-
+// group renewal reminders in alert-checks.js (both gate on those columns being
+// non-null) and dropped the "renews {date}" line on the account page. Read
+// whichever shape the payload carries so it works on either API version.
+function subscriptionPeriodEndIso(subscription) {
+  const raw = subscription.current_period_end ?? subscription.items?.data?.[0]?.current_period_end ?? null
+  return raw ? new Date(raw * 1000).toISOString() : null
+}
+
 async function findUserId(admin, subscription) {
   if (subscription.metadata?.userId) return subscription.metadata.userId
   const { data, error } = await admin.from('profiles').select('id').eq('stripe_customer_id', subscription.customer).single()
@@ -48,7 +63,7 @@ async function syncPlusSubscription(admin, subscription) {
     console.error('syncPlusSubscription: no matching user for customer', subscription.customer, 'metadata', subscription.metadata)
     return
   }
-  const periodEnd = subscription.current_period_end ? new Date(subscription.current_period_end * 1000).toISOString() : null
+  const periodEnd = subscriptionPeriodEndIso(subscription)
   const { error } = await admin
     .from('profiles')
     .update({
@@ -82,7 +97,7 @@ async function syncGroupSubscription(admin, subscription) {
     console.error('syncGroupSubscription: missing metadata on subscription', subscription.id, subscription.metadata)
     return
   }
-  const periodEnd = subscription.current_period_end ? new Date(subscription.current_period_end * 1000).toISOString() : null
+  const periodEnd = subscriptionPeriodEndIso(subscription)
   const { error } = await admin.from('group_subscriptions').upsert(
     {
       group_id: groupId,
