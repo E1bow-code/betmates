@@ -73,6 +73,12 @@ async function fetchSportList(sport) {
 /** @param {any[]} items @param {string} sport @param {Set<string>} wantedLegs @param {Set<string>} wantedFixtureIds @param {Map<string, any>} fixtureRows @param {any[]} snapshots @param {string} now */
 function collectFixtureSnapshots(items, sport, wantedLegs, wantedFixtureIds, fixtureRows, snapshots, now) {
   for (const item of items ?? []) {
+    // fixtures.kickoff is NOT NULL, and a fixture with no kickoff has no
+    // definable closing line anyway (the close is the last snapshot at or
+    // before kickoff), so skip it here rather than let one kickoff-less item
+    // fail the whole fixtures upsert batch - which used to FK-block the entire
+    // odds_snapshots insert and lose every fixture's snapshot for that run.
+    if (item.kickoff == null) continue
     for (const market of item.markets ?? []) {
       for (const outcome of market.outcomes ?? []) {
         const wanted = wantedLegs.has(`${item.id}|${market.key}|${outcome.name}`) || wantedFixtureIds.has(item.id)
@@ -107,6 +113,7 @@ function collectFixtureSnapshots(items, sport, wantedLegs, wantedFixtureIds, fix
 /** @param {any[]} races @param {Set<string>} wantedLegs @param {Set<string>} wantedFixtureIds @param {Map<string, any>} fixtureRows @param {any[]} snapshots @param {string} now */
 function collectRacingSnapshots(races, wantedLegs, wantedFixtureIds, fixtureRows, snapshots, now) {
   for (const race of races ?? []) {
+    if (race.offTime == null) continue // no off-time -> no closing line, and fixtures.kickoff is NOT NULL (see collectFixtureSnapshots)
     for (const runner of race.runners ?? []) {
       const wanted = wantedLegs.has(`${race.id}|win|${runner.name}`) || wantedFixtureIds.has(race.id)
       if (!wanted) continue
@@ -194,8 +201,19 @@ export default async () => {
       return new Response(JSON.stringify({ snapshotted: 0, reason: 'no matching prices' }), { status: 200 })
     }
 
-    await supabase.from('fixtures').upsert([...fixtureRows.values()], { onConflict: 'id' })
-    await supabase.from('odds_snapshots').insert(snapshots)
+    // Surface write failures instead of reporting success over them. The
+    // fixtures upsert has to land first (odds_snapshots.fixture_id FKs it), so
+    // if it errors the snapshots insert would FK-fail anyway - report and stop
+    // rather than claim `snapshotted: N` on a run that wrote nothing, which
+    // silently starved CLV and sharp-money history.
+    const { error: fixturesError } = await supabase.from('fixtures').upsert([...fixtureRows.values()], { onConflict: 'id' })
+    if (fixturesError) {
+      return new Response(JSON.stringify({ snapshotted: 0, error: `fixtures upsert failed: ${fixturesError.message}` }), { status: 200 })
+    }
+    const { error: snapshotsError } = await supabase.from('odds_snapshots').insert(snapshots)
+    if (snapshotsError) {
+      return new Response(JSON.stringify({ snapshotted: 0, error: `odds_snapshots insert failed: ${snapshotsError.message}` }), { status: 200 })
+    }
 
     return new Response(
       JSON.stringify({ snapshotted: snapshots.length, fixtures: fixtureRows.size, sports: [...sportsInPlay] }),

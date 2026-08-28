@@ -43,14 +43,26 @@ export default async (req) => {
     // kickoff_reminder_sent_at) - this one never did, and unlike its
     // siblings it has no per-item dedup to fall back on either, so
     // simply calling this function's public URL twice fanned out a full
-    // duplicate recap to every opted-in user each time. `weekAgoIso`
-    // doubles as the "haven't sent one this week" cutoff - the same
-    // window already used to decide what counts as "this week's bets".
+    // duplicate recap to every opted-in user each time.
+    //
+    // The dedup cutoff must be LOOSER than the exact 7-day bets window,
+    // not equal to it. This cron fires exactly weekly, but the watermark
+    // is written a few seconds/minutes into the run (after each user's
+    // per-user coach take), so a user's stored weekly_recap_sent_at ends
+    // up slightly NEWER than next week's `now - 7d` instant. Reusing
+    // weekAgoIso as the cutoff therefore failed the `.lt` test and skipped
+    // every active recipient on the next run - they got the recap
+    // biweekly, not weekly. A 6-day cutoff keeps the once-per-week intent
+    // (last week's send is >6d old) while still blocking a same-window
+    // double-invoke (its watermark is minutes old, well inside 6 days).
+    const sentCutoff = new Date()
+    sentCutoff.setDate(sentCutoff.getDate() - 6)
+    const sentCutoffIso = sentCutoff.toISOString()
     const { data: optedIn } = await supabase
       .from('profiles')
       .select('id')
       .eq('notification_prefs->>weeklyRecap', 'true')
-      .or(`weekly_recap_sent_at.is.null,weekly_recap_sent_at.lt.${weekAgoIso}`)
+      .or(`weekly_recap_sent_at.is.null,weekly_recap_sent_at.lt.${sentCutoffIso}`)
     if (!optedIn?.length) return new Response(JSON.stringify({ sent: 0 }), { status: 200 })
 
     const userIds = optedIn.map((p) => p.id)
