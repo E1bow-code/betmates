@@ -881,6 +881,14 @@ export function listComments(betId) {
   return delay(db.comments.filter((c) => c.betId === betId).sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()))
 }
 
+/** @param {string} commentId @returns {Promise<string>} */
+export function deleteComment(commentId) {
+  const db = readDb()
+  db.comments = db.comments.filter((c) => c.id !== commentId)
+  writeDb(db)
+  return delay(commentId)
+}
+
 /** @param {string[]} betIds @param {string} excludeUserId @returns {Promise<any[]>} */
 export function listRecentCommentsOnPosts(betIds, excludeUserId) {
   const db = readDb()

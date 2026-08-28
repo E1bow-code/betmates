@@ -1414,6 +1414,18 @@ export async function listComments(betId) {
   return data.map(mapComment)
 }
 
+// Removing your own comment - the RLS "user removes own comment" policy is what
+// actually enforces own-only; the caller only ever offers delete on the signed-
+// in user's own comments. Returns the id so BetCard can drop it from local
+// state without a re-fetch.
+/** @param {string} commentId @returns {Promise<string>} */
+export async function deleteComment(commentId) {
+  if (!isSupabaseConfigured) return local.deleteComment(commentId)
+  const { error } = await supabase.from('bet_comments').delete().eq('id', commentId)
+  if (error) throw error
+  return commentId
+}
+
 // For ActivityContext.jsx's in-app "commented" notification kind - feeds
 // off betIds the caller already fetched (its own listBetPostsByUser call),
 // rather than re-querying bet_posts here just to find them. excludeUserId
