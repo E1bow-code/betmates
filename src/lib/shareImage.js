@@ -485,6 +485,96 @@ export async function shareBadBeatImage(beat) {
   return 'downloaded'
 }
 
+// A win-streak flex card - the in-app celebration of a hot run made
+// shareable. Single-subject layout like the invite card: the streak count big
+// in the win colour, the owner's name, and an app pitch. Count is passed in
+// (computeStreak lives in trackerStats.js); this only draws.
+export async function renderStreakImage({ name, count }) {
+  const height = 380
+  const padding = 44
+  const who = (name || 'A mate').trim()
+  const n = Number(count) || 0
+
+  const canvas = document.createElement('canvas')
+  const dpr = Math.min(window.devicePixelRatio || 1, 2)
+  canvas.width = WIDTH * dpr
+  canvas.height = height * dpr
+  const ctx = canvas.getContext('2d')
+  ctx.scale(dpr, dpr)
+
+  ctx.fillStyle = COLORS.bg
+  ctx.fillRect(0, 0, WIDTH, height)
+
+  let y = padding
+  ctx.fillStyle = COLORS.accent
+  ctx.font = '700 24px "Big Shoulders Display", sans-serif'
+  ctx.fillText('BetMates', padding, y)
+  ctx.fillStyle = COLORS.good
+  ctx.font = '600 13px "IBM Plex Sans", sans-serif'
+  ctx.textAlign = 'right'
+  ctx.fillText('ON A HEATER', WIDTH - padding, y - 2)
+  ctx.textAlign = 'left'
+  y += 30
+  ctx.strokeStyle = COLORS.border
+  ctx.beginPath()
+  ctx.moveTo(padding, y)
+  ctx.lineTo(WIDTH - padding, y)
+  ctx.stroke()
+  y += 78
+
+  // The number, big, with the label to its right.
+  ctx.fillStyle = COLORS.good
+  ctx.font = '700 96px "Big Shoulders Display", sans-serif'
+  ctx.fillText(String(n), padding, y)
+  const numW = ctx.measureText(String(n)).width
+  ctx.fillStyle = COLORS.text
+  ctx.font = '700 30px "Big Shoulders Display", sans-serif'
+  ctx.fillText('WINS', padding + numW + 18, y - 34)
+  ctx.fillText('IN A ROW', padding + numW + 18, y - 4)
+  y += 40
+
+  ctx.fillStyle = COLORS.text
+  ctx.font = '700 30px "Big Shoulders Display", sans-serif'
+  const hook = wrapText(ctx, `${who} is on fire`, WIDTH - padding * 2)
+  for (const line of hook) {
+    ctx.fillText(line, padding, y)
+    y += 36
+  }
+  y += 10
+
+  ctx.fillStyle = COLORS.textDim
+  ctx.font = '18px "IBM Plex Sans", sans-serif'
+  const pitch = wrapText(ctx, 'Consecutive winners on BetMates. Track your bets and settle the score with your mates.', WIDTH - padding * 2)
+  for (const line of pitch) {
+    ctx.fillText(line, padding, y)
+    y += 26
+  }
+
+  ctx.fillStyle = COLORS.textDim
+  ctx.font = '12px "IBM Plex Sans", sans-serif'
+  ctx.fillText('BetMates does not place bets or hold funds. 18+. Gamble responsibly.', padding, height - padding + 20)
+
+  return new Promise((resolve) => canvas.toBlob(resolve, 'image/png'))
+}
+
+export async function shareStreakImage({ name, count }) {
+  const blob = await renderStreakImage({ name, count })
+  const file = new File([blob], 'betmates-streak.png', { type: 'image/png' })
+
+  const text = `${Number(count) || 0} on the bounce on BetMates. On a heater - track your bets and settle the score with your mates.`
+  if (navigator.canShare?.({ files: [file] })) {
+    await navigator.share({ files: [file], title: 'On a win streak', text })
+    return 'shared'
+  }
+
+  const a = document.createElement('a')
+  a.href = URL.createObjectURL(blob)
+  a.download = 'betmates-streak.png'
+  a.click()
+  URL.revokeObjectURL(a.href)
+  return 'downloaded'
+}
+
 // Same canvas-and-share approach as the bet slip above, for a leaderboard
 // rank card instead - a fixed-height layout since there's no variable-length
 // content to measure first (unlike the leg list above).

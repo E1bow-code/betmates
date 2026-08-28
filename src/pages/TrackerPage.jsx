@@ -30,6 +30,7 @@ import ShareRecapButton from '../components/ShareRecapButton.jsx'
 import ChallengeMateButton from '../components/ChallengeMateButton.jsx'
 import ShareImageButton from '../components/ShareImageButton.jsx'
 import ShareWinButton from '../components/ShareWinButton.jsx'
+import ShareStreakButton from '../components/ShareStreakButton.jsx'
 import SportHeroBanner from '../components/SportHeroBanner.jsx'
 import SportIcon from '../components/icons/SportIcons.jsx'
 import TeamBadge from '../components/TeamBadge.jsx'
@@ -339,6 +340,11 @@ export default function TrackerPage() {
               </span>
             )
           })}
+        </div>
+      )}
+      {streak.type === 'won' && streak.count >= 3 && (
+        <div className="tracker-row-actions">
+          <ShareStreakButton name={user.displayName} count={streak.count} />
         </div>
       )}
       <div className="tracker-links-row">
