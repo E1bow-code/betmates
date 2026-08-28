@@ -363,7 +363,7 @@ export default function GroupFeedPage() {
           )}
 
           {items && items.length > 0 && (
-            <GroupConsensusCard picks={computeGroupConsensus(posts ?? [])} memberNames={memberNames} currentUserId={user.id} />
+            <GroupConsensusCard picks={computeGroupConsensus(posts ?? [])} currentUserId={user.id} />
           )}
 
           {items && items.length > 0 && (

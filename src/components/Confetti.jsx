@@ -6,12 +6,21 @@ import { useEffect, useRef } from 'react'
 // pointer-events:none overlay so it never blocks the UI.
 export default function Confetti({ onDone }) {
   const ref = useRef(null)
+  // Hold onDone in a ref so the animation effect can run exactly once per mount
+  // (empty deps) while still calling the latest callback. The only caller passes
+  // an inline `() => setCelebrate(false)`, whose identity changes on every parent
+  // render - and TrackerPage re-renders every 30s on live-score polls. Keying the
+  // effect on onDone would tear down and restart the burst from frame zero on any
+  // such render mid-flight (and, if renders arrived faster than the 1.6s run,
+  // onDone would never fire and the celebration would never clear).
+  const onDoneRef = useRef(onDone)
+  onDoneRef.current = onDone
 
   useEffect(() => {
     const reduce = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches
     const canvas = ref.current
     if (reduce || !canvas) {
-      onDone?.()
+      onDoneRef.current?.()
       return
     }
     const ctx = canvas.getContext('2d')
@@ -54,11 +63,11 @@ export default function Confetti({ onDone }) {
         ctx.restore()
       }
       if (elapsed < 1600) raf = requestAnimationFrame(frame)
-      else onDone?.()
+      else onDoneRef.current?.()
     }
     raf = requestAnimationFrame(frame)
     return () => cancelAnimationFrame(raf)
-  }, [onDone])
+  }, [])
 
   return <canvas ref={ref} className="confetti-canvas" aria-hidden="true" />
 }

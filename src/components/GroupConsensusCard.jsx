@@ -4,7 +4,7 @@ import { FlameIcon } from './icons/Icons.jsx'
 // open bets right now (computeGroupConsensus). Social proof that nudges a
 // member to tail a selection their group already likes. Renders nothing when
 // there's no consensus yet, so a quiet group never shows an empty card.
-export default function GroupConsensusCard({ picks, memberNames, currentUserId }) {
+export default function GroupConsensusCard({ picks, currentUserId }) {
   if (!picks || picks.length === 0) return null
 
   return (
