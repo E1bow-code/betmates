@@ -50,10 +50,21 @@ export default function FixtureDetailPage() {
   const [snapshotSeries, setSnapshotSeries] = useState({})
 
   useEffect(() => {
+    // Clear the previous fixture and guard the responses so an in-place id
+    // change (fixture -> fixture without a remount) can't leave the old one on
+    // screen or let a slow response for the previous id overwrite the new one.
+    let live = true
+    setFixture(null)
     fetchFixture(id)
-      .then(setFixture)
-      .catch((err) => setError(err.message))
-    dataStore.getOddsSnapshotSeries(id).then(setSnapshotSeries).catch(() => {})
+      .then((f) => live && setFixture(f))
+      .catch((err) => live && setError(err.message))
+    dataStore
+      .getOddsSnapshotSeries(id)
+      .then((s) => live && setSnapshotSeries(s))
+      .catch(() => {})
+    return () => {
+      live = false
+    }
   }, [id])
 
   // Every market used to render fully expanded, which turned a fixture
