@@ -48,6 +48,7 @@ import { savePhotoBlob, getPhotoBlob } from './photoStore.js'
  * @property {{id: string, postId: string, reporterId: string, reason: string, createdAt: string}[]} postReports
  * @property {DirectMessage[]} directMessages
  * @property {{id: string, userId: string, sessionId: string, role: 'user'|'assistant', body: string, grounding: object|null, recommendation: object|null, result: string|null, createdAt: string}[]} coachMessages
+ * @property {{id: string, pickDate: string, sport: string|null, reply: string|null, recommendation: object|null, result: string|null, createdAt: string, settledAt: string|null}[]} coachDailyPicks
  * @property {(OddsAlert & {userId: string})[]} oddsAlerts
  * @property {{id: string, userId: string, sport: string, eventId: string, eventLabel: string, kickoff: string, createdAt: string}[]} followedFixtures
  * @property {{id: string, userId: string, sport: string, name: string, createdAt: string}[]} followedParticipants
@@ -80,6 +81,17 @@ const EMPTY_DB = {
   postReports: [],
   directMessages: [],
   coachMessages: [],
+  // A seeded "Coach's form" so the no-backend demo shows a plausible record
+  // (local mode has no coach-pick.js/coach-settle.js to fill it live). Same
+  // recommendation/result shape the real coach_daily_picks table uses.
+  coachDailyPicks: [
+    { id: 'cdp-6', pickDate: '2026-08-27', sport: 'football', reply: 'Arsenal are flying at home and the price is generous.', recommendation: { sport: 'football', event: 'Arsenal v Chelsea', selection: 'Arsenal', odds: 2.1, marketKey: 'h2h' }, result: 'won', createdAt: '2026-08-27T11:00:00.000Z', settledAt: '2026-08-28T06:30:00.000Z' },
+    { id: 'cdp-5', pickDate: '2026-08-26', sport: 'football', reply: 'Both teams scoring looks the play here.', recommendation: { sport: 'football', event: 'Spurs v Newcastle', selection: 'Both teams to score', odds: 1.8, marketKey: 'btts' }, result: 'lost', createdAt: '2026-08-26T11:00:00.000Z', settledAt: '2026-08-27T06:30:00.000Z' },
+    { id: 'cdp-4', pickDate: '2026-08-25', sport: 'ufc', reply: 'The underdog has the wrestling to win this.', recommendation: { sport: 'ufc', event: 'Jones v Aspinall', selection: 'Aspinall', odds: 2.4, marketKey: 'h2h' }, result: 'won', createdAt: '2026-08-25T11:00:00.000Z', settledAt: '2026-08-26T06:30:00.000Z' },
+    { id: 'cdp-3', pickDate: '2026-08-24', sport: 'racing', reply: 'Best value in the 3:15 on the form.', recommendation: { sport: 'racing', event: 'Ascot 3:15', selection: 'Golden Mile', odds: 4.5 }, result: 'void', createdAt: '2026-08-24T11:00:00.000Z', settledAt: '2026-08-25T06:30:00.000Z' },
+    { id: 'cdp-2', pickDate: '2026-08-23', sport: 'football', reply: 'City to win to nil is the standout.', recommendation: { sport: 'football', event: 'Man City v Everton', selection: 'Man City', odds: 1.5, marketKey: 'h2h' }, result: 'won', createdAt: '2026-08-23T11:00:00.000Z', settledAt: '2026-08-24T06:30:00.000Z' },
+    { id: 'cdp-1', pickDate: '2026-08-22', sport: 'football', reply: 'The draw is overpriced in this one.', recommendation: { sport: 'football', event: 'Liverpool v United', selection: 'Draw', odds: 3.4, marketKey: 'h2h' }, result: 'lost', createdAt: '2026-08-22T11:00:00.000Z', settledAt: '2026-08-23T06:30:00.000Z' }
+  ],
   oddsAlerts: [],
   followedFixtures: [],
   followedParticipants: [],
@@ -617,6 +629,14 @@ export function listCoachMessages(userId, sessionId) {
 /** @param {string} userId @returns {Promise<{sessionId: string, title: string, startedAt: string, lastMessageAt: string, messageCount: number}[]>} */
 export async function listCoachSessions(userId) {
   return groupCoachSessions(await listCoachMessages(userId))
+}
+
+// CoachGPT's own daily-pick record (see dataStore.listCoachDailyPicks) - global,
+// not user-scoped. Seeded above so the no-backend demo has a form to show.
+/** @returns {Promise<{id: string, pickDate: string, sport: string|null, reply: string|null, recommendation: object|null, result: string|null, createdAt: string, settledAt: string|null}[]>} */
+export function listCoachDailyPicks() {
+  const db = readDb()
+  return delay([...db.coachDailyPicks].sort((a, b) => (a.pickDate < b.pickDate ? 1 : a.pickDate > b.pickDate ? -1 : 0)))
 }
 
 // No local equivalent of coach-settle.js (a scheduled function needs a real

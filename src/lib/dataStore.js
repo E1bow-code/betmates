@@ -799,6 +799,33 @@ export async function listCoachMessages(userId, sessionId) {
   return data.map(mapCoachMessage)
 }
 
+/** @param {any} row */
+function mapCoachDailyPick(row) {
+  return {
+    id: row.id,
+    pickDate: row.pick_date,
+    sport: row.sport ?? null,
+    reply: row.reply ?? null,
+    recommendation: row.recommendation ?? null,
+    result: row.result ?? null,
+    createdAt: row.created_at,
+    settledAt: row.settled_at ?? null
+  }
+}
+
+// CoachGPT's own public "pick of the day" record (netlify/functions/coach-pick.js),
+// newest first - drives the "Coach's form" panel on CoachGptPage. Global, not
+// user-scoped: the same record for everyone, so no userId argument. Its
+// recommendation/result carry the exact shape computeCoachRecord already reads
+// off coach_messages, so the same maths powers both.
+/** @returns {Promise<{id: string, pickDate: string, sport: string|null, reply: string|null, recommendation: object|null, result: string|null, createdAt: string, settledAt: string|null}[]>} */
+export async function listCoachDailyPicks() {
+  if (!isSupabaseConfigured) return local.listCoachDailyPicks()
+  const { data, error } = await supabase.from('coach_daily_picks').select('*').order('pick_date', { ascending: false }).limit(60)
+  if (error) throw error
+  return data.map(mapCoachDailyPick)
+}
+
 // grounding: real BetSlip legs a "Log this" affordance can pre-fill from -
 // see netlify/functions/coachgpt.js's groundFixtureOutcomes/groundRunner.
 // Only ever set on an assistant message; always null on a user message.
