@@ -76,7 +76,17 @@ export default async (req) => {
     if (!games.length && !raceResults.length) return new Response(JSON.stringify({ settled: 0 }), { status: 200 })
 
     const resolved = due
-      .map((row) => ({ id: row.id, result: evaluateLeg(row.recommendation, games, raceResults) }))
+      .map((row) => {
+        // Isolate each pick: one recommendation that makes evaluateLeg throw
+        // must not abort the whole unattended run and stall settlement for
+        // every other pick. Skip it (leaves result null -> retried next run).
+        try {
+          return { id: row.id, result: evaluateLeg(row.recommendation, games, raceResults) }
+        } catch (evalErr) {
+          console.error(`coach-settle: skipping recommendation ${row.id} - evaluation error:`, evalErr instanceof Error ? evalErr.message : evalErr)
+          return { id: row.id, result: 'undetermined' }
+        }
+      })
       .filter((row) => row.result === 'won' || row.result === 'lost' || row.result === 'void')
     if (!resolved.length) return new Response(JSON.stringify({ settled: 0 }), { status: 200 })
 
