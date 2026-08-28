@@ -203,6 +203,9 @@ html, body {
    already have their own modifiers below since they're state, not tone). */
 .chip--outline { background: none; border: 1px solid var(--border); color: var(--text-dim); }
 .chip--outline-accent { background: none; border: 1px solid var(--accent-dim); color: var(--accent); }
+/* the 🔥 win-streak chip next to a name on the leaderboard (WinStreakBadge) -
+   in the win colour so a hot run reads as positive, not as a warning */
+.win-streak-badge { background: none; border: 1px solid var(--good-dim); color: var(--good); }
 .chip--filled-neutral { background: var(--surface); border: 1px solid var(--border); color: var(--text-dim); }
 .chip--filled-accent { background: rgba(var(--accent-rgb), 0.12); border: 1px solid var(--accent-dim); color: var(--accent); }
 .chip--filled-accent-strong { background: rgba(var(--accent-rgb), 0.16); border: none; color: var(--accent); }
