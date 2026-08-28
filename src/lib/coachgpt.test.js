@@ -189,6 +189,29 @@ test('an "am I already on this" question runs get_my_open_bets then answers from
   assert.equal(res.error, null)
 })
 
+test('get_my_group_standings is offered to the model, requiring no input', () => {
+  const tool = COACHGPT_TOOLS.find((t) => t.name === 'get_my_group_standings')
+  assert.ok(tool, 'get_my_group_standings should be in COACHGPT_TOOLS')
+  assert.deepEqual(tool.input_schema.required ?? [], [])
+})
+
+test('a "how am I doing in my group" question runs get_my_group_standings then answers from it', async () => {
+  stubFetch([
+    toolReply('get_my_group_standings', {}),
+    textReply("2nd in The Lads, £15 behind Dave - one good weekend and you're top, champ."),
+    lockReply(false)
+  ])
+  let toolCalledWith = null
+  const callTool = async (name, input) => {
+    toolCalledWith = { name, input }
+    return { available: true, groups: [{ group: 'The Lads', rank: 2, ranked: 4, profit: 35, isLeading: false, leader: { name: 'Dave', profit: 50 }, nextUp: { name: 'Dave', behindBy: 15 } }] }
+  }
+  const res = await runCoachGptTurn({ apiKey: 'k', history: [], message: 'how am I doing in my group?', callTool })
+  assert.deepEqual(toolCalledWith, { name: 'get_my_group_standings', input: {} })
+  assert.equal(res.text, "2nd in The Lads, £15 behind Dave - one good weekend and you're top, champ.")
+  assert.equal(res.error, null)
+})
+
 test('get_coach_record is offered to the model as a tool', () => {
   const record = COACHGPT_TOOLS.find((t) => t.name === 'get_coach_record')
   assert.ok(record, 'get_coach_record should be in COACHGPT_TOOLS')

@@ -33,6 +33,8 @@ import { GENERIC_SPORTS, apiKeysForSport, sgoLeagueForSport } from '../../src/li
 import { summariseCoachRecord } from '../../src/utils/coachRecord.js'
 import { summariseTeamForm } from '../../src/utils/teamForm.js'
 import { summariseOpenBets } from '../../src/utils/openBets.js'
+import { computeGroupLeaderboard } from '../../src/utils/groupLeaderboard.js'
+import { summariseGroupStandings } from '../../src/utils/groupStandings.js'
 import { withinLlmBudget } from '../../src/lib/llmBudget.js'
 
 const SUPABASE_URL = process.env.VITE_SUPABASE_URL
@@ -515,6 +517,51 @@ async function toolGetMyOpenBets(userClient, userId) {
   return summariseOpenBets([...entries, ...posts])
 }
 
+// The user's rank on each of their groups' leaderboards, so CoachGPT can talk
+// standings ("2nd, £15 behind Dave"). Ranks with computeGroupLeaderboard - the
+// exact util the in-app Leaderboard uses - so the coach can never disagree with
+// what the user sees on screen. All reads are under the user's own token/RLS:
+// they only see groups they belong to and posts RLS already lets them read, and
+// this exposes nothing beyond the group leaderboard every member already sees.
+// Bounded to a handful of groups so one tool call can't fan out unboundedly;
+// degrades to unavailable on any hiccup, same contract as the record tools.
+const GROUP_STANDINGS_MAX_GROUPS = 6
+async function toolGetMyGroupStandings(userClient, userId) {
+  if (!userClient || !userId) return { available: false, reason: 'not signed in' }
+  const { data: memberRows, error } = await userClient
+    .from('group_members')
+    .select('groups(id, name)')
+    .eq('user_id', userId)
+    .limit(GROUP_STANDINGS_MAX_GROUPS)
+  if (error) return { available: false, reason: 'no groups yet' }
+  const groups = (memberRows ?? []).map((r) => r.groups).filter(Boolean)
+  if (!groups.length) return { available: false, reason: 'not in any group yet' }
+
+  const perGroup = await Promise.all(
+    groups.map(async (group) => {
+      const [postsRes, membersRes] = await Promise.all([
+        userClient.from('bet_posts').select('user_id, stake_hidden, settled_at, status, stake, potential_return').eq('group_id', group.id),
+        userClient.from('group_members').select('profiles(id, display_name)').eq('group_id', group.id)
+      ])
+      if (postsRes.error || membersRes.error) return null
+      // computeGroupLeaderboard reads the app's camelCase post shape, not the
+      // raw snake_case rows PostgREST returns - map the few fields it needs.
+      const posts = (postsRes.data ?? []).map((p) => ({
+        userId: p.user_id,
+        stakeHidden: p.stake_hidden,
+        settledAt: p.settled_at,
+        status: p.status,
+        stake: p.stake,
+        potentialReturn: p.potential_return
+      }))
+      const members = (membersRes.data ?? []).map((m) => m.profiles).filter(Boolean)
+      const memberNames = Object.fromEntries(members.map((m) => [m.id, m.display_name]))
+      return { name: group.name, memberCount: members.length, userId, rows: computeGroupLeaderboard(posts, memberNames, 'all') }
+    })
+  )
+  return summariseGroupStandings(perGroup.filter(Boolean))
+}
+
 async function toolGetMyRecord(userClient, userId, input = {}) {
   if (!userClient || !userId) return { available: false, reason: 'not signed in' }
   const sport = typeof input.sport === 'string' ? input.sport.trim() : ''
@@ -621,6 +668,7 @@ export default async (req) => {
     if (name === 'get_team_form') return toolGetTeamForm(siteUrl, input)
     if (name === 'get_my_record') return toolGetMyRecord(userClient, userId, input)
     if (name === 'get_my_open_bets') return toolGetMyOpenBets(userClient, userId)
+    if (name === 'get_my_group_standings') return toolGetMyGroupStandings(userClient, userId)
     if (name === 'get_coach_record') return toolGetCoachRecord(userClient, userId, input)
     return { error: `Unknown tool: ${name}` }
   }

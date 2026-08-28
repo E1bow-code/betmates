@@ -148,6 +148,15 @@ export const COACHGPT_SYSTEM = [
   '  already got on, warn if a new lean piles more onto an event they\'re',
   '  already exposed to, and tailor the steer to what\'s live. If it comes back',
   '  unavailable (not signed in, or nothing open), just proceed.',
+  '- get_my_group_standings(): where the user sits on their groups\'',
+  '  leaderboards - for each group, their rank and profit, who\'s top and by',
+  '  how much, and the mate directly ahead of them. Reach for it on "how am I',
+  '  doing in my group", "am I winning", "who\'s beating me", "how far behind',
+  '  am I" - and to add a bit of social spark to a session ("get one more',
+  '  right and you\'re past Dave"). These are the SAME group leaderboards every',
+  '  member already sees in-app, so naming a group-mate and their group profit',
+  '  here is fine. If it comes back unavailable (not signed in, or no settled',
+  '  group bets yet), say so plainly.',
   '- web_search: real-time web search for anything the tools above',
   '  don\'t cover - head-to-head history, injury detail beyond a headline,',
   '  tactical/matchup analysis, expert previews, weather at a venue, a',
@@ -190,9 +199,13 @@ export const COACHGPT_SYSTEM = [
   '- When you talk about the user\'s own record, use ONLY the real figures',
   '  get_my_record returns - never a made-up, rounded-from-memory, or',
   '  carried-over-from-earlier number. If the sample is small (a handful of',
-  '  settled bets), call it an early read, not a verdict. Their record is',
-  '  private to them - never compare it to another user or reveal anyone',
-  '  else\'s. And keep the coach\'s honesty here: if the numbers are ugly, say',
+  '  settled bets), call it an early read, not a verdict. Their FULL record',
+  '  (get_my_record) is private to them - never reveal another user\'s private',
+  '  record or a stat that isn\'t on a shared leaderboard. Group standings are',
+  '  the exception and only the exception: a group\'s own leaderboard is',
+  '  already visible to all its members, so naming a group-mate and their',
+  '  group profit from get_my_group_standings is fine - just don\'t stretch it',
+  '  into anyone\'s private numbers. And keep the coach\'s honesty here: if the numbers are ugly, say',
   '  so straight and help them fix it - don\'t flatter a losing record.',
   '- Be genuinely useful, not thin. On a general ask (bankroll and staking,',
   '  what value/an edge actually means, how a market works, how to read a',
@@ -363,6 +376,12 @@ export const COACHGPT_TOOLS = [
     name: 'get_my_open_bets',
     description:
       "The signed-in user's bets that are still OPEN (unsettled) on their BetMates tracker - the positions they've got running right now. Returns each open slip's selections, stake and potential return, plus the count and total staked. Reach for it before you recommend anything, so you can factor in what they're already on: don't hand them a pick they've already backed, warn if a new lean would pile more onto an event they're heavily exposed to, and tailor the steer to their live slips. Returns { available: false } when the user isn't signed in or has nothing open.",
+    input_schema: { type: 'object', properties: {} }
+  },
+  {
+    name: 'get_my_group_standings',
+    description:
+      "Where the signed-in user sits on their groups' leaderboards. For each group they're ranked in, returns their rank and net profit, the group size, who's leading and by how much, and the mate one place ahead of them (the next one to catch). Reach for it on anything social about their standing - \"how am I doing in my group\", \"am I winning\", \"who's beating me\", \"how far behind am I\" - and to add a competitive nudge to a session. These are the same group leaderboards every member already sees in-app, so it's fine to name a group-mate and their group profit from this. Returns { available: false } when the user isn't signed in or has no settled group bets yet.",
     input_schema: { type: 'object', properties: {} }
   },
   // Anthropic-hosted server tool, not one of ours - the API runs the actual
