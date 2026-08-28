@@ -122,11 +122,21 @@ export default async (req) => {
     /** @type {SettledEntry[]} */
     const settledEntries = []
     for (const entry of open) {
-      const detailed = evaluateEntryDetailed(entry, games, raceResults)
-      const resolved = resolveSettlement(entry, detailed)
-      // Only worth recording for a multi - see settlement.js's client-triggered
-      // twin, which applies the same restriction.
-      if (resolved) settledEntries.push({ ...entry, ...resolved, outcomes: (entry.selections?.length ?? 0) > 1 ? detailed.outcomes : undefined })
+      // Isolate each bet: this cron settles EVERY user's bets unattended, so a
+      // single row that makes evaluation throw (a malformed/legacy leg the UI
+      // wouldn't produce) must not abort the whole run and silently halt
+      // settlement for everyone. Skip the bad row, log it, settle the rest.
+      // The client twin (settlement.js) is already shielded by TrackerPage's
+      // own .catch; this gives the passive path the same isolation.
+      try {
+        const detailed = evaluateEntryDetailed(entry, games, raceResults)
+        const resolved = resolveSettlement(entry, detailed)
+        // Only worth recording for a multi - see settlement.js's client-triggered
+        // twin, which applies the same restriction.
+        if (resolved) settledEntries.push({ ...entry, ...resolved, outcomes: (entry.selections?.length ?? 0) > 1 ? detailed.outcomes : undefined })
+      } catch (evalErr) {
+        console.error(`auto-settle: skipping ${entry.table} ${entry.id} - evaluation error:`, evalErr instanceof Error ? evalErr.message : evalErr)
+      }
     }
     if (!settledEntries.length) return new Response(JSON.stringify({ settled: 0 }), { status: 200 })
 
