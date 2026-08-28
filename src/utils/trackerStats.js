@@ -38,6 +38,18 @@ export function computeStreak(entries) {
   return { type, count }
 }
 
+// The Sunday-00:00 that starts the settledAt's week, as an ISO string, drawn
+// in UTC. Deterministic regardless of the runner's timezone - the same rule
+// monthlyPnl.js and dateWindows.js follow, so a bet settled near a Saturday/
+// Sunday midnight boundary lands in one fixed week for everyone, rather than
+// shifting week-buckets (and which week is credited as "best") between viewers
+// in different timezones. Date.UTC handles the day going below 1 by rolling
+// back into the previous month.
+function utcWeekStartIso(dateStr) {
+  const d = new Date(dateStr)
+  return new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate() - d.getUTCDay())).toISOString()
+}
+
 // Highest-profit Sunday-start week among settled bets, for a "best week"
 // badge - a simple grouping over the same profit math computeStats uses,
 // not a separate calculation.
@@ -46,11 +58,7 @@ export function computeBestWeek(entries) {
   if (!settled.length) return null
   const byWeek = new Map()
   for (const e of settled) {
-    const settledDate = new Date(e.settledAt)
-    const weekStart = new Date(settledDate)
-    weekStart.setDate(settledDate.getDate() - settledDate.getDay())
-    weekStart.setHours(0, 0, 0, 0)
-    const key = weekStart.toISOString()
+    const key = utcWeekStartIso(e.settledAt)
     const profit = e.status === 'won' ? Number(e.potentialReturn) - Number(e.stake) : e.status === 'lost' ? -Number(e.stake) : 0
     byWeek.set(key, (byWeek.get(key) ?? 0) + profit)
   }
@@ -70,11 +78,7 @@ export function computePerfectWeek(entries) {
   if (!decided.length) return null
   const byWeek = new Map()
   for (const e of decided) {
-    const settledDate = new Date(e.settledAt)
-    const weekStart = new Date(settledDate)
-    weekStart.setDate(settledDate.getDate() - settledDate.getDay())
-    weekStart.setHours(0, 0, 0, 0)
-    const key = weekStart.toISOString()
+    const key = utcWeekStartIso(e.settledAt)
     if (!byWeek.has(key)) byWeek.set(key, [])
     byWeek.get(key).push(e.status)
   }

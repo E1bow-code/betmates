@@ -103,6 +103,19 @@ test('computeBestWeek is null with nothing settled', () => {
   assert.equal(computeBestWeek([e({ status: 'open' })]), null)
 })
 
+test('computeBestWeek buckets weeks on a fixed UTC boundary, not the runner timezone', () => {
+  // Sunday 2026-01-04 00:30 UTC is the start of its week everywhere; a
+  // local-time bucketer west of UTC would push it into the previous
+  // (Saturday) week and split these two same-week wins apart.
+  const entries = [
+    e({ status: 'won', stake: 10, potentialReturn: 60, settledAt: '2026-01-04T00:30:00Z' }), // +50, Sunday 00:30 UTC
+    e({ status: 'won', stake: 10, potentialReturn: 40, settledAt: '2026-01-07T12:00:00Z' }) // +30, same UTC week
+  ]
+  const best = computeBestWeek(entries)
+  assert.equal(best.profit, 80) // both in one week
+  assert.equal(best.weekStart, '2026-01-04T00:00:00.000Z') // Sunday-00:00 UTC
+})
+
 test('computePerfectWeek needs at least 2 wins with no losses in the same week', () => {
   const oneWin = [e({ status: 'won', settledAt: '2026-01-05T12:00:00Z' })]
   assert.equal(computePerfectWeek(oneWin), null)
