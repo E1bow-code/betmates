@@ -1270,6 +1270,36 @@ create policy "user inserts own coach take usage" on coach_takes for insert with
 
 create index coach_takes_user_id_created_at_idx on coach_takes (user_id, created_at);
 
+-- One row per day: CoachGPT's public "pick of the day" (netlify/functions/
+-- coach-pick.js). Unlike coach_messages above, this is NOT tied to a user - it's
+-- Coach's own standalone tipster record on real fixtures, the same for everyone,
+-- so his hit rate genuinely grows over time whether or not anyone is chatting.
+-- coach-pick.js writes the pick (a real lock_in_recommendation leg matched from
+-- live grounding); coach-settle.js later fills `result` from real scores, the
+-- exact same way it settles a user's coach_messages picks. `recommendation` has
+-- the same event/market/selection/sport/eventId(-or-raceId+horseId)/odds shape a
+-- real bet leg has, so evaluateLeg settles it unchanged. Writes are service-role
+-- only (there is deliberately no anon/authenticated insert/update policy below),
+-- which is what keeps `result` unforgeable - so this needs no guard trigger like
+-- coach_messages does.
+create table coach_daily_picks (
+  id uuid primary key default gen_random_uuid(),
+  pick_date date not null unique,            -- one pick per day; coach-pick.js's insert is idempotent on this
+  sport text,
+  reply text,                                -- Coach's written rationale for the pick
+  recommendation jsonb not null,             -- the BetSlip-ready leg coach-settle.js evaluates
+  result text check (result in ('won', 'lost', 'void')),
+  created_at timestamptz not null default now(),
+  settled_at timestamptz
+);
+
+alter table coach_daily_picks enable row level security;
+-- Public read: Coach's record is meant to be seen by everyone.
+create policy "anyone can read coach daily picks" on coach_daily_picks for select using (true);
+-- No insert/update policy: only the service-role scheduled functions write here.
+
+create index coach_daily_picks_unsettled_idx on coach_daily_picks (created_at) where result is null;
+
 -- --- Value-edge push alerts -------------------------------------------------
 -- netlify/functions/alert-checks.js's runValueEdgeAlerts - the proactive
 -- half of CoachGPT: pushes when a followed team/fighter (followed_participants)

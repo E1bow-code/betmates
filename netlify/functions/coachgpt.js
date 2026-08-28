@@ -240,7 +240,7 @@ async function searchSport(siteUrl, sport, query) {
 // decides what "no grounding this call" means - see the handler below,
 // which always overwrites on every find_fixture call so only the LAST
 // call's result can ever be offered as "Log this".
-async function toolFindFixture(siteUrl, { query, sport }, groundingOut) {
+export async function toolFindFixture(siteUrl, { query, sport }, groundingOut) {
   const normalisedSport = sport && SPORT_ORDER.includes(sport) ? sport : null
   let matchedSport = normalisedSport
   let result = normalisedSport ? await searchSport(siteUrl, normalisedSport, query) : null
@@ -290,7 +290,7 @@ async function toolFindFixture(siteUrl, { query, sport }, groundingOut) {
   }
 }
 
-async function toolGetPlayerProfile(name) {
+export async function toolGetPlayerProfile(name) {
   const profile = await getPlayerProfile(name)
   return profile ?? { found: false }
 }
@@ -300,7 +300,7 @@ async function toolGetPlayerProfile(name) {
 // model's own knowledge has a training cutoff, so this is how it talks about
 // this week's form/injuries/results instead of guessing. A query with no hits
 // falls back to the top general headlines with a note, rather than nothing.
-async function toolGetNews(siteUrl, { query } = {}) {
+export async function toolGetNews(siteUrl, { query } = {}) {
   const items = await fetchJson(siteUrl, '/api/sports-news')
   if (!Array.isArray(items) || !items.length) return { headlines: [] }
   const q = (query ?? '').trim().toLowerCase()
@@ -317,7 +317,7 @@ async function toolGetNews(siteUrl, { query } = {}) {
 // concrete recent form to reason about, not just prices. Resolves the sport to
 // its Odds API keys and/or SportsGameOdds league, exactly the way auto-settle
 // and the Results tab do. Defaults to football, this app's primary sport.
-async function toolGetResults(siteUrl, { sport } = {}) {
+export async function toolGetResults(siteUrl, { sport } = {}) {
   const key = sport && SPORT_ORDER.includes(sport) ? sport : 'football'
   const params = new URLSearchParams()
   const keys = apiKeysForSport(key)
@@ -339,7 +339,7 @@ async function toolGetResults(siteUrl, { sport } = {}) {
 // toolGetResults above, but filtered to a named team and summarised into
 // W/D/L + goals via the pure summariseTeamForm. Degrades to { available: false }
 // when the sport has no configured keys or no recent game matches the team.
-async function toolGetTeamForm(siteUrl, { team, sport } = {}) {
+export async function toolGetTeamForm(siteUrl, { team, sport } = {}) {
   const key = sport && SPORT_ORDER.includes(sport) ? sport : 'football'
   const params = new URLSearchParams()
   const keys = apiKeysForSport(key)
@@ -375,7 +375,7 @@ function summariseUpcomingFixture(fixture, sportKey) {
   }
 }
 
-async function toolListUpcoming(siteUrl, { sport } = {}) {
+export async function toolListUpcoming(siteUrl, { sport } = {}) {
   const normalisedSport = sport && SPORT_ORDER.includes(sport) ? sport : null
   const sportsToCheck = normalisedSport ? [normalisedSport] : SPORT_ORDER
   const now = Date.now()
@@ -422,7 +422,7 @@ async function toolListUpcoming(siteUrl, { sport } = {}) {
 // selection field holds the translated team name/"Draw" the model
 // actually returns. Matching against outcomeName silently dropped every
 // recommendation until this was caught via a debug field on a live call.
-function matchRecommendation(recommendation, grounding) {
+export function matchRecommendation(recommendation, grounding) {
   if (!recommendation || !grounding?.length) return null
   return (
     grounding.find((leg) => {

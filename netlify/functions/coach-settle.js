@@ -58,14 +58,22 @@ export default async (req) => {
   try {
     const supabase = createClient(SUPABASE_URL, SERVICE_ROLE_KEY)
 
-    const { data } = await supabase.from('coach_messages').select('id,recommendation').not('recommendation', 'is', null).is('result', null)
-    const due = /** @type {DueRow[]} */ (data ?? [])
-    if (!due.length) return new Response(JSON.stringify({ settled: 0 }), { status: 200 })
+    // Two sources of unsettled picks, graded the same way: a user's own
+    // lock_in_recommendation picks (coach_messages) and CoachGPT's standalone
+    // "pick of the day" (coach_daily_picks, written by coach-pick.js). Both hold
+    // a recommendation leg of the same shape, so one score fetch settles both.
+    const [{ data: msgData }, { data: dailyData }] = await Promise.all([
+      supabase.from('coach_messages').select('id,recommendation').not('recommendation', 'is', null).is('result', null),
+      supabase.from('coach_daily_picks').select('id,recommendation').not('recommendation', 'is', null).is('result', null)
+    ])
+    const dueMsgs = /** @type {DueRow[]} */ (msgData ?? [])
+    const dueDaily = /** @type {DueRow[]} */ (dailyData ?? [])
+    if (!dueMsgs.length && !dueDaily.length) return new Response(JSON.stringify({ settled: 0 }), { status: 200 })
 
     /** @type {Set<string>} */
     const neededKeys = new Set()
     let needsRacing = false
-    for (const row of due) {
+    for (const row of [...dueMsgs, ...dueDaily]) {
       const leg = row.recommendation
       if (leg.sport === 'racing') needsRacing = true
       else for (const key of apiKeysForSport(leg.sport)) neededKeys.add(key)
@@ -75,11 +83,11 @@ export default async (req) => {
     const [games, raceResults] = await Promise.all([fetchScores([...neededKeys]), needsRacing ? fetchRaceResults() : Promise.resolve([])])
     if (!games.length && !raceResults.length) return new Response(JSON.stringify({ settled: 0 }), { status: 200 })
 
-    const resolved = due
+    // Isolate each pick: one recommendation that makes evaluateLeg throw must not
+    // abort the whole unattended run and stall settlement for every other pick.
+    // Skip it (leaves result null -> retried next run).
+    const resolveRows = (/** @type {DueRow[]} */ rows) => rows
       .map((row) => {
-        // Isolate each pick: one recommendation that makes evaluateLeg throw
-        // must not abort the whole unattended run and stall settlement for
-        // every other pick. Skip it (leaves result null -> retried next run).
         try {
           return { id: row.id, result: evaluateLeg(row.recommendation, games, raceResults) }
         } catch (evalErr) {
@@ -88,11 +96,18 @@ export default async (req) => {
         }
       })
       .filter((row) => row.result === 'won' || row.result === 'lost' || row.result === 'void')
-    if (!resolved.length) return new Response(JSON.stringify({ settled: 0 }), { status: 200 })
 
-    await Promise.all(resolved.map((row) => supabase.from('coach_messages').update({ result: row.result }).eq('id', row.id)))
+    const resolvedMsgs = resolveRows(dueMsgs)
+    const resolvedDaily = resolveRows(dueDaily)
+    if (!resolvedMsgs.length && !resolvedDaily.length) return new Response(JSON.stringify({ settled: 0 }), { status: 200 })
 
-    return new Response(JSON.stringify({ settled: resolved.length }), { status: 200, headers: { 'content-type': 'application/json' } })
+    const settledAt = new Date().toISOString()
+    await Promise.all([
+      ...resolvedMsgs.map((row) => supabase.from('coach_messages').update({ result: row.result }).eq('id', row.id)),
+      ...resolvedDaily.map((row) => supabase.from('coach_daily_picks').update({ result: row.result, settled_at: settledAt }).eq('id', row.id))
+    ])
+
+    return new Response(JSON.stringify({ settled: resolvedMsgs.length + resolvedDaily.length }), { status: 200, headers: { 'content-type': 'application/json' } })
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err)
     return new Response(JSON.stringify({ settled: 0, error: message }), { status: 200 })
@@ -101,7 +116,8 @@ export default async (req) => {
 
 export const config = {
   // PRE-LAUNCH: dialled down from '*/30 * * * *' to once daily to cut Netlify
-  // invocations while there are no real users (no CoachGPT picks to settle yet).
-  // Restore '*/30 * * * *' at launch.
+  // invocations while there are few real users. Once daily is enough to settle
+  // CoachGPT's daily pick (coach-pick.js) against the prior day's results; bump
+  // back to '*/30 * * * *' at launch so user picks settle promptly too.
   schedule: '30 6 * * *'
 }
