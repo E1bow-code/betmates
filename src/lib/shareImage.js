@@ -173,6 +173,192 @@ export async function shareBetSlipImage(post) {
   return 'downloaded'
 }
 
+// A "you won" card - the celebratory counterpart to the bet slip above.
+// Same selection/odds detail, topped with a WON banner and the profit in the
+// "good" colour, and tailed with the poster's group invite code so a win
+// doubles as a hook to pull mates in (the outbound half of the invite loop).
+// The £ figures are read straight off the settled post (potentialReturn is the
+// corrected payout written at settlement, see betEvaluation.js) - this only
+// draws, it doesn't re-derive the maths. Money is hidden when the poster hid
+// their stake, in which case the card celebrates the win and odds only.
+export async function renderWinImage(post, { groupName, inviteCode } = {}) {
+  const legs = post.selections || []
+  const padding = 40
+  const contentWidth = WIDTH - padding * 2
+
+  const showMoney = !!post.stake && !post.stakeHidden && post.potentialReturn != null
+  const stake = Number(post.stake) || 0
+  const returned = Number(post.potentialReturn) || 0
+  const profit = returned - stake
+
+  const measure = document.createElement('canvas').getContext('2d')
+  measure.font = '600 20px "IBM Plex Sans", sans-serif'
+  const legLines = legs.map((leg) => wrapText(measure, leg.event || leg.selection || 'Selection', contentWidth))
+
+  let height = 110 // header (title + rule)
+  height += 90 // WON banner
+  for (const lines of legLines) height += 34 * lines.length + 56
+  if (legs.length > 1) height += 44 // combined odds line
+  if (showMoney) height += 40 // staked/returned line
+  if (inviteCode) height += 96 // invite-code chip block
+  height += 70 // footer
+
+  const canvas = document.createElement('canvas')
+  const dpr = Math.min(window.devicePixelRatio || 1, 2)
+  canvas.width = WIDTH * dpr
+  canvas.height = height * dpr
+  const ctx = canvas.getContext('2d')
+  ctx.scale(dpr, dpr)
+
+  ctx.fillStyle = COLORS.bg
+  ctx.fillRect(0, 0, WIDTH, height)
+
+  let y = padding
+  ctx.fillStyle = COLORS.accent
+  ctx.font = '700 24px "Big Shoulders Display", sans-serif'
+  ctx.fillText('BetMates', padding, y)
+  ctx.fillStyle = COLORS.good
+  ctx.font = '600 13px "IBM Plex Sans", sans-serif'
+  ctx.textAlign = 'right'
+  ctx.fillText('WINNER', WIDTH - padding, y - 2)
+  ctx.textAlign = 'left'
+  y += 30
+  ctx.strokeStyle = COLORS.border
+  ctx.beginPath()
+  ctx.moveTo(padding, y)
+  ctx.lineTo(WIDTH - padding, y)
+  ctx.stroke()
+  y += 46
+
+  // WON banner - big, in the good colour, profit aligned right.
+  ctx.fillStyle = COLORS.good
+  ctx.font = '700 54px "Big Shoulders Display", sans-serif'
+  ctx.fillText('WON', padding, y)
+  if (showMoney) {
+    ctx.textAlign = 'right'
+    ctx.fillStyle = COLORS.good
+    ctx.font = '700 34px "IBM Plex Mono", monospace'
+    ctx.fillText(`${profit >= 0 ? '+' : ''}£${profit.toFixed(2)}`, WIDTH - padding, y - 8)
+    ctx.fillStyle = COLORS.textDim
+    ctx.font = '600 12px "IBM Plex Sans", sans-serif'
+    ctx.fillText('PROFIT', WIDTH - padding, y + 12)
+    ctx.textAlign = 'left'
+  }
+  y += 44
+
+  legs.forEach((leg, i) => {
+    ctx.fillStyle = COLORS.text
+    ctx.font = '600 20px "IBM Plex Sans", sans-serif'
+    for (const line of legLines[i]) {
+      ctx.fillText(line, padding, y)
+      y += 27
+    }
+    y += 4
+    ctx.fillStyle = COLORS.textDim
+    ctx.font = '15px "IBM Plex Sans", sans-serif'
+    ctx.fillText(leg.market || '', padding, y)
+    ctx.textAlign = 'right'
+    ctx.fillStyle = COLORS.good
+    ctx.font = '700 20px "IBM Plex Mono", monospace'
+    ctx.fillText(Number(leg.odds).toFixed(2), WIDTH - padding, y)
+    ctx.textAlign = 'left'
+    y += 8
+    ctx.fillStyle = COLORS.text
+    ctx.font = '600 16px "IBM Plex Sans", sans-serif'
+    ctx.fillText(leg.selection || '', padding, y + 18)
+    y += 40
+    if (i < legs.length - 1) {
+      ctx.strokeStyle = COLORS.border
+      ctx.setLineDash([4, 4])
+      ctx.beginPath()
+      ctx.moveTo(padding, y)
+      ctx.lineTo(WIDTH - padding, y)
+      ctx.stroke()
+      ctx.setLineDash([])
+      y += 20
+    }
+  })
+
+  if (legs.length > 1) {
+    const combined = legs.reduce((acc, l) => acc * (Number(l.odds) || 1), 1)
+    ctx.fillStyle = COLORS.textDim
+    ctx.font = '15px "IBM Plex Sans", sans-serif'
+    ctx.fillText('Combined odds', padding, y)
+    ctx.fillStyle = COLORS.good
+    ctx.font = '700 20px "IBM Plex Mono", monospace'
+    ctx.textAlign = 'right'
+    ctx.fillText(combined.toFixed(2), WIDTH - padding, y)
+    ctx.textAlign = 'left'
+    y += 34
+  }
+
+  if (showMoney) {
+    ctx.fillStyle = COLORS.textDim
+    ctx.font = '15px "IBM Plex Sans", sans-serif'
+    ctx.fillText(`£${stake.toFixed(2)} staked`, padding, y)
+    ctx.fillStyle = COLORS.good
+    ctx.font = '700 16px "IBM Plex Sans", sans-serif'
+    ctx.textAlign = 'right'
+    ctx.fillText(`returned £${returned.toFixed(2)}`, WIDTH - padding, y)
+    ctx.textAlign = 'left'
+    y += 30
+  }
+
+  // Invite-code chip - the win becomes a hook. Image carries the code; the
+  // share sheet (shareWinImage) carries the tappable /join link.
+  if (inviteCode) {
+    y += 10
+    const chipH = 52
+    ctx.fillStyle = COLORS.surface
+    ctx.strokeStyle = COLORS.good
+    ctx.lineWidth = 1.5
+    if (ctx.roundRect) {
+      ctx.beginPath()
+      ctx.roundRect(padding, y, WIDTH - padding * 2, chipH, 10)
+      ctx.fill()
+      ctx.stroke()
+    } else {
+      ctx.fillRect(padding, y, WIDTH - padding * 2, chipH)
+      ctx.strokeRect(padding, y, WIDTH - padding * 2, chipH)
+    }
+    ctx.fillStyle = COLORS.textDim
+    ctx.font = '600 12px "IBM Plex Sans", sans-serif'
+    ctx.fillText(groupName ? `JOIN "${String(groupName).toUpperCase()}"` : 'JOIN WITH CODE', padding + 16, y + 20)
+    ctx.fillStyle = COLORS.good
+    ctx.font = '700 22px "IBM Plex Mono", monospace'
+    ctx.fillText(String(inviteCode).toUpperCase(), padding + 16, y + 41)
+    y += chipH
+  }
+
+  ctx.fillStyle = COLORS.textDim
+  ctx.font = '12px "IBM Plex Sans", sans-serif'
+  ctx.fillText('BetMates does not place bets or hold funds. 18+. Gamble responsibly.', padding, height - padding + 20)
+
+  return new Promise((resolve) => canvas.toBlob(resolve, 'image/png'))
+}
+
+export async function shareWinImage(post, { groupName, inviteCode, url } = {}) {
+  const blob = await renderWinImage(post, { groupName, inviteCode })
+  const file = new File([blob], 'betmates-win.png', { type: 'image/png' })
+
+  // The image carries the WON graphic + join code; the share text carries the
+  // tappable join link so whoever sees the win can go straight into the group.
+  const text = groupName
+    ? `Winner. Just landed one on BetMates - join "${groupName}" and settle the score with me.`
+    : 'Winner. Just landed one on BetMates - track your bets and settle the score with your mates.'
+  if (navigator.canShare?.({ files: [file] })) {
+    await navigator.share({ files: [file], title: 'My BetMates win', text, url })
+    return 'shared'
+  }
+
+  const a = document.createElement('a')
+  a.href = URL.createObjectURL(blob)
+  a.download = 'betmates-win.png'
+  a.click()
+  URL.revokeObjectURL(a.href)
+  return 'downloaded'
+}
+
 // Same canvas-and-share approach as the bet slip above, for a leaderboard
 // rank card instead - a fixed-height layout since there's no variable-length
 // content to measure first (unlike the leg list above).
