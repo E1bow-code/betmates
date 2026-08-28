@@ -97,7 +97,12 @@ const EMPTY_DB = {
 /** @returns {Db} */
 function readDb() {
   const raw = localStorage.getItem(DB_KEY)
-  return raw ? { ...EMPTY_DB, ...JSON.parse(raw) } : { ...EMPTY_DB }
+  // Deep-clone the template so a fresh db (or one missing a newer table key)
+  // never shares EMPTY_DB's nested arrays - a shallow spread would hand back
+  // the same array reference, so pushing to e.g. db.comments would mutate the
+  // template and leak those rows into the next read that falls back to it.
+  const base = /** @type {Db} */ (JSON.parse(JSON.stringify(EMPTY_DB)))
+  return raw ? { ...base, ...JSON.parse(raw) } : base
 }
 
 /** @param {Db} db */
