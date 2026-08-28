@@ -238,6 +238,11 @@ html, body {
   white-space: nowrap;
 }
 .consensus-you { color: var(--good); }
+
+/* leaderboard rank-movement arrow "since you last looked" (Leaderboard.jsx) */
+.rank-move { margin-left: var(--space-4); font-size: 0.7em; font-weight: 700; font-variant-numeric: tabular-nums; vertical-align: middle; }
+.rank-move.up { color: var(--good); }
+.rank-move.down { color: var(--text-dim); }
 .chip--filled-neutral { background: var(--surface); border: 1px solid var(--border); color: var(--text-dim); }
 .chip--filled-accent { background: rgba(var(--accent-rgb), 0.12); border: 1px solid var(--accent-dim); color: var(--accent); }
 .chip--filled-accent-strong { background: rgba(var(--accent-rgb), 0.16); border: none; color: var(--accent); }

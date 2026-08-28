@@ -1,6 +1,7 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useAuth } from '../context/AuthContext.jsx'
 import { computeGroupLeaderboard, computeGroupClvLeaderboard } from '../utils/groupLeaderboard.js'
+import { rankDeltas } from '../utils/rankMovement.js'
 import { LEADERBOARD_WINDOWS, formatPeriod } from '../utils/dateWindows.js'
 import * as dataStore from '../lib/dataStore.js'
 import Avatar from './Avatar.jsx'
@@ -32,6 +33,12 @@ export default function Leaderboard({ posts, memberNames, currentUserId, closes 
   const [timeWindow, setTimeWindow] = useState('all')
   const [metric, setMetric] = useState('profit')
   const [seasons, setSeasons] = useState(null)
+  // Snapshot of each member's all-time rank as it was when this viewer last
+  // opened the group, so rows can show a ▲/▼ movement arrow "since you last
+  // looked". Captured once per mount (before overwriting the stored snapshot),
+  // per-viewer via localStorage - no schema, mirroring the rivalry watermark.
+  const [prevRanks, setPrevRanks] = useState(null)
+  const snappedRef = useRef(false)
 
   // Past champions only matter once the leaderboard itself is open, and
   // groupId is optional (older/other callers than GroupFeedPage.jsx just
@@ -75,11 +82,43 @@ export default function Leaderboard({ posts, memberNames, currentUserId, closes 
     if (passedUid) showToast(`🔥 You passed ${memberNames[passedUid] || 'a mate'} on the leaderboard`)
   }, [groupId, currentUserId, posts, memberNames, showToast])
 
+  // Capture the prior all-time ranks once per mount (for the movement arrows),
+  // then overwrite the stored snapshot with the current standing so the next
+  // visit compares against now.
+  useEffect(() => {
+    if (!groupId || snappedRef.current) return
+    const board = computeGroupLeaderboard(posts, memberNames, 'all')
+    if (!board.length) return
+    const key = `betmates:lbRanks:${groupId}`
+    let stored = null
+    try {
+      stored = JSON.parse(localStorage.getItem(key) || 'null')
+    } catch {
+      stored = null
+    }
+    setPrevRanks(stored && typeof stored === 'object' ? stored : {})
+    const cur = {}
+    board.forEach((r) => {
+      cur[r.userId] = r.rank
+    })
+    try {
+      localStorage.setItem(key, JSON.stringify(cur))
+    } catch {
+      /* storage disabled - arrows just won't show */
+    }
+    snappedRef.current = true
+  }, [groupId, posts, memberNames])
+
   const hasAnySettled = posts.some((p) => !p.stakeHidden && p.stake && ['won', 'lost', 'void'].includes(p.status))
   if (!hasAnySettled) return null
 
   const rows =
     metric === 'clv' ? computeGroupClvLeaderboard(posts, memberNames, closes, timeWindow) : computeGroupLeaderboard(posts, memberNames, timeWindow)
+
+  // Movement arrows only make sense on the default all-time profit view, whose
+  // ranks are what the snapshot stores; a windowed or CLV board would compare
+  // against the wrong basis, so it just shows no arrows.
+  const deltas = prevRanks && metric === 'profit' && timeWindow === 'all' ? rankDeltas(rows, prevRanks) : {}
 
   return (
     <div className="leaderboard">
@@ -116,7 +155,11 @@ export default function Leaderboard({ posts, memberNames, currentUserId, closes 
             <div className="leaderboard-list">
               {rows.map((row) => (
                 <div key={row.userId} className={row.rank === 1 ? 'leaderboard-row leaderboard-row-top' : 'leaderboard-row'}>
-                  <span className="leaderboard-rank">#{row.rank}</span>
+                  <span className="leaderboard-rank">
+                    #{row.rank}
+                    {deltas[row.userId] > 0 && <span className="rank-move up" title={`Up ${deltas[row.userId]} since you last looked`}>▲{deltas[row.userId]}</span>}
+                    {deltas[row.userId] < 0 && <span className="rank-move down" title={`Down ${-deltas[row.userId]} since you last looked`}>▼{-deltas[row.userId]}</span>}
+                  </span>
                   <Avatar name={row.name} size={24} />
                   <UserLink id={row.userId} className="leaderboard-name">
                     {row.name}
