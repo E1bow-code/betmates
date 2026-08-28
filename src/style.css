@@ -4869,6 +4869,73 @@ a.btn,
   line-height: 1;
 }
 
+/* First-run activation card on Home (GettingStartedChecklist.jsx). Same
+   accent-tinted card family as .home-invite-nudge, with a progress bar and a
+   three-step list that ticks off as the user logs a bet / joins a group /
+   follows a mate. */
+.getting-started {
+  border: 1px solid var(--accent-dim);
+  border-radius: var(--radius-card);
+  box-shadow: var(--shadow-card);
+  padding: var(--space-14) var(--space-16);
+  margin: var(--space-12) 0;
+  background: linear-gradient(180deg, rgba(var(--accent-rgb), 0.08) 0%, transparent 55%), var(--surface);
+}
+.getting-started-head { display: flex; align-items: flex-start; justify-content: space-between; gap: var(--space-8); }
+.getting-started-title { margin: 0; font-weight: 700; font-size: var(--text-lg); color: var(--text); }
+.getting-started-progress { margin: 2px 0 0; font-size: var(--text-sm); color: var(--text-dim); }
+.getting-started-close {
+  background: none;
+  border: none;
+  color: var(--text-dim);
+  font-size: var(--text-sm);
+  cursor: pointer;
+  padding: var(--space-4) var(--space-6);
+  line-height: 1;
+  flex-shrink: 0;
+}
+.getting-started-bar {
+  height: 6px;
+  border-radius: 999px;
+  background: rgba(var(--accent-rgb), 0.14);
+  overflow: hidden;
+  margin: var(--space-10) 0 var(--space-12);
+}
+.getting-started-bar > span {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: var(--accent);
+  transition: width 0.4s ease;
+}
+.getting-started-steps { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: var(--space-8); }
+.getting-started-step {
+  display: flex;
+  align-items: center;
+  gap: var(--space-10);
+  padding: var(--space-8) 0;
+  border-top: 1px solid var(--border);
+}
+.getting-started-step:first-child { border-top: none; }
+.getting-started-tick {
+  flex-shrink: 0;
+  width: 22px;
+  height: 22px;
+  border-radius: 999px;
+  border: 2px solid var(--border-strong, var(--border));
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #fff;
+}
+.getting-started-step.done .getting-started-tick { background: var(--good); border-color: var(--good); }
+.getting-started-copy { display: flex; flex-direction: column; gap: 1px; min-width: 0; flex: 1; }
+.getting-started-step-title { font-weight: 600; font-size: var(--text-base); color: var(--text); }
+.getting-started-step.done .getting-started-step-title { color: var(--text-dim); text-decoration: line-through; }
+.getting-started-step-body { font-size: var(--text-sm); color: var(--text-dim); line-height: 1.4; }
+.getting-started-step.done .getting-started-step-body { display: none; }
+.getting-started-cta { flex-shrink: 0; white-space: nowrap; display: inline-flex; align-items: center; gap: 4px; }
+
 /* "Challenge a mate" CTA under the Tracker scoreboard. */
 .tracker-challenge-cta { display: flex; align-items: center; flex-wrap: wrap; gap: var(--space-8); margin: var(--space-10) 0 var(--space-4); }
 .tracker-challenge-cta .hint { margin: 0; }
