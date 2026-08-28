@@ -49,6 +49,7 @@ export default async (req) => {
     const dated = news.filter((item) => item.pubDate)
 
     const now = new Date().toISOString()
+    const nowDate = new Date(now)
     const followedUsers = optedIn.filter((p) => namesByUser.get(p.id)?.length)
 
     const due = []
@@ -59,7 +60,15 @@ export default async (req) => {
       if (!profile.team_news_notified_at) continue
       const since = new Date(profile.team_news_notified_at)
       const names = namesByUser.get(profile.id)
-      const matches = dated.filter((item) => new Date(item.pubDate) > since && names.some((name) => item.title.toLowerCase().includes(name)))
+      // Ignore items stamped in the FUTURE (timezone-skewed or future-dated
+      // RSS). The watermark is bumped to `now` each run, so a future pubDate
+      // stays > since on every subsequent run and re-pushes the same headline
+      // every 30 min until real time catches up to its stamp. Bounding the
+      // match to pubDate <= now makes it fire exactly once, on the run after
+      // it genuinely becomes current.
+      const matches = dated.filter(
+        (item) => new Date(item.pubDate) > since && new Date(item.pubDate) <= nowDate && names.some((name) => item.title.toLowerCase().includes(name))
+      )
       if (matches.length) due.push({ userId: profile.id, matches })
     }
 
