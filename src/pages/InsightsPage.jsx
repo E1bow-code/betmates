@@ -8,6 +8,7 @@ import { findBadBeats } from '../utils/badBeats.js'
 import { formatOdds } from '../utils/oddsFormat.js'
 import SportHeroBanner from '../components/SportHeroBanner.jsx'
 import ShareRecapButton from '../components/ShareRecapButton.jsx'
+import ShareBadBeatButton from '../components/ShareBadBeatButton.jsx'
 import CoachTake from '../components/CoachTake.jsx'
 import CrowdWisdomPanel from '../components/CrowdWisdomPanel.jsx'
 import PremiumGate from '../components/PremiumGate.jsx'
@@ -144,6 +145,9 @@ export default function InsightsPage() {
                   {b.wouldHaveReturned != null && (
                     <div className="race-card-meta">Would&apos;ve returned £{b.wouldHaveReturned.toFixed(2)}</div>
                   )}
+                  <div className="tracker-row-actions">
+                    <ShareBadBeatButton beat={b} />
+                  </div>
                 </div>
               </div>
             ))}

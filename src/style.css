@@ -206,6 +206,8 @@ html, body {
 /* the 🔥 win-streak chip next to a name on the leaderboard (WinStreakBadge) -
    in the win colour so a hot run reads as positive, not as a warning */
 .win-streak-badge { background: none; border: 1px solid var(--good-dim); color: var(--good); }
+/* action row under a tracker/agony row (e.g. the "share the agony" button) */
+.tracker-row-actions { margin-top: var(--space-8); }
 .chip--filled-neutral { background: var(--surface); border: 1px solid var(--border); color: var(--text-dim); }
 .chip--filled-accent { background: rgba(var(--accent-rgb), 0.12); border: 1px solid var(--accent-dim); color: var(--accent); }
 .chip--filled-accent-strong { background: rgba(var(--accent-rgb), 0.16); border: none; color: var(--accent); }
