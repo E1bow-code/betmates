@@ -210,6 +210,34 @@ html, body {
 .tracker-row-actions { margin-top: var(--space-8); }
 /* one-shot celebratory confetti overlay (Confetti.jsx) - never interactive */
 .confetti-canvas { position: fixed; inset: 0; width: 100vw; height: 100vh; pointer-events: none; z-index: 9999; }
+
+/* "What the group's on" consensus card (GroupConsensusCard.jsx) */
+.consensus-card {
+  margin: var(--space-12) 0;
+  padding: var(--space-14) var(--space-16);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  background: linear-gradient(180deg, var(--surface) 0%, var(--surface-2) 100%);
+}
+.consensus-title { margin: 0 0 var(--space-10); }
+.consensus-list { display: flex; flex-direction: column; gap: var(--space-8); }
+.consensus-row { display: flex; align-items: center; justify-content: space-between; gap: var(--space-12); }
+.consensus-pick { display: flex; flex-direction: column; min-width: 0; }
+.consensus-sel { font-weight: 700; color: var(--text); }
+.consensus-event { font-size: var(--text-sm); color: var(--text-dim); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.consensus-count {
+  flex: none;
+  font-family: var(--font-mono);
+  font-size: var(--text-sm);
+  font-weight: 700;
+  color: var(--accent);
+  background: rgba(var(--accent-rgb), 0.1);
+  border: 1px solid var(--accent-dim);
+  border-radius: var(--radius-pill);
+  padding: var(--space-4) var(--space-10);
+  white-space: nowrap;
+}
+.consensus-you { color: var(--good); }
 .chip--filled-neutral { background: var(--surface); border: 1px solid var(--border); color: var(--text-dim); }
 .chip--filled-accent { background: rgba(var(--accent-rgb), 0.12); border: 1px solid var(--accent-dim); color: var(--accent); }
 .chip--filled-accent-strong { background: rgba(var(--accent-rgb), 0.16); border: none; color: var(--accent); }
