@@ -199,7 +199,14 @@ export default function BetCard({ post, memberNames, memberAvatars, variant = 'g
 
   async function toggleReaction(key) {
     const { action, reaction } = await dataStore.toggleReaction(post.id, user.id, key)
-    setReactions((r) => (action === 'added' ? [...r, reaction] : r.filter((x) => x.id !== reaction.id)))
+    // Dedup by id on add, exactly like the realtime onReactionInsert handler
+    // above: Supabase echoes this user's own insert back through the
+    // subscription, and if that echo wins the race against this await the
+    // reaction is already in state - a plain [...r, reaction] would then add a
+    // second copy (duplicate React key, count shows 2 for one reaction).
+    setReactions((r) =>
+      action === 'added' ? (r.some((x) => x.id === reaction.id) ? r : [...r, reaction]) : r.filter((x) => x.id !== reaction.id)
+    )
     // Used to only push while `live` (status open + kickoff passed) - the
     // in-app Alerts fallback (ActivityContext.jsx's 'reacted' kind) never
     // had that restriction, so a pre-kickoff or already-settled reaction
@@ -244,7 +251,10 @@ export default function BetCard({ post, memberNames, memberAvatars, variant = 'g
       comment = await dataStore.addComment(post.id, user.id, body)
     }, "Couldn't post that comment - try again")
     if (!ok) return
-    setComments((c) => [...c, comment])
+    // Dedup by id, matching the realtime onComment handler - the subscription
+    // echoes this user's own insert back, and if it arrives before this append
+    // the comment is already present; a plain [...c, comment] would double it.
+    setComments((c) => (c.some((x) => x.id === comment.id) ? c : [...c, comment]))
     setCommentBody('')
     if (!isAuthor) {
       const commenterName = memberNames?.[user.id] ?? user.displayName ?? 'Someone'
@@ -262,11 +272,18 @@ export default function BetCard({ post, memberNames, memberAvatars, variant = 'g
   }
 
   async function handleFollowToggle() {
+    // Capture the target absolute state up front and set THAT, rather than a
+    // functional !f flip. Both follow and unfollow are idempotent server-side
+    // (followUser ignores the duplicate-key error), so a fast double-click
+    // fires the same action twice - but two `!f` flips would land back on the
+    // wrong state (following on screen while the server has you followed).
+    // Setting the intended absolute value makes repeated clicks converge.
+    const target = !following
     const ok = await runAsync(
       () => (following ? dataStore.unfollowUser(user.id, post.userId) : dataStore.followUser(user.id, post.userId)),
       `Couldn't ${following ? 'unfollow' : 'follow'} - try again`
     )
-    if (ok) setFollowing((f) => !f)
+    if (ok) setFollowing(target)
   }
 
   async function handleBlock() {
