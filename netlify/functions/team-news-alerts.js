@@ -110,5 +110,9 @@ export default async (req) => {
 }
 
 export const config = {
-  schedule: '*/30 * * * *'
+  // PRE-LAUNCH: dialled down from '*/30 * * * *' to once daily to cut Netlify
+  // invocations while there are no real users following teams/players yet.
+  // Restore '*/30 * * * *' at launch. (See the header note - matches on
+  // pubDate > watermark, so a slower cadence just widens each run's window.)
+  schedule: '0 8 * * *'
 }

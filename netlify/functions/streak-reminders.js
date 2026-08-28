@@ -151,5 +151,10 @@ export default async (req) => {
 }
 
 export const config = {
-  schedule: '*/30 * * * *'
+  // PRE-LAUNCH: dialled down from '*/30 * * * *' to once daily to cut Netlify
+  // invocations while there are no real users. Pinned to 19:00 UTC on purpose -
+  // the daily log-in-streak-about-to-lapse nudge is itself gated to 19:00 UTC,
+  // so a once-a-day run must land in that window to fire at all. Restore
+  // '*/30 * * * *' at launch (win-streak milestones want the faster cadence).
+  schedule: '0 19 * * *'
 }

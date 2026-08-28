@@ -226,8 +226,11 @@ export default async () => {
 }
 
 export const config = {
-  // Every 30 min, the same cadence as the app's other schedulers. A fixture's
-  // price gets sampled repeatedly as kickoff nears; the last sample at or before
-  // kickoff is its closing line. Only fixtures with an open bet, or a follow, are ever fetched.
-  schedule: '*/30 * * * *'
+  // Normally every 30 min: a fixture's price gets sampled repeatedly as kickoff
+  // nears, and the last sample at or before kickoff is its closing line. Only
+  // fixtures with an open bet, or a follow, are ever fetched.
+  // PRE-LAUNCH: dialled down to once daily to cut Netlify invocations while
+  // there are no real users (CLV sampling is coarse until then). Restore
+  // '*/30 * * * *' at launch - fine-grained closing lines need the fast cadence.
+  schedule: '0 5 * * *'
 }
