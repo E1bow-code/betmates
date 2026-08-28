@@ -29,6 +29,7 @@ import PullToRefresh from '../components/PullToRefresh.jsx'
 import ShareRecapButton from '../components/ShareRecapButton.jsx'
 import ChallengeMateButton from '../components/ChallengeMateButton.jsx'
 import ShareImageButton from '../components/ShareImageButton.jsx'
+import ShareWinButton from '../components/ShareWinButton.jsx'
 import SportHeroBanner from '../components/SportHeroBanner.jsx'
 import SportIcon from '../components/icons/SportIcons.jsx'
 import TeamBadge from '../components/TeamBadge.jsx'
@@ -511,6 +512,7 @@ export default function TrackerPage() {
                     {rebetDone === entry.id ? 'Logged ✓' : rebetting === entry.id ? 'Adding…' : 'Log again'}
                   </button>
                   <ShareImageButton post={entry} />
+                  {entry.status === 'won' && <ShareWinButton post={entry} />}
                 </div>
               )}
             </Fragment>

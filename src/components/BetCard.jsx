@@ -14,6 +14,7 @@ import { participantBadge } from '../utils/participantBadge.js'
 import CopyBetButton from './CopyBetButton.jsx'
 import BackBetButton from './BackBetButton.jsx'
 import ShareImageButton from './ShareImageButton.jsx'
+import ShareWinButton from './ShareWinButton.jsx'
 import TeamBadge from './TeamBadge.jsx'
 import PlayerPhoto from './PlayerPhoto.jsx'
 import Avatar from './Avatar.jsx'
@@ -579,6 +580,7 @@ export default function BetCard({ post, memberNames, memberAvatars, variant = 'g
           <div className="bet-card-more-menu">
             {selections.length > 0 && !isAuthor && <BackBetButton post={post} />}
             {selections.length > 0 && <ShareImageButton post={post} />}
+            {selections.length > 0 && status === 'won' && <ShareWinButton post={post} />}
           </div>
         )}
       </div>
