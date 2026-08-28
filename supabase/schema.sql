@@ -374,6 +374,7 @@ create policy "members or anyone read comments on visible bet posts" on bet_comm
   )
 );
 create policy "user comments as themselves" on bet_comments for insert with check (auth.uid() = user_id);
+create policy "user removes own comment" on bet_comments for delete using (auth.uid() = user_id);
 
 create policy "user reads own tracker entries" on manual_entries for select using (auth.uid() = user_id);
 create policy "user writes own tracker entries" on manual_entries for insert with check (auth.uid() = user_id);

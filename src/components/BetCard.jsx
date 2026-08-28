@@ -252,6 +252,15 @@ export default function BetCard({ post, memberNames, memberAvatars, variant = 'g
     }
   }
 
+  async function handleDeleteComment(id) {
+    // Optimistic: drop it locally, restore on failure. RLS only lets a user
+    // delete their own comment, and the button only shows on those anyway.
+    const prev = comments
+    setComments((c) => c.filter((x) => x.id !== id))
+    const ok = await runAsync(() => dataStore.deleteComment(id), "Couldn't delete that comment - try again")
+    if (!ok) setComments(prev)
+  }
+
   async function handleFollowToggle() {
     const ok = await runAsync(
       () => (following ? dataStore.unfollowUser(user.id, post.userId) : dataStore.followUser(user.id, post.userId)),
@@ -606,6 +615,11 @@ export default function BetCard({ post, memberNames, memberAvatars, variant = 'g
               <Avatar name={resolveName(c.userId)} photoUrl={resolveAvatar(c.userId)} size={22} />
               <UserLink id={c.userId} displayName={resolveName(c.userId)} className="comment-author" />
               <span>{c.body}</span>
+              {c.userId === user.id && (
+                <button type="button" className="comment-delete" onClick={() => handleDeleteComment(c.id)} aria-label="Delete your comment">
+                  ×
+                </button>
+              )}
             </div>
           ))}
           <form className="comment-form" onSubmit={handleAddComment}>
