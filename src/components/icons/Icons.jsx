@@ -181,6 +181,18 @@ export function UnsureFaceIcon(props) {
   )
 }
 
+// Laughing face - "😂" reaction. Happy squeezed-shut eyes (downward arcs) and
+// a wide open laughing mouth.
+export function LaughFaceIcon(props) {
+  return (
+    <svg {...base} {...props}>
+      <circle cx="12" cy="12" r="8.5" strokeWidth={2} />
+      <path d="M8 10.6c.6-1 1.6-1 2.2 0M13.8 10.6c.6-1 1.6-1 2.2 0" strokeWidth={1.6} />
+      <path d="M8 13.6c1.2 2.6 6.8 2.6 8 0 Z" strokeWidth={1.6} />
+    </svg>
+  )
+}
+
 // Chain link - correlated/parlay legs.
 export function LinkIcon(props) {
   return (

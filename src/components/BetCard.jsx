@@ -29,6 +29,8 @@ import {
   FlameIcon,
   UnsureFaceIcon,
   ThumbsUpIcon,
+  LaughFaceIcon,
+  MoneyIcon,
   CommentIcon,
   HorseIcon,
   FootballIcon,
@@ -38,6 +40,7 @@ import {
   BrokenHeartIcon,
   ChevronIcon
 } from './icons/Icons.jsx'
+import { summariseReactions } from '../utils/reactions.js'
 import { MoreIcon } from './icons/NavIcons.jsx'
 
 const POST_TAG_ICON = {
@@ -57,9 +60,9 @@ const POST_TAG_ICON = {
 // touching the data model.
 // Exported so NotificationsPage.jsx's "reacted" notification text can
 // share these labels instead of redeclaring its own copy that could drift.
-export const REACTION_EMOJIS = ['🔥', '😬', '👍']
-export const REACTION_LABEL = { '🔥': 'fire', '😬': 'grimace', '👍': 'thumbs up' }
-const REACTION_ICON = { '🔥': FlameIcon, '😬': UnsureFaceIcon, '👍': ThumbsUpIcon }
+export const REACTION_EMOJIS = ['🔥', '👍', '😂', '😬', '💰']
+export const REACTION_LABEL = { '🔥': 'fire', '👍': 'thumbs up', '😂': 'laughing', '😬': 'grimace', '💰': 'money' }
+const REACTION_ICON = { '🔥': FlameIcon, '👍': ThumbsUpIcon, '😂': LaughFaceIcon, '😬': UnsureFaceIcon, '💰': MoneyIcon }
 export const VOTE_OPTIONS = [
   { key: 'lock_in', label: 'Lock in' },
   { key: 'not_sure', label: 'Not sure' },
@@ -497,9 +500,7 @@ export default function BetCard({ post, memberNames, memberAvatars, variant = 'g
           </div>
         ) : (
           <div className={live ? 'reaction-row reaction-row-live' : 'reaction-row'}>
-            {REACTION_EMOJIS.map((emoji) => {
-              const count = reactions.filter((r) => r.emoji === emoji).length
-              const mine = reactions.some((r) => r.emoji === emoji && r.userId === user.id)
+            {summariseReactions(reactions, REACTION_EMOJIS, user.id).map(({ emoji, count, mine }) => {
               const Icon = REACTION_ICON[emoji]
               return (
                 <button
@@ -518,21 +519,22 @@ export default function BetCard({ post, memberNames, memberAvatars, variant = 'g
 
         {variant === 'group' && reactions.length > 0 && (
           <p className="hint reaction-names">
-            {REACTION_EMOJIS.filter((emoji) => reactions.some((r) => r.emoji === emoji)).map((emoji) => {
-              const reactors = reactions.filter((r) => r.emoji === emoji)
-              const Icon = REACTION_ICON[emoji]
-              return (
-                <span key={emoji} className="reaction-names-group">
-                  <Icon />{' '}
-                  {reactors.map((r, i) => (
-                    <span key={r.userId ?? i}>
-                      <UserLink id={r.userId} displayName={resolveName(r.userId)} />
-                      {i < reactors.length - 1 && ', '}
-                    </span>
-                  ))}
-                </span>
-              )
-            })}
+            {summariseReactions(reactions, REACTION_EMOJIS, user.id)
+              .filter((s) => s.count > 0)
+              .map(({ emoji, userIds }) => {
+                const Icon = REACTION_ICON[emoji]
+                return (
+                  <span key={emoji} className="reaction-names-group">
+                    <Icon />{' '}
+                    {userIds.map((uid, i) => (
+                      <span key={uid ?? i}>
+                        <UserLink id={uid} displayName={resolveName(uid)} />
+                        {i < userIds.length - 1 && ', '}
+                      </span>
+                    ))}
+                  </span>
+                )
+              })}
           </p>
         )}
 
