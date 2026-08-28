@@ -57,8 +57,10 @@ import {
   BookIcon,
   MoneyIcon,
   CalendarIcon,
+  ClockIcon,
   ChartBarIcon
 } from '../components/icons/Icons.jsx'
+import { pendingSettlement } from '../utils/pendingSettlement.js'
 import { MoreIcon } from '../components/icons/NavIcons.jsx'
 
 const BADGE_ICON = {
@@ -251,6 +253,7 @@ export default function TrackerPage() {
 
   const stats = computeStats(entries)
   const streak = computeStreak(entries)
+  const pendingToSettle = pendingSettlement(entries)
   const bestWeek = computeBestWeek(entries)
   const perfectWeek = computePerfectWeek(entries)
   const badges = [
@@ -444,6 +447,15 @@ export default function TrackerPage() {
           title="Nothing logged yet"
           subtitle="Post a bet to a group, save one privately from the Odds tab, or log a bet from elsewhere with the button above."
         />
+      )}
+
+      {pendingToSettle.length > 0 && (
+        <div className="settle-nudge">
+          <ClockIcon width={16} height={16} />
+          <span>
+            {pendingToSettle.length} {pendingToSettle.length === 1 ? 'bet looks' : 'bets look'} done — mark {pendingToSettle.length === 1 ? 'it' : 'them'} won or lost to keep your P&amp;L accurate.
+          </span>
+        </div>
       )}
 
       {entries.length > 0 && (
