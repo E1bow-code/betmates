@@ -62,6 +62,7 @@ import {
   ChartBarIcon
 } from '../components/icons/Icons.jsx'
 import { pendingSettlement } from '../utils/pendingSettlement.js'
+import { computeMonthlyPnl } from '../utils/monthlyPnl.js'
 import { MoreIcon } from '../components/icons/NavIcons.jsx'
 
 const BADGE_ICON = {
@@ -255,6 +256,7 @@ export default function TrackerPage() {
   const stats = computeStats(entries)
   const streak = computeStreak(entries)
   const pendingToSettle = pendingSettlement(entries)
+  const monthly = computeMonthlyPnl(entries)
   const bestWeek = computeBestWeek(entries)
   const perfectWeek = computePerfectWeek(entries)
   const badges = [
@@ -330,6 +332,15 @@ export default function TrackerPage() {
           <div className={`scoreboard-headline-value ${stats.profit >= 0 ? 'tone-good' : 'tone-bad'}`}>
             {stats.profit >= 0 ? '+' : ''}£{stats.profit.toFixed(2)}
           </div>
+          {monthly && (
+            <p className="scoreboard-month">
+              {monthly.label}:{' '}
+              <b className={monthly.profit >= 0 ? 'tone-good' : 'tone-bad'}>
+                {monthly.profit >= 0 ? '+' : ''}£{monthly.profit.toFixed(2)}
+              </b>{' '}
+              · {monthly.settledCount} {monthly.settledCount === 1 ? 'bet' : 'bets'}
+            </p>
+          )}
         </div>
         <div className="scoreboard-side-stats tracker-scoreboard-stats">
           <div>
