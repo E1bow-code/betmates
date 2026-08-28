@@ -21,9 +21,14 @@
 // since a coach that silently says nothing is worse than one on a slightly
 // smaller model. A bad key or rate limit fails identically on every model, so
 // those stop immediately and surface as a real error instead (see makeCaller).
+//
+// Sonnet 5 is the primary, Opus 5 the fallback: Sonnet is ~40% cheaper per
+// token and a plenty-sharp tipster for this (grounded tool use + a short
+// take), which keeps the per-message API cost down as usage grows. Opus stays
+// as the fallback so a Sonnet outage/entitlement gap doesn't take Coach down.
 import { buildAnthropicRequest } from './anthropicRoute.js'
 
-export const COACHGPT_MODELS = ['claude-opus-5', 'claude-sonnet-5']
+export const COACHGPT_MODELS = ['claude-sonnet-5', 'claude-opus-5']
 export const COACHGPT_MODEL = COACHGPT_MODELS[0]
 // Was bumped to 4 alongside web_search, then reverted, then 3 itself was cut
 // to 2 here after confirmed-live evidence: a real "best value bet this
