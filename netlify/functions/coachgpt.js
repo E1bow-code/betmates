@@ -32,6 +32,7 @@ import { getPlayerProfile } from '../../src/lib/playerProfile.js'
 import { GENERIC_SPORTS, apiKeysForSport, sgoLeagueForSport } from '../../src/lib/sportsConfig.js'
 import { summariseCoachRecord } from '../../src/utils/coachRecord.js'
 import { summariseTeamForm } from '../../src/utils/teamForm.js'
+import { summariseOpenBets } from '../../src/utils/openBets.js'
 import { withinLlmBudget } from '../../src/lib/llmBudget.js'
 
 const SUPABASE_URL = process.env.VITE_SUPABASE_URL
@@ -499,6 +500,21 @@ function summariseRecord(bets, scope) {
   }
 }
 
+// The user's still-open slips, so CoachGPT can factor in live exposure before
+// recommending. Reads the same two tables as toolGetMyRecord but filtered to
+// status 'open', under the user's own token/RLS, and degrades to unavailable
+// on any hiccup. The compact summary is built by the pure summariseOpenBets.
+async function toolGetMyOpenBets(userClient, userId) {
+  if (!userClient || !userId) return { available: false, reason: 'not signed in' }
+  const columns = 'selections, stake, potential_return, status'
+  async function fetchOpen(table) {
+    const { data, error } = await userClient.from(table).select(columns).eq('user_id', userId).eq('status', 'open')
+    return error ? [] : (data ?? [])
+  }
+  const [entries, posts] = await Promise.all([fetchOpen('manual_entries'), fetchOpen('posts')])
+  return summariseOpenBets([...entries, ...posts])
+}
+
 async function toolGetMyRecord(userClient, userId, input = {}) {
   if (!userClient || !userId) return { available: false, reason: 'not signed in' }
   const sport = typeof input.sport === 'string' ? input.sport.trim() : ''
@@ -601,6 +617,7 @@ export default async (req) => {
     if (name === 'get_recent_results') return toolGetResults(siteUrl, input)
     if (name === 'get_team_form') return toolGetTeamForm(siteUrl, input)
     if (name === 'get_my_record') return toolGetMyRecord(userClient, userId, input)
+    if (name === 'get_my_open_bets') return toolGetMyOpenBets(userClient, userId)
     if (name === 'get_coach_record') return toolGetCoachRecord(userClient, userId, input)
     return { error: `Unknown tool: ${name}` }
   }

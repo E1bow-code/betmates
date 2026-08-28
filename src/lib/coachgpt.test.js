@@ -166,6 +166,29 @@ test('a "how are they doing" question runs get_team_form then answers from it', 
   assert.equal(res.error, null)
 })
 
+test('get_my_open_bets is offered to the model, requiring no input', () => {
+  const tool = COACHGPT_TOOLS.find((t) => t.name === 'get_my_open_bets')
+  assert.ok(tool, 'get_my_open_bets should be in COACHGPT_TOOLS')
+  assert.deepEqual(tool.input_schema.required ?? [], [])
+})
+
+test('an "am I already on this" question runs get_my_open_bets then answers from it', async () => {
+  stubFetch([
+    toolReply('get_my_open_bets', {}),
+    textReply("You're already on Arsenal at 2.1, champ - no need to double up."),
+    lockReply(false)
+  ])
+  let toolCalledWith = null
+  const callTool = async (name, input) => {
+    toolCalledWith = { name, input }
+    return { available: true, openCount: 1, totalStaked: 10, positions: [{ legs: 1, picks: ['Arsenal'], events: ['Arsenal vs Chelsea'], stake: 10, potentialReturn: 21 }] }
+  }
+  const res = await runCoachGptTurn({ apiKey: 'k', history: [], message: 'am I already on Arsenal?', callTool })
+  assert.deepEqual(toolCalledWith, { name: 'get_my_open_bets', input: {} })
+  assert.equal(res.text, "You're already on Arsenal at 2.1, champ - no need to double up.")
+  assert.equal(res.error, null)
+})
+
 test('get_coach_record is offered to the model as a tool', () => {
   const record = COACHGPT_TOOLS.find((t) => t.name === 'get_coach_record')
   assert.ok(record, 'get_coach_record should be in COACHGPT_TOOLS')

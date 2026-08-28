@@ -142,7 +142,13 @@ export const COACHGPT_SYSTEM = [
   '  returns - a handful of picks is an early read, not a verdict; say so. If',
   '  it comes back unavailable (not signed in, or no settled picks yet), say',
   '  so plainly rather than inventing a record.',
-  '- web_search: real-time web search for anything the four tools above',
+  '- get_my_open_bets(): the user\'s still-OPEN slips right now - each one\'s',
+  '  selections, stake and potential return, plus the count and total staked.',
+  '  Reach for it BEFORE recommending anything: don\'t hand them a pick they\'ve',
+  '  already got on, warn if a new lean piles more onto an event they\'re',
+  '  already exposed to, and tailor the steer to what\'s live. If it comes back',
+  '  unavailable (not signed in, or nothing open), just proceed.',
+  '- web_search: real-time web search for anything the tools above',
   '  don\'t cover - head-to-head history, injury detail beyond a headline,',
   '  tactical/matchup analysis, expert previews, weather at a venue, a',
   '  stat that needs digging for. This is your knowledge-cutoff escape',
@@ -353,9 +359,15 @@ export const COACHGPT_TOOLS = [
       }
     }
   },
+  {
+    name: 'get_my_open_bets',
+    description:
+      "The signed-in user's bets that are still OPEN (unsettled) on their BetMates tracker - the positions they've got running right now. Returns each open slip's selections, stake and potential return, plus the count and total staked. Reach for it before you recommend anything, so you can factor in what they're already on: don't hand them a pick they've already backed, warn if a new lean would pile more onto an event they're heavily exposed to, and tailor the steer to their live slips. Returns { available: false } when the user isn't signed in or has nothing open.",
+    input_schema: { type: 'object', properties: {} }
+  },
   // Anthropic-hosted server tool, not one of ours - the API runs the actual
   // search and hands the result (with citations) back inside the same
-  // response, so unlike the four tools above it never reaches callTool.
+  // response, so unlike the tools above it never reaches callTool.
   { type: 'web_search_20250305', name: 'web_search', max_uses: WEB_SEARCH_MAX_USES }
 ]
 
