@@ -260,6 +260,10 @@ html, body {
 }
 .settle-nudge svg { color: var(--accent); flex: none; }
 
+/* "this month" caption under the all-time P&L headline (TrackerPage) */
+.scoreboard-month { margin: var(--space-4) 0 0; font-size: var(--text-sm); color: var(--text-dim); }
+.scoreboard-month b { font-weight: 700; }
+
 /* neutral spend-awareness line under the Tracker scoreboard (SpendPaceNote) */
 .spend-pace { margin: var(--space-8) 0 0; font-size: var(--text-sm); color: var(--text-dim); line-height: 1.5; }
 .spend-pace b { color: var(--text); font-weight: 700; }
