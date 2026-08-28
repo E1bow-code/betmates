@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { computeGroupRecap } from '../utils/groupRecap.js'
 import { fetchGroupCoachTake } from '../api/coachClient.js'
 import { SparkIcon } from './icons/Icons.jsx'
@@ -12,13 +12,22 @@ import { SparkIcon } from './icons/Icons.jsx'
 export default function GroupCoachTake({ posts, memberNames }) {
   const [state, setState] = useState({ status: 'loading' })
 
+  const recap = useMemo(() => computeGroupRecap(posts, memberNames), [posts, memberNames])
+  // Key the paid Coach call on the recap's CONTENT, not the posts array's
+  // identity. GroupFeedPage rebuilds `posts` on every refresh - pull-to-refresh
+  // AND each realtime feed insert - but the recap only changes when the week's
+  // settled bets do, so identity-keying re-issued this paid Claude call on
+  // every refresh even when the take would be byte-identical. "Free API tiers
+  // are the constraint" (CLAUDE.md). The recap embeds no timestamp, so its JSON
+  // is a stable content signature.
+  const recapKey = recap ? JSON.stringify(recap) : null
+
   useEffect(() => {
-    let live = true
-    const recap = computeGroupRecap(posts, memberNames)
     if (!recap) {
       setState({ status: 'skip' })
       return
     }
+    let live = true
     fetchGroupCoachTake(recap).then((res) => {
       if (!live) return
       if (res.configured && res.take) setState({ status: 'ready', take: res.take })
@@ -27,7 +36,8 @@ export default function GroupCoachTake({ posts, memberNames }) {
     return () => {
       live = false
     }
-  }, [posts, memberNames])
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [recapKey])
 
   if (state.status !== 'ready') return null
 
