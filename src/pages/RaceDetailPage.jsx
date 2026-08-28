@@ -46,10 +46,21 @@ export default function RaceDetailPage() {
   const [snapshotSeries, setSnapshotSeries] = useState({})
 
   useEffect(() => {
+    // Clear the previous race and guard the responses so an in-place id change
+    // can't leave the old one on screen or let a stale response overwrite the
+    // new one.
+    let live = true
+    setRace(null)
     fetchRace(id)
-      .then(setRace)
-      .catch((err) => setError(err.message))
-    dataStore.getOddsSnapshotSeries(id).then(setSnapshotSeries).catch(() => {})
+      .then((r) => live && setRace(r))
+      .catch((err) => live && setError(err.message))
+    dataStore
+      .getOddsSnapshotSeries(id)
+      .then((s) => live && setSnapshotSeries(s))
+      .catch(() => {})
+    return () => {
+      live = false
+    }
   }, [id])
 
   if (error) return <ErrorState message={error} />

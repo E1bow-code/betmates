@@ -44,10 +44,21 @@ export default function FightDetailPage() {
   const [snapshotSeries, setSnapshotSeries] = useState({})
 
   useEffect(() => {
+    // Clear the previous fight and guard the responses so an in-place id change
+    // can't leave the old one on screen or let a stale response overwrite the
+    // new one.
+    let live = true
+    setFight(null)
     fetchFight(id)
-      .then(setFight)
-      .catch((err) => setError(err.message))
-    dataStore.getOddsSnapshotSeries(id).then(setSnapshotSeries).catch(() => {})
+      .then((f) => live && setFight(f))
+      .catch((err) => live && setError(err.message))
+    dataStore
+      .getOddsSnapshotSeries(id)
+      .then((s) => live && setSnapshotSeries(s))
+      .catch(() => {})
+    return () => {
+      live = false
+    }
   }, [id])
 
   useEffect(() => {
