@@ -1,9 +1,10 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import posthog from 'posthog-js'
 import { useAuth } from '../context/AuthContext.jsx'
 import { useToast } from '../context/ToastContext.jsx'
 import * as dataStore from '../lib/dataStore.js'
+import { notifyGroup } from '../lib/notify.js'
 import { startGroupCheckout } from '../api/groupBillingClient.js'
 import { computeStats } from '../utils/trackerStats.js'
 import { tipsterBadge } from '../utils/tipsterBadge.js'
@@ -34,6 +35,12 @@ export default function JoinGroupPage() {
   // they're in, hands them the same invite link to pull their own mates.
   const [showInvite, setShowInvite] = useState(false)
   const [joining, setJoining] = useState(false)
+  // Whether the visitor was ALREADY in this group before this open (e.g.
+  // re-opening their own invite link). join_group_by_code is idempotent and
+  // returns the group either way, so this is how we avoid firing a false
+  // "someone joined" nudge on a re-entry. A ref, not state, so it's readable
+  // synchronously by the already-subscribed path that joins inside an effect.
+  const wasMemberRef = useRef(false)
   const [error, setError] = useState(null)
   const [checkoutBusy, setCheckoutBusy] = useState(false)
   const [checkoutError, setCheckoutError] = useState(null)
@@ -57,11 +64,30 @@ export default function JoinGroupPage() {
     }
   }, [showPaywall, group?.createdBy])
 
+  // Nudge the members already in the group that someone new arrived - the
+  // other side of the cold-start loop, pulling existing members back in when
+  // the group grows. Best-effort (notifyGroup never throws) and ungated, like
+  // the other whole-group event notifications (e.g. a tournament starting).
+  function announceJoin(joined) {
+    if (wasMemberRef.current) return // re-entry, not a new join - don't nudge
+    const who = user.displayName || 'A new mate'
+    notifyGroup(
+      joined.id,
+      {
+        title: `${who} joined ${joined.name} 👋`,
+        body: 'Your group just grew — log a slip and welcome them in.',
+        url: `/#/groups/${joined.id}`
+      },
+      user.id
+    )
+  }
+
   function joinAndEnter() {
     setJoining(true)
     dataStore
       .joinGroupByCode(code, user.id)
       .then((joined) => {
+        announceJoin(joined)
         // A fast redirect can read as nothing having happened - this fires
         // right before the navigate, same as every other join/create flow
         // in the app (ManageSheet's create/join forms don't need one since
@@ -95,6 +121,10 @@ export default function JoinGroupPage() {
           return
         }
         setGroup(g)
+        // Note prior membership so a re-opened link doesn't nudge the group.
+        const mine = await dataStore.listMyGroups(user.id).catch(() => [])
+        if (cancelled) return
+        wasMemberRef.current = mine.some((mg) => mg.id === g.id)
         if (!g.priceAmount) {
           // Free group: land on a preview card and let them tap Join,
           // rather than inserting them the instant the link opens.
@@ -124,6 +154,9 @@ export default function JoinGroupPage() {
       dataStore
         .joinGroupByCode(code, user.id)
         .then((joined) => {
+          // A returning-from-checkout join is always a genuinely new paid
+          // member (they had to subscribe to get here), so announce it.
+          announceJoin(joined)
           if (!cancelled) navigate(`/groups/${joined.id}`, { replace: true })
         })
         .catch(() => {
