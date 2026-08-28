@@ -27,7 +27,14 @@ function writeCache(cache) {
   if (keys.length > MAX_ENTRIES) {
     for (const key of keys.slice(0, keys.length - MAX_ENTRIES)) delete cache[key]
   }
-  localStorage.setItem(CACHE_KEY, JSON.stringify(cache))
+  try {
+    localStorage.setItem(CACHE_KEY, JSON.stringify(cache))
+  } catch {
+    // Private mode / quota exceeded - matches the setItem guard in
+    // Leaderboard.jsx. This runs inside the odds-movement hook's effect, so an
+    // unguarded throw would surface as a render error on the odds views; a
+    // failed write just means this price move goes unrecorded, no arrow.
+  }
 }
 
 // `ns` namespaces the "last price seen" so different views can track the
@@ -101,7 +108,12 @@ function writeHistory(store) {
   if (keys.length > MAX_HISTORY_KEYS) {
     for (const key of keys.slice(0, keys.length - MAX_HISTORY_KEYS)) delete store[key]
   }
-  localStorage.setItem(HISTORY_KEY, JSON.stringify(store))
+  try {
+    localStorage.setItem(HISTORY_KEY, JSON.stringify(store))
+  } catch {
+    // Private mode / quota exceeded - swallow like writeCache above; a lost
+    // history point must never crash the odds view it's recorded from.
+  }
 }
 
 export function historyKey(eventId, marketKey, outcomeName) {
