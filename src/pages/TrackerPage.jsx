@@ -31,6 +31,7 @@ import ChallengeMateButton from '../components/ChallengeMateButton.jsx'
 import ShareImageButton from '../components/ShareImageButton.jsx'
 import ShareWinButton from '../components/ShareWinButton.jsx'
 import ShareStreakButton from '../components/ShareStreakButton.jsx'
+import SpendPaceNote from '../components/SpendPaceNote.jsx'
 import Confetti from '../components/Confetti.jsx'
 import { useToast } from '../context/ToastContext.jsx'
 import SportHeroBanner from '../components/SportHeroBanner.jsx'
@@ -347,6 +348,8 @@ export default function TrackerPage() {
           </div>
         </div>
       </div>
+
+      <SpendPaceNote entries={entries} />
 
       {/* Once there's a real record to flex (3+ decided bets), let the user dare
           a mate to beat it - a gauntlet card carrying their headline stat and a
