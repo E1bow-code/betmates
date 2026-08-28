@@ -28,6 +28,16 @@ export function FlameIcon(props) {
   )
 }
 
+// Clock face - "time / ready to settle".
+export function ClockIcon(props) {
+  return (
+    <svg {...base} {...props}>
+      <circle cx="12" cy="12" r="8.5" strokeWidth={2} />
+      <path d="M12 7.5V12l3 2" strokeWidth={1.8} />
+    </svg>
+  )
+}
+
 // Cold streak - the flame's opposite number.
 export function SnowflakeIcon(props) {
   return (
