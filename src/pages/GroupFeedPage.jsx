@@ -15,6 +15,7 @@ import UserLink from '../components/UserLink.jsx'
 import GoProSheet from '../components/GoProSheet.jsx'
 import ReferralTierBadge from '../components/ReferralTierBadge.jsx'
 import EmptyState from '../components/EmptyState.jsx'
+import GroupColdStart from '../components/GroupColdStart.jsx'
 import { shareOrCopy, groupInviteUrl } from '../lib/share.js'
 import { notifyGroup } from '../lib/notify.js'
 import { useAsyncAction } from '../lib/useAsyncAction.js'
@@ -351,10 +352,11 @@ export default function GroupFeedPage() {
           )}
 
           {items && !items.length && (
-            <EmptyState
-              icon={<CommentIcon width={26} height={26} />}
-              title="Nothing posted here yet"
-              subtitle="Head to the Odds tab and tap a price to get things started."
+            <GroupColdStart
+              group={group}
+              memberCount={members.length}
+              onInvite={handleShareInvite}
+              shareStatus={shareStatus}
             />
           )}
 
