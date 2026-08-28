@@ -1453,6 +1453,16 @@ alter table profiles add column if not exists streak_reminder_sent_date date;
 -- RLS policy: "user updates own profile" already covers this.
 alter table profiles add column if not exists weekly_recap_sent_at timestamptz;
 
+-- Watermark for netlify/functions/weekly-leaderboard-email.js, exactly like
+-- weekly_recap_sent_at above and for the same reason: that Monday email job
+-- shipped with NO send-dedup, so an at-least-once redelivery (or a manual hit
+-- of its unauthenticated URL) re-sent every opted-in member's leaderboard
+-- email in full. The function now skips a member emailed within the last 6
+-- days and stamps this on a successful send. Covered by "user updates own
+-- profile"; nothing here runs until the column exists, so applying this is
+-- what turns the guard on.
+alter table profiles add column if not exists weekly_leaderboard_email_sent_at timestamptz;
+
 -- --- Group tournaments -------------------------------------------------
 -- A seasonal mini-league scoped to one group, ranking every member (not
 -- just two, unlike the `challenges` 1v1 above) by profit or ROI over the

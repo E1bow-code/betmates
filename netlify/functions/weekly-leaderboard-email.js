@@ -59,11 +59,17 @@ export default async () => {
     const now = new Date()
     const weekAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000)
     const weekAgoIso = weekAgo.toISOString()
+    // Send-dedup cutoff. Deliberately 6 days, not the 7-day bets window: this
+    // cron fires exactly weekly, and a watermark stamped mid-run last Monday
+    // would sit a hair newer than this Monday's now-7d instant, skipping every
+    // recipient biweekly (the exact bug weekly-recap.js had). 6 days keeps
+    // once-per-week while still blocking a same-window double-invoke.
+    const sentCutoff = new Date(now.getTime() - 6 * 24 * 60 * 60 * 1000)
 
     const [{ data: members }, { data: groups }, { data: profiles }, { data: privates }, { data: postRows }] = await Promise.all([
       supabase.from('group_members').select('group_id,user_id'),
       supabase.from('groups').select('id,name'),
-      supabase.from('profiles').select('id,display_name,notification_prefs'),
+      supabase.from('profiles').select('id,display_name,notification_prefs,weekly_leaderboard_email_sent_at'),
       supabase.from('profile_private').select('id,email'),
       supabase
         .from('bet_posts')
@@ -75,6 +81,7 @@ export default async () => {
 
     const memberNames = Object.fromEntries((profiles ?? []).map((p) => [p.id, p.display_name]))
     const prefsById = Object.fromEntries((profiles ?? []).map((p) => [p.id, p.notification_prefs || {}]))
+    const sentAtById = Object.fromEntries((profiles ?? []).map((p) => [p.id, p.weekly_leaderboard_email_sent_at]))
     const emailById = Object.fromEntries((privates ?? []).map((p) => [p.id, p.email]))
     const groupName = Object.fromEntries((groups ?? []).map((g) => [g.id, g.name]))
 
@@ -98,12 +105,16 @@ export default async () => {
 
     const label = weekLabel(weekAgoIso, now.toISOString())
     let sent = 0
+    const sentUserIds = []
 
     for (const [userId, groupIds] of groupsByMember) {
       // Opt-in only, and only if we have an address to send to.
       if (prefsById[userId]?.weeklyLeaderboardEmail !== true) continue
       const email = emailById[userId]
       if (!email) continue
+      // Already emailed this week - don't double-send on a redelivery.
+      const lastSent = sentAtById[userId]
+      if (lastSent && new Date(lastSent) >= sentCutoff) continue
 
       const digestGroups = groupIds
         .map((gid) => ({ name: groupName[gid], rows: boardByGroup.get(gid) }))
@@ -113,7 +124,18 @@ export default async () => {
       const digest = buildLeaderboardDigest({ recipientName: memberNames[userId], weekLabel: label, groups: digestGroups })
       if (!digest) continue
 
-      if (await sendEmail(email, digest.subject, digest.html)) sent += 1
+      if (await sendEmail(email, digest.subject, digest.html)) {
+        sent += 1
+        sentUserIds.push(userId)
+      }
+    }
+
+    // Stamp the watermark on everyone we actually emailed, so a redelivery or
+    // a manual re-hit of this cron's URL this week skips them (see the column's
+    // note in schema.sql). Only the sent set - a member whose groups had no
+    // activity got nothing and has nothing to dedup.
+    if (sentUserIds.length) {
+      await supabase.from('profiles').update({ weekly_leaderboard_email_sent_at: now.toISOString() }).in('id', sentUserIds)
     }
 
     return new Response(JSON.stringify({ sent }), { status: 200, headers: { 'content-type': 'application/json' } })
