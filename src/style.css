@@ -3421,6 +3421,15 @@ button.conversation-row { width: 100%; font: inherit; text-align: left; cursor: 
 }
 
 .achievements-link { display: inline-block; margin-bottom: var(--space-12); font-size: 0.82rem; }
+
+/* Status filter above the Tracker's bet-history list (TrackerPage). Reuses the
+   .mode-switcher/.mode-tab segmented control; the count badge dims to sit
+   quietly next to each label. Allowed to wrap and scroll on narrow screens so
+   five pills never force the page sideways. */
+.tracker-history-filter { flex-wrap: wrap; max-width: 100%; margin: 0 0 var(--space-10); }
+.tracker-history-filter-count { opacity: 0.6; font-variant-numeric: tabular-nums; font-size: 0.85em; margin-left: 3px; }
+.mode-tab.active .tracker-history-filter-count { opacity: 0.8; }
+.tracker-history-empty { margin: 0 0 var(--space-12); }
 .tracker-links-row { display: flex; gap: var(--space-16); flex-wrap: wrap; }
 
 .limit-progress-track { height: 8px; border-radius: var(--radius-pill); background: var(--border); overflow: hidden; margin: var(--space-10) 0 var(--space-6); }

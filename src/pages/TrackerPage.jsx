@@ -17,6 +17,7 @@ import {
   computeBestWin
 } from '../utils/trackerStats.js'
 import { computeDisciplineStreak } from '../utils/discipline.js'
+import { countByStatus, filterByStatus, trackerFilterLabel, TRACKER_FILTERS } from '../utils/trackerFilters.js'
 import { findOnThisDayEntries } from '../utils/onThisDay.js'
 import { SPORT_LABEL } from '../lib/sportsConfig.js'
 import EmptyState from '../components/EmptyState.jsx'
@@ -108,6 +109,7 @@ export default function TrackerPage() {
   // a second row's actions while the first is still showing has no real
   // use case and just means more to scroll past.
   const [openActionsId, setOpenActionsId] = useState(null)
+  const [historyFilter, setHistoryFilter] = useState('all')
   const runAsync = useAsyncAction()
 
   // Celebrate a win-streak milestone once, the first time the tally shows it.
@@ -255,6 +257,11 @@ export default function TrackerPage() {
 
   const stats = computeStats(entries)
   const streak = computeStreak(entries)
+  // Status filter for the history list below. Only worth showing once the list
+  // is long enough to be a chore to scan; a short history stays unfiltered.
+  const historyCounts = countByStatus(entries)
+  const shownHistory = filterByStatus(entries, historyFilter)
+  const showHistoryFilter = entries.length > 6
   const pendingToSettle = pendingSettlement(entries)
   const monthly = computeMonthlyPnl(entries)
   const bestWeek = computeBestWeek(entries)
@@ -475,8 +482,26 @@ export default function TrackerPage() {
       {entries.length > 0 && (
         <>
           <h2 className="tracker-section-title">Bet history</h2>
+          {showHistoryFilter && (
+            <div className="mode-switcher tracker-history-filter" role="tablist" aria-label="Filter bet history by status">
+              {TRACKER_FILTERS.filter((key) => key === 'all' || historyCounts[key] > 0).map((key) => (
+                <button
+                  key={key}
+                  role="tab"
+                  aria-selected={historyFilter === key}
+                  className={historyFilter === key ? 'mode-tab active' : 'mode-tab'}
+                  onClick={() => setHistoryFilter(key)}
+                >
+                  {trackerFilterLabel(key)} <span className="tracker-history-filter-count">{historyCounts[key]}</span>
+                </button>
+              ))}
+            </div>
+          )}
+          {showHistoryFilter && shownHistory.length === 0 && (
+            <p className="hint tracker-history-empty">No {trackerFilterLabel(historyFilter).toLowerCase()} bets.</p>
+          )}
           <div className="tracker-list">
-          {entries.map((entry) => {
+          {shownHistory.map((entry) => {
             const selections = entry.selections
             const combinedOdds = selections.length > 1 ? selections.reduce((acc, s) => acc * s.odds, 1) : null
             const lineValue = betLineValue(entry)
