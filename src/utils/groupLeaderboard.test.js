@@ -127,6 +127,17 @@ test('computeGroupClvLeaderboard does not drop stake-hidden posts', () => {
   assert.equal(ranked.length, 1)
 })
 
+test('computeGroupClvLeaderboard windows open bets on when they were placed, not just settled ones', () => {
+  const closes = { 'fx1|h2h|Home': 2.0 }
+  const openOld = (odds) => post({ userId: 'A', status: 'open', settledAt: null, createdAt: '2020-01-01T00:00:00Z', selections: [leg(odds)] })
+  const posts = [openOld(2.4), openOld(2.3), openOld(2.2)]
+  // All-time still sees the three old open bets - CLV doesn't need settlement.
+  assert.equal(computeGroupClvLeaderboard(posts, names, closes, 'all').length, 1)
+  // But a 'week' board must not rank on open bets placed years ago (the bug:
+  // settledAt was null so the window guard skipped them entirely).
+  assert.deepEqual(computeGroupClvLeaderboard(posts, names, closes, 'week'), [])
+})
+
 test('computeSeasonWinner picks the top-profit member settled within the given month', () => {
   const posts = [
     post({ userId: 'A', settledAt: '2026-07-15T12:00:00Z' }), // +£10 in July
