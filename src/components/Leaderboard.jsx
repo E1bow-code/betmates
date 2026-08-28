@@ -1,7 +1,8 @@
-import { useEffect, useRef, useState } from 'react'
+import { Fragment, useEffect, useRef, useState } from 'react'
 import { useAuth } from '../context/AuthContext.jsx'
 import { computeGroupLeaderboard, computeGroupClvLeaderboard } from '../utils/groupLeaderboard.js'
 import { rankDeltas } from '../utils/rankMovement.js'
+import { leaderboardGap } from '../utils/leaderboardGap.js'
 import { LEADERBOARD_WINDOWS, formatPeriod } from '../utils/dateWindows.js'
 import * as dataStore from '../lib/dataStore.js'
 import Avatar from './Avatar.jsx'
@@ -153,8 +154,11 @@ export default function Leaderboard({ posts, memberNames, currentUserId, closes 
           )}
           {rows.length > 0 && metric === 'profit' && (
             <div className="leaderboard-list">
-              {rows.map((row) => (
-                <div key={row.userId} className={row.rank === 1 ? 'leaderboard-row leaderboard-row-top' : 'leaderboard-row'}>
+              {rows.map((row) => {
+                const gap = row.userId === currentUserId ? leaderboardGap(rows, currentUserId) : null
+                return (
+                <Fragment key={row.userId}>
+                <div className={row.rank === 1 ? 'leaderboard-row leaderboard-row-top' : 'leaderboard-row'}>
                   <span className="leaderboard-rank">
                     #{row.rank}
                     {deltas[row.userId] > 0 && <span className="rank-move up" title={`Up ${deltas[row.userId]} since you last looked`}>▲{deltas[row.userId]}</span>}
@@ -184,7 +188,20 @@ export default function Leaderboard({ posts, memberNames, currentUserId, closes 
                     />
                   )}
                 </div>
-              ))}
+                {gap && gap.type !== 'alone' && (
+                  <p className="leaderboard-gap">
+                    {gap.type === 'behind'
+                      ? gap.gap === 0
+                        ? `Level with ${gap.name} — the next bet decides it`
+                        : `£${gap.gap.toFixed(2)} behind ${gap.name} — reel them in`
+                      : gap.gap === 0
+                        ? `Level at the top with ${gap.name}`
+                        : `£${gap.gap.toFixed(2)} clear of ${gap.name} at the top`}
+                  </p>
+                )}
+                </Fragment>
+                )
+              })}
             </div>
           )}
           {rows.length > 0 && metric === 'clv' && (
