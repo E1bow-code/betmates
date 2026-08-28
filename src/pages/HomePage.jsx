@@ -9,6 +9,7 @@ import PublicFeedView from '../components/PublicFeedView.jsx'
 import RankTeaser from '../components/RankTeaser.jsx'
 import HomeHighlights from '../components/HomeHighlights.jsx'
 import HomeInviteNudge from '../components/HomeInviteNudge.jsx'
+import GettingStartedChecklist from '../components/GettingStartedChecklist.jsx'
 import VideoRecorder from '../components/VideoRecorder.jsx'
 import Avatar from '../components/Avatar.jsx'
 import { FlameIcon, SnowflakeIcon, CalendarIcon, VideoIcon } from '../components/icons/Icons.jsx'
@@ -115,6 +116,7 @@ export default function HomePage() {
         </>
       )}
 
+      {entries && <GettingStartedChecklist user={user} entries={entries} />}
       {entries && <HomeInviteNudge user={user} entryCount={entries.length} />}
 
       <div className="home-composer-row">
