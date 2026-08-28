@@ -35,8 +35,20 @@ export default function DirectMessagePage() {
   }
 
   useEffect(() => {
-    refresh()
+    // Guard against a stale response and a lingering previous thread when
+    // friendId changes in place: clear the old messages, and only apply a load
+    // that's still the current thread's, so a slow response for thread A can't
+    // overwrite thread B after a fast switch.
+    let live = true
+    setMessages(null)
+    Promise.all([
+      dataStore.getProfileById(friendId).then((f) => live && setFriend(f)),
+      dataStore.listDirectMessages(user.id, friendId).then((m) => live && setMessages(m))
+    ]).catch((err) => live && setError(err.message))
     markMessagesSeen()
+    return () => {
+      live = false
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [friendId])
 
@@ -57,7 +69,11 @@ export default function DirectMessagePage() {
     }, "Couldn't send that message - try again")
     setSending(false)
     if (!ok) return
-    setMessages((m) => [...(m ?? []), message])
+    // Dedup by id, matching the realtime subscription above: the insert echoes
+    // back over the socket, and if that echo beats this select's response the
+    // message is already in state - an unconditional append would duplicate it
+    // (two bubbles, colliding React key).
+    setMessages((m) => (m && m.some((x) => x.id === message.id) ? m : [...(m ?? []), message]))
     setMessageBody('')
     notifyFriend(friendId, {
       title: `${user.displayName} sent you a message`,

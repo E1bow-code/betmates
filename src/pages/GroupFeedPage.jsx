@@ -103,6 +103,12 @@ export default function GroupFeedPage() {
   }
 
   useEffect(() => {
+    // Reset the chat on a group change: the chat loader below only fetches
+    // when messages === null, so without this an in-place /groups/A -> /groups/B
+    // switch (component stays mounted) would keep showing group A's chat while
+    // the resubscribed socket appends group B's live messages onto it. posts/
+    // items don't need this - refresh() refetches them unconditionally here.
+    setMessages(null)
     refresh()
   }, [id])
 
@@ -265,7 +271,10 @@ export default function GroupFeedPage() {
     }, "Couldn't send that message - try again")
     setSending(false)
     if (!ok) return
-    setMessages((m) => [...(m ?? []), message])
+    // Dedup by id like the realtime subscription above: the insert echoes back
+    // over the socket, and if it beats this response the message is already in
+    // state - an unconditional append would render it twice.
+    setMessages((m) => (m && m.some((x) => x.id === message.id) ? m : [...(m ?? []), message]))
     setMessageBody('')
     // Gated on 'groupChat' (opt-out, defaults on) rather than sent
     // unconditionally like DirectMessagePage's notifyFriend - a group chat

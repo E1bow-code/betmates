@@ -142,7 +142,13 @@ export function ActivityProvider({ userId, children }) {
 
   useEffect(() => {
     if (!userId) return
-    return dataStore.subscribeFeedActivity(() => setHasNewActivity(true))
+    // Skip the user's own post - Supabase echoes it back here, and lighting the
+    // "new activity" dot for something you just posted yourself is wrong. Mirror
+    // the inbox handler's senderId guard below and the initial-load merge, which
+    // already skip own posts.
+    return dataStore.subscribeFeedActivity((post) => {
+      if (post.userId !== userId) setHasNewActivity(true)
+    })
   }, [userId])
 
   useEffect(() => {

@@ -45,7 +45,10 @@ export default function FixtureChatPanel({ sport, eventId, eventLabel, defaultOp
     }, "Couldn't send that message - try again")
     setSending(false)
     if (!ok) return
-    setMessages((m) => [...(m ?? []), message])
+    // Dedup by id like the realtime subscription: the insert echoes back over
+    // the socket, and if it beats this response the message is already present -
+    // an unconditional append would render it twice.
+    setMessages((m) => (m && m.some((x) => x.id === message.id) ? m : [...(m ?? []), message]))
     setBody('')
   }
 
