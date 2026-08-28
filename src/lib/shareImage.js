@@ -359,6 +359,132 @@ export async function shareWinImage(post, { groupName, inviteCode, url } = {}) {
   return 'downloaded'
 }
 
+// The "agony" card - the near-miss counterpart to the win card. A multi that
+// lost with exactly one leg wrong (findBadBeats in src/utils/badBeats.js) is
+// as shareable as a winner, so this renders the one that got away: a SO CLOSE
+// banner, the "N-1 of N legs came in" line, the single missed selection, and
+// what it would have returned. Group-less by design - a bad beat comes from
+// the user's own entries (group or manual) and isn't reliably group-scoped,
+// so the share text carries a plain app pitch rather than a join code.
+export async function renderBadBeatImage(beat) {
+  const padding = 40
+  const contentWidth = WIDTH - padding * 2
+  const leg = beat.missedLeg || {}
+
+  const measure = document.createElement('canvas').getContext('2d')
+  measure.font = '600 20px "IBM Plex Sans", sans-serif'
+  const eventLines = wrapText(measure, leg.event || 'The one that got away', contentWidth)
+
+  let height = 110 // header
+  height += 92 // SO CLOSE banner
+  height += 44 // "the one that got away" label
+  height += 34 * eventLines.length + 30 // missed leg
+  if (beat.wouldHaveReturned != null) height += 44
+  height += 70 // footer
+
+  const canvas = document.createElement('canvas')
+  const dpr = Math.min(window.devicePixelRatio || 1, 2)
+  canvas.width = WIDTH * dpr
+  canvas.height = height * dpr
+  const ctx = canvas.getContext('2d')
+  ctx.scale(dpr, dpr)
+
+  ctx.fillStyle = COLORS.bg
+  ctx.fillRect(0, 0, WIDTH, height)
+
+  let y = padding
+  ctx.fillStyle = COLORS.accent
+  ctx.font = '700 24px "Big Shoulders Display", sans-serif'
+  ctx.fillText('BetMates', padding, y)
+  ctx.fillStyle = COLORS.bad
+  ctx.font = '600 13px "IBM Plex Sans", sans-serif'
+  ctx.textAlign = 'right'
+  ctx.fillText('BAD BEAT', WIDTH - padding, y - 2)
+  ctx.textAlign = 'left'
+  y += 30
+  ctx.strokeStyle = COLORS.border
+  ctx.beginPath()
+  ctx.moveTo(padding, y)
+  ctx.lineTo(WIDTH - padding, y)
+  ctx.stroke()
+  y += 46
+
+  // SO CLOSE banner, with the "N-1 of N legs came in" tally aligned right.
+  ctx.fillStyle = COLORS.bad
+  ctx.font = '700 52px "Big Shoulders Display", sans-serif'
+  ctx.fillText('SO CLOSE', padding, y)
+  ctx.textAlign = 'right'
+  ctx.fillStyle = COLORS.text
+  ctx.font = '700 30px "IBM Plex Mono", monospace'
+  ctx.fillText(`${beat.legCount - 1}/${beat.legCount}`, WIDTH - padding, y - 6)
+  ctx.fillStyle = COLORS.textDim
+  ctx.font = '600 12px "IBM Plex Sans", sans-serif'
+  ctx.fillText('LEGS IN', WIDTH - padding, y + 14)
+  ctx.textAlign = 'left'
+  y += 46
+
+  // The missed leg.
+  ctx.fillStyle = COLORS.bad
+  ctx.font = '600 12px "IBM Plex Sans", sans-serif'
+  ctx.fillText('THE ONE THAT GOT AWAY', padding, y)
+  y += 26
+  ctx.fillStyle = COLORS.text
+  ctx.font = '600 20px "IBM Plex Sans", sans-serif'
+  for (const line of eventLines) {
+    ctx.fillText(line, padding, y)
+    y += 27
+  }
+  y += 4
+  ctx.fillStyle = COLORS.textDim
+  ctx.font = '16px "IBM Plex Sans", sans-serif'
+  ctx.fillText(leg.selection || '', padding, y)
+  if (leg.odds != null) {
+    ctx.textAlign = 'right'
+    ctx.fillStyle = COLORS.bad
+    ctx.font = '700 20px "IBM Plex Mono", monospace'
+    ctx.fillText(Number(leg.odds).toFixed(2), WIDTH - padding, y)
+    ctx.textAlign = 'left'
+  }
+  y += 34
+
+  if (beat.wouldHaveReturned != null) {
+    ctx.fillStyle = COLORS.textDim
+    ctx.font = '15px "IBM Plex Sans", sans-serif'
+    ctx.fillText("Would've returned", padding, y)
+    ctx.fillStyle = COLORS.text
+    ctx.font = '700 18px "IBM Plex Mono", monospace'
+    ctx.textAlign = 'right'
+    ctx.fillText(`£${Number(beat.wouldHaveReturned).toFixed(2)}`, WIDTH - padding, y)
+    ctx.textAlign = 'left'
+    y += 34
+  }
+
+  ctx.fillStyle = COLORS.textDim
+  ctx.font = '12px "IBM Plex Sans", sans-serif'
+  ctx.fillText('BetMates does not place bets or hold funds. 18+. Gamble responsibly.', padding, height - padding + 20)
+
+  return new Promise((resolve) => canvas.toBlob(resolve, 'image/png'))
+}
+
+export async function shareBadBeatImage(beat) {
+  const blob = await renderBadBeatImage(beat)
+  const file = new File([blob], 'betmates-badbeat.png', { type: 'image/png' })
+
+  const missed = beat.wouldHaveReturned != null ? ` from £${Number(beat.wouldHaveReturned).toFixed(2)}` : ''
+  const text = `One leg away${missed} on BetMates. Feel my pain - track your bets and settle the score with your mates.`
+  if (navigator.canShare?.({ files: [file] })) {
+    await navigator.share({ files: [file], title: 'A brutal bad beat', text })
+    return 'shared'
+  }
+
+  const a = document.createElement('a')
+  a.href = URL.createObjectURL(blob)
+  a.download = 'betmates-badbeat.png'
+  a.click()
+  URL.revokeObjectURL(a.href)
+  return 'downloaded'
+}
+
 // Same canvas-and-share approach as the bet slip above, for a leaderboard
 // rank card instead - a fixed-height layout since there's no variable-length
 // content to measure first (unlike the leg list above).
