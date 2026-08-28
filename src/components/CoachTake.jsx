@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { buildCoachSummary } from '../utils/coachSummary.js'
 import { fetchCoachTake } from '../api/coachClient.js'
 import { shareCoachImage } from '../lib/shareImage.js'
@@ -27,15 +27,22 @@ export default function CoachTake({ entries }) {
     }
   }
 
+  const summary = useMemo(() => buildCoachSummary(entries), [entries])
+  // Key the paid Coach call on the summary's CONTENT, not the entries array's
+  // identity - a refetch of the tracker (pull-to-refresh, a settle pass) hands
+  // down a new `entries` array even when nothing that changes this read has
+  // changed, and identity-keying re-issued the paid Claude call each time.
+  // buildCoachSummary embeds no timestamp, so its JSON is a stable signature.
+  const summaryKey = JSON.stringify(summary)
+
   useEffect(() => {
-    let live = true
-    const summary = buildCoachSummary(entries)
     // Match the function's own gate so we don't fire a request that can only
     // come back empty.
     if (!(summary.settled >= 2)) {
       setState({ status: 'skip' })
       return
     }
+    let live = true
     fetchCoachTake(summary).then((res) => {
       if (!live) return
       if (res.configured && res.take) setState({ status: 'ready', take: res.take })
@@ -44,7 +51,8 @@ export default function CoachTake({ entries }) {
     return () => {
       live = false
     }
-  }, [entries])
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [summaryKey])
 
   if (state.status !== 'ready') return null
 
