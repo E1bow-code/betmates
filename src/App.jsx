@@ -69,6 +69,20 @@ const NEWS_REFRESH_MS = 10 * 60 * 1000
 const PENDING_JOIN_KEY = 'betmates:pendingJoinCode'
 const PENDING_CHALLENGE_KEY = 'betmates:pendingChallengeCode'
 
+// localStorage.setItem can throw, not just in the classic private-mode case
+// but whenever storage access is blocked outright (iOS Safari with cookies
+// blocked - a real state for an installed PWA) or the quota is full. These
+// stash/onboard writes are non-critical, but they run in an effect or a tour
+// dismiss, where an unguarded throw would trip the ErrorBoundary on the
+// invite/onboarding path instead of just quietly not remembering the code.
+function safeSetItem(key, value) {
+  try {
+    localStorage.setItem(key, value)
+  } catch {
+    /* storage blocked or full - non-critical write, carry on */
+  }
+}
+
 export default function App() {
   // Outside the providers as well as the router: a throw in AuthProvider's
   // own initialisation would otherwise have nothing above it to catch, which
@@ -99,7 +113,7 @@ export default function App() {
 function StashJoinCode() {
   const { code } = useParams()
   useEffect(() => {
-    if (code) localStorage.setItem(PENDING_JOIN_KEY, code)
+    if (code) safeSetItem(PENDING_JOIN_KEY, code)
   }, [code])
   return <Navigate to="/" replace />
 }
@@ -112,7 +126,7 @@ function StashJoinCode() {
 function StashReferralCode() {
   const { code } = useParams()
   useEffect(() => {
-    if (code) localStorage.setItem(PENDING_REFERRAL_KEY, code)
+    if (code) safeSetItem(PENDING_REFERRAL_KEY, code)
   }, [code])
   return <Navigate to="/" replace />
 }
@@ -124,7 +138,7 @@ function StashReferralCode() {
 function StashChallengeCode() {
   const { code } = useParams()
   useEffect(() => {
-    if (code) localStorage.setItem(PENDING_CHALLENGE_KEY, code)
+    if (code) safeSetItem(PENDING_CHALLENGE_KEY, code)
   }, [code])
   return <Navigate to="/" replace />
 }
@@ -200,7 +214,7 @@ function Shell() {
   }, [user])
 
   function dismissTour() {
-    if (user) localStorage.setItem(ONBOARDED_PREFIX + user.id, '1')
+    if (user) safeSetItem(ONBOARDED_PREFIX + user.id, '1')
     setShowTour(false)
   }
 
