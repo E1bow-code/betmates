@@ -16,6 +16,8 @@ import GoProSheet from '../components/GoProSheet.jsx'
 import ReferralTierBadge from '../components/ReferralTierBadge.jsx'
 import EmptyState from '../components/EmptyState.jsx'
 import GroupColdStart from '../components/GroupColdStart.jsx'
+import GroupConsensusCard from '../components/GroupConsensusCard.jsx'
+import { computeGroupConsensus } from '../utils/groupConsensus.js'
 import { shareOrCopy, groupInviteUrl } from '../lib/share.js'
 import { notifyGroup } from '../lib/notify.js'
 import { useAsyncAction } from '../lib/useAsyncAction.js'
@@ -358,6 +360,10 @@ export default function GroupFeedPage() {
               onInvite={handleShareInvite}
               shareStatus={shareStatus}
             />
+          )}
+
+          {items && items.length > 0 && (
+            <GroupConsensusCard picks={computeGroupConsensus(posts ?? [])} memberNames={memberNames} currentUserId={user.id} />
           )}
 
           {items && items.length > 0 && (
