@@ -31,6 +31,8 @@ import ChallengeMateButton from '../components/ChallengeMateButton.jsx'
 import ShareImageButton from '../components/ShareImageButton.jsx'
 import ShareWinButton from '../components/ShareWinButton.jsx'
 import ShareStreakButton from '../components/ShareStreakButton.jsx'
+import Confetti from '../components/Confetti.jsx'
+import { useToast } from '../context/ToastContext.jsx'
 import SportHeroBanner from '../components/SportHeroBanner.jsx'
 import SportIcon from '../components/icons/SportIcons.jsx'
 import TeamBadge from '../components/TeamBadge.jsx'
@@ -76,7 +78,9 @@ const STATUS_LABEL = { open: 'Pending', won: 'Won', lost: 'Lost', void: 'Void' }
 export default function TrackerPage() {
   const { user } = useAuth()
   const { format } = useOddsFormat()
+  const { showToast } = useToast()
   const [entries, setEntries] = useState(null)
+  const [celebrate, setCelebrate] = useState(false)
   // Server-recorded closing lines for the outcomes these bets reference, keyed
   // {eventId|marketKey|outcomeName} (see dataStore.getClosingLines). Feeds real
   // CLV; stays empty in local mode, where the Tracker falls back to line value.
@@ -101,6 +105,35 @@ export default function TrackerPage() {
   // use case and just means more to scroll past.
   const [openActionsId, setOpenActionsId] = useState(null)
   const runAsync = useAsyncAction()
+
+  // Celebrate a win-streak milestone once, the first time the tally shows it.
+  // A per-device watermark (localStorage) of the highest milestone already
+  // celebrated keeps it from re-firing every visit, and drops back when the
+  // streak breaks so a fresh climb celebrates again. Milestones match the
+  // streak-reminders push (3/5/10).
+  useEffect(() => {
+    if (!entries) return
+    const s = computeStreak(entries)
+    const reached = s.type === 'won' ? [10, 5, 3].find((m) => s.count >= m) || 0 : 0
+    const key = 'betmates:streakCelebrated'
+    let prev = 0
+    try {
+      prev = Number(localStorage.getItem(key)) || 0
+    } catch {
+      prev = 0
+    }
+    if (reached > prev) {
+      setCelebrate(true)
+      showToast(`🔥 ${s.count}-win streak!`)
+    }
+    if (reached !== prev) {
+      try {
+        localStorage.setItem(key, String(reached))
+      } catch {
+        /* storage disabled - the celebration just may repeat next time */
+      }
+    }
+  }, [entries, showToast])
 
   useEffect(() => {
     let cancelled = false
@@ -267,6 +300,7 @@ export default function TrackerPage() {
 
   return (
     <PullToRefresh onRefresh={refresh}>
+      {celebrate && <Confetti onDone={() => setCelebrate(false)} />}
       <SportHeroBanner sport="tracker" />
       <div className="topbar">
         <div className="topbar-row">
