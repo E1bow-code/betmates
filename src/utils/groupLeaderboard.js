@@ -54,7 +54,13 @@ export function computeGroupLeaderboard(posts, memberNames, window = 'all') {
 export function computeGroupClvLeaderboard(posts, memberNames, closes, window = 'all') {
   const byUser = new Map()
   for (const post of posts) {
-    if (post.settledAt && !isWithinWindow(post.settledAt, window)) continue
+    // Window an open bet on when it was PLACED (createdAt), not settlement -
+    // CLV is about the price struck, and an open bet has a struck price but no
+    // settledAt. The old guard only checked `settledAt`, so open bets skipped
+    // the window entirely: a "past 7 days" CLV board silently kept every open
+    // bet regardless of age. Settled bets still window on settledAt exactly as
+    // before (and window='all' keeps everything, so the season path is untouched).
+    if (!isWithinWindow(post.settledAt ?? post.createdAt, window)) continue
     if (!byUser.has(post.userId)) byUser.set(post.userId, [])
     byUser.get(post.userId).push(post)
   }
