@@ -511,7 +511,7 @@ async function toolGetMyOpenBets(userClient, userId) {
     const { data, error } = await userClient.from(table).select(columns).eq('user_id', userId).eq('status', 'open')
     return error ? [] : (data ?? [])
   }
-  const [entries, posts] = await Promise.all([fetchOpen('manual_entries'), fetchOpen('posts')])
+  const [entries, posts] = await Promise.all([fetchOpen('manual_entries'), fetchOpen('bet_posts')])
   return summariseOpenBets([...entries, ...posts])
 }
 
@@ -520,8 +520,11 @@ async function toolGetMyRecord(userClient, userId, input = {}) {
   const sport = typeof input.sport === 'string' ? input.sport.trim() : ''
   const columns = 'sport, market_type, selections, stake, potential_return, status, settled_at'
   const SETTLED = ['won', 'lost', 'void']
-  // manual_entries = the private Tracker; posts = bets shared to a group/feed.
-  // A given bet lives in one or the other, not both, so the two lists
+  // manual_entries = the private Tracker; bet_posts = bets shared to a
+  // group/feed (the table is bet_posts, NOT posts - querying the wrong name
+  // silently degrades to [] here, which once hid every group-posted bet from
+  // the user's record entirely). A given bet lives in one or the other, not
+  // both, so the two lists
   // concatenate into the user's full settled history without double-counting.
   // A query error (RLS, missing column) degrades to [] rather than throwing -
   // a data hiccup should read as "no record" to the model, never a 500.
@@ -531,7 +534,7 @@ async function toolGetMyRecord(userClient, userId, input = {}) {
     const { data, error } = await q
     return error ? [] : (data ?? [])
   }
-  const [entries, posts] = await Promise.all([fetchFrom('manual_entries'), fetchFrom('posts')])
+  const [entries, posts] = await Promise.all([fetchFrom('manual_entries'), fetchFrom('bet_posts')])
   const bets = [...entries, ...posts]
   if (!bets.length) {
     return { available: false, reason: sport ? `no settled ${sport} bets yet` : 'no settled bets yet' }
