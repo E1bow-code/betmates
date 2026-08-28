@@ -259,6 +259,15 @@ html, body {
   line-height: 1.4;
 }
 .settle-nudge svg { color: var(--accent); flex: none; }
+
+/* forward-looking "£X behind the next mate" rivalry line under the current
+   user's leaderboard row (Leaderboard.jsx) */
+.leaderboard-gap {
+  margin: calc(var(--space-4) * -1) 0 var(--space-4);
+  padding-left: var(--space-32);
+  font-size: var(--text-sm);
+  color: var(--accent);
+}
 .chip--filled-neutral { background: var(--surface); border: 1px solid var(--border); color: var(--text-dim); }
 .chip--filled-accent { background: rgba(var(--accent-rgb), 0.12); border: 1px solid var(--accent-dim); color: var(--accent); }
 .chip--filled-accent-strong { background: rgba(var(--accent-rgb), 0.16); border: none; color: var(--accent); }
