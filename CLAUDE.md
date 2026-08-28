@@ -88,6 +88,17 @@ direct SQL.
 
 Netlify cron, configured per-file via `export const config = { schedule }`:
 
+> **Pre-launch cost note:** the six functions the table below lists as
+> `*/30 * * * *` (auto-settle, alert-checks, streak-reminders,
+> team-news-alerts, odds-snapshot, coach-settle) are currently dialled down
+> to **once daily** to cut Netlify usage credits while there are no real
+> users — every one of them has essentially nothing to do without users, and
+> test bets still settle via `settlement.js` on Tracker load. Each file's
+> `config` block carries the restore instruction; **bump them back to
+> `*/30` (or `*/15` for alert-checks if kickoff-reminder timing needs it) at
+> launch.** streak-reminders is pinned to `0 19 * * *` so its 19:00-UTC daily
+> nudge still fires. The table below shows the intended (at-launch) cadence.
+
 | Function | Schedule | Does |
 |---|---|---|
 | `auto-settle.js` | `*/30 * * * *` | settles open bets, pushes "bet settled" |

@@ -100,5 +100,8 @@ export default async (req) => {
 }
 
 export const config = {
-  schedule: '*/30 * * * *'
+  // PRE-LAUNCH: dialled down from '*/30 * * * *' to once daily to cut Netlify
+  // invocations while there are no real users (no CoachGPT picks to settle yet).
+  // Restore '*/30 * * * *' at launch.
+  schedule: '30 6 * * *'
 }

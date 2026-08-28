@@ -194,5 +194,9 @@ export default async (req) => {
 }
 
 export const config = {
-  schedule: '*/30 * * * *'
+  // PRE-LAUNCH: dialled down from '*/30 * * * *' to once daily to cut Netlify
+  // invocations while there are no real users. Safe because settlement.js
+  // settles a user's bets the moment they open the Tracker - this passive cron
+  // is only for nobody-looking settlement. Restore '*/30 * * * *' at launch.
+  schedule: '0 6 * * *'
 }

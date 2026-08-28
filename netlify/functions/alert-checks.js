@@ -661,9 +661,11 @@ export default async (req) => {
 }
 
 export const config = {
-  // Dropped from */15 to */30 (matching every other scheduled function in
-  // this project) to cut credit usage while there's no real traffic yet to
-  // notice the extra lag on pre-kickoff/odds/results alerts - bump back to
-  // */15 once real usage data says the faster cadence actually matters.
-  schedule: '*/30 * * * *'
+  // PRE-LAUNCH: dialled down to once daily to cut Netlify invocations while
+  // there's no real traffic. This one bundles kickoff reminders, odds alerts,
+  // followed-fixture results and the spend/trial/renewal nudges - all of which
+  // have essentially nobody to serve pre-launch. At launch restore a frequent
+  // cadence ('*/30 * * * *', or '*/15' if the pre-kickoff timing needs it):
+  // kickoff reminders in particular have to fire close to kickoff to be useful.
+  schedule: '0 7 * * *'
 }
