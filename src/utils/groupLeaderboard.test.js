@@ -37,6 +37,37 @@ test('computeGroupLeaderboard ranks by profit, richest first, with rank baked in
   assert.equal(ranked[1].rank, 2)
 })
 
+test('computeGroupLeaderboard attaches the current win streak (most-recent-first run of wins)', () => {
+  const posts = [
+    post({ userId: 'A', settledAt: '2026-08-01T12:00:00Z' }),
+    post({ userId: 'A', settledAt: '2026-08-02T12:00:00Z' }),
+    post({ userId: 'A', settledAt: '2026-08-03T12:00:00Z' })
+  ]
+  const [row] = computeGroupLeaderboard(posts, names, 'all')
+  assert.equal(row.winStreak, 3)
+})
+
+test('computeGroupLeaderboard win streak is 0 when the most recent bet lost', () => {
+  const posts = [
+    post({ userId: 'A', settledAt: '2026-08-01T12:00:00Z' }), // win
+    post({ userId: 'A', settledAt: '2026-08-02T12:00:00Z' }), // win
+    post({ userId: 'A', status: 'lost', potentialReturn: 0, settledAt: '2026-08-03T12:00:00Z' }) // most recent: loss
+  ]
+  const [row] = computeGroupLeaderboard(posts, names, 'all')
+  assert.equal(row.winStreak, 0)
+})
+
+test("computeGroupLeaderboard win streak reflects the member's whole history, not just the ranking window", () => {
+  const recent = new Date().toISOString()
+  const posts = [
+    post({ userId: 'A', settledAt: '2020-01-01T00:00:00Z' }), // old win, outside the 'week' window
+    post({ userId: 'A', settledAt: recent }) // recent win, inside it
+  ]
+  const [row] = computeGroupLeaderboard(posts, names, 'week')
+  assert.equal(row.settledCount, 1) // only the in-window bet ranks on P&L
+  assert.equal(row.winStreak, 2) // but the streak still sees both wins
+})
+
 test('computeGroupLeaderboard ignores stake-hidden posts (no visible P&L to rank on)', () => {
   const posts = [post({ userId: 'A', stakeHidden: true })]
   assert.deepEqual(computeGroupLeaderboard(posts, names, 'all'), [])

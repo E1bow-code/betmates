@@ -7,7 +7,9 @@ import Avatar from './Avatar.jsx'
 import UserLink from './UserLink.jsx'
 import ShareLeaderboardButton from './ShareLeaderboardButton.jsx'
 import ReferralTierBadge from './ReferralTierBadge.jsx'
+import WinStreakBadge from './WinStreakBadge.jsx'
 import PremiumGate from './PremiumGate.jsx'
+import { useToast } from '../context/ToastContext.jsx'
 import { TargetIcon, TrophyIcon } from './icons/Icons.jsx'
 
 // Section 2C's "aggregate group leaderboard" - ranks members of a single
@@ -25,6 +27,7 @@ import { TargetIcon, TrophyIcon } from './icons/Icons.jsx'
 
 export default function Leaderboard({ posts, memberNames, currentUserId, closes = {}, groupId, referralCounts = {} }) {
   const { user } = useAuth()
+  const { showToast } = useToast()
   const [expanded, setExpanded] = useState(false)
   const [timeWindow, setTimeWindow] = useState('all')
   const [metric, setMetric] = useState('profit')
@@ -40,6 +43,37 @@ export default function Leaderboard({ posts, memberNames, currentUserId, closes 
       .then(setSeasons)
       .catch(() => setSeasons([]))
   }, [expanded, groupId])
+
+  // "You just passed X" - a lightweight rivalry moment. We keep the set of
+  // members ranked above me last time in localStorage (per group; no schema,
+  // mirroring ActivityContext's lastSeen watermarks) and, when someone who
+  // was above me is now genuinely below me on the all-time profit board,
+  // toast it once. Never fires on first sight of a group (no watermark yet),
+  // and updating the watermark each run keeps it idempotent across re-renders.
+  useEffect(() => {
+    if (!groupId || !currentUserId) return
+    const board = computeGroupLeaderboard(posts, memberNames, 'all')
+    const meIndex = board.findIndex((r) => r.userId === currentUserId)
+    if (meIndex === -1) return
+    const aboveNow = board.slice(0, meIndex).map((r) => r.userId)
+    const belowNow = new Set(board.slice(meIndex + 1).map((r) => r.userId))
+    const key = `betmates:lbAbove:${groupId}`
+    let stored = null
+    try {
+      stored = JSON.parse(localStorage.getItem(key) || 'null')
+    } catch {
+      stored = null
+    }
+    try {
+      localStorage.setItem(key, JSON.stringify(aboveNow))
+    } catch {
+      /* private mode / storage disabled - the moment just won't fire */
+    }
+    if (!Array.isArray(stored)) return // first time seeing this group
+    // nearest mate who was above me before and is now below me = who I passed
+    const passedUid = [...stored].reverse().find((uid) => belowNow.has(uid))
+    if (passedUid) showToast(`🔥 You passed ${memberNames[passedUid] || 'a mate'} on the leaderboard`)
+  }, [groupId, currentUserId, posts, memberNames, showToast])
 
   const hasAnySettled = posts.some((p) => !p.stakeHidden && p.stake && ['won', 'lost', 'void'].includes(p.status))
   if (!hasAnySettled) return null
@@ -87,6 +121,7 @@ export default function Leaderboard({ posts, memberNames, currentUserId, closes 
                   <UserLink id={row.userId} className="leaderboard-name">
                     {row.name}
                     <ReferralTierBadge count={referralCounts[row.userId]} />
+                    <WinStreakBadge count={row.winStreak} />
                   </UserLink>
                   <span className={`leaderboard-pnl ${row.profit >= 0 ? 'tone-good' : 'tone-bad'}`}>
                     {row.profit >= 0 ? '+' : ''}£{row.profit.toFixed(2)}

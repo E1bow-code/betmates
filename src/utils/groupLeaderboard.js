@@ -4,13 +4,20 @@
 // a deliberately different ranking for a deliberately different, public-
 // reputation context). Extracted so the two callers can't drift apart -
 // this used to be inline in Leaderboard.jsx alone.
-import { computeStats } from './trackerStats.js'
+import { computeStats, computeStreak } from './trackerStats.js'
 import { isWithinWindow, isWithinPeriod } from './dateWindows.js'
 import { clvSummary } from './clv.js'
 
 export function computeGroupLeaderboard(posts, memberNames, window = 'all') {
   const byUser = new Map()
+  // A member's current win streak is "right now", not "within the ranking
+  // window", so it's computed off their whole group history (all posts,
+  // stake-hidden included - a win is a win regardless of whether the stake
+  // was shown) rather than the window-and-stake-filtered set the P&L ranks on.
+  const allByUser = new Map()
   for (const post of posts) {
+    if (!allByUser.has(post.userId)) allByUser.set(post.userId, [])
+    allByUser.get(post.userId).push(post)
     if (post.stakeHidden) continue // no visible stake -> no real P&L to rank on
     if (post.settledAt && !isWithinWindow(post.settledAt, window)) continue
     if (!byUser.has(post.userId)) byUser.set(post.userId, [])
@@ -18,7 +25,16 @@ export function computeGroupLeaderboard(posts, memberNames, window = 'all') {
   }
 
   return [...byUser.entries()]
-    .map(([userId, userPosts]) => ({ userId, name: memberNames[userId] ?? 'Someone', ...computeStats(userPosts) }))
+    .map(([userId, userPosts]) => {
+      const streak = computeStreak(allByUser.get(userId) ?? [])
+      return {
+        userId,
+        name: memberNames[userId] ?? 'Someone',
+        ...computeStats(userPosts),
+        // 0 unless the current run is wins - the flame badge only lights on a win streak
+        winStreak: streak.type === 'won' ? streak.count : 0
+      }
+    })
     .filter((row) => row.settledCount > 0)
     .sort((a, b) => b.profit - a.profit)
     .map((row, i) => ({ ...row, rank: i + 1 }))
