@@ -1,4 +1,5 @@
 import { forwardRef, useEffect, useImperativeHandle, useMemo, useState } from 'react'
+import { Link } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext.jsx'
 import * as dataStore from '../lib/dataStore.js'
 import BetCard from './BetCard.jsx'
@@ -121,6 +122,17 @@ const PublicFeedView = forwardRef(function PublicFeedView({ filter = 'all' }, re
           icon={<MegaphoneIcon width={26} height={26} />}
           title="Nothing here yet"
           subtitle={filter === 'following' ? "Follow a few people to see their picks here." : 'Be the first to post a pick for everyone to see.'}
+          // The Following tab told people to follow someone but gave them no way
+          // to do it - a dead-end for anyone who hasn't yet. Point them at the
+          // tipster board (same place the getting-started "follow a mate" step
+          // goes) so the empty state is a next step, not a full stop.
+          action={
+            filter === 'following' ? (
+              <Link to="/explore" className="btn btn-primary btn-small">
+                Find people to follow
+              </Link>
+            ) : null
+          }
         />
       )}
 
