@@ -3952,6 +3952,44 @@ button.conversation-row { width: 100%; font: inherit; text-align: left; cursor: 
 .empty-state-subtitle { font-size: var(--text-base); max-width: 320px; line-height: 1.5; }
 .empty-state .btn { margin-top: var(--space-10); }
 
+/* Cold-start card for a brand-new group feed (GroupColdStart.jsx) - warmer and
+   more actionable than a plain empty-state: two CTAs (post / invite) plus a
+   nudge of ideas. */
+.cold-start {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  gap: var(--space-8);
+  padding: var(--space-32) var(--space-24) var(--space-40);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  background: linear-gradient(180deg, var(--surface) 0%, var(--surface-2) 100%);
+}
+.cold-start-icon {
+  width: 56px;
+  height: 56px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--radius-circle);
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  font-size: 1.6rem;
+  margin-bottom: var(--space-4);
+}
+.cold-start-title { color: var(--text); font-weight: 700; font-size: var(--text-lg); margin: 0; text-wrap: balance; }
+.cold-start-sub { color: var(--text-dim); font-size: var(--text-base); line-height: 1.5; max-width: 360px; margin: 0; }
+.cold-start-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: var(--space-8);
+  margin-top: var(--space-8);
+}
+.cold-start-note { color: var(--good); font-size: var(--text-sm); margin: var(--space-4) 0 0; }
+.cold-start-ideas { color: var(--text-dim); font-size: var(--text-sm); line-height: 1.5; max-width: 340px; margin: var(--space-8) 0 0; opacity: 0.85; }
+
 .error { color: var(--bad); }
 
 .league-group + .league-group { margin-top: 18px; }
