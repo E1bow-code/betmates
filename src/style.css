@@ -2043,6 +2043,10 @@ button.conversation-row { width: 100%; font: inherit; text-align: left; cursor: 
   animation: sheet-in 0.2s ease-out;
 }
 .sheet.closing { animation: sheet-out 0.2s ease-in forwards; }
+/* The sheet container is focused programmatically when it opens (dialog focus
+   management, see lib/sheetA11y.js); it's not keyboard-reachable (tabindex -1),
+   so suppress the ring around the whole sheet. Interactive children keep theirs. */
+.sheet:focus { outline: none; }
 
 @keyframes sheet-backdrop-in { from { opacity: 0; } }
 @keyframes sheet-backdrop-out { to { opacity: 0; } }

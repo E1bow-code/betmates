@@ -63,6 +63,7 @@ import ScatteredSportPhotos from './components/ScatteredSportPhotos.jsx'
 import NewsSidebar from './components/NewsSidebar.jsx'
 import { fetchSportsNews } from './api/newsClient.js'
 import { PENDING_REFERRAL_KEY } from './lib/referral.js'
+import { installSheetA11y } from './lib/sheetA11y.js'
 
 const NEWS_REFRESH_MS = 10 * 60 * 1000
 
@@ -197,6 +198,11 @@ function Shell() {
   useEffect(() => {
     window.scrollTo(0, 0)
   }, [location.pathname])
+
+  // Give every bottom-sheet modal dialog semantics + focus management in one
+  // place (see lib/sheetA11y.js) - the sheets hand-roll identical markup with
+  // no shared component to attach this to.
+  useEffect(() => installSheetA11y(), [])
 
   useEffect(() => {
     if (user && !localStorage.getItem(ONBOARDED_PREFIX + user.id)) setShowTour(true)
