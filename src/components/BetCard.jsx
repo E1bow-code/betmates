@@ -382,7 +382,7 @@ export default function BetCard({ post, memberNames, memberAvatars, variant = 'g
                 Edit
               </button>
               {selections.length > 0 && (
-                <select className="status-select" defaultValue="open" onChange={handleStatusChange}>
+                <select className="status-select" aria-label="Mark bet result" defaultValue="open" onChange={handleStatusChange}>
                   <option value="open">Mark result</option>
                   <option value="won">Won</option>
                   {selections.length === 1 && selections[0].eachWay && <option value="placed">Placed (not won)</option>}
@@ -491,7 +491,7 @@ export default function BetCard({ post, memberNames, memberAvatars, variant = 'g
                   {post.stake ? (
                     <div className="bet-card-stat">
                       <span className="bet-card-stat-label">Stake</span>
-                      <span className="bet-card-stat-value">£{post.stake}</span>
+                      <span className="bet-card-stat-value">£{Number(post.stake).toFixed(2)}</span>
                     </div>
                   ) : null}
                   <div className="bet-card-stat">
@@ -582,7 +582,7 @@ export default function BetCard({ post, memberNames, memberAvatars, variant = 'g
                 Edit
               </button>
               {selections.length > 0 && (
-                <select className="status-select" defaultValue="open" onChange={handleStatusChange}>
+                <select className="status-select" aria-label="Mark bet result" defaultValue="open" onChange={handleStatusChange}>
                   <option value="open">Mark result</option>
                   <option value="won">Won</option>
                   {selections.length === 1 && selections[0].eachWay && <option value="placed">Placed (not won)</option>}

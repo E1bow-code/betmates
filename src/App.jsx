@@ -63,6 +63,7 @@ import ScatteredSportPhotos from './components/ScatteredSportPhotos.jsx'
 import NewsSidebar from './components/NewsSidebar.jsx'
 import { fetchSportsNews } from './api/newsClient.js'
 import { PENDING_REFERRAL_KEY } from './lib/referral.js'
+import { installSheetA11y } from './lib/sheetA11y.js'
 
 const NEWS_REFRESH_MS = 10 * 60 * 1000
 
@@ -188,6 +189,20 @@ function Shell() {
   // second mount point, open/close state lifted into QuickAddContext so a
   // routed page can trigger it too, not just a prop passed to BottomNav.
   const { showQuickAdd, openQuickAdd, closeQuickAdd } = useQuickAdd()
+
+  // Reset scroll to the top on every route change. The page body is the
+  // scroller, and remounting .route-page (keyed on pathname below) doesn't move
+  // the window - so without this, navigating from a long, scrolled page lands
+  // the user partway down the next one. Keyed on pathname only, so in-page
+  // anchors (same pathname) aren't disturbed.
+  useEffect(() => {
+    window.scrollTo(0, 0)
+  }, [location.pathname])
+
+  // Give every bottom-sheet modal dialog semantics + focus management in one
+  // place (see lib/sheetA11y.js) - the sheets hand-roll identical markup with
+  // no shared component to attach this to.
+  useEffect(() => installSheetA11y(), [])
 
   useEffect(() => {
     if (user && !localStorage.getItem(ONBOARDED_PREFIX + user.id)) setShowTour(true)

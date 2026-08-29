@@ -95,6 +95,7 @@ export default function FriendsPage() {
         <span>Add a friend</span>
         <div className="inline-form">
           <input
+            aria-label="Add a friend by code"
             placeholder="Friend's code"
             value={friendCode}
             onChange={(e) => setFriendCode(e.target.value.toUpperCase())}

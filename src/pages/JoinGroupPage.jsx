@@ -192,7 +192,7 @@ export default function JoinGroupPage() {
         </div>
         <div className="error">{error}</div>
         <Link className="btn btn-secondary" to="/groups">
-          Back to Social
+          Back to Mates
         </Link>
       </div>
     )

@@ -899,6 +899,35 @@ create trigger guard_is_admin_on_profiles
   before insert or update on profiles
   for each row execute function guard_is_admin();
 
+-- Server-side 18+ enforcement. The signup UI (AuthPage) already blocks a DOB
+-- under 18, but that guard is client-side only: a raw supabase.auth.signUp plus
+-- a direct profile_private insert (or DevTools tampering with the date field)
+-- could otherwise register an under-18 user, since date_of_birth is captured
+-- but never re-validated. This rejects it at the database for the normal
+-- anon/authenticated signup path. The service-role key (admin corrections,
+-- migrations, backfills) is intentionally exempt - same convention as the other
+-- guard_* triggers. Someone whose 18th birthday is today is allowed (the bound
+-- is strict). NOTE: this only takes effect once applied to the live database.
+create or replace function guard_min_age()
+returns trigger
+language plpgsql
+security definer
+set search_path = public
+as $$
+begin
+  if auth.role() in ('anon', 'authenticated')
+     and new.date_of_birth > (current_date - interval '18 years') then
+    raise exception 'You must be 18 or older to use BetMates.' using errcode = 'check_violation';
+  end if;
+  return new;
+end;
+$$;
+
+drop trigger if exists guard_min_age_on_profile_private on profile_private;
+create trigger guard_min_age_on_profile_private
+  before insert or update on profile_private
+  for each row execute function guard_min_age();
+
 -- --- Comment/reaction/copy insert visibility fix --------------------------
 -- Overnight RLS audit: the insert policies for bet_comments, bet_reactions,
 -- and bet_copies only ever checked auth.uid() = the acting user - unlike
