@@ -28,6 +28,7 @@
 // service role only to WRITE odds_cache (RLS gives that table no insert policy,
 // so only the service role can populate it - the proxy reads it with anon).
 import { createClient } from '@supabase/supabase-js'
+import { denyUnlessCron } from './_cronAuth.js'
 import { FOOTBALL_SPORT_KEYS } from '../../src/lib/sportsConfig.js'
 import { reshapeEvent } from '../../src/lib/footballOddsShape.js'
 
@@ -48,7 +49,10 @@ async function fetchSportOdds(sport) {
   return res.json()
 }
 
-export default async () => {
+export default async (req) => {
+  const _denied = denyUnlessCron(req)
+  if (_denied) return _denied
+
   // Master off-switch. This whole odds-cache system spends real Odds API
   // credits, so it ships dormant: no ingest cron does anything until
   // ODDS_INGEST_ENABLED is explicitly set to 'true' in Netlify (turn it on only

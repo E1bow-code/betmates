@@ -6,6 +6,7 @@
 // same plain substring match as the client-side filter - still fuzzy, still
 // no team/sport tag on an RSS item to join against.
 import { createClient } from '@supabase/supabase-js'
+import { denyUnlessCron } from './_cronAuth.js'
 import webpush from 'web-push'
 
 const SUPABASE_URL = process.env.VITE_SUPABASE_URL
@@ -15,6 +16,9 @@ const VAPID_PRIVATE_KEY = process.env.VAPID_PRIVATE_KEY
 const SITE_URL = process.env.URL || 'https://betmates.org'
 
 export default async (req) => {
+  const _denied = denyUnlessCron(req)
+  if (_denied) return _denied
+
   if (!SUPABASE_URL || !SERVICE_ROLE_KEY || !VAPID_PUBLIC_KEY || !VAPID_PRIVATE_KEY) {
     return new Response(JSON.stringify({ sent: 0, reason: 'not configured' }), { status: 200 })
   }

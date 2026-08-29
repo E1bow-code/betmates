@@ -15,6 +15,7 @@
 // zero extra crons.
 // @ts-check
 import { createClient } from '@supabase/supabase-js'
+import { denyUnlessCron } from './_cronAuth.js'
 import webpush from 'web-push'
 import { apiKeysForSport, GENERIC_SPORTS } from '../../src/lib/sportsConfig.js'
 import { periodStart, sumStakesSince } from '../../src/utils/spendLimit.js'
@@ -623,6 +624,9 @@ async function runValueEdgeAlerts(supabase) {
  * @returns {Promise<Response>}
  */
 export default async (req) => {
+  const _denied = denyUnlessCron(req)
+  if (_denied) return _denied
+
   if (!SUPABASE_URL || !SERVICE_ROLE_KEY) {
     return new Response(JSON.stringify({ reason: 'not configured' }), { status: 200 })
   }

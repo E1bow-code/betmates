@@ -17,6 +17,7 @@
 // same restraint as the weeklyRecap push. A recipient whose groups had zero
 // settled bets this week gets nothing rather than an empty board.
 import { createClient } from '@supabase/supabase-js'
+import { denyUnlessCron } from './_cronAuth.js'
 import { computeGroupLeaderboard } from '../../src/utils/groupLeaderboard.js'
 import { buildLeaderboardDigest } from '../../src/lib/leaderboardEmail.js'
 
@@ -49,7 +50,10 @@ async function sendEmail(to, subject, html) {
   return true
 }
 
-export default async () => {
+export default async (req) => {
+  const _denied = denyUnlessCron(req)
+  if (_denied) return _denied
+
   if (!SUPABASE_URL || !SERVICE_ROLE_KEY || !RESEND_API_KEY || !DIGEST_FROM_EMAIL) {
     return new Response(JSON.stringify({ sent: 0, reason: 'not configured' }), { status: 200 })
   }

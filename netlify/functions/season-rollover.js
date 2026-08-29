@@ -7,6 +7,7 @@
 // leaderboard itself showed at the time. Same service-role pattern as every
 // other scheduled function - nobody's signed in when a cron job fires.
 import { createClient } from '@supabase/supabase-js'
+import { denyUnlessCron } from './_cronAuth.js'
 import { computeSeasonWinner, computeSeasonClvWinner } from '../../src/utils/groupLeaderboard.js'
 import { closingLinesFromSnapshots } from '../../src/utils/clv.js'
 
@@ -48,6 +49,9 @@ function seasonRow({ scope, groupId, period, winner, clvWinner }) {
 }
 
 export default async (req) => {
+  const _denied = denyUnlessCron(req)
+  if (_denied) return _denied
+
   if (!SUPABASE_URL || !SERVICE_ROLE_KEY) {
     return new Response(JSON.stringify({ written: 0, reason: 'not configured' }), { status: 200 })
   }

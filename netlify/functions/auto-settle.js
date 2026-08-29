@@ -18,6 +18,7 @@
 // that quota instead of spending it twice.
 // @ts-check
 import { createClient } from '@supabase/supabase-js'
+import { denyUnlessCron } from './_cronAuth.js'
 import webpush from 'web-push'
 import { evaluateEntryDetailed, resolveSettlement } from '../../src/lib/betEvaluation.js'
 import { apiKeysForSport, sgoEventIdForLeg } from '../../src/lib/sportsConfig.js'
@@ -75,6 +76,9 @@ function eventSummary(selections) {
  * @returns {Promise<Response>}
  */
 export default async (req) => {
+  const _denied = denyUnlessCron(req)
+  if (_denied) return _denied
+
   if (!SUPABASE_URL || !SERVICE_ROLE_KEY) {
     return new Response(JSON.stringify({ settled: 0, reason: 'not configured' }), { status: 200 })
   }

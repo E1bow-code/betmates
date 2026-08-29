@@ -5,6 +5,7 @@
 // pattern as every other scheduled function - nobody's signed in when a
 // cron job fires, so it has to bypass RLS rather than work within it.
 import { createClient } from '@supabase/supabase-js'
+import { denyUnlessCron } from './_cronAuth.js'
 import webpush from 'web-push'
 import { computeStats } from '../../src/utils/trackerStats.js'
 import { requestCoachTake } from '../../src/lib/coach.js'
@@ -25,6 +26,9 @@ const ANTHROPIC_API_KEY = OMNIROUTE_BASE_URL ? process.env.OMNIROUTE_API_KEY : p
 const COACH_ROUTE = OMNIROUTE_BASE_URL ? { baseUrl: OMNIROUTE_BASE_URL, modelPrefix: process.env.OMNIROUTE_MODEL_PREFIX } : undefined
 
 export default async (req) => {
+  const _denied = denyUnlessCron(req)
+  if (_denied) return _denied
+
   if (!SUPABASE_URL || !SERVICE_ROLE_KEY || !VAPID_PUBLIC_KEY || !VAPID_PRIVATE_KEY) {
     return new Response(JSON.stringify({ sent: 0, reason: 'not configured' }), { status: 200 })
   }
