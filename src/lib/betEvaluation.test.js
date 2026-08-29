@@ -204,6 +204,23 @@ test('an each-way leg that placed resolves to won with the place-part return, re
   assert.equal(resolved.potentialReturnOverride, computeEachWayReturn(10, l.odds, { fraction: 0.25, places: 3 }, 'place'))
 })
 
+// Regression test for the each-way overpayment bug: a winning each-way single
+// (horse 1st) must be priced through the each-way WIN return, NOT stake x full
+// odds. Before the fix, resolveSettlement's generic 'won' branch overrode the
+// correct bet-time figure with voidAdjustedReturn (stake x odds), overpaying by
+// the place part. Only the 'placed' case was covered, so this went unnoticed.
+test('a winning each-way single pays the each-way win return, not stake x full odds', () => {
+  const l = racingLeg({ eachWay: true, eachWayPlaces: 3, eachWayFraction: 0.25 }) // Alpha finished 1st
+  assert.equal(evaluateLeg(l, [], races), 'won')
+  const e = entry(10, [l])
+  const resolved = resolveSettlement(e, evaluateEntryDetailed(e, [], races))
+  assert.equal(resolved.status, 'won')
+  // GBP 10 e/w at 3.0, 1/4 terms: GBP 5 win part -> 15, GBP 5 place part at 1.5 -> 7.5 => 22.5.
+  // NOT stake x odds = 30 (that would double-count the place stake at full odds).
+  assert.equal(resolved.potentialReturnOverride, 22.5)
+  assert.equal(resolved.potentialReturnOverride, computeEachWayReturn(10, l.odds, { fraction: 0.25, places: 3 }, 'win'))
+})
+
 test('an all-void bet resolves to void with no correction', () => {
   const e = entry(10, [leg({ market: 'Draw No Bet', event: 'Arsenal v Chelsea', selection: 'Arsenal' })])
   assert.deepEqual(resolveSettlement(e, evaluateEntryDetailed(e, games, [])), { status: 'void', potentialReturnOverride: undefined })

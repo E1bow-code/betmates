@@ -234,10 +234,23 @@ export function voidAdjustedReturn(entry, outcomes) {
 // (evaluateEntryDetailed found an undetermined leg).
 export function resolveSettlement(entry, { status, outcomes }) {
   if (!status) return null
-  if (status === 'placed') {
+  // A single each-way leg is priced through the each-way structure for BOTH a
+  // place AND a win: half the stake on the win part (full odds), half on the
+  // place part (odds shortened by the fraction). 'placed' only ever arises for
+  // this shape - but a *winning* each-way single must use the each-way WIN
+  // return too, not the generic stake x full odds below. That generic figure
+  // (voidAdjustedReturn) treats the whole stake as riding at full odds, which
+  // double-counts the place half and overpays the winner: £10 e/w at 5.0 on
+  // 1/4 terms pays £35 (£5x5.0 + £5x2.0), not £50. Because settlement now
+  // always overrides potential_return on a win (the tamper-proofing fix), a
+  // winning e/w single would otherwise have its correct bet-time figure
+  // actively replaced with the inflated one. Straight (non-e/w) bets keep the
+  // stake x odds path.
+  if (status === 'placed' || (status === 'won' && entry.selections.length === 1 && entry.selections[0]?.eachWay)) {
     const leg = entry.selections[0]
     const terms = { fraction: leg.eachWayFraction, places: leg.eachWayPlaces }
-    return { status: 'won', potentialReturnOverride: Math.round(computeEachWayReturn(entry.stake, leg.odds, terms, 'place') * 100) / 100 }
+    const part = status === 'placed' ? 'place' : 'win'
+    return { status: 'won', potentialReturnOverride: Math.round(computeEachWayReturn(entry.stake, leg.odds, terms, part) * 100) / 100 }
   }
   return { status, potentialReturnOverride: status === 'won' ? voidAdjustedReturn(entry, outcomes) : undefined }
 }
