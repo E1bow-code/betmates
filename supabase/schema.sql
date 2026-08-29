@@ -1098,6 +1098,47 @@ create policy "admins delete error logs" on error_logs for delete using (
   exists (select 1 from profiles p where p.id = auth.uid() and p.is_admin)
 );
 
+-- The insert policy above is `with check (true)` on purpose - a crash on
+-- AuthPage has no signed-in user to attribute it to, so unauthenticated
+-- clients must still be able to log. That also means a script could spam the
+-- table to bury real errors or bloat it unbounded. This trigger caps the
+-- insert RATE from anon/authenticated callers (service_role is never limited)
+-- and opportunistically trims old rows, so genuine logging is unaffected at
+-- normal volumes while abuse can't run away. Excess inserts are dropped
+-- silently (RETURN NULL) rather than raising - a logger must never itself
+-- error. Same security-definer + pinned search_path shape as the guard_*
+-- triggers above.
+create index if not exists error_logs_created_at_idx on error_logs (created_at);
+
+create or replace function guard_error_logs_rate()
+returns trigger
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  recent integer;
+begin
+  if auth.role() in ('anon', 'authenticated') then
+    select count(*) into recent from error_logs where created_at > now() - interval '1 minute';
+    if recent >= 120 then
+      return null;              -- over the per-minute cap: silently drop this insert
+    end if;
+  end if;
+  -- Keep the table bounded without a per-insert scan: ~2% of inserts prune
+  -- anything older than 30 days (admins read only recent errors anyway).
+  if random() < 0.02 then
+    delete from error_logs where created_at < now() - interval '30 days';
+  end if;
+  return new;
+end;
+$$;
+
+drop trigger if exists guard_error_logs_rate_on_insert on error_logs;
+create trigger guard_error_logs_rate_on_insert
+  before insert on error_logs
+  for each row execute function guard_error_logs_rate();
+
 -- --- Realtime ----------------------------------------------------------
 -- Live updates for chat/feed/unread-badges (src/lib/dataStore.js's
 -- subscribeX functions) - postgres_changes only fires for tables in this
