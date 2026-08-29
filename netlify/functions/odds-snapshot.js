@@ -37,6 +37,7 @@
 // someone cared enough about to follow, the same "only track what's in
 // play" principle as the open-bet snapshotting above.
 import { createClient } from '@supabase/supabase-js'
+import { denyUnlessCron } from './_cronAuth.js'
 
 const SUPABASE_URL = process.env.VITE_SUPABASE_URL
 const SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY
@@ -140,7 +141,10 @@ function collectRacingSnapshots(races, wantedLegs, wantedFixtureIds, fixtureRows
   }
 }
 
-export default async () => {
+export default async (req) => {
+  const _denied = denyUnlessCron(req)
+  if (_denied) return _denied
+
   if (!SUPABASE_URL || !SERVICE_ROLE_KEY) {
     return new Response(JSON.stringify({ snapshotted: 0, reason: 'not configured' }), { status: 200 })
   }

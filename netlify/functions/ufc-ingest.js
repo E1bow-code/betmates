@@ -10,6 +10,7 @@
 // the 500 req/month tier. Kept at the same 8h cadence as the football cron for
 // consistency; there's headroom to raise it well before the budget bites.
 import { createClient } from '@supabase/supabase-js'
+import { denyUnlessCron } from './_cronAuth.js'
 import { UFC_SPORT_KEY } from '../../src/lib/sportsConfig.js'
 import { reshapeEvent } from '../../src/lib/ufcOddsShape.js'
 
@@ -28,7 +29,10 @@ function json(body) {
   return new Response(JSON.stringify(body), { status: 200, headers: { 'content-type': 'application/json' } })
 }
 
-export default async () => {
+export default async (req) => {
+  const _denied = denyUnlessCron(req)
+  if (_denied) return _denied
+
   // Master off-switch - see odds-ingest.js. Ships dormant; nothing runs until
   // ODDS_INGEST_ENABLED is set to 'true' in Netlify.
   if (process.env.ODDS_INGEST_ENABLED !== 'true') {

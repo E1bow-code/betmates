@@ -29,6 +29,7 @@
 //     Unset = all generic sports.
 //   - the schedule below.
 import { createClient } from '@supabase/supabase-js'
+import { denyUnlessCron } from './_cronAuth.js'
 import { GENERIC_SPORTS } from '../../src/lib/sportsConfig.js'
 import { fetchLiveSportItems } from './sport.js'
 
@@ -51,7 +52,10 @@ function targetSports() {
   return keys.filter((k) => GENERIC_SPORTS[k])
 }
 
-export default async () => {
+export default async (req) => {
+  const _denied = denyUnlessCron(req)
+  if (_denied) return _denied
+
   // Master off-switch - see odds-ingest.js. Ships dormant; nothing runs until
   // ODDS_INGEST_ENABLED is set to 'true' in Netlify.
   if (process.env.ODDS_INGEST_ENABLED !== 'true') {

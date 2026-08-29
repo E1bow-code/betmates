@@ -10,6 +10,7 @@
 // opt-in, rather than a second schedule entry or a second checkbox on
 // AccountPage.jsx for what reads as one "streak reminders" idea to a user.
 import { createClient } from '@supabase/supabase-js'
+import { denyUnlessCron } from './_cronAuth.js'
 import webpush from 'web-push'
 import { computeStreak } from '../../src/utils/trackerStats.js'
 import { freezesGranted } from '../../src/utils/dailyStreak.js'
@@ -22,6 +23,9 @@ const VAPID_PRIVATE_KEY = process.env.VAPID_PRIVATE_KEY
 const MILESTONES = [10, 5, 3]
 
 export default async (req) => {
+  const _denied = denyUnlessCron(req)
+  if (_denied) return _denied
+
   if (!SUPABASE_URL || !SERVICE_ROLE_KEY || !VAPID_PUBLIC_KEY || !VAPID_PRIVATE_KEY) {
     return new Response(JSON.stringify({ sent: 0, reason: 'not configured' }), { status: 200 })
   }

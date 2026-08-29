@@ -13,6 +13,7 @@
 // every proxy here: returns { picked: 0, reason: 'not configured' } and touches
 // nothing, so merging this changes nothing until the key is set.
 import { createClient } from '@supabase/supabase-js'
+import { denyUnlessCron } from './_cronAuth.js'
 import { runCoachGptTurn } from '../../src/lib/coachgpt.js'
 import {
   toolListUpcoming,
@@ -37,7 +38,10 @@ const PROMPT =
   'as your lean, with a sentence on why. One pick only - this goes on your public record, so ' +
   'make it your genuine best call, not a longshot.'
 
-export default async () => {
+export default async (req) => {
+  const _denied = denyUnlessCron(req)
+  if (_denied) return _denied
+
   const apiKey = OMNIROUTE_BASE_URL ? process.env.OMNIROUTE_API_KEY : process.env.COACH_ANTHROPIC_KEY
   if (!apiKey || !SUPABASE_URL || !SERVICE_ROLE_KEY) {
     return new Response(JSON.stringify({ picked: 0, reason: 'not configured' }), { status: 200 })
