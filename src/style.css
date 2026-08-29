@@ -2109,7 +2109,13 @@ button.conversation-row { width: 100%; font: inherit; text-align: left; cursor: 
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .sheet-backdrop, .sheet-backdrop.closing, .sheet, .sheet.closing, .route-page { animation: none; }
+  /* Neutralise the transient entrance/exit animations so they resolve to their
+     final state instantly. The sheets, their backdrop and the route transition
+     were already here; .toast (the confirmation toast's slide-up) was the one
+     prominent transient animation still ignoring the setting. The
+     pull-to-refresh spinner is deliberately left alone - it's a functional
+     loading indicator, not decorative motion. */
+  .sheet-backdrop, .sheet-backdrop.closing, .sheet, .sheet.closing, .route-page, .toast { animation: none; }
 }
 
 /* Participant profile sheet - opened by tapping a name/photo on a detail
