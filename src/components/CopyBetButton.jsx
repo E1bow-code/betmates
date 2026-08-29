@@ -4,6 +4,7 @@ import * as dataStore from '../lib/dataStore.js'
 import { useOddsFormat } from '../context/OddsFormatContext.jsx'
 import { useToast } from '../context/ToastContext.jsx'
 import { formatOdds } from '../utils/oddsFormat.js'
+import { formatGBP } from '../utils/format.js'
 
 // Section 2B's Copy Bet button. One action, one click: copies the slip as
 // text and opens the bookmaker link in the same gesture, whenever a link
@@ -20,7 +21,7 @@ import { formatOdds } from '../utils/oddsFormat.js'
 
 function formatBetSlip(post, format) {
   const lines = post.selections.map((s) => `${s.event} - ${s.market}: ${s.selection} @ ${formatOdds(s.odds, format)} (${s.bookmaker})`)
-  const stakeLine = post.stakeHidden || !post.stake ? '' : `\nStake: £${Number(post.stake).toFixed(2)}${post.potentialReturn ? ` (returns £${post.potentialReturn.toFixed(2)})` : ''}`
+  const stakeLine = post.stakeHidden || !post.stake ? '' : `\nStake: ${formatGBP(post.stake)}${post.potentialReturn ? ` (returns ${formatGBP(post.potentialReturn)})` : ''}`
   return `BetMates bet slip\n${lines.join('\n')}${stakeLine}`
 }
 

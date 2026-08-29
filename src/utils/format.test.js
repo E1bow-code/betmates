@@ -5,6 +5,8 @@ import {
   formatCountdown,
   formatDateTime,
   formatRelativeTime,
+  formatGBP,
+  formatSignedGBP,
 } from './format.js'
 
 // formatCountdown and formatRelativeTime read the wall clock (`new Date()`),
@@ -83,4 +85,46 @@ test('formatDateTime returns a non-empty string', () => {
   const s = formatDateTime('2026-08-27T14:30:00Z')
   assert.equal(typeof s, 'string')
   assert.ok(s.length > 0)
+})
+
+// ---- formatGBP / formatSignedGBP (money display) ----
+// These must reproduce the exact strings the inline `£${Number(x).toFixed(2)}`
+// and `${x >= 0 ? '+' : ''}£${x.toFixed(2)}` sites produced, so adoption is a
+// no-op for what users see.
+
+test('formatGBP renders 2dp with a £ sign', () => {
+  assert.equal(formatGBP(5), '£5.00')
+  assert.equal(formatGBP(2.5), '£2.50')
+  assert.equal(formatGBP(1234.5), '£1234.50') // no thousands separator, by design
+  assert.equal(formatGBP('10'), '£10.00') // string numerics coerce, as Number(x) did
+  assert.equal(formatGBP(0), '£0.00') // a real zero still renders (only null/undefined are blank)
+})
+
+test('formatGBP returns empty string for a null/undefined/non-numeric value', () => {
+  assert.equal(formatGBP(null), '')
+  assert.equal(formatGBP(undefined), '')
+  assert.equal(formatGBP(NaN), '')
+  assert.equal(formatGBP('abc'), '')
+})
+
+test('formatSignedGBP keeps the app sign convention (+ on >= 0, minus after £)', () => {
+  assert.equal(formatSignedGBP(5), '+£5.00')
+  assert.equal(formatSignedGBP(0), '+£0.00')
+  assert.equal(formatSignedGBP(-5), '£-5.00') // matches `${n>=0?'+':''}£${n.toFixed(2)}`
+  assert.equal(formatSignedGBP(-0.5), '£-0.50')
+})
+
+test('formatSignedGBP returns empty string for a non-numeric value', () => {
+  assert.equal(formatSignedGBP(null), '')
+  assert.equal(formatSignedGBP(undefined), '')
+  assert.equal(formatSignedGBP(NaN), '')
+})
+
+// The equivalence that makes the refactor safe: helper output == the old inline
+// expression for a spread of values.
+test('formatGBP/formatSignedGBP match the inline expressions they replaced', () => {
+  for (const v of [0, 0.5, 2.5, 5, 10, 12.34, 1000, -0.5, -5, -12.34]) {
+    assert.equal(formatGBP(v), `£${Number(v).toFixed(2)}`)
+    assert.equal(formatSignedGBP(v), `${v >= 0 ? '+' : ''}£${v.toFixed(2)}`)
+  }
 })
