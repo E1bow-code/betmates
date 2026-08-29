@@ -270,3 +270,47 @@ test('spread team names tolerate near-miss spelling, and unknown teams stay manu
   assert.equal(evaluateLeg(spread('LA Lakers -3.5'), nbaGames), 'won')
   assert.equal(evaluateLeg(spread('Chicago Bulls -3.5'), nbaGames), 'undetermined')
 })
+
+// --- extra edge coverage --------------------------------------------------
+// The settlement path is already well covered above; these fill a few real
+// gaps rather than re-asserting behaviour existing tests already pin down.
+
+test('an each-way leg whose horse wins settles won, not placed', () => {
+  // Alpha (h1) finished 1st. The win check runs before the each-way place
+  // check, so a winning horse is a plain 'won' even with each-way terms on.
+  const l = racingLeg({ eachWay: true, eachWayPlaces: 3, eachWayFraction: 0.25 })
+  assert.equal(evaluateLeg(l, [], races), 'won')
+})
+
+test('Moneyline settles the same as 1X2', () => {
+  assert.equal(evaluateLeg(leg({ market: 'Moneyline', selection: 'Spurs' }), games), 'won')
+  assert.equal(evaluateLeg(leg({ market: 'Moneyline', selection: 'Everton' }), games), 'lost')
+})
+
+test('a totals market carrying its line in the selection still settles', () => {
+  // Generic-sports totals (see netlify/functions/sport.js) bake the line into
+  // the outcome name, not the market label - the line is read from whichever
+  // string actually has it.
+  assert.equal(evaluateLeg(leg({ market: 'Totals', selection: 'Over 2.5' }), games), 'won') // Spurs 3-0, total 3
+  assert.equal(evaluateLeg(leg({ market: 'Totals', selection: 'Under 2.5' }), games), 'lost')
+  assert.equal(evaluateLeg(leg({ market: 'Totals', selection: 'Over 3' }), games), 'void') // total lands on the line
+})
+
+test('a winning multi re-prices around multiple void legs', () => {
+  const e = entry(10, [
+    leg({ market: 'Draw No Bet', event: 'Arsenal v Chelsea', selection: 'Arsenal', odds: 2 }), // 1-1 -> void
+    leg({ market: 'Over/Under 3', selection: 'Over 3', odds: 1.8 }), // 3-0, total 3 -> push/void
+    leg({ market: '1X2', selection: 'Spurs', odds: 2 }) // 3-0 -> won
+  ])
+  const { status, outcomes } = evaluateEntryDetailed(e, games, [])
+  assert.equal(status, 'won')
+  assert.deepEqual(outcomes, ['void', 'void', 'won'])
+  // Both void legs drop to odds 1.00, so only the surviving leg pays: 10 x 2 = 20.
+  assert.equal(voidAdjustedReturn(e, outcomes), 20)
+})
+
+test('void re-pricing leaves a non-numeric stake alone rather than writing NaN', () => {
+  const e = entry(undefined, [leg({ market: '1X2', selection: 'Spurs' })])
+  const { outcomes } = evaluateEntryDetailed(e, games, [])
+  assert.equal(voidAdjustedReturn(e, outcomes), undefined)
+})
