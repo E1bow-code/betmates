@@ -565,9 +565,11 @@ export default function AccountPage() {
 
       <div className="account-section" id="plus">
         <h2 className="market-title">BetMates Plus</h2>
-        <button className="btn btn-ghost btn-small" disabled={billingBusy} onClick={handleManageBilling}>
-          {billingBusy ? 'Redirecting…' : 'Manage billing'}
-        </button>
+        {user.isPremium && (
+          <button className="btn btn-ghost btn-small" disabled={billingBusy} onClick={handleManageBilling}>
+            {billingBusy ? 'Redirecting…' : 'Manage billing'}
+          </button>
+        )}
         {billingError && <p className="error">{billingError}</p>}
         {user.isPremium ? (
           <p className="hint">

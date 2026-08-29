@@ -20,7 +20,7 @@ import { formatOdds } from '../utils/oddsFormat.js'
 
 function formatBetSlip(post, format) {
   const lines = post.selections.map((s) => `${s.event} - ${s.market}: ${s.selection} @ ${formatOdds(s.odds, format)} (${s.bookmaker})`)
-  const stakeLine = post.stakeHidden || !post.stake ? '' : `\nStake: £${post.stake}${post.potentialReturn ? ` (returns £${post.potentialReturn.toFixed(2)})` : ''}`
+  const stakeLine = post.stakeHidden || !post.stake ? '' : `\nStake: £${Number(post.stake).toFixed(2)}${post.potentialReturn ? ` (returns £${post.potentialReturn.toFixed(2)})` : ''}`
   return `BetMates bet slip\n${lines.join('\n')}${stakeLine}`
 }
 

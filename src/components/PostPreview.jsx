@@ -113,7 +113,7 @@ export default function PostPreview({
                     {stake ? (
                       <div className="bet-card-stat">
                         <span className="bet-card-stat-label">Stake</span>
-                        <span className="bet-card-stat-value">£{stake}</span>
+                        <span className="bet-card-stat-value">£{Number(stake).toFixed(2)}</span>
                       </div>
                     ) : null}
                     <div className="bet-card-stat">

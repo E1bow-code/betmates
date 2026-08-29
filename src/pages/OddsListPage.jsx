@@ -296,6 +296,7 @@ export default function OddsListPage() {
           <input
             className="search-input"
             type="search"
+            aria-label="Search odds by team, fighter, or player"
             placeholder="Search all sports by team, fighter, player…"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
@@ -407,7 +408,7 @@ export default function OddsListPage() {
             <div className="race-list">
               {sport === 'racing'
                 ? loadedResults.map((race) => <RaceResultCard key={race.raceId} race={race} />)
-                : loadedResults.map((game, i) => <ResultCard key={i} game={game} />)}
+                : loadedResults.map((game) => <ResultCard key={`${game.homeTeam} v ${game.awayTeam}`} game={game} />)}
             </div>
           )}
         </>

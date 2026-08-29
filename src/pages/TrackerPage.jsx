@@ -546,7 +546,7 @@ export default function TrackerPage() {
                   )}
                   {entry.stake ? (
                     <div className="race-card-meta">
-                      £{entry.stake} staked{entry.potentialReturn ? ` · returns £${Number(entry.potentialReturn).toFixed(2)}` : ''}
+                      £{Number(entry.stake).toFixed(2)} staked{entry.potentialReturn ? ` · returns £${Number(entry.potentialReturn).toFixed(2)}` : ''}
                     </div>
                   ) : null}
                   {clv ? <ClvTag clv={clv} /> : lineValue ? <LineValueTag lv={lineValue} /> : null}
@@ -562,7 +562,7 @@ export default function TrackerPage() {
                 </div>
                 <div className="tracker-row-status">
                   {entry.source === 'manual' && entry.status === 'open' ? (
-                    <select className="status-select" defaultValue="open" onChange={(e) => handleStatusChange(entry, e.target.value)}>
+                    <select className="status-select" aria-label="Mark bet result" defaultValue="open" onChange={(e) => handleStatusChange(entry, e.target.value)}>
                       <option value="open">Mark result</option>
                       <option value="won">Won</option>
                       {entry.selections.length === 1 && entry.selections[0].eachWay && <option value="placed">Placed (not won)</option>}

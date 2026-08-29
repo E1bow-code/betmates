@@ -46,7 +46,7 @@ export default function ShareVideoSheet({ video, onClose }) {
         {error && <div className="auth-error">{error}</div>}
 
         {!groups.length && !friends.length && (
-          <p className="hint">Join a group or add a friend first - see the Social tab.</p>
+          <p className="hint">Join a group or add a friend first - see the Mates tab.</p>
         )}
 
         {groups.length > 0 && (

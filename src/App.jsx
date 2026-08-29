@@ -189,6 +189,15 @@ function Shell() {
   // routed page can trigger it too, not just a prop passed to BottomNav.
   const { showQuickAdd, openQuickAdd, closeQuickAdd } = useQuickAdd()
 
+  // Reset scroll to the top on every route change. The page body is the
+  // scroller, and remounting .route-page (keyed on pathname below) doesn't move
+  // the window - so without this, navigating from a long, scrolled page lands
+  // the user partway down the next one. Keyed on pathname only, so in-page
+  // anchors (same pathname) aren't disturbed.
+  useEffect(() => {
+    window.scrollTo(0, 0)
+  }, [location.pathname])
+
   useEffect(() => {
     if (user && !localStorage.getItem(ONBOARDED_PREFIX + user.id)) setShowTour(true)
   }, [user])

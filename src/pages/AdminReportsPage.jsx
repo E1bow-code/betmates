@@ -85,7 +85,7 @@ export default function AdminReportsPage() {
               <div className="report-card-title">{g.post.event}</div>
               <div className="hint" style={{ padding: 0, marginBottom: 10 }}>
                 Posted by <UserLink id={g.post.userId} displayName={g.post.authorName} />
-                {g.post.stake ? ` · £${g.post.stake} staked` : ''} · reported by {[...new Set(g.reporterNames)].join(', ')}
+                {g.post.stake ? ` · £${Number(g.post.stake).toFixed(2)} staked` : ''} · reported by {[...new Set(g.reporterNames)].join(', ')}
               </div>
               <div className="report-card-actions">
                 <button className="btn btn-ghost btn-small" disabled={busyId === g.post.id} onClick={() => handleDismiss(g.post.id)}>
