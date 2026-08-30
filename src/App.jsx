@@ -7,6 +7,7 @@ import { OddsFormatProvider } from './context/OddsFormatContext.jsx'
 import { ToastProvider } from './context/ToastContext.jsx'
 import { QuickAddProvider, useQuickAdd } from './context/QuickAddContext.jsx'
 import ErrorBoundary from './components/ErrorBoundary.jsx'
+import RouteMeta from './components/RouteMeta.jsx'
 import BottomNav from './components/BottomNav.jsx'
 import MoreMenu from './components/MoreMenu.jsx'
 import AppHeader from './components/AppHeader.jsx'
@@ -95,6 +96,7 @@ export default function App() {
           <ToastProvider>
             <QuickAddProvider>
               <HashRouter>
+                <RouteMeta />
                 <Shell />
                 <CookieConsent />
               </HashRouter>
