@@ -12,6 +12,7 @@ import { groupCoachSessions } from '../utils/coachSessions.js'
 import { freezesGranted, computeStreakTransition } from '../utils/dailyStreak.js'
 import { saveVideoBlob, getVideoBlob } from './videoStore.js'
 import { savePhotoBlob, getPhotoBlob } from './photoStore.js'
+import { shouldSkipErrorLog } from './errorLogThrottle.js'
 
 // Records stored here use the same camelCase field names dataStore.js's
 // map* functions produce (this file *is* the shape the UI expects, not a
@@ -1702,6 +1703,9 @@ export function removePost(postId) {
 
 /** @param {{message: string, stack?: string|null, route?: string|null}} entry @returns {Promise<void>} */
 export function logClientError(entry) {
+  // Same client-side throttle as the Supabase path: drop a repeat of the same
+  // error inside the window so a render loop can't flood the local store either.
+  if (shouldSkipErrorLog(entry)) return delay(undefined)
   const db = readDb()
   const sessionRaw = localStorage.getItem(SESSION_KEY)
   const userId = sessionRaw ? JSON.parse(sessionRaw).id : null

@@ -9,6 +9,7 @@
 
 import { supabase, isSupabaseConfigured } from './supabaseClient.js'
 import * as local from './localBackend.js'
+import { shouldSkipErrorLog } from './errorLogThrottle.js'
 import { closingLinesFromSnapshots } from '../utils/clv.js'
 import { groupCoachSessions } from '../utils/coachSessions.js'
 import { freezesGranted, computeStreakTransition } from '../utils/dailyStreak.js'
@@ -2555,6 +2556,9 @@ function mapErrorLog(row) {
 /** @param {{message: string, stack?: string|null, route?: string|null}} entry @returns {Promise<void>} */
 export async function logClientError(entry) {
   if (!isSupabaseConfigured) return local.logClientError(entry)
+  // Drop a repeat of the same error inside the throttle window before it costs
+  // a round-trip (the local path throttles itself). Never let this throw.
+  if (shouldSkipErrorLog(entry)) return
   const { data } = await supabase.auth.getSession()
   await supabase.from('error_logs').insert({
     message: entry.message.slice(0, 2000),
