@@ -1,0 +1,83 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Page not found · BetMates</title>
+    <meta name="robots" content="noindex" />
+    <link rel="icon" href="/favicon.svg" />
+    <style>
+      /* Self-contained branded 404 that Netlify serves for a direct hit to a
+         non-existent path (the in-app 404 handles unknown routes once the SPA
+         has loaded - see src/pages/NotFoundPage.jsx). Mirrors that copy and the
+         app's theme tokens, dark by default with a light-mode fallback, so it
+         reads as part of BetMates rather than a generic host error. */
+      :root {
+        --bg: #0a0a0d;
+        --surface: #16161c;
+        --border: #2c3140;
+        --text: #f0f1f5;
+        --text-dim: #8b909f;
+        --accent: #6aa5ff;
+        --accent-ink: #0a0a0d;
+      }
+      @media (prefers-color-scheme: light) {
+        :root {
+          --bg: #f6f5f1;
+          --surface: #ffffff;
+          --border: #e2ddd2;
+          --text: #1a1a1f;
+          --text-dim: #6b6f7a;
+          --accent: #2f5fd0;
+          --accent-ink: #ffffff;
+        }
+      }
+      * { box-sizing: border-box; }
+      html, body { height: 100%; margin: 0; }
+      body {
+        background: var(--bg);
+        color: var(--text);
+        font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 24px;
+        line-height: 1.5;
+      }
+      main { max-width: 26rem; text-align: center; }
+      .code {
+        font-size: clamp(3.5rem, 18vw, 6rem);
+        font-weight: 800;
+        letter-spacing: -0.04em;
+        color: var(--accent);
+        line-height: 1;
+      }
+      h1 { font-size: 1.4rem; margin: 0.6rem 0 0.4rem; }
+      p { color: var(--text-dim); margin: 0 0 1.6rem; }
+      .actions { display: flex; gap: 0.6rem; justify-content: center; flex-wrap: wrap; }
+      a.btn {
+        display: inline-block;
+        padding: 0.7rem 1.3rem;
+        border-radius: 999px;
+        text-decoration: none;
+        font-weight: 600;
+        font-size: 0.95rem;
+        border: 1px solid var(--border);
+      }
+      a.primary { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); }
+      a.ghost { color: var(--text); background: var(--surface); }
+      a.btn:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+    </style>
+  </head>
+  <body>
+    <main>
+      <div class="code">404</div>
+      <h1>That page took a walk</h1>
+      <p>We couldn&apos;t find what you were after — the link might be old, or mistyped.</p>
+      <div class="actions">
+        <a class="btn primary" href="/">Back to BetMates</a>
+        <a class="btn ghost" href="/#/odds">Browse the odds</a>
+      </div>
+    </main>
+  </body>
+</html>
