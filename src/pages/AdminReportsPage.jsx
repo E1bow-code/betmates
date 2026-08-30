@@ -5,6 +5,7 @@ import * as dataStore from '../lib/dataStore.js'
 import EmptyState from '../components/EmptyState.jsx'
 import UserLink from '../components/UserLink.jsx'
 import { CheckIcon } from '../components/icons/Icons.jsx'
+import { formatGBP } from '../utils/format.js'
 
 // Gated on profiles.is_admin (see schema.sql) - this project has one
 // operator, not a team with roles, so a single boolean flag is enough.
@@ -85,7 +86,7 @@ export default function AdminReportsPage() {
               <div className="report-card-title">{g.post.event}</div>
               <div className="hint" style={{ padding: 0, marginBottom: 10 }}>
                 Posted by <UserLink id={g.post.userId} displayName={g.post.authorName} />
-                {g.post.stake ? ` · £${Number(g.post.stake).toFixed(2)} staked` : ''} · reported by {[...new Set(g.reporterNames)].join(', ')}
+                {g.post.stake ? ` · ${formatGBP(g.post.stake)} staked` : ''} · reported by {[...new Set(g.reporterNames)].join(', ')}
               </div>
               <div className="report-card-actions">
                 <button className="btn btn-ghost btn-small" disabled={busyId === g.post.id} onClick={() => handleDismiss(g.post.id)}>

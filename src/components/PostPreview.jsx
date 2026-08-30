@@ -2,6 +2,7 @@ import Avatar from './Avatar.jsx'
 import TeamBadge from './TeamBadge.jsx'
 import PlayerPhoto from './PlayerPhoto.jsx'
 import { formatOdds } from '../utils/oddsFormat.js'
+import { formatGBP } from '../utils/format.js'
 import { participantBadge } from '../utils/participantBadge.js'
 import { labelForTag, iconForTag } from '../lib/postTags.js'
 import { HorseIcon, FootballIcon, DiamondIcon, TargetIcon, LockIcon, BrokenHeartIcon, FlameIcon } from './icons/Icons.jsx'
@@ -113,7 +114,7 @@ export default function PostPreview({
                     {stake ? (
                       <div className="bet-card-stat">
                         <span className="bet-card-stat-label">Stake</span>
-                        <span className="bet-card-stat-value">£{Number(stake).toFixed(2)}</span>
+                        <span className="bet-card-stat-value">{formatGBP(stake)}</span>
                       </div>
                     ) : null}
                     <div className="bet-card-stat">
@@ -123,7 +124,7 @@ export default function PostPreview({
                     {stake && potentialReturn ? (
                       <div className="bet-card-stat">
                         <span className="bet-card-stat-label">Returns</span>
-                        <span className="bet-card-stat-value accent">£{potentialReturn.toFixed(2)}</span>
+                        <span className="bet-card-stat-value accent">{formatGBP(potentialReturn)}</span>
                       </div>
                     ) : null}
                   </div>

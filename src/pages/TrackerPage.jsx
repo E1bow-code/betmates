@@ -5,6 +5,7 @@ import { useOddsFormat } from '../context/OddsFormatContext.jsx'
 import * as dataStore from '../lib/dataStore.js'
 import { checkAndSettleBets } from '../lib/settlement.js'
 import { formatOdds } from '../utils/oddsFormat.js'
+import { formatGBP, formatSignedGBP } from '../utils/format.js'
 import { getEachWayTerms, computeEachWayReturn } from '../utils/eachWay.js'
 import { useAsyncAction } from '../lib/useAsyncAction.js'
 import {
@@ -304,8 +305,8 @@ export default function TrackerPage() {
   const bestWin = computeBestWin(entries)
   const recapRows = [
     { label: 'Bets logged', value: String(entries.length) },
-    { label: 'Staked', value: `£${stats.staked.toFixed(2)}` },
-    { label: 'Profit', value: `${stats.profit >= 0 ? '+' : ''}£${stats.profit.toFixed(2)}`, tone: stats.profit >= 0 ? 'good' : 'bad' },
+    { label: 'Staked', value: formatGBP(stats.staked) },
+    { label: 'Profit', value: formatSignedGBP(stats.profit), tone: stats.profit >= 0 ? 'good' : 'bad' },
     { label: 'Win rate', value: stats.winRate === null ? '-' : `${stats.winRate}%` },
     { label: 'Longest streak', value: longestStreak ? `${longestStreak} wins` : '-' },
     { label: 'Best win', value: bestWin ? `+£${bestWin.profit.toFixed(2)}` : '-' }
@@ -337,13 +338,13 @@ export default function TrackerPage() {
         <div>
           <p className="scoreboard-headline-label">All-time P&amp;L</p>
           <div className={`scoreboard-headline-value ${stats.profit >= 0 ? 'tone-good' : 'tone-bad'}`}>
-            {stats.profit >= 0 ? '+' : ''}£{stats.profit.toFixed(2)}
+            {formatSignedGBP(stats.profit)}
           </div>
           {monthly && (
             <p className="scoreboard-month">
               {monthly.label}:{' '}
               <b className={monthly.profit >= 0 ? 'tone-good' : 'tone-bad'}>
-                {monthly.profit >= 0 ? '+' : ''}£{monthly.profit.toFixed(2)}
+                {formatSignedGBP(monthly.profit)}
               </b>{' '}
               · {monthly.settledCount} {monthly.settledCount === 1 ? 'bet' : 'bets'}
             </p>
@@ -361,7 +362,7 @@ export default function TrackerPage() {
             <div className="scoreboard-side-stat-label">Win rate</div>
           </div>
           <div>
-            <div className="scoreboard-side-stat-value">£{stats.staked.toFixed(2)}</div>
+            <div className="scoreboard-side-stat-value">{formatGBP(stats.staked)}</div>
             <div className="scoreboard-side-stat-label">Staked</div>
           </div>
         </div>
@@ -382,7 +383,7 @@ export default function TrackerPage() {
             statValue={
               stats.roi !== null
                 ? `${stats.roi >= 0 ? '+' : ''}${stats.roi}%`
-                : `${stats.profit >= 0 ? '+' : ''}£${stats.profit.toFixed(2)}`
+                : formatSignedGBP(stats.profit)
             }
           />
         </div>
@@ -453,7 +454,7 @@ export default function TrackerPage() {
                 </span>
                 <span className="sport-breakdown-name">{SPORT_LABEL[row.sport] ?? row.sport}</span>
                 <span className={`sport-breakdown-pnl ${row.profit >= 0 ? 'tone-good' : 'tone-bad'}`}>
-                  {row.profit >= 0 ? '+' : ''}£{row.profit.toFixed(2)}
+                  {formatSignedGBP(row.profit)}
                 </span>
                 <span className="sport-breakdown-meta">{row.winRate === null ? '-' : `${row.winRate}% WR`}</span>
               </div>
@@ -546,7 +547,7 @@ export default function TrackerPage() {
                   )}
                   {entry.stake ? (
                     <div className="race-card-meta">
-                      £{Number(entry.stake).toFixed(2)} staked{entry.potentialReturn ? ` · returns £${Number(entry.potentialReturn).toFixed(2)}` : ''}
+                      {formatGBP(entry.stake)} staked{entry.potentialReturn ? ` · returns ${formatGBP(entry.potentialReturn)}` : ''}
                     </div>
                   ) : null}
                   {clv ? <ClvTag clv={clv} /> : lineValue ? <LineValueTag lv={lineValue} /> : null}

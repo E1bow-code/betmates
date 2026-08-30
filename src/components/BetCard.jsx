@@ -3,7 +3,7 @@ import { useAuth } from '../context/AuthContext.jsx'
 import { useOddsFormat } from '../context/OddsFormatContext.jsx'
 import * as dataStore from '../lib/dataStore.js'
 import { formatOdds } from '../utils/oddsFormat.js'
-import { formatRelativeTime } from '../utils/format.js'
+import { formatRelativeTime, formatGBP } from '../utils/format.js'
 import { computeEachWayReturn } from '../utils/eachWay.js'
 import { isLive } from '../utils/liveStatus.js'
 import { notifyBetAuthor } from '../lib/notify.js'
@@ -491,7 +491,7 @@ export default function BetCard({ post, memberNames, memberAvatars, variant = 'g
                   {post.stake ? (
                     <div className="bet-card-stat">
                       <span className="bet-card-stat-label">Stake</span>
-                      <span className="bet-card-stat-value">£{Number(post.stake).toFixed(2)}</span>
+                      <span className="bet-card-stat-value">{formatGBP(post.stake)}</span>
                     </div>
                   ) : null}
                   <div className="bet-card-stat">
@@ -501,7 +501,7 @@ export default function BetCard({ post, memberNames, memberAvatars, variant = 'g
                   {post.stake && post.potentialReturn ? (
                     <div className="bet-card-stat">
                       <span className="bet-card-stat-label">Returns</span>
-                      <span className="bet-card-stat-value accent">£{post.potentialReturn.toFixed(2)}</span>
+                      <span className="bet-card-stat-value accent">{formatGBP(post.potentialReturn)}</span>
                     </div>
                   ) : null}
                 </div>
