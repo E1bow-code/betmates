@@ -907,7 +907,15 @@ create trigger guard_is_admin_on_profiles
 -- anon/authenticated signup path. The service-role key (admin corrections,
 -- migrations, backfills) is intentionally exempt - same convention as the other
 -- guard_* triggers. Someone whose 18th birthday is today is allowed (the bound
--- is strict). NOTE: this only takes effect once applied to the live database.
+-- is strict).
+--
+-- A missing DOB must not slip the gate: `null > (current_date - interval '18
+-- years')` is NULL, not true, so the under-18 raise never fires on a null. So
+-- on INSERT (the signup path) we require a DOB outright. That NULL check is
+-- scoped to INSERT deliberately: an UPDATE of some unrelated field on a legacy
+-- row that predates DOB capture must not suddenly hard-fail an existing user -
+-- only new rows have to carry one. NOTE: this only takes effect once applied
+-- to the live database.
 create or replace function guard_min_age()
 returns trigger
 language plpgsql
@@ -915,9 +923,15 @@ security definer
 set search_path = public
 as $$
 begin
-  if auth.role() in ('anon', 'authenticated')
-     and new.date_of_birth > (current_date - interval '18 years') then
-    raise exception 'You must be 18 or older to use BetMates.' using errcode = 'check_violation';
+  if auth.role() in ('anon', 'authenticated') then
+    -- new signups must carry a DOB (a null would otherwise bypass the age check)
+    if tg_op = 'INSERT' and new.date_of_birth is null then
+      raise exception 'A date of birth is required to use BetMates.' using errcode = 'check_violation';
+    end if;
+    -- reject under-18 on both insert and update (strict bound: 18 today is ok)
+    if new.date_of_birth > (current_date - interval '18 years') then
+      raise exception 'You must be 18 or older to use BetMates.' using errcode = 'check_violation';
+    end if;
   end if;
   return new;
 end;
