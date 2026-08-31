@@ -30,6 +30,15 @@ import { buildAnthropicRequest } from './anthropicRoute.js'
 
 export const COACHGPT_MODELS = ['claude-sonnet-5', 'claude-opus-5']
 export const COACHGPT_MODEL = COACHGPT_MODELS[0]
+// The main answer runs at a low, fixed temperature rather than the API default
+// (1.0). This is a tipster people expect to be STABLE and defensible - at 1.0 the
+// same question samples a different lean and different reasoning run-to-run, which
+// reads as the coach being flaky. 0.3 keeps the persona's voice varied enough to
+// not feel robotic while making the actual pick and its justification reproducible
+// for the same grounding. The lock_in_recommendation classifier overrides this to
+// 0 (see lockInRecommendation) - classifying one already-written reply should be
+// deterministic so the logged pick can't disagree with the same text twice.
+const COACH_TEMPERATURE = 0.3
 // Was bumped to 4 alongside web_search, then reverted, then 3 itself was cut
 // to 2 here after confirmed-live evidence: a real "best value bet this
 // weekend?" turn - the flagship broad question this whole tool loop exists
@@ -457,6 +466,10 @@ async function callClaudeModel(apiKey, model, messages, extra, route) {
       // real generation time for a chat reply nobody reads the reasoning
       // trace of. Explicitly disabled so every token goes to the answer.
       thinking: { type: 'disabled' },
+      // Fixed low temperature for reproducible picks (see COACH_TEMPERATURE).
+      // Before `...extra` so a caller can still override it - the lock-in
+      // classifier passes temperature: 0 to run fully deterministic.
+      temperature: COACH_TEMPERATURE,
       system: systemPromptFor(),
       messages,
       ...extra
@@ -570,6 +583,9 @@ async function lockInRecommendation(apiKey, messages, text, route) {
   const { data } = await callClaudeModel(apiKey, LOCK_IN_MODEL, followUp, {
     system: LOCK_IN_SYSTEM,
     max_tokens: 200,
+    // Deterministic: this only classifies an already-written reply, so the
+    // recorded pick must never disagree with itself for the same text.
+    temperature: 0,
     tools: [RECOMMENDATION_TOOL],
     tool_choice: { type: 'tool', name: 'lock_in_recommendation' }
   }, route)
