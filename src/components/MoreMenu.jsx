@@ -6,6 +6,7 @@ import { useEscapeKey } from '../lib/useEscapeKey.js'
 import { useDelayedClose } from '../lib/useDelayedClose.js'
 import { MoreIcon } from './icons/NavIcons.jsx'
 import { MORE_MENU_ICONS } from './icons/MoreMenuIcons.jsx'
+import { backdropDismissProps } from '../lib/sheetDismiss.js'
 
 // One-line "what's in here" blurbs for the three top-level destinations, so
 // the menu explains where each row goes rather than making the label do all
@@ -112,8 +113,8 @@ export default function MoreMenu() {
       </button>
 
       {open && (
-        <div className={`sheet-backdrop${closing ? ' closing' : ''}`} onClick={requestClose}>
-          <div className={`sheet${closing ? ' closing' : ''}`} onClick={(e) => e.stopPropagation()}>
+        <div className={`sheet-backdrop${closing ? ' closing' : ''}`} {...backdropDismissProps(requestClose)}>
+          <div className={`sheet${closing ? ' closing' : ''}`}>
             <div className="sheet-handle" />
             <h2 className="sheet-title">More</h2>
             <MoreMenuContents groups={groups} expanded={expanded} onToggleGroup={toggleGroup} onNavigate={() => setOpen(false)} />

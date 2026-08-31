@@ -16,6 +16,7 @@ import { useAsyncAction } from '../lib/useAsyncAction.js'
 import { useEscapeKey } from '../lib/useEscapeKey.js'
 import { CameraIcon, SparkIcon, WarningIcon, EyesIcon, RulerIcon, TrendUpIcon } from './icons/Icons.jsx'
 import { useDelayedClose } from '../lib/useDelayedClose.js'
+import { backdropDismissProps } from '../lib/sheetDismiss.js'
 
 const SPORT_OPTIONS = Object.entries(SPORT_LABEL).filter(([key]) => key !== 'multi')
 
@@ -159,8 +160,8 @@ export default function ManualEntrySheet({ userId, onClose, onSaved }) {
   }
 
   return (
-    <div className={`sheet-backdrop${closing ? ' closing' : ''}`} onClick={requestClose}>
-      <div className={`sheet${closing ? ' closing' : ''}`} onClick={(e) => e.stopPropagation()}>
+    <div className={`sheet-backdrop${closing ? ' closing' : ''}`} {...backdropDismissProps(requestClose)}>
+      <div className={`sheet${closing ? ' closing' : ''}`}>
         <div className="sheet-handle" />
         <h2 className="sheet-title">Log a bet</h2>
 

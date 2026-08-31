@@ -4,6 +4,7 @@ import * as dataStore from '../lib/dataStore.js'
 import { shareOrCopy, groupInviteUrl } from '../lib/share.js'
 import { useEscapeKey } from '../lib/useEscapeKey.js'
 import { useDelayedClose } from '../lib/useDelayedClose.js'
+import { backdropDismissProps } from '../lib/sheetDismiss.js'
 
 // Creating/joining a group, or grabbing an invite code to share, lives
 // behind this sheet instead of sitting above the feed on
@@ -62,8 +63,8 @@ export default function ManageSheet({ groups, onClose, onChanged }) {
   }
 
   return (
-    <div className={`sheet-backdrop${closing ? ' closing' : ''}`} onClick={requestClose}>
-      <div className={`sheet${closing ? ' closing' : ''}`} onClick={(e) => e.stopPropagation()}>
+    <div className={`sheet-backdrop${closing ? ' closing' : ''}`} {...backdropDismissProps(requestClose)}>
+      <div className={`sheet${closing ? ' closing' : ''}`}>
         <div className="sheet-handle" />
         <h2 className="sheet-title">Your groups</h2>
 

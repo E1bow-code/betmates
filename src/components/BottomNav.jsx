@@ -6,6 +6,7 @@ import { useEscapeKey } from '../lib/useEscapeKey.js'
 import { useDelayedClose } from '../lib/useDelayedClose.js'
 import { HomeIcon, SocialIcon, TrackerIcon, AccountIcon, PlusIcon } from './icons/NavIcons.jsx'
 import { FlameIcon } from './icons/Icons.jsx'
+import { backdropDismissProps } from '../lib/sheetDismiss.js'
 
 // Home / Mates / + / Tracker / You - Alerts moved to the notification bell
 // in AppHeader.jsx. Tracker used to have no nav slot at all (only a teaser
@@ -64,8 +65,8 @@ function AddChooserSheet({ onClose, onLogBet, onPostPrediction }) {
   useEscapeKey(requestClose)
 
   return (
-    <div className={`sheet-backdrop${closing ? ' closing' : ''}`} onClick={requestClose}>
-      <div className={`sheet${closing ? ' closing' : ''}`} onClick={(e) => e.stopPropagation()}>
+    <div className={`sheet-backdrop${closing ? ' closing' : ''}`} {...backdropDismissProps(requestClose)}>
+      <div className={`sheet${closing ? ' closing' : ''}`}>
         <div className="sheet-handle" />
         <h2 className="sheet-title">What are you adding?</h2>
         <div className="sheet-actions">

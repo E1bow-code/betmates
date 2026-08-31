@@ -4,6 +4,7 @@ import * as dataStore from '../lib/dataStore.js'
 import { useEscapeKey } from '../lib/useEscapeKey.js'
 import { useDelayedClose } from '../lib/useDelayedClose.js'
 import { useToast } from '../context/ToastContext.jsx'
+import { backdropDismissProps } from '../lib/sheetDismiss.js'
 
 const MAX_SECONDS = 60
 
@@ -149,8 +150,8 @@ export default function VideoRecorder({ onClose, onPosted }) {
   }
 
   return (
-    <div className={`sheet-backdrop${closing ? ' closing' : ''}`} onClick={handleClose}>
-      <div className={`sheet${closing ? ' closing' : ''}`} onClick={(e) => e.stopPropagation()}>
+    <div className={`sheet-backdrop${closing ? ' closing' : ''}`} {...backdropDismissProps(handleClose)}>
+      <div className={`sheet${closing ? ' closing' : ''}`}>
         <div className="sheet-handle" />
         <h2 className="sheet-title">Post a tip</h2>
 

@@ -1,6 +1,7 @@
 import { useEscapeKey } from '../lib/useEscapeKey.js'
 import { useDelayedClose } from '../lib/useDelayedClose.js'
 import FixtureChatPanel from './FixtureChatPanel.jsx'
+import { backdropDismissProps } from '../lib/sheetDismiss.js'
 
 // Opened by tapping a live BetCard's LIVE badge (see BetCard.jsx) - same
 // sheet-backdrop/sheet shell as ParticipantProfileSheet, just wrapping the
@@ -13,8 +14,8 @@ export default function FixtureChatSheet({ sport, eventId, eventLabel, onClose }
   useEscapeKey(requestClose)
 
   return (
-    <div className={`sheet-backdrop${closing ? ' closing' : ''}`} onClick={requestClose}>
-      <div className={`sheet${closing ? ' closing' : ''}`} onClick={(e) => e.stopPropagation()}>
+    <div className={`sheet-backdrop${closing ? ' closing' : ''}`} {...backdropDismissProps(requestClose)}>
+      <div className={`sheet${closing ? ' closing' : ''}`}>
         <div className="sheet-handle" />
         <h2 className="sheet-title">{eventLabel}</h2>
         <FixtureChatPanel sport={sport} eventId={eventId} eventLabel={eventLabel} defaultOpen />

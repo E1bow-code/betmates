@@ -6,6 +6,7 @@ import { useEscapeKey } from '../lib/useEscapeKey.js'
 import { useDelayedClose } from '../lib/useDelayedClose.js'
 import UserLink from './UserLink.jsx'
 import ChallengeSection from './ChallengeSection.jsx'
+import { backdropDismissProps } from '../lib/sheetDismiss.js'
 
 // Compares two people using only bets both of them could actually see -
 // their shared groups' posts plus the public feed - not either person's
@@ -33,8 +34,8 @@ export default function HeadToHeadSheet({ friend, onClose }) {
   const rows = posts && { mine: computeStats(posts.mine), theirs: computeStats(posts.theirs) }
 
   return (
-    <div className={`sheet-backdrop${closing ? ' closing' : ''}`} onClick={requestClose}>
-      <div className={`sheet${closing ? ' closing' : ''}`} onClick={(e) => e.stopPropagation()}>
+    <div className={`sheet-backdrop${closing ? ' closing' : ''}`} {...backdropDismissProps(requestClose)}>
+      <div className={`sheet${closing ? ' closing' : ''}`}>
         <div className="sheet-handle" />
         <h2 className="sheet-title">You vs {friend.displayName}</h2>
         <p className="hint">Only counts bets you'd both actually see - shared groups and the public feed.</p>

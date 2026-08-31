@@ -26,6 +26,7 @@ import {
   participantsFor,
   participantTypeFor
 } from '../lib/quickPick.js'
+import { backdropDismissProps } from '../lib/sheetDismiss.js'
 import { formatKickoff, formatCountdown } from '../utils/format.js'
 import { isLive } from '../utils/liveStatus.js'
 import TeamBadge from './TeamBadge.jsx'
@@ -483,8 +484,8 @@ export default function BetBuilderSheet() {
   }
 
   return (
-    <div className={`sheet-backdrop${closing ? ' closing' : ''}`} onClick={onClose}>
-      <div className={`sheet${closing ? ' closing' : ''}`} onClick={(e) => e.stopPropagation()}>
+    <div className={`sheet-backdrop${closing ? ' closing' : ''}`} {...backdropDismissProps(onClose)}>
+      <div className={`sheet${closing ? ' closing' : ''}`}>
         {/* Sticky header so the close button is always reachable - the sheet
             scrolls, and a tall one left no backdrop to tap and no visible way
             out but scrolling to a buried Cancel button. */}
