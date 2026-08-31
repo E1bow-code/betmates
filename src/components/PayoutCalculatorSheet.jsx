@@ -73,7 +73,7 @@ export default function PayoutCalculatorButton() {
 
             <label className="field">
               <span>Stake</span>
-              <input type="number" min="0" step="0.5" placeholder="£" value={stake} onChange={(e) => setStake(e.target.value)} autoFocus />
+              <input type="number" min="0" step="0.5" placeholder="£" value={stake} onChange={(e) => setStake(e.target.value)} autoFocus /* eslint-disable-line jsx-a11y/no-autofocus -- deliberate: focus the stake field when the payout calculator opens */ />
             </label>
 
             <label className="field">

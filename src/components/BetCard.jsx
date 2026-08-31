@@ -437,7 +437,7 @@ export default function BetCard({ post, memberNames, memberAvatars, variant = 'g
           })()}
         {post.caption && <p className="bet-card-caption">"{post.caption}"</p>}
         {photoSrc && <img src={photoSrc} alt="" className="bet-card-photo" loading="lazy" />}
-        {videoSrc && <video src={videoSrc} controls className="bet-card-photo" />}
+        {videoSrc && <video src={videoSrc} controls className="bet-card-photo" /* eslint-disable-line jsx-a11y/media-has-caption -- user-recorded bet-slip clip; no caption track exists for it */ />}
 
         {selections.length > 0 && (
           <div className="bet-card-ticket">

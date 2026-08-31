@@ -472,7 +472,7 @@ export default function AccountPage() {
                 value={nameInput}
                 onChange={(e) => setNameInput(e.target.value)}
                 maxLength={40}
-                autoFocus
+                autoFocus /* eslint-disable-line jsx-a11y/no-autofocus -- deliberate: focus the name field when the inline rename form opens */
                 disabled={nameSaving}
               />
               <button className="btn btn-primary btn-small" type="submit" disabled={nameSaving}>
@@ -1109,7 +1109,7 @@ export default function AccountPage() {
                 onChange={(e) => setDeleteConfirmText(e.target.value)}
                 placeholder="DELETE"
                 disabled={deleting}
-                autoFocus
+                autoFocus /* eslint-disable-line jsx-a11y/no-autofocus -- deliberate: focus the DELETE-confirmation field when the delete dialog opens */
               />
               <button
                 className="btn btn-danger"

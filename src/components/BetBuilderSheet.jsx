@@ -675,7 +675,7 @@ export default function BetBuilderSheet() {
         )}
         {videoPreview && (
           <div className="composer-photo-preview">
-            <video src={videoPreview} controls className="composer-video-preview" />
+            <video src={videoPreview} controls className="composer-video-preview" /* eslint-disable-line jsx-a11y/media-has-caption -- user-recorded bet-slip clip; no caption track exists for it */ />
             <button type="button" className="composer-photo-remove" onClick={removeVideo} aria-label="Remove video">
               ×
             </button>

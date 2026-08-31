@@ -88,9 +88,10 @@ export default function GroupTournamentSection({ groupId, groupName, posts, memb
 
           {tournaments && !active && isCreator && (
             <form className="challenge-start" onSubmit={handleStart}>
-              <label className="field">
-                <input placeholder="Tournament name, e.g. Summer Cup" value={name} onChange={(e) => setName(e.target.value)} maxLength={40} />
-              </label>
+              {/* A styling-only .field wrapper with no visible label text - the input carries its own accessible name via aria-label, so this is a div, not an empty <label>. */}
+              <div className="field">
+                <input aria-label="Tournament name" placeholder="Tournament name, e.g. Summer Cup" value={name} onChange={(e) => setName(e.target.value)} maxLength={40} />
+              </div>
               <div className="mode-switcher">
                 {METRICS.map((m) => (
                   <button

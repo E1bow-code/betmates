@@ -488,7 +488,7 @@ export default function GroupFeedPage() {
                   value={nameInput}
                   onChange={(e) => setNameInput(e.target.value)}
                   maxLength={60}
-                  autoFocus
+                  autoFocus /* eslint-disable-line jsx-a11y/no-autofocus -- deliberate: focus the group-name field when the inline rename form opens */
                 />
                 <button className="btn btn-primary btn-small" type="submit" disabled={savingName || !nameInput.trim()}>
                   Save
