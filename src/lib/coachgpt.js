@@ -492,7 +492,38 @@ function systemPromptFor() {
   return `${COACHGPT_SYSTEM}\n\nToday's date is ${new Date().toISOString().slice(0, 10)}.`
 }
 
+// One extra attempt on a transient blip. Kept at a SINGLE short retry on
+// purpose: transient upstream failures (rate-limit, provider 5xx, dropped
+// socket) come back fast, so retrying once recovers the common flake without
+// risking the ~30s edge inactivity timeout that a retried *slow* generation
+// would blow. A turn fires up to five sequential calls, so anything more
+// aggressive here compounds across the turn.
+const TRANSIENT_MAX_RETRIES = 1
+const TRANSIENT_BACKOFF_MS = 350
+
+// A blip a retry can plausibly clear: rate limit, provider 5xx, or a
+// network/socket failure. Deliberately NOT 4xx auth/validation or a
+// model-availability 404 - those fail identically on retry (makeCaller already
+// switches model on a 404; everything else is reported, not masked).
+export function isTransientError(error) {
+  return error.status === 429 || error.status >= 500 || error.status === 0
+}
+
+const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms))
+
 async function callClaudeModel(apiKey, model, messages, extra, route) {
+  let lastError = null
+  for (let attempt = 0; attempt <= TRANSIENT_MAX_RETRIES; attempt++) {
+    if (attempt > 0) await sleep(TRANSIENT_BACKOFF_MS)
+    const result = await attemptClaudeCall(apiKey, model, messages, extra, route)
+    if (result.data) return result
+    lastError = result.error
+    if (!isTransientError(result.error)) break
+  }
+  return { error: lastError }
+}
+
+async function attemptClaudeCall(apiKey, model, messages, extra, route) {
   try {
     const { url, headers, body } = buildAnthropicRequest(apiKey, model, {
       // Was 800, briefly tried 1600 and 1100 - both let a real deep-dive

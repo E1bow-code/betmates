@@ -1,6 +1,6 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { runCoachGptTurn, COACHGPT_MODELS, COACHGPT_TOOLS } from './coachgpt.js'
+import { runCoachGptTurn, COACHGPT_MODELS, COACHGPT_TOOLS, isTransientError } from './coachgpt.js'
 
 // The orchestration loop talks to Anthropic over fetch; these tests stub
 // global fetch with a scripted queue of responses so we can drive the model
@@ -84,6 +84,28 @@ test('a rate limit surfaces as rate_limit', async () => {
   stubFetch([errReply(429, 'rate_limit_error')])
   const res = await runCoachGptTurn({ apiKey: 'k', history: [], message: 'hi', callTool: noTool })
   assert.equal(res.error, 'rate_limit')
+})
+
+test('a transient blip is retried once and recovers', async () => {
+  // A single flaky 429 on the answer call must NOT fail the turn - the one
+  // bounded retry inside callClaudeModel re-fires the same request and gets the
+  // real reply, so the second fetch answers. (Answer attempt 1 = 429, answer
+  // attempt 2 = text, then the lock-in classifier call.)
+  const calls = stubFetch([errReply(429, 'rate_limit_error'), textReply('Recovered, still got you.'), lockReply(false)])
+  const res = await runCoachGptTurn({ apiKey: 'k', history: [], message: 'hi', callTool: noTool })
+  assert.equal(res.text, 'Recovered, still got you.')
+  assert.equal(res.error, null)
+  assert.equal(calls[0].model, COACHGPT_MODELS[0]) // same model, not a fallback
+  assert.equal(calls[1].model, COACHGPT_MODELS[0])
+})
+
+test('isTransientError only flags retryable failures', () => {
+  assert.equal(isTransientError({ status: 429 }), true) // rate limit
+  assert.equal(isTransientError({ status: 503 }), true) // provider 5xx
+  assert.equal(isTransientError({ status: 0 }), true) // network/socket drop
+  assert.equal(isTransientError({ status: 401 }), false) // auth - fails identically
+  assert.equal(isTransientError({ status: 404 }), false) // model availability - switch, don't retry
+  assert.equal(isTransientError({ status: 400 }), false) // bad request
 })
 
 test('a tool_use round runs the tool then answers from the result', async () => {
