@@ -6,6 +6,7 @@ import { formatOdds } from '../utils/oddsFormat.js'
 import { useEscapeKey } from '../lib/useEscapeKey.js'
 import { useDelayedClose } from '../lib/useDelayedClose.js'
 import { useToast } from '../context/ToastContext.jsx'
+import { backdropDismissProps } from '../lib/sheetDismiss.js'
 
 // Opened from the bell button on an outcome row (FixtureDetailPage,
 // FightDetailPage, GenericEventDetailPage - not RaceDetailPage, see
@@ -55,8 +56,8 @@ export default function OddsAlertSheet({ target, onClose, onCreated }) {
   }
 
   return (
-    <div className={`sheet-backdrop${closing ? ' closing' : ''}`} onClick={requestClose}>
-      <div className={`sheet${closing ? ' closing' : ''}`} onClick={(e) => e.stopPropagation()}>
+    <div className={`sheet-backdrop${closing ? ' closing' : ''}`} {...backdropDismissProps(requestClose)}>
+      <div className={`sheet${closing ? ' closing' : ''}`}>
         <div className="sheet-handle" />
         <h2 className="sheet-title">Set a price alert</h2>
         <p className="hint">

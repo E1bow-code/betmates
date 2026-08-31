@@ -3,6 +3,7 @@ import { useAuth } from '../context/AuthContext.jsx'
 import * as dataStore from '../lib/dataStore.js'
 import { useEscapeKey } from '../lib/useEscapeKey.js'
 import { useDelayedClose } from '../lib/useDelayedClose.js'
+import { backdropDismissProps } from '../lib/sheetDismiss.js'
 
 // "If someone sees a video they think is good advice, send it to a group
 // or a friend" - forwards an existing video post without re-uploading
@@ -37,8 +38,8 @@ export default function ShareVideoSheet({ video, onClose }) {
   }
 
   return (
-    <div className={`sheet-backdrop${closing ? ' closing' : ''}`} onClick={requestClose}>
-      <div className={`sheet${closing ? ' closing' : ''}`} onClick={(e) => e.stopPropagation()}>
+    <div className={`sheet-backdrop${closing ? ' closing' : ''}`} {...backdropDismissProps(requestClose)}>
+      <div className={`sheet${closing ? ' closing' : ''}`}>
         <div className="sheet-handle" />
         <h2 className="sheet-title">Send this to…</h2>
 

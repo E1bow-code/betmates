@@ -7,6 +7,7 @@ import { useEscapeKey } from '../lib/useEscapeKey.js'
 import { useDelayedClose } from '../lib/useDelayedClose.js'
 import PremiumGate from './PremiumGate.jsx'
 import { RulerIcon } from './icons/Icons.jsx'
+import { backdropDismissProps } from '../lib/sheetDismiss.js'
 
 const KELLY_FRACTIONS = [
   { value: 0.25, label: 'Quarter' },
@@ -64,8 +65,8 @@ export default function PayoutCalculatorButton() {
         <RulerIcon width={14} height={14} /> Calculator
       </button>
       {open && (
-        <div className={`sheet-backdrop${closing ? ' closing' : ''}`} onClick={requestClose}>
-          <div className={`sheet${closing ? ' closing' : ''}`} onClick={(e) => e.stopPropagation()}>
+        <div className={`sheet-backdrop${closing ? ' closing' : ''}`} {...backdropDismissProps(requestClose)}>
+          <div className={`sheet${closing ? ' closing' : ''}`}>
             <div className="sheet-handle" />
             <h2 className="sheet-title">Payout calculator</h2>
             <p className="hint">Plan a stake before you pick anything - this doesn't touch your bet slip.</p>

@@ -6,6 +6,7 @@ import Avatar from './Avatar.jsx'
 import { useEscapeKey } from '../lib/useEscapeKey.js'
 import { useDelayedClose } from '../lib/useDelayedClose.js'
 import { TargetIcon, BadgeCheckIcon } from './icons/Icons.jsx'
+import { backdropDismissProps } from '../lib/sheetDismiss.js'
 
 const TIPSTER_BADGE_ICON = { sharp: TargetIcon, reliable: BadgeCheckIcon }
 
@@ -75,8 +76,8 @@ export default function GoProSheet({
   const BadgeIcon = badge && TIPSTER_BADGE_ICON[badge.icon]
 
   return (
-    <div className={`sheet-backdrop${closing ? ' closing' : ''}`} onClick={requestClose}>
-      <div className={`sheet${closing ? ' closing' : ''}`} onClick={(e) => e.stopPropagation()}>
+    <div className={`sheet-backdrop${closing ? ' closing' : ''}`} {...backdropDismissProps(requestClose)}>
+      <div className={`sheet${closing ? ' closing' : ''}`}>
         <div className="sheet-handle" />
 
         {step === 'pitch' && (

@@ -4,6 +4,7 @@ import { computeEachWayReturn } from '../utils/eachWay.js'
 import { useEscapeKey } from '../lib/useEscapeKey.js'
 import { useDelayedClose } from '../lib/useDelayedClose.js'
 import { useToast } from '../context/ToastContext.jsx'
+import { backdropDismissProps } from '../lib/sheetDismiss.js'
 
 // Fixes a mis-typed stake, or gives up on a bet entirely - only ever shown
 // for the author's own bets while still open (see BetCard.jsx/TrackerPage.jsx
@@ -80,8 +81,8 @@ export default function EditBetSheet({ entry, onClose, onUpdated, onDeleted }) {
   }
 
   return (
-    <div className={`sheet-backdrop${closing ? ' closing' : ''}`} onClick={requestClose}>
-      <div className={`sheet${closing ? ' closing' : ''}`} onClick={(e) => e.stopPropagation()}>
+    <div className={`sheet-backdrop${closing ? ' closing' : ''}`} {...backdropDismissProps(requestClose)}>
+      <div className={`sheet${closing ? ' closing' : ''}`}>
         <div className="sheet-handle" />
         <h2 className="sheet-title">Edit bet</h2>
         <p className="hint">

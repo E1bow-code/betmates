@@ -7,6 +7,7 @@ import { useDelayedClose } from '../lib/useDelayedClose.js'
 import { abbreviatePosition, flagFor, ageFrom } from '../utils/playerCard.js'
 import TeamBadge from './TeamBadge.jsx'
 import { ArrowUpRightIcon } from './icons/Icons.jsx'
+import { backdropDismissProps } from '../lib/sheetDismiss.js'
 
 // dateEvent from TheSportsDB is also a plain "YYYY-MM-DD" string - see
 // formatBirthDate below for why this stays local instead of reusing
@@ -123,8 +124,8 @@ export default function ParticipantProfileSheet({ name, sport, onClose }) {
   const hasNothing = profile && !profile.bio && statTiles.length === 0 && taleOfTapeTiles.length === 0 && socials.length === 0 && !profile.photo
 
   return (
-    <div className={`sheet-backdrop${closing ? ' closing' : ''}`} onClick={requestClose}>
-      <div className={`sheet profile-sheet${closing ? ' closing' : ''}`} onClick={(e) => e.stopPropagation()}>
+    <div className={`sheet-backdrop${closing ? ' closing' : ''}`} {...backdropDismissProps(requestClose)}>
+      <div className={`sheet profile-sheet${closing ? ' closing' : ''}`}>
         <div className="sheet-handle" />
         {profile === undefined && <div className="loading">Building the card…</div>}
         {profile === null && taleOfTapeTiles.length === 0 && (

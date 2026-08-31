@@ -118,8 +118,12 @@ export default function NotificationsPage() {
 // author name inside needed its own link to their profile, since a nested
 // <a> inside an <a> is invalid HTML and misbehaves. The row itself is now a
 // div driving navigation via useNavigate (role="link" + Enter/Space keep it
-// keyboard-accessible the way a real <a> was for free), and the inner
-// UserLink stops the click from bubbling up to the row's own navigation.
+// keyboard-accessible the way a real <a> was for free); the row's own
+// handlers bow out when the event lands on the embedded UserLink anchor so
+// that tapping (or Enter-ing) the author's name goes to their profile rather
+// than the row target. Guarding here rather than stopPropagation on the name
+// covers keyboard activation too - a keydown on the inner link would
+// otherwise still bubble up to the row's onKeyDown and double-navigate.
 function NotificationRow({ item }) {
   const navigate = useNavigate()
   const rowClass =
@@ -129,7 +133,9 @@ function NotificationRow({ item }) {
 
   const isSocial = item.kind === 'posted' || item.kind === 'commented' || item.kind === 'reacted'
 
-  function goToRowTarget() {
+  function goToRowTarget(e) {
+    // Let the embedded author link handle its own activation.
+    if (e.target.closest('a')) return
     if (isSocial && item.groupId) navigate(`/groups/${item.groupId}`)
     else if (isSocial) navigate('/dashboard')
     else navigate('/tracker')
@@ -144,7 +150,7 @@ function NotificationRow({ item }) {
       onKeyDown={(e) => {
         if (e.key === 'Enter' || e.key === ' ') {
           e.preventDefault()
-          goToRowTarget()
+          goToRowTarget(e)
         }
       }}
     >
@@ -162,21 +168,21 @@ function NotificationRow({ item }) {
         <div className="selection-event">
           {item.kind === 'posted' ? (
             <>
-              <strong onClick={(e) => e.stopPropagation()}>
+              <strong>
                 <UserLink id={item.userId} displayName={item.name} />
               </strong>{' '}
               posted a bet on {item.event}
             </>
           ) : item.kind === 'commented' ? (
             <>
-              <strong onClick={(e) => e.stopPropagation()}>
+              <strong>
                 <UserLink id={item.userId} displayName={item.name} />
               </strong>{' '}
               commented on your bet on {item.event}: "{item.body}"
             </>
           ) : item.kind === 'reacted' ? (
             <>
-              <strong onClick={(e) => e.stopPropagation()}>
+              <strong>
                 <UserLink id={item.userId} displayName={item.name} />
               </strong>{' '}
               {reactionVerb(item.emoji)} your bet on {item.event}

@@ -5,6 +5,7 @@ import { useEscapeKey } from '../lib/useEscapeKey.js'
 import { useDelayedClose } from '../lib/useDelayedClose.js'
 import UserLink from './UserLink.jsx'
 import { MedalIcon } from './icons/Icons.jsx'
+import { backdropDismissProps } from '../lib/sheetDismiss.js'
 
 // Compares two of the user's own groups head-to-head - same aggregate math
 // as Leaderboard.jsx (scoped to one group's members) and HeadToHeadSheet.jsx
@@ -54,8 +55,8 @@ export default function GroupVsGroupSheet({ groups, onClose }) {
   const samePick = groupAId === groupBId
 
   return (
-    <div className={`sheet-backdrop${closing ? ' closing' : ''}`} onClick={requestClose}>
-      <div className={`sheet${closing ? ' closing' : ''}`} onClick={(e) => e.stopPropagation()}>
+    <div className={`sheet-backdrop${closing ? ' closing' : ''}`} {...backdropDismissProps(requestClose)}>
+      <div className={`sheet${closing ? ' closing' : ''}`}>
         <div className="sheet-handle" />
         <h2 className="sheet-title">Group vs. group</h2>
         <p className="hint">Combined P&amp;L across every settled bet in each group - hidden-stake bets don't count.</p>
