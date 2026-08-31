@@ -26,3 +26,13 @@ jobs:
 
       - name: Run tests
         run: npm test
+
+      # Lint runs blocking: any ESLint *error* fails CI. Warnings are held to a
+      # ratchet - --max-warnings is set to the current master count (115) rather
+      # than 0, because the codebase still carries known a11y/hooks warnings
+      # (tracked in #132). This can't turn CI red today, but it stops the count
+      # from creeping up: a PR that introduces a new warning pushes past the
+      # ceiling and fails. Lower this number as cleanup PRs land (e.g. #132's
+      # slices) so the gate keeps tightening toward 0.
+      - name: Lint
+        run: npm run lint -- --max-warnings 115
