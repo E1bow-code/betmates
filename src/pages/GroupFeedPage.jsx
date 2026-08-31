@@ -284,7 +284,7 @@ export default function GroupFeedPage() {
       {
         title: `${user.displayName} messaged in ${group?.name ?? 'the group'}`,
         body,
-        url: `/#/groups/${id}`
+        url: `/groups/${id}`
       },
       user.id,
       'groupChat'

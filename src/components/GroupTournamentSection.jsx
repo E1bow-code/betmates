@@ -61,7 +61,7 @@ export default function GroupTournamentSection({ groupId, groupName, posts, memb
         {
           title: `🏆 ${name.trim()}`,
           body: `A new tournament just started in ${groupName} - ${METRIC_LABEL[metric]} over ${days} days`,
-          url: `/#/groups/${groupId}`
+          url: `/groups/${groupId}`
         },
         currentUserId
       )

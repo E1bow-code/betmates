@@ -1,5 +1,5 @@
 import { Suspense, lazy, useEffect, useRef, useState } from 'react'
-import { HashRouter, Routes, Route, Navigate, useNavigate, useParams, useLocation } from 'react-router-dom'
+import { BrowserRouter, Routes, Route, Navigate, useNavigate, useParams, useLocation } from 'react-router-dom'
 import { AuthProvider, useAuth } from './context/AuthContext.jsx'
 import { BetSlipProvider } from './context/BetSlipContext.jsx'
 import { ActivityProvider } from './context/ActivityContext.jsx'
@@ -94,10 +94,10 @@ export default function App() {
         <OddsFormatProvider>
           <ToastProvider>
             <QuickAddProvider>
-              <HashRouter>
+              <BrowserRouter>
                 <Shell />
                 <CookieConsent />
-              </HashRouter>
+              </BrowserRouter>
             </QuickAddProvider>
           </ToastProvider>
         </OddsFormatProvider>
