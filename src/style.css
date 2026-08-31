@@ -136,7 +136,8 @@
 :root[data-theme='light'] {
   --bg: #f6f5f1; /* soft warm off-white - clean & bright, not stark white or pink */
   --bg-rgb: 246, 245, 241;
-  --surface: #ffffff;
+  --surface: #fbfaf6; /* warm off-white, not stark #fff - softens card glare while
+                         staying brighter than --bg so cards still lift off the page */
   --surface-2: #eceae2;
   --border: #e0ddd3;
   --text: #1a1c20;
