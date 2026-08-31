@@ -1,6 +1,6 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { runCoachGptTurn, COACHGPT_MODELS, COACHGPT_TOOLS, isTransientError } from './coachgpt.js'
+import { runCoachGptTurn, COACHGPT_MODELS, COACHGPT_TOOLS, isTransientError, freshGrounding } from './coachgpt.js'
 
 // The orchestration loop talks to Anthropic over fetch; these tests stub
 // global fetch with a scripted queue of responses so we can drive the model
@@ -97,6 +97,29 @@ test('a transient blip is retried once and recovers', async () => {
   assert.equal(res.error, null)
   assert.equal(calls[0].model, COACHGPT_MODELS[0]) // same model, not a fallback
   assert.equal(calls[1].model, COACHGPT_MODELS[0])
+})
+
+test('freshGrounding drops carried-over legs whose event has already started', () => {
+  const now = Date.parse('2026-08-31T15:00:00Z')
+  const legs = [
+    { selection: 'Arsenal', kickoff: '2026-08-31T17:00:00Z' }, // 2h away - keep
+    { selection: 'Chelsea', kickoff: '2026-08-31T13:00:00Z' }, // started 2h ago - drop
+    { selection: 'Spurs', kickoff: 'not a date' }, // unreadable - keep, don't over-drop
+    { selection: 'Leeds' } // no kickoff at all - keep
+  ]
+  const fresh = freshGrounding(legs, now)
+  assert.deepEqual(
+    fresh.map((l) => l.selection),
+    ['Arsenal', 'Spurs', 'Leeds']
+  )
+})
+
+test('freshGrounding returns null when nothing survives or there is no input', () => {
+  const now = Date.parse('2026-08-31T15:00:00Z')
+  assert.equal(freshGrounding([{ selection: 'Chelsea', kickoff: '2026-08-31T13:00:00Z' }], now), null)
+  assert.equal(freshGrounding([], now), null)
+  assert.equal(freshGrounding(null, now), null)
+  assert.equal(freshGrounding(undefined, now), null)
 })
 
 test('isTransientError only flags retryable failures', () => {

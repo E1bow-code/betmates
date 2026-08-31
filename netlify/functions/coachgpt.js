@@ -25,7 +25,7 @@
 // "user reads own profile"/"user reads own coach messages" policies do
 // the actual access control, no admin client needed for a read-only check.
 import { createClient } from '@supabase/supabase-js'
-import { runCoachGptTurn, matchRecommendation } from '../../src/lib/coachgpt.js'
+import { runCoachGptTurn, matchRecommendation, freshGrounding } from '../../src/lib/coachgpt.js'
 import { matchFixtureQuery, matchRaceQuery, startsWithinHours } from '../../src/utils/matchFixtureQuery.js'
 import { computeBestValue } from '../../src/utils/bestValue.js'
 import { getPlayerProfile } from '../../src/lib/playerProfile.js'
@@ -659,11 +659,15 @@ export default async (req) => {
     legs?.length
       ? Array.from(new Map(legs.map((leg) => [`${leg.selection}-${leg.eventId ?? leg.horseId ?? leg.event}`, leg])).values())
       : null
+  // The client's carried-over grounding, with any already-kicked-off fixtures
+  // dropped (freshGrounding) - a follow-up must not lock in a pick against a
+  // fixture that has started since the earlier message that grounded it.
+  const freshPrior = freshGrounding(body?.priorGrounding, Date.now())
   // Shown to the lock-in classifier (so it can reconcile a prose nickname -
   // "Spurs" - against the real selection - "Tottenham Hotspur"). Deliberately the
   // SAME grounding matchRecommendation uses below, including the priorGrounding
   // carry-over, so the classifier only ever sees legs its pick can actually match.
-  const getGrounding = () => dedupe(allGrounding) ?? body?.priorGrounding ?? null
+  const getGrounding = () => dedupe(allGrounding) ?? freshPrior ?? null
 
   const { text, recommendation, error } = await runCoachGptTurn({ apiKey, history: body?.history, message, callTool, route: COACH_ROUTE, getGrounding })
   const dedupedGrounding = dedupe(allGrounding)
@@ -671,12 +675,13 @@ export default async (req) => {
   // `history` without calling find_fixture again this turn, leaving
   // dedupedGrounding null even though the reply clearly leans on a fixture
   // looked up earlier - fall back to the grounding the client carried over
-  // from that earlier message so lock_in_recommendation still has
-  // something real to match against. The "Log this" row on THIS message
+  // from that earlier message (freshPrior, past-kickoff fixtures already
+  // filtered out) so lock_in_recommendation still has something real - and
+  // still backable - to match against. The "Log this" row on THIS message
   // stays tied to this turn's own lookups only (dedupedGrounding, unseeded) -
   // no fallback there, so it never shows stale legs under a reply that
   // didn't itself look anything up.
-  const matchGrounding = dedupedGrounding ?? body?.priorGrounding ?? null
+  const matchGrounding = dedupedGrounding ?? freshPrior ?? null
   return json({
     configured: true,
     reply: text,

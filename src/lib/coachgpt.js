@@ -449,6 +449,27 @@ const RECOMMENDATION_TOOL = {
 // not colloquial nicknames the prose might use ("Spurs" for Tottenham) - those
 // need a constrained-choice classifier, noted as a follow-up. Racing uses opaque
 // raceId/horseId (summariseRunner echoes them precisely), so it stays exact.
+// Drop carried-over grounding legs whose event has already started. A follow-up
+// that locks in a pick ("who do you like there?") answers straight from history
+// without re-searching, so it matches against priorGrounding the client carried
+// over from an earlier message - which can be old enough that the fixture has
+// since kicked off. Recording a recommendation against a started fixture is
+// wrong: the price is gone and the bet isn't backable, yet coach-settle would
+// still score it. This filters ONLY the carry-over fallback (never a fresh
+// lookup this turn), and only drops legs it can PROVE are in the past - a
+// missing or unparseable kickoff is kept, since silently dropping a valid pick
+// is worse than matching one whose start time we couldn't read. Returns null
+// (not []) when nothing survives, so it slots into the `?? priorGrounding ??`
+// fallback chain the callers already use.
+export function freshGrounding(legs, nowMs) {
+  if (!legs?.length) return null
+  const fresh = legs.filter((leg) => {
+    const t = Date.parse(leg.kickoff)
+    return Number.isNaN(t) || t > nowMs
+  })
+  return fresh.length ? fresh : null
+}
+
 const normaliseSelection = (s) => String(s ?? '').toLowerCase().replace(/[^a-z0-9]/g, '')
 export function matchRecommendation(recommendation, grounding) {
   if (!recommendation || !grounding?.length) return null
