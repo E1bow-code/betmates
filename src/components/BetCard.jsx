@@ -179,6 +179,7 @@ export default function BetCard({ post, memberNames, memberAvatars, variant = 'g
     return () => {
       cancelled = true
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- resolves only the comment/reaction authors not already cached, via functional setState; depending on resolvedProfiles would re-run the effect that populates it
   }, [comments, reactions, memberNames, user.id])
 
   function resolveName(id) {
@@ -301,6 +302,11 @@ export default function BetCard({ post, memberNames, memberAvatars, variant = 'g
 
   const selections = post.selections
   const combinedOdds = selections.length > 1 ? selections.reduce((acc, s) => acc * s.odds, 1) : null
+  // A single-leg bet with a resolvable two-sided matchup (a fight/team game) gets
+  // the MatchupBanner face-off + an accent event strip up top; anything else keeps
+  // the plain ticket header. Computed once here so the JSX below reads cleanly.
+  const matchup = selections.length === 1 ? parseMatchup(selections[0]) : null
+  const matchupWinner = matchup ? resolveMatchupWinner(selections[0], matchup, status) : null
   const live = status === 'open' && selections.some((s) => isLive(s.kickoff, s.sport ?? post.sport))
   const liveChatLeg = live && selections.find((s) => s.eventId && isLive(s.kickoff, s.sport ?? post.sport))
 
@@ -437,21 +443,26 @@ export default function BetCard({ post, memberNames, memberAvatars, variant = 'g
           })()}
         {post.caption && <p className="bet-card-caption">"{post.caption}"</p>}
         {photoSrc && <img src={photoSrc} alt="" className="bet-card-photo" loading="lazy" />}
-        {videoSrc && <video src={videoSrc} controls className="bet-card-photo" />}
+        {videoSrc && <video src={videoSrc} controls className="bet-card-photo" /* eslint-disable-line jsx-a11y/media-has-caption -- user-recorded bet-slip clip; no caption track exists for it */ />}
 
         {selections.length > 0 && (
           <div className="bet-card-ticket">
-            {selections.length === 1 &&
-              (() => {
-                const matchup = parseMatchup(selections[0])
-                const winner = resolveMatchupWinner(selections[0], matchup, status)
-                return matchup && <MatchupBanner sport={selections[0].sport} {...matchup} winner={winner} />
-              })()}
-
-            <div className="bet-card-ticket-header">
-              <span className="bet-card-ticket-tag">{post.marketType}</span>
-              <span className={`chip chip--pill chip--sm chip--outline bet-status-pill status-${status}`}>{STATUS_LABEL[status]}</span>
-            </div>
+            {matchup ? (
+              <>
+                {/* Accent event strip above the face-off: market + status on a
+                    navy-tinted band that frames the matchup and colours the card. */}
+                <div className="bet-card-event-strip">
+                  <span className="bet-card-ticket-tag">{post.marketType}</span>
+                  <span className={`chip chip--pill chip--sm chip--outline bet-status-pill status-${status}`}>{STATUS_LABEL[status]}</span>
+                </div>
+                <MatchupBanner sport={selections[0].sport} {...matchup} winner={matchupWinner} picked={selections[0].selection} />
+              </>
+            ) : (
+              <div className="bet-card-ticket-header">
+                <span className="bet-card-ticket-tag">{post.marketType}</span>
+                <span className={`chip chip--pill chip--sm chip--outline bet-status-pill status-${status}`}>{STATUS_LABEL[status]}</span>
+              </div>
+            )}
 
             {selections.map((selection, i) => {
               const badge = participantBadge(selection, post.sport)
@@ -487,7 +498,7 @@ export default function BetCard({ post, memberNames, memberAvatars, variant = 'g
             ) : (
               <>
                 <div className="chalk-divider chalk-divider--tear bet-card-ticket-divider" />
-                <div className="bet-card-stats">
+                <div className={`bet-card-stats${matchup ? ' bet-card-stats--framed' : ''}`}>
                   {post.stake ? (
                     <div className="bet-card-stat">
                       <span className="bet-card-stat-label">Stake</span>
@@ -499,7 +510,7 @@ export default function BetCard({ post, memberNames, memberAvatars, variant = 'g
                     <span className="bet-card-stat-value">{formatOdds(combinedOdds ?? selections[0].odds, format)}</span>
                   </div>
                   {post.stake && post.potentialReturn ? (
-                    <div className="bet-card-stat">
+                    <div className="bet-card-stat bet-card-stat--returns">
                       <span className="bet-card-stat-label">Returns</span>
                       <span className="bet-card-stat-value accent">{formatGBP(post.potentialReturn)}</span>
                     </div>

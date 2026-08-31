@@ -220,11 +220,28 @@ function Shell() {
         .then((items) => !cancelled && setNewsHeadlines(items))
         .catch(() => {})
     }
-    load()
-    const interval = setInterval(load, NEWS_REFRESH_MS)
+    // Same visibility gate as the live-scores poll: don't keep refreshing the
+    // news ticker in a backgrounded tab. Resume with a fresh pull on return so
+    // the headlines aren't stale when the user comes back.
+    let interval = null
+    const start = () => {
+      if (interval != null) return
+      load()
+      interval = setInterval(load, NEWS_REFRESH_MS)
+    }
+    const stop = () => {
+      if (interval != null) {
+        clearInterval(interval)
+        interval = null
+      }
+    }
+    const onVisibility = () => (document.hidden ? stop() : start())
+    if (!document.hidden) start()
+    document.addEventListener('visibilitychange', onVisibility)
     return () => {
       cancelled = true
-      clearInterval(interval)
+      stop()
+      document.removeEventListener('visibilitychange', onVisibility)
     }
   }, [user])
 

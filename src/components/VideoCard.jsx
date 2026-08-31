@@ -88,7 +88,7 @@ export default function VideoCard({ post }) {
       {missing ? (
         <div className="video-missing">This clip was recorded on a different device and isn't available here.</div>
       ) : src ? (
-        <video src={src} className="video-preview" controls />
+        <video src={src} className="video-preview" controls /* eslint-disable-line jsx-a11y/media-has-caption -- user-recorded bet-slip clip; no caption track exists for it */ />
       ) : (
         <div className="video-missing">Loading clip…</div>
       )}

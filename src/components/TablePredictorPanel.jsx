@@ -26,6 +26,7 @@ export default function TablePredictorPanel({ groupId, userId, memberNames }) {
 
   useEffect(() => {
     refresh()
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- refetches when the group changes; refresh is recreated each render
   }, [groupId])
 
   function refresh() {

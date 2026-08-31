@@ -95,7 +95,7 @@ export default function AuthPage() {
             <form className="auth-form" onSubmit={handleResetRequest}>
               <label className="field">
                 <span>Email</span>
-                <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} required autoFocus />
+                <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} required autoFocus /* eslint-disable-line jsx-a11y/no-autofocus -- deliberate: focus the email field on the sign-in/up form */ />
               </label>
 
               {error && <div className="auth-error">{error}</div>}

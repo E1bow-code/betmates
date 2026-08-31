@@ -25,7 +25,7 @@
 // "user reads own profile"/"user reads own coach messages" policies do
 // the actual access control, no admin client needed for a read-only check.
 import { createClient } from '@supabase/supabase-js'
-import { runCoachGptTurn } from '../../src/lib/coachgpt.js'
+import { runCoachGptTurn, matchRecommendation, freshGrounding } from '../../src/lib/coachgpt.js'
 import { matchFixtureQuery, matchRaceQuery, startsWithinHours } from '../../src/utils/matchFixtureQuery.js'
 import { computeBestValue } from '../../src/utils/bestValue.js'
 import { getPlayerProfile } from '../../src/lib/playerProfile.js'
@@ -203,6 +203,17 @@ function groundRunner(race, runner) {
 // (unlike a one-word team query it'd be wasteful to try every generic
 // sport for), then everything else GENERIC_SPORTS covers.
 const SPORT_ORDER = ['football', 'ufc', 'racing', ...Object.keys(GENERIC_SPORTS)]
+// The subset a "no sport given" BROWSE (list_upcoming_events) sweeps, rather
+// than all of SPORT_ORDER. A bare "what's on soon?" used to fan out one internal
+// /api/* call per sport IN PARALLEL across every sport (~13) - each a possible
+// cold start, and the generic ones aren't cron-cached so some spent live Odds
+// API credits - which both multiplied Netlify invocations under traffic and
+// risked the ~30s edge timeout this file already fights (see MAX_TOOL_ROUNDS).
+// The three primary sports are this app's core and are the cron-cached ones;
+// the model can still browse any specific generic sport by naming it (sport:
+// 'basketball' etc), and find_fixture still searches every sport by name. This
+// only bounds the unscoped browse.
+const PRIMARY_SPORTS = ['football', 'ufc', 'racing']
 
 async function fetchJson(siteUrl, path) {
   try {
@@ -377,7 +388,9 @@ function summariseUpcomingFixture(fixture, sportKey) {
 
 export async function toolListUpcoming(siteUrl, { sport } = {}) {
   const normalisedSport = sport && SPORT_ORDER.includes(sport) ? sport : null
-  const sportsToCheck = normalisedSport ? [normalisedSport] : SPORT_ORDER
+  // A named sport browses exactly that one; an unscoped browse is bounded to the
+  // primary sports rather than fanning out across all ~13 (see PRIMARY_SPORTS).
+  const sportsToCheck = normalisedSport ? [normalisedSport] : PRIMARY_SPORTS
   const now = Date.now()
 
   const perSport = await Promise.all(
@@ -404,37 +417,6 @@ export async function toolListUpcoming(siteUrl, { sport } = {}) {
     .slice(0, UPCOMING_LIMIT)
 
   return { count: events.length, events }
-}
-
-// lock_in_recommendation's tool input carries bare identity fields
-// (eventId/marketKey/outcomeName, or raceId/horseId) - matched back
-// against the last grounding array (built from the RAW fixture/runner
-// objects, not the trimmed summary Claude sees) to recover the full
-// priced leg: price, bookmaker, kickoff, etc. Storing that whole leg, not
-// just the identity fields, is what lets the CoachGPT scoreboard later
-// show what it actually recommended, not just settle it blind.
-//
-// recommendation.outcomeName is matched against leg.selection, NOT
-// leg.outcomeName - confirmed live: the tool asks the model for "the
-// exact selection name, e.g. a team name or Draw" (matching how it
-// phrases its own prose reply), but groundFixtureOutcomes' outcomeName
-// field holds the RAW h2h outcome key ("Home"/"Away"/"Draw"), while its
-// selection field holds the translated team name/"Draw" the model
-// actually returns. Matching against outcomeName silently dropped every
-// recommendation until this was caught via a debug field on a live call.
-export function matchRecommendation(recommendation, grounding) {
-  if (!recommendation || !grounding?.length) return null
-  return (
-    grounding.find((leg) => {
-      if (recommendation.eventId) {
-        return leg.eventId === recommendation.eventId && leg.marketKey === recommendation.marketKey && leg.selection === recommendation.outcomeName
-      }
-      if (recommendation.raceId) {
-        return leg.raceId === recommendation.raceId && leg.horseId === recommendation.horseId
-      }
-      return false
-    }) ?? null
-  )
 }
 
 // The user's OWN betting record - the differentiator no generic sports AI can
@@ -673,20 +655,33 @@ export default async (req) => {
     return { error: `Unknown tool: ${name}` }
   }
 
-  const { text, recommendation, error } = await runCoachGptTurn({ apiKey, history: body?.history, message, callTool, route: COACH_ROUTE })
-  const dedupedGrounding = allGrounding.length
-    ? Array.from(new Map(allGrounding.map((leg) => [`${leg.selection}-${leg.eventId ?? leg.horseId ?? leg.event}`, leg])).values())
-    : null
+  const dedupe = (legs) =>
+    legs?.length
+      ? Array.from(new Map(legs.map((leg) => [`${leg.selection}-${leg.eventId ?? leg.horseId ?? leg.event}`, leg])).values())
+      : null
+  // The client's carried-over grounding, with any already-kicked-off fixtures
+  // dropped (freshGrounding) - a follow-up must not lock in a pick against a
+  // fixture that has started since the earlier message that grounded it.
+  const freshPrior = freshGrounding(body?.priorGrounding, Date.now())
+  // Shown to the lock-in classifier (so it can reconcile a prose nickname -
+  // "Spurs" - against the real selection - "Tottenham Hotspur"). Deliberately the
+  // SAME grounding matchRecommendation uses below, including the priorGrounding
+  // carry-over, so the classifier only ever sees legs its pick can actually match.
+  const getGrounding = () => dedupe(allGrounding) ?? freshPrior ?? null
+
+  const { text, recommendation, error } = await runCoachGptTurn({ apiKey, history: body?.history, message, callTool, route: COACH_ROUTE, getGrounding })
+  const dedupedGrounding = dedupe(allGrounding)
   // A follow-up like "who do you like there?" often answers straight from
   // `history` without calling find_fixture again this turn, leaving
   // dedupedGrounding null even though the reply clearly leans on a fixture
   // looked up earlier - fall back to the grounding the client carried over
-  // from that earlier message so lock_in_recommendation still has
-  // something real to match against. The "Log this" row on THIS message
+  // from that earlier message (freshPrior, past-kickoff fixtures already
+  // filtered out) so lock_in_recommendation still has something real - and
+  // still backable - to match against. The "Log this" row on THIS message
   // stays tied to this turn's own lookups only (dedupedGrounding, unseeded) -
   // no fallback there, so it never shows stale legs under a reply that
   // didn't itself look anything up.
-  const matchGrounding = dedupedGrounding ?? body?.priorGrounding ?? null
+  const matchGrounding = dedupedGrounding ?? freshPrior ?? null
   return json({
     configured: true,
     reply: text,

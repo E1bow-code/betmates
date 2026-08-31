@@ -68,7 +68,7 @@ export default function ResetPasswordPage() {
                   required
                   minLength={6}
                   autoComplete="new-password"
-                  autoFocus
+                  autoFocus /* eslint-disable-line jsx-a11y/no-autofocus -- deliberate: focus the new-password field on the reset-password form */
                 />
                 <button
                   type="button"

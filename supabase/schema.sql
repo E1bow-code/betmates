@@ -2010,6 +2010,30 @@ create table scores_cache (
 alter table scores_cache enable row level security;
 create policy "anyone can read scores cache" on scores_cache for select using (true);
 
+-- Durable, cross-instance cache for netlify/functions/odds.js's per-fixture
+-- DETAIL (player props + extra markets) - the same WRITE-THROUGH idea as
+-- scores_cache. odds_cache above is the CRON-filled BULK-LIST tier and
+-- deliberately does NOT cover detail: 2 Odds API credits per fixture is far too
+-- expensive to pre-fetch for the whole board on a schedule. But the in-memory
+-- map in odds.js is per-warm-instance and empty on every cold start, so under
+-- real traffic the same popular fixture re-spent its 2 credits on each cold or
+-- concurrent instance - the uncapped Odds API spend the bulk-list cron can't
+-- reach. This table lets the FIRST open of a fixture pay the 2 credits and write
+-- the enriched result; every other instance serves it from the DB until it
+-- expires. Written by odds.js with the service-role key (public read policy, no
+-- anon write - same split as odds_cache/scores_cache). expires_at (like
+-- scores_cache, not fetched_at) since detail carries its own TTL. odds.js no-ops
+-- this whole path when Supabase/service-role isn't configured and fails every DB
+-- call soft to a miss, so a keyless/local deploy behaves exactly as before.
+create table odds_detail_cache (
+  cache_key text primary key,
+  payload jsonb not null,
+  expires_at timestamptz not null,
+  fetched_at timestamptz not null default now()
+);
+alter table odds_detail_cache enable row level security;
+create policy "anyone can read odds detail cache" on odds_detail_cache for select using (true);
+
 -- Global daily LLM spend breaker (see src/lib/llmBudget.js). A soft safety
 -- valve on TOP of each endpoint's per-user caps: it bounds total model calls
 -- across ALL users per UTC day so a runaway - a scripted flood of free

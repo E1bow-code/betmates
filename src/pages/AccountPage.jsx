@@ -145,7 +145,7 @@ export default function AccountPage() {
       .catch(() => {}) // best-effort self-heal - a stale subscription just stays stale, same as before this existed
       .then(() => getPushSubscription())
       .then((sub) => setPushEnabled(!!sub))
-  }, [])
+  }, [user.id])
 
   // Stripe redirects back here with ?upgraded=1 after a successful
   // Checkout - the webhook that actually flips is_premium fires
@@ -190,18 +190,18 @@ export default function AccountPage() {
 
   useEffect(() => {
     dataStore.listBlockedUsers(user.id).then(setBlockedUsers)
-  }, [])
+  }, [user.id])
 
   useEffect(() => {
     dataStore
       .listFriends(user.id)
       .then(setFriends)
       .catch(() => setFriends([]))
-  }, [])
+  }, [user.id])
 
   useEffect(() => {
     dataStore.countReferrals(user.id).then(setReferralCount)
-  }, [])
+  }, [user.id])
 
   // Tracker no longer has its own bottom-nav slot (see BottomNav.jsx) -
   // this teaser is now the only way to reach it, so unlike RankTeaser/
@@ -472,7 +472,7 @@ export default function AccountPage() {
                 value={nameInput}
                 onChange={(e) => setNameInput(e.target.value)}
                 maxLength={40}
-                autoFocus
+                autoFocus /* eslint-disable-line jsx-a11y/no-autofocus -- deliberate: focus the name field when the inline rename form opens */
                 disabled={nameSaving}
               />
               <button className="btn btn-primary btn-small" type="submit" disabled={nameSaving}>
@@ -1109,7 +1109,7 @@ export default function AccountPage() {
                 onChange={(e) => setDeleteConfirmText(e.target.value)}
                 placeholder="DELETE"
                 disabled={deleting}
-                autoFocus
+                autoFocus /* eslint-disable-line jsx-a11y/no-autofocus -- deliberate: focus the DELETE-confirmation field when the delete dialog opens */
               />
               <button
                 className="btn btn-danger"

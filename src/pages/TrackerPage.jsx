@@ -158,6 +158,7 @@ export default function TrackerPage() {
     return () => {
       cancelled = true
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- runs the settle-on-load pass once on mount; user is stable for the session and refresh is recreated each render
   }, [])
 
   function refresh() {

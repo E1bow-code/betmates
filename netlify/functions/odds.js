@@ -35,6 +35,11 @@ const SUPABASE_URL = process.env.VITE_SUPABASE_URL
 // the service-role key. Same split as the anon key shipping in the client
 // bundle by design: reads are public, RLS is the access control.
 const SUPABASE_ANON_KEY = process.env.VITE_SUPABASE_ANON_KEY
+// The bulk-list read above uses the anon key (public read). The per-fixture
+// DETAIL cache below is WRITE-THROUGH from this request path, so it needs the
+// service-role key to write - the same split scores.js already uses for
+// scores_cache. Absent, the durable detail tier simply no-ops (in-memory only).
+const SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY
 const CACHE_KEY = 'football-list'
 
 const SPORTS = FOOTBALL_SPORT_KEYS
@@ -78,6 +83,56 @@ async function readCachedList() {
     return data.payload
   } catch {
     return null
+  }
+}
+
+// Durable, cross-instance cache for per-fixture DETAIL (odds_detail_cache) -
+// the WRITE-THROUGH tier the bulk-list cron deliberately doesn't cover (2
+// credits/fixture is too expensive to pre-fetch on a schedule). Mirrors
+// scores.js exactly: the first open of a fixture pays the credits and writes
+// the enriched result; every other instance/cold start serves it from the DB
+// until it expires, instead of each re-spending its own 2 credits. Service-role
+// write (public read policy). No-ops without Supabase/service-role configured,
+// and every DB call fails soft to a miss, so a keyless/local deploy or a cache
+// hiccup behaves exactly as the pre-durable in-memory-only path did.
+let _cacheDb
+function cacheDb() {
+  if (_cacheDb !== undefined) return _cacheDb
+  _cacheDb = SUPABASE_URL && SERVICE_ROLE_KEY ? createClient(SUPABASE_URL, SERVICE_ROLE_KEY) : null
+  return _cacheDb
+}
+async function durableGetDetail(id) {
+  const db = cacheDb()
+  if (!db) return null
+  try {
+    const { data } = await db
+      .from('odds_detail_cache')
+      .select('payload, expires_at')
+      .eq('cache_key', `football-fixture-${id}`)
+      .maybeSingle()
+    const expiresAt = data ? new Date(data.expires_at).getTime() : 0
+    if (!data || expiresAt <= Date.now()) return null
+    // Return the remaining life so the caller warms its in-memory L1 for only
+    // as long as the durable entry itself has left, not a fresh full TTL -
+    // otherwise a near-expiry durable hit could serve on that instance for up
+    // to ~2x DETAIL_TTL rather than the intended single-TTL ceiling.
+    return { payload: data.payload, remainingMs: expiresAt - Date.now() }
+  } catch {
+    return null
+  }
+}
+async function durableSetDetail(id, payload, ttl) {
+  const db = cacheDb()
+  if (!db) return
+  try {
+    await db.from('odds_detail_cache').upsert({
+      cache_key: `football-fixture-${id}`,
+      payload,
+      expires_at: new Date(Date.now() + ttl).toISOString(),
+      fetched_at: new Date().toISOString()
+    })
+  } catch {
+    // best-effort - a cache write failure must never fail the fixture response
   }
 }
 
@@ -135,6 +190,16 @@ async function serveFixture(id, apiKey) {
   const cachedFixture = cacheGet(`football-fixture-${id}`)
   if (cachedFixture) return json(cachedFixture, 'live-cached')
 
+  // Durable detail tier: another instance may already have paid the 2-credit
+  // enrichment for this fixture. Serve that and warm this instance's L1 map,
+  // rather than spending the credits again. Checked before resolveFixtures so a
+  // hit skips even the bulk-list read.
+  const durable = await durableGetDetail(id)
+  if (durable) {
+    cacheSet(`football-fixture-${id}`, durable.payload, durable.remainingMs)
+    return json(durable.payload, 'db')
+  }
+
   const base = await resolveFixtures(apiKey)
   if (!base) return serveMock(id)
 
@@ -154,13 +219,22 @@ async function serveFixture(id, apiKey) {
   // regions=us regardless of REGION above or it always comes back empty even
   // when the market exists. Bookmakers also don't post these until close to
   // kickoff, so empty is normal for fixtures still weeks out - never an error.
+  // enrichOk stays true only if BOTH per-event calls actually completed (ok, or
+  // a caught failure flips it). An EMPTY-but-ok response is fine (props/extra
+  // markets legitimately don't exist for far-out fixtures) - this tracks the
+  // request succeeding, not markets being returned. Gates the durable write
+  // below so a transient failure on the first opener can't persist a stripped
+  // (base-only) fixture cross-instance for the whole TTL.
+  let enrichOk = true
   try {
     const playerMarketKeys = ['player_goal_scorer_anytime', 'player_first_goal_scorer', 'player_last_goal_scorer']
     const playerUrl = `https://api.the-odds-api.com/v4/sports/${sportKey}/events/${id}/odds/?apiKey=${apiKey}&regions=us&markets=${playerMarketKeys.join(',')}&oddsFormat=decimal&includeLinks=true`
     const playerRes = await fetch(playerUrl)
     if (playerRes.ok) enriched.markets.push(...reshapePlayerMarkets(await playerRes.json()))
+    else enrichOk = false
   } catch {
     // Nice-to-have - never fail the whole fixture load over player props.
+    enrichOk = false
   }
 
   // Additional UK-bookmaker markets (BTTS, draw no bet, double chance), same
@@ -170,11 +244,20 @@ async function serveFixture(id, apiKey) {
     const extraUrl = `https://api.the-odds-api.com/v4/sports/${sportKey}/events/${id}/odds/?apiKey=${apiKey}&regions=${REGION}&markets=${extraMarketKeys.join(',')}&oddsFormat=decimal&includeLinks=true`
     const extraRes = await fetch(extraUrl)
     if (extraRes.ok) enriched.markets.push(...reshapeExtraMarkets(await extraRes.json()))
+    else enrichOk = false
   } catch {
     // Nice-to-have - never fail the whole fixture load over extra markets.
+    enrichOk = false
   }
 
+  // L1 (in-memory) caches whatever we got, same as before - a partial serve on
+  // this warm instance is acceptable and self-limits to DETAIL_TTL.
   cacheSet(`football-fixture-${id}`, enriched, DETAIL_TTL)
+  // Write-through so the next cold/concurrent instance serves this fixture's
+  // detail from the DB instead of re-spending the 2 credits - but ONLY when the
+  // enrichment actually succeeded, so a transient failure doesn't poison the
+  // shared cache with a base-only fixture. Best-effort.
+  if (enrichOk) await durableSetDetail(id, enriched, DETAIL_TTL)
   return json(enriched, base.source)
 }
 

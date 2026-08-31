@@ -73,7 +73,7 @@ export default function OddsAlertSheet({ target, onClose, onCreated }) {
               step="0.01"
               value={targetPrice}
               onChange={(e) => setTargetPrice(e.target.value)}
-              autoFocus
+              autoFocus /* eslint-disable-line jsx-a11y/no-autofocus -- deliberate: focus the target-price field when the alert sheet opens */
             />
           </label>
           {error && <div className="auth-error">{error}</div>}

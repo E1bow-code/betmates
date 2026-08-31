@@ -92,7 +92,7 @@ export default function EditBetSheet({ entry, onClose, onUpdated, onDeleted }) {
         <form onSubmit={handleSave}>
           <label className="field">
             <span>Stake</span>
-            <input type="number" min="0" step="0.5" placeholder="£" value={stake} onChange={(e) => setStake(e.target.value)} autoFocus />
+            <input type="number" min="0" step="0.5" placeholder="£" value={stake} onChange={(e) => setStake(e.target.value)} autoFocus /* eslint-disable-line jsx-a11y/no-autofocus -- deliberate: focus the stake field when the edit-bet sheet opens */ />
           </label>
           {isGroupPost && (
             <label className="filter-toggle">

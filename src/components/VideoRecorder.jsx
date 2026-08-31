@@ -182,7 +182,7 @@ export default function VideoRecorder({ onClose, onPosted }) {
 
         {mode === 'preview' && (
           <div className="video-preview-form">
-            <video src={previewUrl} className="video-preview" controls />
+            <video src={previewUrl} className="video-preview" controls /* eslint-disable-line jsx-a11y/media-has-caption -- user's own just-recorded clip preview; no caption track exists for it */ />
 
             <label className="field">
               <span>What's the take?</span>

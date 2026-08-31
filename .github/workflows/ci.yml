@@ -27,12 +27,12 @@ jobs:
       - name: Run tests
         run: npm test
 
-      # Lint runs blocking: any ESLint *error* fails CI. Warnings are held to a
-      # ratchet - --max-warnings is the current master count (36), not 0,
-      # because a few known warnings remain (react-hooks/exhaustive-deps,
-      # no-autofocus, media-has-caption - tracked in #132). This can't turn CI
-      # red today, but it stops the count creeping up: a PR that adds a new
-      # warning pushes past the ceiling and fails. Lower this as the remaining
-      # warnings are cleared, tightening toward 0.
+      # Lint runs blocking: any ESLint error OR warning fails CI. The #132
+      # cleanup cleared the codebase to zero warnings (the a11y buckets fixed
+      # or inline-disabled with a reason, exhaustive-deps resolved case-by-case),
+      # so the ratchet is now fully closed at 0: any new warning fails CI rather
+      # than just being held under a ceiling. Keep it at 0 - a genuinely
+      # justified exception belongs in an inline eslint-disable with a reason,
+      # not a raised ceiling.
       - name: Lint
-        run: npm run lint -- --max-warnings 36
+        run: npm run lint -- --max-warnings 0

@@ -1,7 +1,6 @@
 import { useState } from 'react'
 import PlayerPhoto from './PlayerPhoto.jsx'
 import TeamBadge from './TeamBadge.jsx'
-import SportIcon from './icons/SportIcons.jsx'
 import ParticipantProfileSheet from './ParticipantProfileSheet.jsx'
 
 // Card-level version of OddsListPage.jsx's inline .fixture-teams-row face-
@@ -17,16 +16,24 @@ import ParticipantProfileSheet from './ParticipantProfileSheet.jsx'
 // whenever resolveMatchupWinner can't be certain (see its own comment) -
 // there's deliberately no "unknown" fallback state, since guessing wrong
 // here would be worse than just not showing a result yet.
-function Side({ Photo, photoProp, name, sport, winner, participantType, onTap }) {
+function Side({ Photo, photoProp, name, sport, winner, picked, participantType, onTap }) {
   const resolved = winner != null
   const isWinner = winner === name
-  const className = ['matchup-banner-side', resolved ? (isWinner ? 'matchup-banner-side-winner' : 'matchup-banner-side-loser') : '']
+  // The fighter/team this bet backed. Shown as an accent ring + tag only
+  // pre-settlement - once a winner is known the W/L treatment below governs, so
+  // the two never stack.
+  const isPicked = !resolved && picked === name
+  const className = [
+    'matchup-banner-side',
+    resolved ? (isWinner ? 'matchup-banner-side-winner' : 'matchup-banner-side-loser') : isPicked ? 'matchup-banner-side-picked' : ''
+  ]
     .filter(Boolean)
     .join(' ')
   const photo = (
     <span className="matchup-banner-photo-wrap">
       <Photo {...{ [photoProp]: name }} sport={sport} size={64} />
       {resolved && <span className="matchup-banner-result-chip">{isWinner ? 'W' : 'L'}</span>}
+      {isPicked && <span className="matchup-banner-pick-chip">Your pick</span>}
     </span>
   )
 
@@ -51,7 +58,7 @@ function Side({ Photo, photoProp, name, sport, winner, participantType, onTap })
   )
 }
 
-export default function MatchupBanner({ sport, nameA, nameB, participantType, winner = null }) {
+export default function MatchupBanner({ sport, nameA, nameB, participantType, winner = null, picked = null }) {
   const Photo = participantType === 'player' ? PlayerPhoto : TeamBadge
   const photoProp = participantType === 'player' ? 'name' : 'team'
   const [profileTarget, setProfileTarget] = useState(null)
@@ -65,19 +72,18 @@ export default function MatchupBanner({ sport, nameA, nameB, participantType, wi
           name={nameA}
           sport={sport}
           winner={winner}
+          picked={picked}
           participantType={participantType}
           onTap={setProfileTarget}
         />
-        <span className="matchup-banner-vs">
-          <SportIcon sport={sport} size={16} />
-          VS
-        </span>
+        <span className="matchup-banner-vs">VS</span>
         <Side
           Photo={Photo}
           photoProp={photoProp}
           name={nameB}
           sport={sport}
           winner={winner}
+          picked={picked}
           participantType={participantType}
           onTap={setProfileTarget}
         />

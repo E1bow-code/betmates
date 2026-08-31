@@ -27,6 +27,7 @@ export default function TeamBadge({ team, sport, size = 24 }) {
 
   if (src && !failed) {
     return (
+      // eslint-disable-next-line jsx-a11y/no-noninteractive-element-interactions -- onError is a broken-image fallback (swap to initials), not a user interaction
       <img
         src={src}
         alt=""

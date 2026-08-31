@@ -30,6 +30,15 @@ import { buildAnthropicRequest } from './anthropicRoute.js'
 
 export const COACHGPT_MODELS = ['claude-sonnet-5', 'claude-opus-5']
 export const COACHGPT_MODEL = COACHGPT_MODELS[0]
+// The main answer runs at a low, fixed temperature rather than the API default
+// (1.0). This is a tipster people expect to be STABLE and defensible - at 1.0 the
+// same question samples a different lean and different reasoning run-to-run, which
+// reads as the coach being flaky. 0.3 keeps the persona's voice varied enough to
+// not feel robotic while making the actual pick and its justification reproducible
+// for the same grounding. The lock_in_recommendation classifier overrides this to
+// 0 (see lockInRecommendation) - classifying one already-written reply should be
+// deterministic so the logged pick can't disagree with the same text twice.
+const COACH_TEMPERATURE = 0.3
 // Was bumped to 4 alongside web_search, then reverted, then 3 itself was cut
 // to 2 here after confirmed-live evidence: a real "best value bet this
 // weekend?" turn - the flagship broad question this whole tool loop exists
@@ -277,7 +286,7 @@ export const COACHGPT_TOOLS = [
         sport: {
           type: 'string',
           description:
-            'Sport if the user named one: football, ufc, racing, tennis, basketball, hockey, baseball, nfl, rugbyLeague, rugbyUnion, cricket, or boxing. Omit for every sport at once.'
+            'Sport if the user named one: football, ufc, racing, tennis, basketball, hockey, baseball, nfl, rugbyLeague, rugbyUnion, cricket, or boxing. Omit to browse the main sports (football, UFC, racing); to browse any of the others (tennis, basketball, hockey, baseball, nfl, rugby, cricket, boxing) name that sport here.'
         }
       }
     }
@@ -419,6 +428,74 @@ const RECOMMENDATION_TOOL = {
   }
 }
 
+// Recover the full priced leg for a lock_in_recommendation by matching its bare
+// identity fields against the grounding the handler accumulated (legs built from
+// the RAW fixture/runner objects). Pure logic, kept here (imported by the Netlify
+// function) so it's unit-tested under src.
+//
+// The fragile part is the fixture selection NAME. The tool asks the model for
+// "the exact selection name" - a team name / "Draw" phrased the way it wrote it
+// in prose - and it cannot be trusted to echo groundFixtureOutcomes' exact
+// `selection` string: casing, punctuation, stray spaces, or a suffix ("Arsenal"
+// vs "Arsenal FC"). A strict `leg.selection === outcomeName` equality silently
+// dropped correct picks over exactly that (confirmed live). So: narrow to the
+// legs sharing the model's eventId + marketKey first (a reliable opaque-id
+// match), then within that small set (2-3 outcomes: home/away/draw) resolve the
+// outcome by name - exact, then normalised-equal (case/space/punctuation-
+// insensitive), then a UNIQUE normalised substring either way. Scoped to one
+// event+market so a fuzzy compare can never cross to a different fixture, and a
+// genuinely ambiguous case (a Manchester derby where "Manchester" matches both
+// sides) resolves to null rather than mis-logging. This fixes MECHANICAL drift,
+// not colloquial nicknames the prose might use ("Spurs" for Tottenham) - those
+// need a constrained-choice classifier, noted as a follow-up. Racing uses opaque
+// raceId/horseId (summariseRunner echoes them precisely), so it stays exact.
+// Drop carried-over grounding legs whose event has already started. A follow-up
+// that locks in a pick ("who do you like there?") answers straight from history
+// without re-searching, so it matches against priorGrounding the client carried
+// over from an earlier message - which can be old enough that the fixture has
+// since kicked off. Recording a recommendation against a started fixture is
+// wrong: the price is gone and the bet isn't backable, yet coach-settle would
+// still score it. This filters ONLY the carry-over fallback (never a fresh
+// lookup this turn), and only drops legs it can PROVE are in the past - a
+// missing or unparseable kickoff is kept, since silently dropping a valid pick
+// is worse than matching one whose start time we couldn't read. Returns null
+// (not []) when nothing survives, so it slots into the `?? priorGrounding ??`
+// fallback chain the callers already use.
+export function freshGrounding(legs, nowMs) {
+  if (!legs?.length) return null
+  const fresh = legs.filter((leg) => {
+    const t = Date.parse(leg.kickoff)
+    return Number.isNaN(t) || t > nowMs
+  })
+  return fresh.length ? fresh : null
+}
+
+const normaliseSelection = (s) => String(s ?? '').toLowerCase().replace(/[^a-z0-9]/g, '')
+export function matchRecommendation(recommendation, grounding) {
+  if (!recommendation || !grounding?.length) return null
+  if (recommendation.raceId) {
+    return grounding.find((leg) => leg.raceId === recommendation.raceId && leg.horseId === recommendation.horseId) ?? null
+  }
+  if (!recommendation.eventId) return null
+  const inScope = grounding.filter(
+    (leg) => leg.eventId === recommendation.eventId && leg.marketKey === recommendation.marketKey
+  )
+  if (!inScope.length) return null
+  const exact = inScope.find((leg) => leg.selection === recommendation.outcomeName)
+  if (exact) return exact
+  const want = normaliseSelection(recommendation.outcomeName)
+  if (!want) return null
+  const normEqual = inScope.filter((leg) => normaliseSelection(leg.selection) === want)
+  if (normEqual.length === 1) return normEqual[0]
+  const contained = inScope.filter((leg) => {
+    const ln = normaliseSelection(leg.selection)
+    // Guard ln too, not just want: an empty ln (an all-punctuation selection)
+    // is a substring of every want and would match anything.
+    return ln !== '' && (ln.includes(want) || want.includes(ln))
+  })
+  return contained.length === 1 ? contained[0] : null
+}
+
 // One request to a specific model. Returns { data } on success or
 // { error: { status, type, detail } } on any non-2xx / network failure -
 // callers distinguish "this model isn't available" (fall back) from "the key
@@ -436,7 +513,38 @@ function systemPromptFor() {
   return `${COACHGPT_SYSTEM}\n\nToday's date is ${new Date().toISOString().slice(0, 10)}.`
 }
 
+// One extra attempt on a transient blip. Kept at a SINGLE short retry on
+// purpose: transient upstream failures (rate-limit, provider 5xx, dropped
+// socket) come back fast, so retrying once recovers the common flake without
+// risking the ~30s edge inactivity timeout that a retried *slow* generation
+// would blow. A turn fires up to five sequential calls, so anything more
+// aggressive here compounds across the turn.
+const TRANSIENT_MAX_RETRIES = 1
+const TRANSIENT_BACKOFF_MS = 350
+
+// A blip a retry can plausibly clear: rate limit, provider 5xx, or a
+// network/socket failure. Deliberately NOT 4xx auth/validation or a
+// model-availability 404 - those fail identically on retry (makeCaller already
+// switches model on a 404; everything else is reported, not masked).
+export function isTransientError(error) {
+  return error.status === 429 || error.status >= 500 || error.status === 0
+}
+
+const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms))
+
 async function callClaudeModel(apiKey, model, messages, extra, route) {
+  let lastError = null
+  for (let attempt = 0; attempt <= TRANSIENT_MAX_RETRIES; attempt++) {
+    if (attempt > 0) await sleep(TRANSIENT_BACKOFF_MS)
+    const result = await attemptClaudeCall(apiKey, model, messages, extra, route)
+    if (result.data) return result
+    lastError = result.error
+    if (!isTransientError(result.error)) break
+  }
+  return { error: lastError }
+}
+
+async function attemptClaudeCall(apiKey, model, messages, extra, route) {
   try {
     const { url, headers, body } = buildAnthropicRequest(apiKey, model, {
       // Was 800, briefly tried 1600 and 1100 - both let a real deep-dive
@@ -457,6 +565,10 @@ async function callClaudeModel(apiKey, model, messages, extra, route) {
       // real generation time for a chat reply nobody reads the reasoning
       // trace of. Explicitly disabled so every token goes to the answer.
       thinking: { type: 'disabled' },
+      // Fixed low temperature for reproducible picks (see COACH_TEMPERATURE).
+      // Before `...extra` so a caller can still override it - the lock-in
+      // classifier passes temperature: 0 to run fully deterministic.
+      temperature: COACH_TEMPERATURE,
       system: systemPromptFor(),
       messages,
       ...extra
@@ -554,25 +666,75 @@ function extractText(content) {
 // MAX_TOOL_ROUNDS/WEB_SEARCH_MAX_USES comments above) - a real reply that
 // took 20+ seconds getting there had no margin left for a slow follow-up.
 const LOCK_IN_MODEL = 'claude-haiku-4-5-20251001'
+// If Haiku is unavailable, fall the classifier back to the primary answer model
+// rather than silently recording no pick - the scoreboard depends on this
+// classification, and a whole-selection drop is worse than one cheap classify on
+// a larger model. Still deterministic (temperature 0), so the recorded pick
+// can't disagree with the reply it's reading.
+const LOCK_IN_FALLBACK_MODEL = COACHGPT_MODELS[0]
 const LOCK_IN_SYSTEM =
   'You classify one already-written reply from a sports-betting chat assistant. Read it and call lock_in_recommendation: did it name ONE specific selection as its lean?'
 
-async function lockInRecommendation(apiKey, messages, text, route) {
+// Only ever a handful of fixtures get grounded in a turn; cap the list handed to
+// the classifier so a very broad "best value this weekend" (which can ground
+// many legs) can't bloat the follow-up call's input.
+const LOCK_IN_MAX_CANDIDATES = 40
+
+// The classifier reads the PROSE reply, which is where nicknames live - the coach
+// writes "Spurs", "Wolves", "the Gunners", not "Tottenham Hotspur". Left to free-
+// type the selection name it echoes the nickname, which then can't be matched
+// back to the canonical grounded selection. So when we have the grounding (the
+// real legs the turn looked up), we show the classifier that exact list and tell
+// it to copy the identity fields of the ONE it leaned toward verbatim - it can
+// see both the nickname in its reply and the canonical name here, and reconcile
+// them itself. This is what actually resolves nicknames; matchRecommendation's
+// fuzzy fallback stays as a safety net for mechanical drift. Returns null when
+// there's nothing grounded (a general question) - then the classifier just judges
+// hasPick from the prose as before, and an empty-grounding match is null anyway.
+export function formatLockInCandidates(grounding) {
+  if (!grounding?.length) return null
+  const lines = grounding.slice(0, LOCK_IN_MAX_CANDIDATES).map((leg) => {
+    const priced = leg.odds ? `, ${leg.odds}` : ''
+    return leg.raceId
+      ? `- selection="${leg.selection}" raceId=${leg.raceId} horseId=${leg.horseId}  (${leg.event}${priced})`
+      : `- selection="${leg.selection}" eventId=${leg.eventId} marketKey=${leg.marketKey}  (${leg.event}${priced})`
+  })
+  return lines.join('\n')
+}
+
+async function lockInRecommendation(apiKey, messages, text, route, grounding) {
+  const candidates = formatLockInCandidates(grounding)
+  const instruction = candidates
+    ? 'Call lock_in_recommendation now. If your reply leaned on ONE specific selection, set hasPick true. When that selection is in the list below, copy ITS identity fields (selection + eventId/marketKey, or selection + raceId/horseId) EXACTLY as written there, even if your reply named it by a nickname or short name. If your leaned selection is genuinely not in this list, still set hasPick true and give its selection name and event as best you can. Set hasPick false only if your reply made no single pick.\n' +
+      candidates
+    : 'Call lock_in_recommendation now to record whether your reply above named one specific selection as your lean.'
   const followUp = [
     ...messages,
     { role: 'assistant', content: text },
-    {
-      role: 'user',
-      content:
-        'Call lock_in_recommendation now to record whether your reply above named one specific selection as your lean.'
-    }
+    { role: 'user', content: instruction }
   ]
-  const { data } = await callClaudeModel(apiKey, LOCK_IN_MODEL, followUp, {
+  const extra = {
     system: LOCK_IN_SYSTEM,
     max_tokens: 200,
+    // Deterministic: this only classifies an already-written reply, so the
+    // recorded pick must never disagree with itself for the same text.
+    temperature: 0,
     tools: [RECOMMENDATION_TOOL],
     tool_choice: { type: 'tool', name: 'lock_in_recommendation' }
-  }, route)
+  }
+  // Walk primary -> fallback, falling through only when the primary model itself
+  // is unavailable (same rule as makeCaller). Any other failure - and the
+  // transient retry inside callClaudeModel - is already handled per-call, so a
+  // hard non-availability error means the classify genuinely couldn't run.
+  let data = null
+  for (const model of [LOCK_IN_MODEL, LOCK_IN_FALLBACK_MODEL]) {
+    const result = await callClaudeModel(apiKey, model, followUp, extra, route)
+    if (result.data) {
+      data = result.data
+      break
+    }
+    if (!isModelAvailabilityError(result.error)) break
+  }
   const block = data?.content?.find((b) => b.type === 'tool_use' && b.name === 'lock_in_recommendation')
   return block?.input?.hasPick ? block.input : null
 }
@@ -589,7 +751,12 @@ async function lockInRecommendation(apiKey, messages, text, route) {
 // "answered fine" - critical because a swallowed API failure used to surface
 // as an empty reply that wrongly blamed the user's phrasing. recommendation is
 // lock_in_recommendation's raw input, or null if it found no real pick.
-export async function runCoachGptTurn({ apiKey, history, message, callTool, route }) {
+// getGrounding, if passed, is a () => leg[] the caller uses to expose the legs
+// its callTool accumulated this turn (the handler builds them from find_fixture's
+// results). Read just before the lock-in follow-up so the classifier can be shown
+// the real selections and reconcile any nickname in the prose against them. Absent
+// (older callers, tests), the lock-in behaves exactly as before.
+export async function runCoachGptTurn({ apiKey, history, message, callTool, route, getGrounding }) {
   if (!apiKey) return { text: null, recommendation: null, error: 'no_key' }
 
   const call = makeCaller(apiKey, route)
@@ -655,6 +822,7 @@ export async function runCoachGptTurn({ apiKey, history, message, callTool, rout
     text += "\n\n*(Ran long and got cut off there, champ - ask me to keep going and I'll pick up where I left off.)*"
   }
 
-  const recommendation = text ? await lockInRecommendation(apiKey, messages, text, route) : null
+  const grounding = typeof getGrounding === 'function' ? getGrounding() : null
+  const recommendation = text ? await lockInRecommendation(apiKey, messages, text, route, grounding) : null
   return { text, recommendation, error: null }
 }

@@ -14,15 +14,14 @@
 // nothing, so merging this changes nothing until the key is set.
 import { createClient } from '@supabase/supabase-js'
 import { denyUnlessCron } from './_cronAuth.js'
-import { runCoachGptTurn } from '../../src/lib/coachgpt.js'
+import { runCoachGptTurn, matchRecommendation } from '../../src/lib/coachgpt.js'
 import {
   toolListUpcoming,
   toolFindFixture,
   toolGetPlayerProfile,
   toolGetNews,
   toolGetResults,
-  toolGetTeamForm,
-  matchRecommendation
+  toolGetTeamForm
 } from './coachgpt.js'
 
 const SUPABASE_URL = process.env.VITE_SUPABASE_URL
@@ -80,12 +79,18 @@ export default async (req) => {
       return { error: `Unknown tool: ${name}` }
     }
 
-    const { text, recommendation, error } = await runCoachGptTurn({ apiKey, history: [], message: PROMPT, callTool, route: COACH_ROUTE })
+    // Same grounding the pick will be matched against, exposed to the lock-in
+    // classifier so it reconciles any nickname in the pick's prose against the
+    // real selections (see runCoachGptTurn / formatLockInCandidates).
+    const groundingOf = () =>
+      allGrounding.length
+        ? Array.from(new Map(allGrounding.map((leg) => [`${leg.selection}-${leg.eventId ?? leg.horseId ?? leg.event}`, leg])).values())
+        : null
+
+    const { text, recommendation, error } = await runCoachGptTurn({ apiKey, history: [], message: PROMPT, callTool, route: COACH_ROUTE, getGrounding: groundingOf })
     if (error) return new Response(JSON.stringify({ picked: 0, reason: `coach unavailable: ${error}` }), { status: 200 })
 
-    const grounding = allGrounding.length
-      ? Array.from(new Map(allGrounding.map((leg) => [`${leg.selection}-${leg.eventId ?? leg.horseId ?? leg.event}`, leg])).values())
-      : null
+    const grounding = groundingOf()
     const leg = matchRecommendation(recommendation, grounding)
     if (!leg) return new Response(JSON.stringify({ picked: 0, reason: 'no confident pick today' }), { status: 200 })
 
