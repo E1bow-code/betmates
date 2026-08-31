@@ -17,15 +17,15 @@ export async function shareOrCopy({ title, text, url }) {
 }
 
 export function groupInviteUrl(inviteCode) {
-  return `${window.location.origin}/#/join/${inviteCode}`
+  return `${window.location.origin}/join/${inviteCode}`
 }
 
 export function publicProfileUrl(friendCode) {
-  return `${window.location.origin}/#/u/${friendCode}`
+  return `${window.location.origin}/u/${friendCode}`
 }
 
 export function referralUrl(friendCode) {
-  return `${window.location.origin}/#/r/${friendCode}`
+  return `${window.location.origin}/r/${friendCode}`
 }
 
 // Points at the SENDER's own friend code, not the recipient's - opening it
@@ -33,5 +33,5 @@ export function referralUrl(friendCode) {
 // ChallengePage.jsx), landing them on the shared head-to-head/challenge
 // view between the two of them either way round.
 export function challengeUrl(friendCode) {
-  return `${window.location.origin}/#/challenge/${friendCode}`
+  return `${window.location.origin}/challenge/${friendCode}`
 }

@@ -35,8 +35,10 @@ export default function ResetPasswordPage() {
       await updatePassword(password)
       setDone(true)
       setTimeout(() => {
-        window.location.hash = '#/odds'
-        window.location.reload()
+        // Full navigation to /odds (also clears the recovery session's URL).
+        // Was `location.hash = '#/odds'` + reload under HashRouter; setting the
+        // hash no longer navigates under BrowserRouter, so assign the path.
+        window.location.assign('/odds')
       }, 1500)
     } catch (err) {
       setError(err.message)

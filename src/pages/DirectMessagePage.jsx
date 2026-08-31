@@ -78,7 +78,7 @@ export default function DirectMessagePage() {
     notifyFriend(friendId, {
       title: `${user.displayName} sent you a message`,
       body,
-      url: `/#/messages/${user.id}`
+      url: `/messages/${user.id}`
     })
   }
 

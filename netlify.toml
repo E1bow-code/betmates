@@ -17,6 +17,16 @@
   to = "/.netlify/functions/:splat"
   status = 200
 
+# SPA fallback for BrowserRouter: serve index.html for any non-API, non-asset
+# path so a deep link (e.g. /odds, /u/CODE) resolves to the app, which then
+# renders the right route client-side. MUST come AFTER the /api/* rule above so
+# it doesn't swallow function calls. (Static assets are served before redirects,
+# so this doesn't shadow /assets, /favicon.svg, etc.)
+[[redirects]]
+  from = "/*"
+  to = "/index.html"
+  status = 200
+
 # CSP is scoped to what the client genuinely reaches over the network, not a
 # generic template - confirmed against the actual code, not guessed:
 #   - cdn.jsdelivr.net: Tesseract.js's DEFAULT source for its WASM core and

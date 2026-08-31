@@ -45,7 +45,7 @@ export default class ErrorBoundary extends Component {
     console.error('Unhandled error:', error)
     posthog.captureException(error)
     dataStore
-      .logClientError({ message: String(error?.message ?? error), stack: error?.stack ?? null, route: window.location.hash || null })
+      .logClientError({ message: String(error?.message ?? error), stack: error?.stack ?? null, route: window.location.pathname || null })
       .catch(() => {})
   }
 

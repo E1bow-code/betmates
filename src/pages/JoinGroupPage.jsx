@@ -76,7 +76,7 @@ export default function JoinGroupPage() {
       {
         title: `${who} joined ${joined.name} 👋`,
         body: 'Your group just grew — log a slip and welcome them in.',
-        url: `/#/groups/${joined.id}`
+        url: `/groups/${joined.id}`
       },
       user.id
     )
