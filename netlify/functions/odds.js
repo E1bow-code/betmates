@@ -35,6 +35,11 @@ const SUPABASE_URL = process.env.VITE_SUPABASE_URL
 // the service-role key. Same split as the anon key shipping in the client
 // bundle by design: reads are public, RLS is the access control.
 const SUPABASE_ANON_KEY = process.env.VITE_SUPABASE_ANON_KEY
+// The bulk-list read above uses the anon key (public read). The per-fixture
+// DETAIL cache below is WRITE-THROUGH from this request path, so it needs the
+// service-role key to write - the same split scores.js already uses for
+// scores_cache. Absent, the durable detail tier simply no-ops (in-memory only).
+const SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY
 const CACHE_KEY = 'football-list'
 
 const SPORTS = FOOTBALL_SPORT_KEYS
@@ -78,6 +83,51 @@ async function readCachedList() {
     return data.payload
   } catch {
     return null
+  }
+}
+
+// Durable, cross-instance cache for per-fixture DETAIL (odds_detail_cache) -
+// the WRITE-THROUGH tier the bulk-list cron deliberately doesn't cover (2
+// credits/fixture is too expensive to pre-fetch on a schedule). Mirrors
+// scores.js exactly: the first open of a fixture pays the credits and writes
+// the enriched result; every other instance/cold start serves it from the DB
+// until it expires, instead of each re-spending its own 2 credits. Service-role
+// write (public read policy). No-ops without Supabase/service-role configured,
+// and every DB call fails soft to a miss, so a keyless/local deploy or a cache
+// hiccup behaves exactly as the pre-durable in-memory-only path did.
+let _cacheDb
+function cacheDb() {
+  if (_cacheDb !== undefined) return _cacheDb
+  _cacheDb = SUPABASE_URL && SERVICE_ROLE_KEY ? createClient(SUPABASE_URL, SERVICE_ROLE_KEY) : null
+  return _cacheDb
+}
+async function durableGetDetail(id) {
+  const db = cacheDb()
+  if (!db) return null
+  try {
+    const { data } = await db
+      .from('odds_detail_cache')
+      .select('payload, expires_at')
+      .eq('cache_key', `football-fixture-${id}`)
+      .maybeSingle()
+    if (!data || new Date(data.expires_at).getTime() <= Date.now()) return null
+    return data.payload
+  } catch {
+    return null
+  }
+}
+async function durableSetDetail(id, payload, ttl) {
+  const db = cacheDb()
+  if (!db) return
+  try {
+    await db.from('odds_detail_cache').upsert({
+      cache_key: `football-fixture-${id}`,
+      payload,
+      expires_at: new Date(Date.now() + ttl).toISOString(),
+      fetched_at: new Date().toISOString()
+    })
+  } catch {
+    // best-effort - a cache write failure must never fail the fixture response
   }
 }
 
@@ -135,6 +185,16 @@ async function serveFixture(id, apiKey) {
   const cachedFixture = cacheGet(`football-fixture-${id}`)
   if (cachedFixture) return json(cachedFixture, 'live-cached')
 
+  // Durable detail tier: another instance may already have paid the 2-credit
+  // enrichment for this fixture. Serve that and warm this instance's L1 map,
+  // rather than spending the credits again. Checked before resolveFixtures so a
+  // hit skips even the bulk-list read.
+  const durableFixture = await durableGetDetail(id)
+  if (durableFixture) {
+    cacheSet(`football-fixture-${id}`, durableFixture, DETAIL_TTL)
+    return json(durableFixture, 'db')
+  }
+
   const base = await resolveFixtures(apiKey)
   if (!base) return serveMock(id)
 
@@ -175,6 +235,9 @@ async function serveFixture(id, apiKey) {
   }
 
   cacheSet(`football-fixture-${id}`, enriched, DETAIL_TTL)
+  // Write-through so the next cold/concurrent instance serves this fixture's
+  // detail from the DB instead of re-spending the 2 credits. Best-effort.
+  await durableSetDetail(id, enriched, DETAIL_TTL)
   return json(enriched, base.source)
 }
 
