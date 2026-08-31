@@ -2997,6 +2997,24 @@ button.conversation-row { width: 100%; font: inherit; text-align: left; cursor: 
   text-transform: uppercase;
   color: var(--text-dim);
 }
+/* Accent event strip that tops a matchup (fight/team) card: market tag + status
+   on a navy-tinted band that frames the face-off and gives the card colour.
+   BetCard renders this only for matchup cards; everything else keeps the plain
+   .bet-card-ticket-header above. Tint keys off --accent-rgb so it holds in both
+   themes. */
+.bet-card-event-strip {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-8);
+  flex-wrap: wrap;
+  padding: var(--space-6) var(--space-10);
+  border-radius: var(--radius-md);
+  background: rgba(var(--accent-rgb), 0.08);
+  border: 1px solid rgba(var(--accent-rgb), 0.16);
+  margin-bottom: var(--space-10);
+}
+.bet-card-event-strip .bet-card-ticket-tag { color: var(--accent); }
 .bet-card-leg { padding-bottom: var(--space-8); margin-bottom: var(--space-8); border-bottom: 1px dashed var(--border); }
 .bet-card-leg:last-of-type { border-bottom: none; margin-bottom: 0; padding-bottom: 0; }
 
@@ -3040,6 +3058,21 @@ button.conversation-row { width: 100%; font: inherit; text-align: left; cursor: 
 .bet-card-stat-label { font-size: 0.62rem; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; color: var(--text-dim); }
 .bet-card-stat-value { font-family: var(--font-mono); font-variant-numeric: tabular-nums; font-weight: 700; font-size: var(--text-lg); color: var(--text); }
 .bet-card-stat-value.accent { color: var(--accent); }
+/* Framed money row - only on matchup cards, to echo the tinted event strip up
+   top so the two navy bands bracket the face-off. Each stat gets a boxed cell;
+   the Returns cell takes the accent tint since payout is the number the eye
+   goes to. Non-matchup cards keep the plain unframed row above. */
+.bet-card-stats--framed { gap: var(--space-6); }
+.bet-card-stats--framed .bet-card-stat {
+  padding: var(--space-8);
+  border-radius: var(--radius-md);
+  border: 1px solid var(--border);
+  background: var(--surface-2);
+}
+.bet-card-stats--framed .bet-card-stat--returns {
+  background: rgba(var(--accent-rgb), 0.08);
+  border-color: rgba(var(--accent-rgb), 0.16);
+}
 
 /* Stamped, not a bubble: bordered rectangle with letterspaced caps,
    like a "PAID"/"VOID" stamp on a slip. Shape/size/tone now come from
