@@ -14,15 +14,14 @@
 // nothing, so merging this changes nothing until the key is set.
 import { createClient } from '@supabase/supabase-js'
 import { denyUnlessCron } from './_cronAuth.js'
-import { runCoachGptTurn } from '../../src/lib/coachgpt.js'
+import { runCoachGptTurn, matchRecommendation } from '../../src/lib/coachgpt.js'
 import {
   toolListUpcoming,
   toolFindFixture,
   toolGetPlayerProfile,
   toolGetNews,
   toolGetResults,
-  toolGetTeamForm,
-  matchRecommendation
+  toolGetTeamForm
 } from './coachgpt.js'
 
 const SUPABASE_URL = process.env.VITE_SUPABASE_URL

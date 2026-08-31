@@ -25,7 +25,7 @@
 // "user reads own profile"/"user reads own coach messages" policies do
 // the actual access control, no admin client needed for a read-only check.
 import { createClient } from '@supabase/supabase-js'
-import { runCoachGptTurn } from '../../src/lib/coachgpt.js'
+import { runCoachGptTurn, matchRecommendation } from '../../src/lib/coachgpt.js'
 import { matchFixtureQuery, matchRaceQuery, startsWithinHours } from '../../src/utils/matchFixtureQuery.js'
 import { computeBestValue } from '../../src/utils/bestValue.js'
 import { getPlayerProfile } from '../../src/lib/playerProfile.js'
@@ -417,37 +417,6 @@ export async function toolListUpcoming(siteUrl, { sport } = {}) {
     .slice(0, UPCOMING_LIMIT)
 
   return { count: events.length, events }
-}
-
-// lock_in_recommendation's tool input carries bare identity fields
-// (eventId/marketKey/outcomeName, or raceId/horseId) - matched back
-// against the last grounding array (built from the RAW fixture/runner
-// objects, not the trimmed summary Claude sees) to recover the full
-// priced leg: price, bookmaker, kickoff, etc. Storing that whole leg, not
-// just the identity fields, is what lets the CoachGPT scoreboard later
-// show what it actually recommended, not just settle it blind.
-//
-// recommendation.outcomeName is matched against leg.selection, NOT
-// leg.outcomeName - confirmed live: the tool asks the model for "the
-// exact selection name, e.g. a team name or Draw" (matching how it
-// phrases its own prose reply), but groundFixtureOutcomes' outcomeName
-// field holds the RAW h2h outcome key ("Home"/"Away"/"Draw"), while its
-// selection field holds the translated team name/"Draw" the model
-// actually returns. Matching against outcomeName silently dropped every
-// recommendation until this was caught via a debug field on a live call.
-export function matchRecommendation(recommendation, grounding) {
-  if (!recommendation || !grounding?.length) return null
-  return (
-    grounding.find((leg) => {
-      if (recommendation.eventId) {
-        return leg.eventId === recommendation.eventId && leg.marketKey === recommendation.marketKey && leg.selection === recommendation.outcomeName
-      }
-      if (recommendation.raceId) {
-        return leg.raceId === recommendation.raceId && leg.horseId === recommendation.horseId
-      }
-      return false
-    }) ?? null
-  )
 }
 
 // The user's OWN betting record - the differentiator no generic sports AI can

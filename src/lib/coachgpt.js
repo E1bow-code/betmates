@@ -428,6 +428,51 @@ const RECOMMENDATION_TOOL = {
   }
 }
 
+// Recover the full priced leg for a lock_in_recommendation by matching its bare
+// identity fields against the grounding the handler accumulated (legs built from
+// the RAW fixture/runner objects). Pure logic, kept here (imported by the Netlify
+// function) so it's unit-tested under src.
+//
+// The fragile part is the fixture selection NAME. The tool asks the model for
+// "the exact selection name" - a team name / "Draw" phrased the way it wrote it
+// in prose - and it cannot be trusted to echo groundFixtureOutcomes' exact
+// `selection` string: casing, punctuation, stray spaces, or a suffix ("Arsenal"
+// vs "Arsenal FC"). A strict `leg.selection === outcomeName` equality silently
+// dropped correct picks over exactly that (confirmed live). So: narrow to the
+// legs sharing the model's eventId + marketKey first (a reliable opaque-id
+// match), then within that small set (2-3 outcomes: home/away/draw) resolve the
+// outcome by name - exact, then normalised-equal (case/space/punctuation-
+// insensitive), then a UNIQUE normalised substring either way. Scoped to one
+// event+market so a fuzzy compare can never cross to a different fixture, and a
+// genuinely ambiguous case (a Manchester derby where "Manchester" matches both
+// sides) resolves to null rather than mis-logging. This fixes MECHANICAL drift,
+// not colloquial nicknames the prose might use ("Spurs" for Tottenham) - those
+// need a constrained-choice classifier, noted as a follow-up. Racing uses opaque
+// raceId/horseId (summariseRunner echoes them precisely), so it stays exact.
+const normaliseSelection = (s) => String(s ?? '').toLowerCase().replace(/[^a-z0-9]/g, '')
+export function matchRecommendation(recommendation, grounding) {
+  if (!recommendation || !grounding?.length) return null
+  if (recommendation.raceId) {
+    return grounding.find((leg) => leg.raceId === recommendation.raceId && leg.horseId === recommendation.horseId) ?? null
+  }
+  if (!recommendation.eventId) return null
+  const inScope = grounding.filter(
+    (leg) => leg.eventId === recommendation.eventId && leg.marketKey === recommendation.marketKey
+  )
+  if (!inScope.length) return null
+  const exact = inScope.find((leg) => leg.selection === recommendation.outcomeName)
+  if (exact) return exact
+  const want = normaliseSelection(recommendation.outcomeName)
+  if (!want) return null
+  const normEqual = inScope.filter((leg) => normaliseSelection(leg.selection) === want)
+  if (normEqual.length === 1) return normEqual[0]
+  const contained = inScope.filter((leg) => {
+    const ln = normaliseSelection(leg.selection)
+    return ln.includes(want) || want.includes(ln)
+  })
+  return contained.length === 1 ? contained[0] : null
+}
+
 // One request to a specific model. Returns { data } on success or
 // { error: { status, type, detail } } on any non-2xx / network failure -
 // callers distinguish "this model isn't available" (fall back) from "the key

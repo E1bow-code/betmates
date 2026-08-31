@@ -235,3 +235,56 @@ test("a question about the coach's own tips runs get_coach_record then answers f
   assert.equal(res.text, "I'm 6-4 with you this season, +3.2 units - and I'll stand by every one.")
   assert.equal(res.error, null)
 })
+
+// ── matchRecommendation: recover the full priced leg from the classifier's bare
+// identity fields, robustly (the model can't be trusted to echo the exact
+// selection string it wrote in prose). ──────────────────────────────────────
+import { matchRecommendation } from './coachgpt.js'
+
+const FIXTURE_GROUNDING = [
+  { eventId: 'e1', marketKey: 'h2h', selection: 'Manchester City', odds: 1.8, sport: 'football' },
+  { eventId: 'e1', marketKey: 'h2h', selection: 'Draw', odds: 3.6, sport: 'football' },
+  { eventId: 'e1', marketKey: 'h2h', selection: 'Arsenal', odds: 4.2, sport: 'football' }
+]
+
+test('matchRecommendation: exact selection name resolves the leg', () => {
+  const leg = matchRecommendation({ eventId: 'e1', marketKey: 'h2h', outcomeName: 'Arsenal' }, FIXTURE_GROUNDING)
+  assert.equal(leg?.odds, 4.2)
+})
+
+test('matchRecommendation: casing/spacing drift still resolves ("manchester  city")', () => {
+  // Strict equality used to silently drop this correct pick over mechanical drift.
+  const leg = matchRecommendation({ eventId: 'e1', marketKey: 'h2h', outcomeName: 'manchester  city' }, FIXTURE_GROUNDING)
+  assert.equal(leg?.selection, 'Manchester City')
+})
+
+test('matchRecommendation: a suffix ("Arsenal FC") still resolves "Arsenal"', () => {
+  const leg = matchRecommendation({ eventId: 'e1', marketKey: 'h2h', outcomeName: 'Arsenal FC' }, FIXTURE_GROUNDING)
+  assert.equal(leg?.odds, 4.2)
+})
+
+test('matchRecommendation: fuzzy match never crosses to a different event', () => {
+  const other = [{ eventId: 'e2', marketKey: 'h2h', selection: 'Manchester City', odds: 2.0 }]
+  const leg = matchRecommendation({ eventId: 'e1', marketKey: 'h2h', outcomeName: 'Man City' }, other)
+  assert.equal(leg, null)
+})
+
+test('matchRecommendation: an ambiguous derby ("Manchester") resolves to null, not a mis-log', () => {
+  const derby = [
+    { eventId: 'd1', marketKey: 'h2h', selection: 'Manchester City', odds: 2.1 },
+    { eventId: 'd1', marketKey: 'h2h', selection: 'Manchester United', odds: 3.3 }
+  ]
+  assert.equal(matchRecommendation({ eventId: 'd1', marketKey: 'h2h', outcomeName: 'Manchester' }, derby), null)
+})
+
+test('matchRecommendation: racing matches on opaque ids', () => {
+  const racing = [{ raceId: 'r1', horseId: 'h1', selection: 'Some Horse', odds: 5 }]
+  assert.equal(matchRecommendation({ raceId: 'r1', horseId: 'h1' }, racing)?.odds, 5)
+  assert.equal(matchRecommendation({ raceId: 'r1', horseId: 'hX' }, racing), null)
+})
+
+test('matchRecommendation: null on no pick, empty grounding, or a missing event', () => {
+  assert.equal(matchRecommendation(null, FIXTURE_GROUNDING), null)
+  assert.equal(matchRecommendation({ eventId: 'e1', marketKey: 'h2h', outcomeName: 'Arsenal' }, []), null)
+  assert.equal(matchRecommendation({ eventId: 'nope', marketKey: 'h2h', outcomeName: 'Arsenal' }, FIXTURE_GROUNDING), null)
+})
