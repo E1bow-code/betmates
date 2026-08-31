@@ -1,5 +1,5 @@
 import { Component } from 'react'
-import posthog from 'posthog-js'
+import { analytics } from '../lib/analyticsClient.js'
 import * as dataStore from '../lib/dataStore.js'
 
 // Every route is lazy-loaded (see App.jsx) and the service worker updates
@@ -43,7 +43,7 @@ export default class ErrorBoundary extends Component {
     // logging a crash must never itself throw and mask the original error,
     // and a network/RLS failure here shouldn't matter to the user at all.
     console.error('Unhandled error:', error)
-    posthog.captureException(error)
+    analytics.captureException(error)
     dataStore
       .logClientError({ message: String(error?.message ?? error), stack: error?.stack ?? null, route: window.location.pathname || null })
       .catch(() => {})

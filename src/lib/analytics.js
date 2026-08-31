@@ -1,4 +1,4 @@
-import posthog from 'posthog-js'
+import { analytics, initPostHog } from './analyticsClient.js'
 
 // Optional Google Analytics 4. Off unless VITE_GA_ID is set at build time, so
 // the app ships with NO third-party tracking by default and stays fully usable
@@ -11,8 +11,11 @@ import posthog from 'posthog-js'
 // until both (a) the env id is set and (b) you call it post-consent.
 //
 // PostHog follows the same contract: it is initialised here, inside the
-// consent gate, never before. Any capture/identify calls made before init
-// are quietly queued by posthog-js and replayed once init completes.
+// consent gate, never before. posthog-js itself is loaded lazily (a dynamic
+// import inside initPostHog, see analyticsClient.js) so its ~88 kB gzip stays
+// off first paint - it is fetched only when this runs, post-consent. Any
+// capture/identify calls made before init are buffered by the lazy client and
+// replayed once init completes, matching posthog-js's own pre-init queueing.
 export function initAnalytics() {
   // ── Google Analytics 4 (optional) ──────────────────────────────────────
   const gaId = import.meta.env.VITE_GA_ID
@@ -46,15 +49,20 @@ export function initAnalytics() {
     return
   }
 
-  posthog.init(phToken, {
+  // Lazily import + initialise posthog-js (off the first-paint path), then
+  // capture the page the user was on when they gave consent. initPostHog
+  // resolves once the library is live; the buffered $pageview below is flushed
+  // as part of that, but we also fire it after await so a warm (already-loaded)
+  // client captures it immediately.
+  initPostHog(phToken, {
     api_host: phHost,
     defaults: '2026-01-30',
-    // HashRouter navigation is tracked manually via $pageview captures in
+    // Client-side navigation is tracked manually via $pageview captures in
     // RouteTitle.jsx, so automatic history-change capture is disabled to
     // avoid double-counting.
     capture_pageview: false,
+  }).then(() => {
+    // Capture the page the user was on when they gave consent.
+    analytics.capture('$pageview')
   })
-
-  // Capture the page the user was on when they gave consent.
-  posthog.capture('$pageview')
 }
