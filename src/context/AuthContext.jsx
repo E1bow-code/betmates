@@ -1,5 +1,5 @@
 import { createContext, useContext, useEffect, useState, useCallback } from 'react'
-import posthog from 'posthog-js'
+import { analytics } from '../lib/analyticsClient.js'
 import * as dataStore from '../lib/dataStore.js'
 
 const AuthContext = createContext(null)
@@ -29,7 +29,7 @@ export function AuthProvider({ children }) {
         setUser(sessionUser)
         // Identify returning visitors so their anonymous pre-consent session
         // is merged with their known profile when posthog is initialised.
-        if (sessionUser?.id) posthog.identify(sessionUser.id)
+        if (sessionUser?.id) analytics.identify(sessionUser.id)
       })
       .finally(() => setLoading(false))
   }, [])
@@ -78,7 +78,7 @@ export function AuthProvider({ children }) {
     await dataStore.signOut()
     // Reset posthog so the next anonymous session starts fresh, unlinked
     // from the signed-out user's distinct ID.
-    posthog.reset()
+    analytics.reset()
     setUser(null)
   }, [])
 

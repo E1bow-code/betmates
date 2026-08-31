@@ -15,16 +15,13 @@ export default defineConfig({
         // frequent deploys where only app code moved.
         manualChunks: {
           'vendor-react': ['react', 'react-dom', 'react-router-dom'],
-          'vendor-supabase': ['@supabase/supabase-js'],
-          // posthog-js is eagerly imported by ~8 startup files (AuthContext,
-          // RouteTitle, ErrorBoundary...) so it lands in the entry chunk. Same
-          // rationale as react/supabase above: it's a chunky vendor lib that
-          // changes only on upgrade, so splitting it keeps it cached across the
-          // frequent app-only deploys instead of rehashing with app code every
-          // time. (Deferring it off first paint entirely is a bigger change -
-          // it needs the analytics calls gated behind consent - tracked as a
-          // follow-up, not done here.)
-          'vendor-posthog': ['posthog-js']
+          'vendor-supabase': ['@supabase/supabase-js']
+          // posthog-js is no longer manual-chunked. It's now loaded lazily via a
+          // dynamic import() inside initPostHog() (src/lib/analyticsClient.js),
+          // which only runs post-consent, so Rollup already emits it as its own
+          // async chunk off the first-paint path. Listing it in manualChunks as
+          // well conflicts with that: the named chunk comes out empty and the
+          // library ends up mis-split - so we let the dynamic import own it.
         }
       }
     }
