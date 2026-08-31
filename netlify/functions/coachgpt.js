@@ -203,6 +203,17 @@ function groundRunner(race, runner) {
 // (unlike a one-word team query it'd be wasteful to try every generic
 // sport for), then everything else GENERIC_SPORTS covers.
 const SPORT_ORDER = ['football', 'ufc', 'racing', ...Object.keys(GENERIC_SPORTS)]
+// The subset a "no sport given" BROWSE (list_upcoming_events) sweeps, rather
+// than all of SPORT_ORDER. A bare "what's on soon?" used to fan out one internal
+// /api/* call per sport IN PARALLEL across every sport (~13) - each a possible
+// cold start, and the generic ones aren't cron-cached so some spent live Odds
+// API credits - which both multiplied Netlify invocations under traffic and
+// risked the ~30s edge timeout this file already fights (see MAX_TOOL_ROUNDS).
+// The three primary sports are this app's core and are the cron-cached ones;
+// the model can still browse any specific generic sport by naming it (sport:
+// 'basketball' etc), and find_fixture still searches every sport by name. This
+// only bounds the unscoped browse.
+const PRIMARY_SPORTS = ['football', 'ufc', 'racing']
 
 async function fetchJson(siteUrl, path) {
   try {
@@ -377,7 +388,9 @@ function summariseUpcomingFixture(fixture, sportKey) {
 
 export async function toolListUpcoming(siteUrl, { sport } = {}) {
   const normalisedSport = sport && SPORT_ORDER.includes(sport) ? sport : null
-  const sportsToCheck = normalisedSport ? [normalisedSport] : SPORT_ORDER
+  // A named sport browses exactly that one; an unscoped browse is bounded to the
+  // primary sports rather than fanning out across all ~13 (see PRIMARY_SPORTS).
+  const sportsToCheck = normalisedSport ? [normalisedSport] : PRIMARY_SPORTS
   const now = Date.now()
 
   const perSport = await Promise.all(

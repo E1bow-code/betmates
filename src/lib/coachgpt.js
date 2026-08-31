@@ -286,7 +286,7 @@ export const COACHGPT_TOOLS = [
         sport: {
           type: 'string',
           description:
-            'Sport if the user named one: football, ufc, racing, tennis, basketball, hockey, baseball, nfl, rugbyLeague, rugbyUnion, cricket, or boxing. Omit for every sport at once.'
+            'Sport if the user named one: football, ufc, racing, tennis, basketball, hockey, baseball, nfl, rugbyLeague, rugbyUnion, cricket, or boxing. Omit to browse the main sports (football, UFC, racing); to browse any of the others (tennis, basketball, hockey, baseball, nfl, rugby, cricket, boxing) name that sport here.'
         }
       }
     }

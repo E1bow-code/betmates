@@ -53,3 +53,14 @@ test('passes the cap and the cost through to bump_llm_budget', async () => {
   assert.equal(typeof calls[0].args._max, 'number')
   assert.ok(calls[0].args._max > 0)
 })
+
+// The DB-error path fails open but BOUNDED: a transient blip still allows (the
+// two fail-OPEN tests above prove a single small call returns true on error),
+// but it can't allow unbounded spend. A single call whose cost alone dwarfs the
+// per-instance fallback ceiling must be refused - proving a DB outage degrades
+// to a capped local ceiling, not "allow everything". Huge cost so this is
+// independent of any small increments the earlier error-path tests added.
+test('DB-error fallback is bounded - blocks once the per-instance ceiling is passed', async () => {
+  const errored = stubClient({ data: null, error: { message: 'db down' } })
+  assert.equal(await withinLlmBudget(errored, 100000), false)
+})
