@@ -18,7 +18,7 @@ function holder(row) {
   return { name: row.profiles?.display_name ?? 'Someone', code: row.profiles?.friend_code ?? null }
 }
 
-export default async (req) => {
+export default async (_req) => {
   if (!SUPABASE_URL || !SERVICE_ROLE_KEY) {
     return new Response(JSON.stringify(null), { status: 200, headers: { 'content-type': 'application/json' } })
   }

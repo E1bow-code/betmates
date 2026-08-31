@@ -459,13 +459,13 @@ export function setGroupPrice(groupId, amountPounds) {
   return delay(group ? withMemberCount(db, group) : null)
 }
 
-/** @param {string} groupId @param {string} userId @returns {Promise<null>} */
-export function getGroupSubscription(groupId, userId) {
+/** @param {string} _groupId @param {string} _userId @returns {Promise<null>} */
+export function getGroupSubscription(_groupId, _userId) {
   return delay(null)
 }
 
-/** @param {string} groupId @returns {Promise<{id: string, displayName: string, status: string, since: string}[]>} */
-export function listGroupSubscribers(groupId) {
+/** @param {string} _groupId @returns {Promise<{id: string, displayName: string, status: string, since: string}[]>} */
+export function listGroupSubscribers(_groupId) {
   return delay([])
 }
 

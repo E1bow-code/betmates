@@ -20,7 +20,7 @@ const { addComment, deleteComment, listComments, toggleReaction, listReactions }
 test('addComment then listComments round-trips, and deleteComment removes it', async () => {
   store.clear()
   const a = await addComment('bet1', 'userA', 'nice one')
-  const b = await addComment('bet1', 'userB', 'on it too')
+  await addComment('bet1', 'userB', 'on it too')
   let list = await listComments('bet1')
   assert.equal(list.length, 2)
   assert.deepEqual(

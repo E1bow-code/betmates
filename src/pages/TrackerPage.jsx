@@ -6,7 +6,7 @@ import * as dataStore from '../lib/dataStore.js'
 import { checkAndSettleBets } from '../lib/settlement.js'
 import { formatOdds } from '../utils/oddsFormat.js'
 import { formatGBP, formatSignedGBP } from '../utils/format.js'
-import { getEachWayTerms, computeEachWayReturn } from '../utils/eachWay.js'
+import { computeEachWayReturn } from '../utils/eachWay.js'
 import { useAsyncAction } from '../lib/useAsyncAction.js'
 import {
   computeStats,

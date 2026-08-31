@@ -43,7 +43,7 @@ async function fetchAllResults(auth, startDate, endDate) {
   return all
 }
 
-export default async (req) => {
+export default async (_req) => {
   const username = process.env.RACING_API_USERNAME
   const password = process.env.RACING_API_PASSWORD
   if (!username || !password) {
