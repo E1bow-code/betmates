@@ -3454,12 +3454,14 @@ button.conversation-row { width: 100%; font: inherit; text-align: left; cursor: 
    rule above - same specificity, so source order decides the winner. */
 .player-card-stats { grid-template-columns: repeat(auto-fit, minmax(70px, 1fr)); }
 
-/* "This week" group recap card at the top of a group feed. */
+/* "This week" group recap card at the top of a group feed - the group's
+   "wrapped"-style summary, direct cousin of the dashboard HomeHighlights, so it
+   takes the same navy accent wash rather than floating pale above the feed. */
 .group-recap-card {
-  border: 1px solid var(--border);
+  border: 1px solid rgba(var(--accent-rgb), 0.20);
   border-radius: var(--radius-card);
   box-shadow: var(--shadow-card);
-  background: var(--surface);
+  background: rgba(var(--accent-rgb), 0.06);
   padding: var(--space-14);
   margin-bottom: var(--space-14);
 }
@@ -3673,10 +3675,13 @@ button.conversation-row { width: 100%; font: inherit; text-align: left; cursor: 
   display: flex;
   align-items: center;
   gap: var(--space-12);
-  border: 1px solid var(--border);
+  /* Social-standing summary (Home + Account Tracker teaser) - carries the same
+     navy accent wash as the dashboard cards so it reads as a "moment" and as
+     tappable, not a pale row on --bg. The accent rank/P&L figure sits on top. */
+  border: 1px solid rgba(var(--accent-rgb), 0.20);
   border-radius: var(--radius-card);
   box-shadow: var(--shadow-card);
-  background: var(--surface);
+  background: rgba(var(--accent-rgb), 0.06);
   padding: var(--space-12) var(--space-14);
   margin: 0 0 var(--space-20);
   text-decoration: none;
@@ -3857,10 +3862,14 @@ button.conversation-row { width: 100%; font: inherit; text-align: left; cursor: 
    rule for - that rule is about not fragmenting the list below into
    boxes, and still holds (see .tracker-list's quiet row-card treatment). */
 .scoreboard-panel {
-  border: 1px solid var(--border);
+  /* Tracker's one hero "moment" - carries the same navy accent wash as the
+     dashboard HomeHighlights cards so the page's headline P&L doesn't float
+     pale on --bg. Accent layers over an opaque --surface so it holds in both
+     themes; the good/bad P&L value keeps its own colour on top. */
+  border: 1px solid rgba(var(--accent-rgb), 0.20);
   border-radius: var(--radius-card);
   box-shadow: var(--shadow-card);
-  background: linear-gradient(180deg, var(--surface) 0%, var(--surface-2) 100%);
+  background: linear-gradient(180deg, rgba(var(--accent-rgb), 0.09), rgba(var(--accent-rgb), 0.03)), var(--surface);
   padding: 18px 18px var(--space-16);
   margin-bottom: 22px;
   display: flex;
@@ -5048,8 +5057,20 @@ a.btn,
 .getting-started-step.done .getting-started-step-body { display: none; }
 .getting-started-cta { flex-shrink: 0; white-space: nowrap; display: inline-flex; align-items: center; gap: 4px; }
 
-/* "Challenge a mate" CTA under the Tracker scoreboard. */
-.tracker-challenge-cta { display: flex; align-items: center; flex-wrap: wrap; gap: var(--space-8); margin: var(--space-10) 0 var(--space-4); }
+/* "Challenge a mate" CTA under the Tracker scoreboard - was a bare flex row
+   floating on --bg; given a tinted accent band so it reads as a real call to
+   action, matching the scoreboard hero it sits under. */
+.tracker-challenge-cta {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--space-8);
+  margin: var(--space-10) 0 var(--space-4);
+  padding: var(--space-10) var(--space-12);
+  border-radius: var(--radius-md);
+  background: rgba(var(--accent-rgb), 0.06);
+  border: 1px solid rgba(var(--accent-rgb), 0.16);
+}
 .tracker-challenge-cta .hint { margin: 0; }
 
 /* Custom 404 (NotFoundPage.jsx) - a real dead-end screen for unknown routes
