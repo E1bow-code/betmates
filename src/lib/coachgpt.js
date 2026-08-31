@@ -645,6 +645,12 @@ function extractText(content) {
 // MAX_TOOL_ROUNDS/WEB_SEARCH_MAX_USES comments above) - a real reply that
 // took 20+ seconds getting there had no margin left for a slow follow-up.
 const LOCK_IN_MODEL = 'claude-haiku-4-5-20251001'
+// If Haiku is unavailable, fall the classifier back to the primary answer model
+// rather than silently recording no pick - the scoreboard depends on this
+// classification, and a whole-selection drop is worse than one cheap classify on
+// a larger model. Still deterministic (temperature 0), so the recorded pick
+// can't disagree with the reply it's reading.
+const LOCK_IN_FALLBACK_MODEL = COACHGPT_MODELS[0]
 const LOCK_IN_SYSTEM =
   'You classify one already-written reply from a sports-betting chat assistant. Read it and call lock_in_recommendation: did it name ONE specific selection as its lean?'
 
@@ -686,7 +692,7 @@ async function lockInRecommendation(apiKey, messages, text, route, grounding) {
     { role: 'assistant', content: text },
     { role: 'user', content: instruction }
   ]
-  const { data } = await callClaudeModel(apiKey, LOCK_IN_MODEL, followUp, {
+  const extra = {
     system: LOCK_IN_SYSTEM,
     max_tokens: 200,
     // Deterministic: this only classifies an already-written reply, so the
@@ -694,7 +700,20 @@ async function lockInRecommendation(apiKey, messages, text, route, grounding) {
     temperature: 0,
     tools: [RECOMMENDATION_TOOL],
     tool_choice: { type: 'tool', name: 'lock_in_recommendation' }
-  }, route)
+  }
+  // Walk primary -> fallback, falling through only when the primary model itself
+  // is unavailable (same rule as makeCaller). Any other failure - and the
+  // transient retry inside callClaudeModel - is already handled per-call, so a
+  // hard non-availability error means the classify genuinely couldn't run.
+  let data = null
+  for (const model of [LOCK_IN_MODEL, LOCK_IN_FALLBACK_MODEL]) {
+    const result = await callClaudeModel(apiKey, model, followUp, extra, route)
+    if (result.data) {
+      data = result.data
+      break
+    }
+    if (!isModelAvailabilityError(result.error)) break
+  }
   const block = data?.content?.find((b) => b.type === 'tool_use' && b.name === 'lock_in_recommendation')
   return block?.input?.hasPick ? block.input : null
 }

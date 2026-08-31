@@ -141,6 +141,15 @@ test('a named pick is captured via the forced lock-in follow-up', async () => {
   assert.equal(res.recommendation?.hasPick, true)
 })
 
+test('the lock-in classifier falls back to a second model if its own is unavailable', async () => {
+  // Answer, then the primary lock-in model 404s, then the fallback classifies.
+  // The pick must still be recorded, not silently dropped from the scoreboard.
+  stubFetch([textReply("I'd go with United here."), errReply(404, 'not_found_error'), lockReply(true)])
+  const res = await runCoachGptTurn({ apiKey: 'k', history: [], message: 'United?', callTool: noTool })
+  assert.equal(res.text, "I'd go with United here.")
+  assert.equal(res.recommendation?.hasPick, true)
+})
+
 test('get_my_record is offered to the model as a tool', () => {
   const record = COACHGPT_TOOLS.find((t) => t.name === 'get_my_record')
   assert.ok(record, 'get_my_record should be in COACHGPT_TOOLS')
