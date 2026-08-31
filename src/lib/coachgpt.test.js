@@ -314,8 +314,8 @@ test('formatLockInCandidates: racing legs use raceId/horseId', () => {
 })
 
 test('formatLockInCandidates: caps the list handed to the classifier', () => {
-  const many = Array.from({ length: 40 }, (_, i) => ({ eventId: 'e' + i, marketKey: 'h2h', selection: 'Team ' + i }))
-  assert.equal(formatLockInCandidates(many).split('\n').length, 24)
+  const many = Array.from({ length: 60 }, (_, i) => ({ eventId: 'e' + i, marketKey: 'h2h', selection: 'Team ' + i }))
+  assert.equal(formatLockInCandidates(many).split('\n').length, 40)
 })
 
 test('lock-in is shown the grounded selections so a nickname reply can be reconciled', async () => {
@@ -336,5 +336,5 @@ test('without getGrounding the lock-in prompt carries no candidate list (unchang
   const lockIn = calls[calls.length - 1]
   const last = lockIn.messages[lockIn.messages.length - 1]
   const content = typeof last.content === 'string' ? last.content : JSON.stringify(last.content)
-  assert.ok(!content.includes('ONLY selections'), 'no candidate block when grounding is not supplied')
+  assert.ok(!content.includes('copy ITS identity fields'), 'no candidate block when grounding is not supplied')
 })

@@ -468,7 +468,9 @@ export function matchRecommendation(recommendation, grounding) {
   if (normEqual.length === 1) return normEqual[0]
   const contained = inScope.filter((leg) => {
     const ln = normaliseSelection(leg.selection)
-    return ln.includes(want) || want.includes(ln)
+    // Guard ln too, not just want: an empty ln (an all-punctuation selection)
+    // is a substring of every want and would match anything.
+    return ln !== '' && (ln.includes(want) || want.includes(ln))
   })
   return contained.length === 1 ? contained[0] : null
 }
@@ -618,7 +620,7 @@ const LOCK_IN_SYSTEM =
 // Only ever a handful of fixtures get grounded in a turn; cap the list handed to
 // the classifier so a very broad "best value this weekend" (which can ground
 // many legs) can't bloat the follow-up call's input.
-const LOCK_IN_MAX_CANDIDATES = 24
+const LOCK_IN_MAX_CANDIDATES = 40
 
 // The classifier reads the PROSE reply, which is where nicknames live - the coach
 // writes "Spurs", "Wolves", "the Gunners", not "Tottenham Hotspur". Left to free-
@@ -645,7 +647,7 @@ export function formatLockInCandidates(grounding) {
 async function lockInRecommendation(apiKey, messages, text, route, grounding) {
   const candidates = formatLockInCandidates(grounding)
   const instruction = candidates
-    ? 'Call lock_in_recommendation now. These are the ONLY selections you can lock in - if your reply leaned on one of them, set hasPick true and copy ITS identity fields (selection + eventId/marketKey, or selection + raceId/horseId) EXACTLY as written below, even if your reply named it by a nickname or short name. If your lean is not in this list, or you made no single pick, set hasPick false.\n' +
+    ? 'Call lock_in_recommendation now. If your reply leaned on ONE specific selection, set hasPick true. When that selection is in the list below, copy ITS identity fields (selection + eventId/marketKey, or selection + raceId/horseId) EXACTLY as written there, even if your reply named it by a nickname or short name. If your leaned selection is genuinely not in this list, still set hasPick true and give its selection name and event as best you can. Set hasPick false only if your reply made no single pick.\n' +
       candidates
     : 'Call lock_in_recommendation now to record whether your reply above named one specific selection as your lean.'
   const followUp = [
