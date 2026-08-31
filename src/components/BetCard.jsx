@@ -446,7 +446,7 @@ export default function BetCard({ post, memberNames, memberAvatars, variant = 'g
               (() => {
                 const matchup = parseMatchup(selections[0])
                 const winner = resolveMatchupWinner(selections[0], matchup, status)
-                return matchup && <MatchupBanner sport={selections[0].sport} {...matchup} winner={winner} />
+                return matchup && <MatchupBanner sport={selections[0].sport} {...matchup} winner={winner} picked={selections[0].selection} />
               })()}
 
             <div className="bet-card-ticket-header">
