@@ -3924,6 +3924,18 @@ button.conversation-row { width: 100%; font: inherit; text-align: left; cursor: 
 .trending-chip-rank { font-family: var(--font-mono); font-weight: 700; color: var(--accent); font-size: 0.95rem; flex-shrink: 0; }
 
 .account-section { margin-bottom: 18px; }
+/* The BetMates Plus upsell is a conversion surface that otherwise sat naked on
+   --bg with no card at all. Give it the accent-tinted card treatment so it
+   reads as a promoted panel, not just another heading. Scoped to #plus so the
+   plain sections below it (Appearance, Odds format, ...) stay quiet. */
+.account-section#plus {
+  padding: var(--space-16);
+  border-radius: var(--radius-card);
+  background: rgba(var(--accent-rgb), 0.06);
+  border: 1px solid rgba(var(--accent-rgb), 0.20);
+  box-shadow: var(--shadow-card);
+}
+.account-section#plus .market-title { margin-top: 0; }
 
 /* Collapsed-by-default category wrapper for Account's three longest
    stretches (Preferences/bookmakers, Notifications, Responsible gambling)
