@@ -145,7 +145,7 @@ export default function AccountPage() {
       .catch(() => {}) // best-effort self-heal - a stale subscription just stays stale, same as before this existed
       .then(() => getPushSubscription())
       .then((sub) => setPushEnabled(!!sub))
-  }, [])
+  }, [user.id])
 
   // Stripe redirects back here with ?upgraded=1 after a successful
   // Checkout - the webhook that actually flips is_premium fires
@@ -190,18 +190,18 @@ export default function AccountPage() {
 
   useEffect(() => {
     dataStore.listBlockedUsers(user.id).then(setBlockedUsers)
-  }, [])
+  }, [user.id])
 
   useEffect(() => {
     dataStore
       .listFriends(user.id)
       .then(setFriends)
       .catch(() => setFriends([]))
-  }, [])
+  }, [user.id])
 
   useEffect(() => {
     dataStore.countReferrals(user.id).then(setReferralCount)
-  }, [])
+  }, [user.id])
 
   // Tracker no longer has its own bottom-nav slot (see BottomNav.jsx) -
   // this teaser is now the only way to reach it, so unlike RankTeaser/

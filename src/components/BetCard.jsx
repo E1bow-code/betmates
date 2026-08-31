@@ -179,6 +179,7 @@ export default function BetCard({ post, memberNames, memberAvatars, variant = 'g
     return () => {
       cancelled = true
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- resolves only the comment/reaction authors not already cached, via functional setState; depending on resolvedProfiles would re-run the effect that populates it
   }, [comments, reactions, memberNames, user.id])
 
   function resolveName(id) {

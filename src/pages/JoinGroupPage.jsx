@@ -140,6 +140,7 @@ export default function JoinGroupPage() {
     return () => {
       cancelled = true
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- runs the join/paywall check when the invite, user, or checkout-return changes; joinAndEnter is recreated each render
   }, [code, user.id, returningFromCheckout])
 
   // The webhook that grants access may not have landed by the time Stripe
@@ -169,6 +170,7 @@ export default function JoinGroupPage() {
     return () => {
       cancelled = true
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- polls for membership activation after a checkout return; announceJoin is recreated each render
   }, [returningFromCheckout, code, user.id, navigate])
 
   async function handleSubscribe() {

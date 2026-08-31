@@ -66,6 +66,7 @@ export default function GenericEventDetailPage() {
 
   useEffect(() => {
     if (event) setExpandedMarkets(new Set([event.markets[0]?.key]))
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- reset the expanded market only when a different event loads (keyed on event.id), not on every re-render that produces a new event object
   }, [event?.id])
 
   function toggleMarket(key) {

@@ -25,6 +25,7 @@ export default function FixtureChatPanel({ sport, eventId, eventLabel, defaultOp
     if (open && messages === null) {
       dataStore.listFixtureChatMessages(sport, eventId).then(setMessages)
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- loads the thread once when first opened; the messages===null guard is the gate, not a dependency
   }, [open, sport, eventId])
 
   useEffect(() => {

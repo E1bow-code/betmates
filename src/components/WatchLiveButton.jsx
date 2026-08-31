@@ -19,6 +19,12 @@ import { TvIcon } from './icons/Icons.jsx'
 export default function WatchLiveButton({ leagueKey, participants, kickoff }) {
   const [broadcast, setBroadcast] = useState(null)
 
+  // Extracted so the effect keys on the two participant names (primitives)
+  // rather than the participants array's identity - a new-but-equal array from
+  // a re-render mustn't trigger a refetch. Also satisfies exhaustive-deps'
+  // no-complex-expressions check.
+  const homeName = participants?.[0]
+  const awayName = participants?.[1]
   useEffect(() => {
     if (!leagueKey || !participants) return
     let cancelled = false
@@ -28,7 +34,8 @@ export default function WatchLiveButton({ leagueKey, participants, kickoff }) {
     return () => {
       cancelled = true
     }
-  }, [leagueKey, participants?.[0], participants?.[1], kickoff])
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- re-fetch only when the league, the two participant names, or kickoff change; keyed on the names above, not the participants array reference
+  }, [leagueKey, homeName, awayName, kickoff])
 
   const href = broadcast?.url ?? BOOKMAKER_LINKS.Bet365
   const label = broadcast ? `Watch on ${broadcast.broadcaster}` : 'Watch on Bet365'

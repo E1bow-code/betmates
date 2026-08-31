@@ -73,6 +73,7 @@ export default function FixtureDetailPage() {
   // by default now; the rest are one tap away instead of always-on.
   useEffect(() => {
     if (fixture) setExpandedMarkets(new Set([fixture.markets[0]?.key]))
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- reset the expanded market only when a different fixture loads (keyed on fixture.id), not on every re-render that produces a new fixture object
   }, [fixture?.id])
 
   function toggleMarket(key) {

@@ -26,6 +26,7 @@ export default function GroupVsGroupSheet({ groups, onClose }) {
     if (groupAId === groupBId) return
     setTotals(null)
     Promise.all([loadGroupTotals(groupAId), loadGroupTotals(groupBId)]).then(([a, b]) => setTotals({ a, b }))
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- recomputes totals when either selected group changes; loadGroupTotals is a component-scoped helper recreated each render
   }, [groupAId, groupBId])
 
   async function loadGroupTotals(groupId) {

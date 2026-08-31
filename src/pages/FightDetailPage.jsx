@@ -63,6 +63,7 @@ export default function FightDetailPage() {
 
   useEffect(() => {
     if (fight) setExpandedMarkets(new Set([fight.markets[0]?.key]))
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- reset the expanded market only when a different fight loads (keyed on fight.id), not on every re-render that produces a new fight object
   }, [fight?.id])
 
   function toggleMarket(key) {

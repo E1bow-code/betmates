@@ -50,6 +50,7 @@ const PublicFeedView = forwardRef(function PublicFeedView({ filter = 'all' }, re
 
   useEffect(() => {
     load()
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- reloads the feed when the signed-in user changes; load is recreated each render
   }, [user.id])
 
   useEffect(() => {

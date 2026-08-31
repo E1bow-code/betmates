@@ -115,6 +115,7 @@ export default function ManualEntrySheet({ userId, onClose, onSaved }) {
     }
     document.addEventListener('paste', handlePaste)
     return () => document.removeEventListener('paste', handlePaste)
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- the paste-to-scan listener only needs rebinding when scanning toggles; scanImage is a component-scoped helper recreated each render
   }, [scanning])
 
   async function handleSave(e) {

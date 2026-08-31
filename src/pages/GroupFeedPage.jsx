@@ -110,6 +110,7 @@ export default function GroupFeedPage() {
     // items don't need this - refresh() refetches them unconditionally here.
     setMessages(null)
     refresh()
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- reset + refetch on a group change (see the reset comment above); refresh is recreated each render
   }, [id])
 
   function refreshCurrentTab() {
@@ -238,6 +239,7 @@ export default function GroupFeedPage() {
     if (tab === 'chat' && messages === null) {
       dataStore.listGroupMessages(id).then(setMessages)
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- loads the group chat once when the chat tab is first opened; the messages===null guard is the gate
   }, [tab, id])
 
   useEffect(() => {
