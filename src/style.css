@@ -3873,7 +3873,7 @@ button.conversation-row { width: 100%; font: inherit; text-align: left; cursor: 
 .account-group-toggle svg { color: var(--text-dim); flex-shrink: 0; transition: transform 0.15s ease; }
 .account-group-toggle:hover { color: var(--accent); border-color: var(--accent-dim); }
 .account-group-body .account-section:first-child { margin-top: var(--space-4); }
-.account-name { font-weight: 700; font-size: var(--text-lg); }
+.account-name { font-weight: 700; font-size: var(--text-lg); margin: 0; }
 .account-identity { display: flex; align-items: center; gap: var(--space-12); }
 /* Same hero-panel treatment as .account-hero/.race-header (installment 4) -
    this is the page that works fully logged out and is every "share my

@@ -108,7 +108,7 @@ export default function PublicProfilePage() {
             <div className="account-identity">
               <Avatar name={data.displayName} photoUrl={data.avatarUrl} size={48} />
               <div>
-                <span className="account-name">
+                <h1 className="account-name">
                   {data.displayName}
                   {(() => {
                     const badge = tipsterBadge(data.stats)
@@ -121,7 +121,7 @@ export default function PublicProfilePage() {
                     )
                   })()}
                   <ReferralTierBadge count={data.referralCount} />
-                </span>
+                </h1>
                 <div className="race-card-meta">
                   On BetMates since {new Date(data.memberSince).toLocaleDateString([], { month: 'long', year: 'numeric' })}
                 </div>
