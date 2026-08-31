@@ -655,10 +655,18 @@ export default async (req) => {
     return { error: `Unknown tool: ${name}` }
   }
 
-  const { text, recommendation, error } = await runCoachGptTurn({ apiKey, history: body?.history, message, callTool, route: COACH_ROUTE })
-  const dedupedGrounding = allGrounding.length
-    ? Array.from(new Map(allGrounding.map((leg) => [`${leg.selection}-${leg.eventId ?? leg.horseId ?? leg.event}`, leg])).values())
-    : null
+  const dedupe = (legs) =>
+    legs?.length
+      ? Array.from(new Map(legs.map((leg) => [`${leg.selection}-${leg.eventId ?? leg.horseId ?? leg.event}`, leg])).values())
+      : null
+  // Shown to the lock-in classifier (so it can reconcile a prose nickname -
+  // "Spurs" - against the real selection - "Tottenham Hotspur"). Deliberately the
+  // SAME grounding matchRecommendation uses below, including the priorGrounding
+  // carry-over, so the classifier only ever sees legs its pick can actually match.
+  const getGrounding = () => dedupe(allGrounding) ?? body?.priorGrounding ?? null
+
+  const { text, recommendation, error } = await runCoachGptTurn({ apiKey, history: body?.history, message, callTool, route: COACH_ROUTE, getGrounding })
+  const dedupedGrounding = dedupe(allGrounding)
   // A follow-up like "who do you like there?" often answers straight from
   // `history` without calling find_fixture again this turn, leaving
   // dedupedGrounding null even though the reply clearly leans on a fixture

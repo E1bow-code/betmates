@@ -615,15 +615,43 @@ const LOCK_IN_MODEL = 'claude-haiku-4-5-20251001'
 const LOCK_IN_SYSTEM =
   'You classify one already-written reply from a sports-betting chat assistant. Read it and call lock_in_recommendation: did it name ONE specific selection as its lean?'
 
-async function lockInRecommendation(apiKey, messages, text, route) {
+// Only ever a handful of fixtures get grounded in a turn; cap the list handed to
+// the classifier so a very broad "best value this weekend" (which can ground
+// many legs) can't bloat the follow-up call's input.
+const LOCK_IN_MAX_CANDIDATES = 24
+
+// The classifier reads the PROSE reply, which is where nicknames live - the coach
+// writes "Spurs", "Wolves", "the Gunners", not "Tottenham Hotspur". Left to free-
+// type the selection name it echoes the nickname, which then can't be matched
+// back to the canonical grounded selection. So when we have the grounding (the
+// real legs the turn looked up), we show the classifier that exact list and tell
+// it to copy the identity fields of the ONE it leaned toward verbatim - it can
+// see both the nickname in its reply and the canonical name here, and reconcile
+// them itself. This is what actually resolves nicknames; matchRecommendation's
+// fuzzy fallback stays as a safety net for mechanical drift. Returns null when
+// there's nothing grounded (a general question) - then the classifier just judges
+// hasPick from the prose as before, and an empty-grounding match is null anyway.
+export function formatLockInCandidates(grounding) {
+  if (!grounding?.length) return null
+  const lines = grounding.slice(0, LOCK_IN_MAX_CANDIDATES).map((leg) => {
+    const priced = leg.odds ? `, ${leg.odds}` : ''
+    return leg.raceId
+      ? `- selection="${leg.selection}" raceId=${leg.raceId} horseId=${leg.horseId}  (${leg.event}${priced})`
+      : `- selection="${leg.selection}" eventId=${leg.eventId} marketKey=${leg.marketKey}  (${leg.event}${priced})`
+  })
+  return lines.join('\n')
+}
+
+async function lockInRecommendation(apiKey, messages, text, route, grounding) {
+  const candidates = formatLockInCandidates(grounding)
+  const instruction = candidates
+    ? 'Call lock_in_recommendation now. These are the ONLY selections you can lock in - if your reply leaned on one of them, set hasPick true and copy ITS identity fields (selection + eventId/marketKey, or selection + raceId/horseId) EXACTLY as written below, even if your reply named it by a nickname or short name. If your lean is not in this list, or you made no single pick, set hasPick false.\n' +
+      candidates
+    : 'Call lock_in_recommendation now to record whether your reply above named one specific selection as your lean.'
   const followUp = [
     ...messages,
     { role: 'assistant', content: text },
-    {
-      role: 'user',
-      content:
-        'Call lock_in_recommendation now to record whether your reply above named one specific selection as your lean.'
-    }
+    { role: 'user', content: instruction }
   ]
   const { data } = await callClaudeModel(apiKey, LOCK_IN_MODEL, followUp, {
     system: LOCK_IN_SYSTEM,
@@ -650,7 +678,12 @@ async function lockInRecommendation(apiKey, messages, text, route) {
 // "answered fine" - critical because a swallowed API failure used to surface
 // as an empty reply that wrongly blamed the user's phrasing. recommendation is
 // lock_in_recommendation's raw input, or null if it found no real pick.
-export async function runCoachGptTurn({ apiKey, history, message, callTool, route }) {
+// getGrounding, if passed, is a () => leg[] the caller uses to expose the legs
+// its callTool accumulated this turn (the handler builds them from find_fixture's
+// results). Read just before the lock-in follow-up so the classifier can be shown
+// the real selections and reconcile any nickname in the prose against them. Absent
+// (older callers, tests), the lock-in behaves exactly as before.
+export async function runCoachGptTurn({ apiKey, history, message, callTool, route, getGrounding }) {
   if (!apiKey) return { text: null, recommendation: null, error: 'no_key' }
 
   const call = makeCaller(apiKey, route)
@@ -716,6 +749,7 @@ export async function runCoachGptTurn({ apiKey, history, message, callTool, rout
     text += "\n\n*(Ran long and got cut off there, champ - ask me to keep going and I'll pick up where I left off.)*"
   }
 
-  const recommendation = text ? await lockInRecommendation(apiKey, messages, text, route) : null
+  const grounding = typeof getGrounding === 'function' ? getGrounding() : null
+  const recommendation = text ? await lockInRecommendation(apiKey, messages, text, route, grounding) : null
   return { text, recommendation, error: null }
 }

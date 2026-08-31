@@ -288,3 +288,53 @@ test('matchRecommendation: null on no pick, empty grounding, or a missing event'
   assert.equal(matchRecommendation({ eventId: 'e1', marketKey: 'h2h', outcomeName: 'Arsenal' }, []), null)
   assert.equal(matchRecommendation({ eventId: 'nope', marketKey: 'h2h', outcomeName: 'Arsenal' }, FIXTURE_GROUNDING), null)
 })
+
+// ── Nickname resolution: the lock-in classifier is shown the real grounded
+// selections so it reconciles a prose nickname ("Spurs") against the canonical
+// name ("Tottenham Hotspur"), instead of free-typing an unmatchable nickname. ──
+import { formatLockInCandidates } from './coachgpt.js'
+
+test('formatLockInCandidates: null when nothing is grounded', () => {
+  assert.equal(formatLockInCandidates(null), null)
+  assert.equal(formatLockInCandidates([]), null)
+})
+
+test('formatLockInCandidates: fixture legs carry selection + identity + price', () => {
+  const out = formatLockInCandidates([
+    { eventId: 'e1', marketKey: 'h2h', selection: 'Manchester City', odds: 1.8, event: 'Man City v Arsenal' }
+  ])
+  assert.ok(out.includes('selection="Manchester City"'))
+  assert.ok(out.includes('eventId=e1'))
+  assert.ok(out.includes('marketKey=h2h'))
+})
+
+test('formatLockInCandidates: racing legs use raceId/horseId', () => {
+  const out = formatLockInCandidates([{ raceId: 'r1', horseId: 'h1', selection: 'Some Horse', odds: 5, event: 'Ascot - 3:15' }])
+  assert.ok(out.includes('raceId=r1') && out.includes('horseId=h1'))
+})
+
+test('formatLockInCandidates: caps the list handed to the classifier', () => {
+  const many = Array.from({ length: 40 }, (_, i) => ({ eventId: 'e' + i, marketKey: 'h2h', selection: 'Team ' + i }))
+  assert.equal(formatLockInCandidates(many).split('\n').length, 24)
+})
+
+test('lock-in is shown the grounded selections so a nickname reply can be reconciled', async () => {
+  const calls = stubFetch([textReply("I'm on Spurs here, champ."), lockReply(true)])
+  const legs = [{ eventId: 'e9', marketKey: 'h2h', selection: 'Tottenham Hotspur', odds: 2.4, event: 'Tottenham Hotspur v Arsenal' }]
+  const res = await runCoachGptTurn({ apiKey: 'k', history: [], message: 'Spurs?', callTool: noTool, getGrounding: () => legs })
+  assert.equal(res.recommendation?.hasPick, true)
+  const lockIn = calls[calls.length - 1]
+  const last = lockIn.messages[lockIn.messages.length - 1]
+  const content = typeof last.content === 'string' ? last.content : JSON.stringify(last.content)
+  assert.ok(content.includes('Tottenham Hotspur'), 'classifier should see the canonical selection')
+  assert.ok(content.includes('eventId=e9'), 'classifier should see the identity fields to copy')
+})
+
+test('without getGrounding the lock-in prompt carries no candidate list (unchanged behaviour)', async () => {
+  const calls = stubFetch([textReply('Leaning United.'), lockReply(true)])
+  await runCoachGptTurn({ apiKey: 'k', history: [], message: 'United?', callTool: noTool })
+  const lockIn = calls[calls.length - 1]
+  const last = lockIn.messages[lockIn.messages.length - 1]
+  const content = typeof last.content === 'string' ? last.content : JSON.stringify(last.content)
+  assert.ok(!content.includes('ONLY selections'), 'no candidate block when grounding is not supplied')
+})
