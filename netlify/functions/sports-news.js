@@ -50,7 +50,7 @@ function extractItems(xml, source) {
   return items
 }
 
-export default async (req) => {
+export default async (_req) => {
   const cached = cacheGet('sports-news')
   if (cached) {
     return new Response(JSON.stringify(cached), {

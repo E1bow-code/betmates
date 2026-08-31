@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import * as dataStore from '../lib/dataStore.js'
-import { getEachWayTerms, computeEachWayReturn } from '../utils/eachWay.js'
+import { computeEachWayReturn } from '../utils/eachWay.js'
 import { useEscapeKey } from '../lib/useEscapeKey.js'
 import { useDelayedClose } from '../lib/useDelayedClose.js'
 import { useToast } from '../context/ToastContext.jsx'
