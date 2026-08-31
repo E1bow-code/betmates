@@ -4231,7 +4231,11 @@ button.conversation-row { width: 100%; font: inherit; text-align: left; cursor: 
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.06em;
-  color: var(--text-dim);
+  /* Accent the section label (and its trailing chalk rule) so the odds list -
+     the app's largest expanse of pale rows on --bg - carries the navy colour at
+     the header level. The rows themselves stay neutral so the accent still
+     signals "new section", not decoration on every line. */
+  color: var(--accent);
   margin: 0 0 var(--space-6);
   padding: 0 var(--space-2);
 }
@@ -4239,7 +4243,7 @@ button.conversation-row { width: 100%; font: inherit; text-align: left; cursor: 
   content: '';
   flex: 1;
   height: 0;
-  border-top: 1px dashed var(--border);
+  border-top: 1px dashed rgba(var(--accent-rgb), 0.30);
 }
 
 /* Race / fixture / fight list - quiet row-card idiom (Floodhouse redesign
