@@ -55,11 +55,32 @@ export function useLiveScores(openEntries) {
         // Offline or a blip - keep whatever we last showed.
       }
     }
-    load()
-    const id = setInterval(load, REFRESH_MS)
+
+    // Only poll while the tab is actually visible. A live score is worthless in
+    // a backgrounded tab nobody's looking at, and a tab left open all day would
+    // otherwise keep hitting /api/scores every 30s (~2,880 function
+    // invocations/user/day per open-live window) for nothing - the single
+    // biggest per-user cost multiplier in the app. On returning to the tab we
+    // reload immediately so the first thing shown is current, not 30s stale.
+    let id = null
+    const start = () => {
+      if (id != null) return
+      load()
+      id = setInterval(load, REFRESH_MS)
+    }
+    const stop = () => {
+      if (id != null) {
+        clearInterval(id)
+        id = null
+      }
+    }
+    const onVisibility = () => (document.hidden ? stop() : start())
+    if (!document.hidden) start()
+    document.addEventListener('visibilitychange', onVisibility)
     return () => {
       cancelled = true
-      clearInterval(id)
+      stop()
+      document.removeEventListener('visibilitychange', onVisibility)
     }
   }, [keyParam, sgoParam])
 
