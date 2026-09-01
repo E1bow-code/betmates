@@ -22,6 +22,7 @@ import { denyUnlessCron } from './_cronAuth.js'
 import webpush from 'web-push'
 import { evaluateEntryDetailed, resolveSettlement } from '../../src/lib/betEvaluation.js'
 import { apiKeysForSport, sgoEventIdForLeg } from '../../src/lib/sportsConfig.js'
+import { notifyDiscord } from '../../src/lib/discordNotify.js'
 
 // Narrower than dataStore.js's BetPost/ManualEntry typedefs - this only
 // selects the columns settlement actually needs, straight off the raw
@@ -186,6 +187,18 @@ export default async (req) => {
         await Promise.allSettled(sends)
       }
     }
+
+    // Ping the operator on Discord that the settlement agent (Dex) did some
+    // unattended work. No-ops unless DISCORD_WEBHOOK_URL is set, and can never
+    // throw, so it neither changes behaviour without the webhook nor risks the
+    // settlement that just succeeded. Awaited (not left dangling) so the POST
+    // completes before this serverless invocation freezes.
+    const won = settledEntries.filter((e) => e.status === 'won').length
+    const lost = settledEntries.filter((e) => e.status === 'lost').length
+    const voided = settledEntries.filter((e) => e.status === 'void').length
+    await notifyDiscord(
+      `🟢 **Dex · Settlement** — settled ${settledEntries.length} bet${settledEntries.length === 1 ? '' : 's'} (${won}W / ${lost}L / ${voided}V).`
+    )
 
     return new Response(JSON.stringify({ settled: settledEntries.length }), {
       status: 200,
