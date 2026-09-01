@@ -2075,3 +2075,35 @@ $$;
 -- and granting anon would let an unauthenticated caller flood it to inflate the
 -- daily tally and trip the breaker for everyone - a DoS on the LLM features.
 grant execute on function bump_llm_budget(integer, integer) to authenticated;
+
+-- --- Coco: daily social-post proposals ------------------------------------
+-- netlify/functions/social-propose.js drafts a promo post from real BetMates
+-- data (src/lib/socialDraft.js) and stores it here as 'pending', then posts it
+-- to Discord with Approve/Reject buttons via the bot. discord-interactions.js
+-- flips the row on a button click and, on approve, publishes it to X
+-- (src/lib/xClient.js), writing back the tweet id. Only the service-role
+-- scheduled / interactions functions write here; a public admin read lets an
+-- operator screen show the queue if wanted. Nothing here fires unless the
+-- Discord + X credentials are configured (see docs/social-agent-setup.md) -
+-- same "missing keys degrade, don't crash" contract as the rest of the app.
+create table social_posts (
+  id uuid primary key default gen_random_uuid(),
+  body text not null,                          -- the drafted post text
+  platform text not null default 'x',          -- where an approved post publishes
+  status text not null default 'pending'       -- pending -> approved|rejected -> posted|failed
+    check (status in ('pending', 'approved', 'rejected', 'posted', 'failed')),
+  external_id text,                            -- the published tweet id, once posted
+  error text,                                  -- publish error message, if status = 'failed'
+  discord_message_id text,                     -- the Discord message carrying the buttons
+  created_at timestamptz not null default now(),
+  decided_at timestamptz,                      -- when approved / rejected
+  posted_at timestamptz                        -- when published
+);
+
+alter table social_posts enable row level security;
+-- Admin-only read (the operator's content queue); every write is service-role.
+create policy "admins read social posts" on social_posts for select using (
+  exists (select 1 from profiles p where p.id = auth.uid() and p.is_admin)
+);
+
+create index social_posts_pending_idx on social_posts (created_at) where status = 'pending';
