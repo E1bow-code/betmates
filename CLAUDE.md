@@ -109,6 +109,8 @@ Netlify cron, configured per-file via `export const config = { schedule }`:
 | `team-news-alerts.js` | `*/30 * * * *` | push when a followed team/player appears in a news headline |
 | `odds-snapshot.js` | `*/30 * * * *` | snapshots prices for open-bet legs (CLV) and followed fixtures (sharp-money) |
 | `coach-settle.js` | `*/30 * * * *` | settles CoachGPT's `lock_in_recommendation` picks for its own scoreboard |
+| `social-propose.js` | `0 9 * * *` | Coco drafts one promo post, posts it to Discord with Approve/Reject buttons; approve publishes to X (no-ops without `DISCORD_BOT_TOKEN`/`DISCORD_CHANNEL_ID` - see `docs/social-agent-setup.md`) |
+| `sage-propose.js` | `0 8 * * *` | Sage researches one fact-checked, cited BetMates idea (Claude + `web_search`), posts it to Discord with Approve/Reject buttons; approve optionally opens a GitHub issue (no-ops without the Anthropic key + Discord bot - see `docs/sage-agent-setup.md`) |
 | `season-rollover.js` | `0 0 1 * *` | archives last month's #1-by-profit into `season_results`, per group and globally |
 | `odds-ingest.js` | `0 */12 * * *` | fetches the football bulk list and writes it to `odds_cache` so `odds.js` serves users from our own DB, not per-user live calls (12h keeps football+UFC under the 500/mo free tier - see file header) |
 | `ufc-ingest.js` | `0 */12 * * *` | same, for the UFC/MMA list (`ufc.js`) |
