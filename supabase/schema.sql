@@ -45,7 +45,11 @@ create table groups (
   created_by uuid not null references profiles(id),
   created_at timestamptz not null default now(),
   is_discoverable boolean not null default false,
-  member_count integer not null default 0
+  member_count integer not null default 0,
+  -- Dedupe watermark for Bea's community pulse (community-pulse.js): the highest
+  -- member-count milestone already announced to Discord, so each milestone fires
+  -- exactly once. 0 = none announced yet.
+  last_member_milestone integer not null default 0
 );
 
 create table group_members (
@@ -835,6 +839,10 @@ create table followed_fixtures (
   created_at timestamptz not null default now(),
   kickoff_reminder_sent_at timestamptz,
   result_sent_at timestamptz,
+  -- Watermark for the research desk's matchday brief (matchday-brief.js): set
+  -- once a cited pre-match brief has been posted for this fixture, so it isn't
+  -- briefed twice. Nullable, same shape as the reminder/result watermarks above.
+  brief_sent_at timestamptz,
   unique (user_id, sport, event_id)
 );
 alter table followed_fixtures enable row level security;

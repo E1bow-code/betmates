@@ -38,10 +38,41 @@
 // play" principle as the open-bet snapshotting above.
 import { createClient } from '@supabase/supabase-js'
 import { denyUnlessCron } from './_cronAuth.js'
+import { notifyDiscord } from '../../src/lib/discordNotify.js'
+import { biggestSharpMove } from '../../src/lib/marketSteam.js'
 
 const SUPABASE_URL = process.env.VITE_SUPABASE_URL
 const SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY
 const SITE_URL = process.env.URL || 'https://betmates.org'
+
+// Nova (Markets Trader): after snapshots land, look at the recent price history
+// of the fixtures we just touched and post one Discord line about the single
+// biggest "sharp money" move (src/lib/marketSteam.js -> src/utils/sharpMoney.js).
+// Best-effort and never throws: a signal, not part of the snapshot contract, so
+// a Discord/DB hiccup here must not fail the run that already stored prices. No
+// per-move dedupe state, so a move that persists across runs can re-announce -
+// acceptable at the daily pre-launch cadence (one "biggest steam" digest line);
+// worth a dedupe watermark if restored to */30.
+async function flagSharpMove(supabase, fixtureRows) {
+  try {
+    const ids = [...fixtureRows.keys()]
+    if (!ids.length) return
+    const since = new Date(Date.now() - 2 * 24 * 60 * 60 * 1000).toISOString()
+    const { data: rows } = await supabase
+      .from('odds_snapshots')
+      .select('fixture_id,market,selection,bookmaker,odds,fetched_at')
+      .in('fixture_id', ids)
+      .gte('fetched_at', since)
+    const move = biggestSharpMove(rows ?? [])
+    if (!move) return
+    const fx = fixtureRows.get(move.fixtureId)
+    const label = fx?.home_team && fx?.away_team ? `${fx.home_team} v ${fx.away_team}` : fx?.competition || move.fixtureId
+    const verb = move.direction === 'shortening' ? 'shortening (money coming for it)' : 'drifting (money coming off it)'
+    await notifyDiscord(`📈 **Nova · Markets** — biggest steam: **${move.selection}** (${label}) ${verb}, ${move.from} → ${move.to} (${move.pct}%).`)
+  } catch {
+    // best-effort signal - never fail the snapshot run over it
+  }
+}
 
 function sportListPath(sport) {
   if (sport === 'football') return '/api/odds'
@@ -218,6 +249,9 @@ export default async (req) => {
     if (snapshotsError) {
       return new Response(JSON.stringify({ snapshotted: 0, error: `odds_snapshots insert failed: ${snapshotsError.message}` }), { status: 200 })
     }
+
+    // Nova's sharp-money line - after the prices are safely stored.
+    await flagSharpMove(supabase, fixtureRows)
 
     return new Response(
       JSON.stringify({ snapshotted: snapshots.length, fixtures: fixtureRows.size, sports: [...sportsInPlay] }),
