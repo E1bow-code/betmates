@@ -640,6 +640,19 @@ export function listCoachDailyPicks() {
   return delay([...db.coachDailyPicks].sort((a, b) => (a.pickDate < b.pickDate ? 1 : a.pickDate > b.pickDate ? -1 : 0)))
 }
 
+// Coco/Sage proposal queues (dataStore.listSocialPosts / listIdeaProposals).
+// A scheduled function + real backend populate these, so local mode has none -
+// the Agent HQ dashboard just shows the agents idle, the same honest gap as
+// listSeasonResults returning [].
+/** @returns {Promise<any[]>} */
+export function listSocialPosts() {
+  return delay([])
+}
+/** @returns {Promise<any[]>} */
+export function listIdeaProposals() {
+  return delay([])
+}
+
 // No local equivalent of coach-settle.js (a scheduled function needs a real
 // backend) - recommendations just never settle in local mode, same honest
 // gap as CLV's getOddsSnapshotSeries stub.

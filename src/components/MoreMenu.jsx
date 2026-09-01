@@ -78,6 +78,7 @@ export default function MoreMenu() {
           key: 'admin',
           label: 'Admin',
           items: [
+            { to: '/admin/agents', label: 'Agent HQ' },
             { to: '/admin/reports', label: 'Reported posts' },
             { to: '/admin/errors', label: 'Error logs' },
             { to: '/admin/analytics', label: 'Analytics' }
