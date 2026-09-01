@@ -436,6 +436,18 @@ async function runLimitBuddyAlerts(supabase) {
       url: '/#/account'
     })
   )
+
+  // Priya (compliance) escalates a responsible-gambling matter to the operator
+  // on Discord - a spend limit reached is a human-eye event, not just a buddy
+  // nudge. No-ops without DISCORD_WEBHOOK_URL and can never throw. Goes only to
+  // the operator's own private webhook (same names the buddy push already uses).
+  const names = due.map((p) => p.display_name).filter(Boolean)
+  const shown = names.slice(0, 3).join(', ')
+  const extra = names.length > 3 ? ` (+${names.length - 3} more)` : ''
+  await notifyDiscord(
+    `⚠️ **Priya · Compliance** — ${due.length} member${due.length === 1 ? '' : 's'} reached their spend limit this period${shown ? `: ${shown}${extra}` : ''}. Buddies notified — worth a human eye.`
+  )
+
   return { checked: limited.length, due: due.length, sent }
 }
 

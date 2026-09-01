@@ -36,3 +36,24 @@ jobs:
       # not a raised ceiling.
       - name: Lint
         run: npm run lint -- --max-warnings 0
+
+      # Dex (data engineer) pings Discord when the build goes red - the real
+      # "build red on <check>" signal, straight from CI rather than a function
+      # (GitHub Actions can't read Netlify's env, so this uses a GitHub repo
+      # SECRET named DISCORD_WEBHOOK_URL). No-ops if that secret is unset, and
+      # never fails the job further (|| true), matching the notifyDiscord
+      # helper's own no-op / never-throw contract.
+      - name: Notify Discord on failure
+        if: failure()
+        env:
+          DISCORD_WEBHOOK_URL: ${{ secrets.DISCORD_WEBHOOK_URL }}
+        run: |
+          if [ -z "$DISCORD_WEBHOOK_URL" ]; then
+            echo "DISCORD_WEBHOOK_URL not set - skipping Discord notification"
+            exit 0
+          fi
+          COMMIT="${GITHUB_SHA:0:7}"
+          RUN_URL="$GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID"
+          MSG="🔴 **Dex · Build** — CI failed on \`$GITHUB_REF_NAME\` ($COMMIT). $RUN_URL"
+          PAYLOAD=$(jq -nc --arg c "$MSG" '{content: $c, username: "BetMates HQ", allowed_mentions: {parse: []}}')
+          curl -sS -H "Content-Type: application/json" -d "$PAYLOAD" "$DISCORD_WEBHOOK_URL" || true
