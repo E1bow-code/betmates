@@ -22,15 +22,12 @@
 import { createClient } from '@supabase/supabase-js'
 import { verifyDiscordRequest } from '../../src/lib/discordVerify.js'
 import { postToX } from '../../src/lib/xClient.js'
-import { buildIdeaIssue } from '../../src/lib/sageResearch.js'
+import { openGithubIssue } from '../../src/lib/ideaIssue.js'
+import { settleSocialPost, settleIdeaProposal } from '../../src/lib/proposalActions.js'
 
 const PUBLIC_KEY = process.env.DISCORD_PUBLIC_KEY
 const SUPABASE_URL = process.env.VITE_SUPABASE_URL
 const SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY
-// Optional: when set, an approved idea is logged as a GitHub issue. REPO is
-// "owner/repo". Unset -> the approval is recorded but no issue is opened.
-const GITHUB_TOKEN = process.env.SAGE_GITHUB_TOKEN
-const GITHUB_REPO = process.env.SAGE_GITHUB_REPO
 
 // Discord interaction + response type constants (only the ones we use).
 const PING = 1
@@ -47,77 +44,19 @@ function editMessage(content) {
   return json({ type: UPDATE_MESSAGE, data: { content, components: [] } })
 }
 
-// Coco: flip a social_posts row and, on approve, publish to X.
+// Coco: flip a social_posts row and, on approve, publish to X. The decision +
+// writes live in src/lib/proposalActions.js (shared with the Agent HQ endpoint);
+// here we just render the outcome back into the Discord message.
 async function handleSocialPost(supabase, action, postId, who) {
-  const { data: row } = await supabase.from('social_posts').select('id,body,status').eq('id', postId).maybeSingle()
-  if (!row) return editMessage('This proposal no longer exists.')
-  if (row.status !== 'pending') return editMessage(`Already ${row.status} - no change.`)
-
-  const now = new Date().toISOString()
-  if (action === 'reject') {
-    await supabase.from('social_posts').update({ status: 'rejected', decided_at: now }).eq('id', postId)
-    return editMessage(`❌ Rejected by ${who}. Post discarded.`)
-  }
-
-  // Approve: mark approved, then publish to X.
-  await supabase.from('social_posts').update({ status: 'approved', decided_at: now }).eq('id', postId)
-  const result = await postToX(row.body)
-  if (result.skipped) {
-    return editMessage(`✅ Approved by ${who}. (X not configured, so nothing was published.)`)
-  }
-  if (result.ok) {
-    await supabase.from('social_posts').update({ status: 'posted', external_id: result.id ?? null, posted_at: new Date().toISOString() }).eq('id', postId)
-    const link = result.id ? ` https://x.com/i/status/${result.id}` : ''
-    return editMessage(`✅ Approved by ${who} — posted to X.${link}`)
-  }
-  await supabase.from('social_posts').update({ status: 'failed', error: (result.error || `HTTP ${result.status}`).slice(0, 500) }).eq('id', postId)
-  return editMessage(`✅ Approved by ${who}, but the X post failed: ${result.error || `HTTP ${result.status}`}`)
+  const r = await settleSocialPost(supabase, { id: postId, action, who, postToX })
+  return editMessage(r.message)
 }
 
-// Best-effort: open a GitHub issue for an approved idea. Returns the issue URL,
-// or null if GitHub isn't configured or the call failed. Never throws.
-async function openIdeaIssue(row) {
-  if (!GITHUB_TOKEN || !GITHUB_REPO) return null
-  try {
-    const { title, body } = buildIdeaIssue(row)
-    const res = await fetch(`https://api.github.com/repos/${GITHUB_REPO}/issues`, {
-      method: 'POST',
-      headers: {
-        authorization: `Bearer ${GITHUB_TOKEN}`,
-        accept: 'application/vnd.github+json',
-        'content-type': 'application/json',
-        'user-agent': 'betmates-sage'
-      },
-      body: JSON.stringify({ title, body, labels: ['sage-idea'] })
-    })
-    if (!res.ok) return null
-    const created = await res.json().catch(() => ({}))
-    return created?.html_url ?? null
-  } catch {
-    return null
-  }
-}
-
-// Sage: flip an idea_proposals row and, on approve, optionally open an issue.
+// Sage: flip an idea_proposals row and, on approve, optionally open a GitHub
+// issue (openGithubIssue). Same shared settle logic as above.
 async function handleIdeaProposal(supabase, action, ideaId, who) {
-  const { data: row } = await supabase.from('idea_proposals').select('id,body,sources,status').eq('id', ideaId).maybeSingle()
-  if (!row) return editMessage('This idea no longer exists.')
-  if (row.status !== 'pending') return editMessage(`Already ${row.status} - no change.`)
-
-  const now = new Date().toISOString()
-  if (action === 'reject') {
-    await supabase.from('idea_proposals').update({ status: 'rejected', decided_by: who, decided_at: now }).eq('id', ideaId)
-    return editMessage(`❌ Rejected by ${who}. Idea discarded.`)
-  }
-
-  // Approve: record it, then try to log a GitHub issue.
-  await supabase.from('idea_proposals').update({ status: 'approved', decided_by: who, decided_at: now }).eq('id', ideaId)
-  const issueUrl = await openIdeaIssue(row)
-  if (issueUrl) {
-    await supabase.from('idea_proposals').update({ issue_url: issueUrl }).eq('id', ideaId)
-    return editMessage(`✅ Approved by ${who} — logged as an issue: ${issueUrl}`)
-  }
-  return editMessage(`✅ Approved by ${who}. Idea saved.`)
+  const r = await settleIdeaProposal(supabase, { id: ideaId, action, who, openIssue: openGithubIssue })
+  return editMessage(r.message)
 }
 
 export default async (req) => {

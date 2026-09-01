@@ -652,6 +652,13 @@ export function listSocialPosts() {
 export function listIdeaProposals() {
   return delay([])
 }
+// The Agent HQ controls need the real backend (a service-role endpoint) - there
+// are no agent proposals in local mode anyway, so this is never reached in
+// practice; it just answers honestly rather than pretending to act.
+/** @param {{ kind: string, id: string, action: string }} _input @returns {Promise<{ok: boolean, message: string}>} */
+export function agentAction(_input) {
+  return delay({ ok: false, message: 'Agent controls need the live backend.' })
+}
 
 // No local equivalent of coach-settle.js (a scheduled function needs a real
 // backend) - recommendations just never settle in local mode, same honest

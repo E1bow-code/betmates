@@ -877,6 +877,29 @@ export async function listIdeaProposals() {
   return data.map(mapIdeaProposal)
 }
 
+// Approve/reject one of Coco's social posts or Sage's idea proposals from Agent
+// HQ. Goes through the /api/agent-action endpoint, which verifies is_admin from
+// the caller's own token server-side and runs the same settle logic as the
+// Discord buttons - the client `isAdmin` flag is never trusted for the write.
+/**
+ * @param {{ kind: 'social'|'idea', id: string, action: 'approve'|'reject' }} input
+ * @returns {Promise<{ ok: boolean, status?: string, message: string, link?: string|null }>}
+ */
+export async function agentAction({ kind, id, action }) {
+  if (!isSupabaseConfigured) return local.agentAction({ kind, id, action })
+  const { data } = await supabase.auth.getSession()
+  const accessToken = data.session?.access_token
+  if (!accessToken) throw new Error('No active session.')
+  const res = await fetch('/api/agent-action', {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({ accessToken, kind, id, action })
+  })
+  const body = await res.json().catch(() => ({}))
+  if (!res.ok || body?.error) throw new Error(body?.error || 'Action failed.')
+  return body
+}
+
 // grounding: real BetSlip legs a "Log this" affordance can pre-fill from -
 // see netlify/functions/coachgpt.js's groundFixtureOutcomes/groundRunner.
 // Only ever set on an assistant message; always null on a user message.

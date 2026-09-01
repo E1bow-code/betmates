@@ -5219,3 +5219,38 @@ a.btn,
 .hq-badge-posted, .hq-badge-approved, .hq-badge-won { background: rgba(var(--good-rgb), 0.18); color: var(--good); }
 .hq-badge-rejected, .hq-badge-failed, .hq-badge-lost { background: rgba(var(--bad-rgb), 0.18); color: var(--bad); }
 .hq-badge-void, .hq-badge-open { background: rgba(var(--bg-rgb), 0.5); color: var(--text-dim); }
+
+/* Agent HQ - Phase 2 controls (approve/reject on a pending proposal) */
+.hq-actions { display: flex; gap: 8px; margin-top: 9px; }
+.hq-btn {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  font-weight: 700;
+  padding: 5px 12px;
+  border: 2px solid var(--border);
+  border-radius: var(--radius-sharp, 4px);
+  cursor: pointer;
+  background: var(--surface);
+  color: var(--text);
+  box-shadow: 2px 2px 0 rgba(0, 0, 0, 0.28);
+  transition: transform 0.08s steps(2), box-shadow 0.08s steps(2);
+}
+.hq-btn:hover:not(:disabled) { transform: translate(-1px, -1px); box-shadow: 3px 3px 0 rgba(0, 0, 0, 0.32); }
+.hq-btn:active:not(:disabled) { transform: translate(1px, 1px); box-shadow: 1px 1px 0 rgba(0, 0, 0, 0.28); }
+.hq-btn:disabled { opacity: 0.5; cursor: default; }
+.hq-btn-approve { border-color: var(--good); color: var(--good); }
+.hq-btn-reject { border-color: var(--bad); color: var(--bad); }
+.hq-notice {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  color: var(--text);
+  background: rgba(var(--accent-rgb), 0.12);
+  border: 1px solid rgba(var(--accent-rgb), 0.4);
+  border-radius: var(--radius-sharp, 4px);
+  padding: 8px 11px;
+  margin-bottom: 12px;
+  line-height: 1.4;
+  word-break: break-word;
+}
