@@ -2107,3 +2107,35 @@ create policy "admins read social posts" on social_posts for select using (
 );
 
 create index social_posts_pending_idx on social_posts (created_at) where status = 'pending';
+
+-- --- Sage: fact-checked idea proposals -------------------------------------
+-- netlify/functions/sage-propose.js asks Claude (with the web_search server
+-- tool) to research ONE grounded, cited idea to grow or improve BetMates
+-- (src/lib/sageResearch.js), stores it here as 'pending', then posts it to
+-- Discord with Approve/Reject buttons via the bot. discord-interactions.js
+-- flips the row on a button click; on approve it optionally opens a GitHub
+-- issue (if SAGE_GITHUB_TOKEN/REPO are set) and records its URL. Only the
+-- service-role scheduled / interactions functions write here; a public admin
+-- read lets an operator screen show the queue. Nothing fires unless the
+-- Anthropic key + Discord bot are configured (see docs/social-agent-setup.md)
+-- - same "missing keys degrade, don't crash" contract as the rest of the app.
+create table idea_proposals (
+  id uuid primary key default gen_random_uuid(),
+  body text not null,                          -- the researched proposal text
+  sources jsonb not null default '[]'::jsonb,  -- [{url,title}] grounding it
+  status text not null default 'pending'       -- pending -> approved|rejected
+    check (status in ('pending', 'approved', 'rejected')),
+  decided_by text,                             -- discord username who decided
+  issue_url text,                              -- GitHub issue opened on approval, if configured
+  discord_message_id text,                     -- the Discord message carrying the buttons
+  created_at timestamptz not null default now(),
+  decided_at timestamptz                       -- when approved / rejected
+);
+
+alter table idea_proposals enable row level security;
+-- Admin-only read (the operator's idea queue); every write is service-role.
+create policy "admins read idea proposals" on idea_proposals for select using (
+  exists (select 1 from profiles p where p.id = auth.uid() and p.is_admin)
+);
+
+create index idea_proposals_pending_idx on idea_proposals (created_at) where status = 'pending';
