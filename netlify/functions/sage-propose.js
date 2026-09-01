@@ -34,13 +34,63 @@ function json(body, status = 200) {
   return new Response(JSON.stringify(body), { status, headers: { 'content-type': 'application/json' } })
 }
 
-// Ask Claude for a researched, cited proposal. Returns { text, sources } or
-// null for any reason it can't be produced (bad key, upstream error, a reply
-// with no usable text) - the caller treats null as "nothing to propose today"
-// and no-ops, never surfacing an error.
-async function research() {
+/** Best-effort exact-count of a table (optionally filtered); 0 on any error. */
+async function count(supabase, table, filter) {
   try {
-    const { url, headers, body } = buildAnthropicRequest(API_KEY, SAGE_MODEL, buildSageBody(), route)
+    let q = supabase.from(table).select('id', { count: 'exact', head: true })
+    if (filter) q = filter(q)
+    const { count: c } = await q
+    return c ?? 0
+  } catch {
+    return 0
+  }
+}
+
+// A compact snapshot of live BetMates signals for Sage to ground its idea in:
+// real usage, user feedback, and where the product is thin. Best-effort - any
+// piece that errors is simply omitted, so a bad query never blocks a proposal.
+// This is the "check the site" half of Sage's brief (the web is the other).
+async function gatherSiteContext(supabase) {
+  const lines = []
+  try {
+    const [users, groups, bets, settled, reports, shipped] = await Promise.all([
+      count(supabase, 'profiles'),
+      count(supabase, 'groups'),
+      count(supabase, 'bet_posts'),
+      count(supabase, 'bet_posts', (q) => q.in('status', ['won', 'lost', 'void'])),
+      count(supabase, 'post_reports'),
+      count(supabase, 'idea_proposals', (q) => q.eq('status', 'approved'))
+    ])
+    lines.push(`Users: ${users} · Groups: ${groups} · Bets logged: ${bets} (${settled} settled)`)
+    if (reports) lines.push(`Open user reports/flags: ${reports} (a feedback signal)`)
+    if (shipped) lines.push(`Ideas already approved (${shipped}) - avoid repeating those themes`)
+
+    // Where activity concentrates - and, by absence, where it doesn't (a gap).
+    const { data: rows } = await supabase.from('bet_posts').select('sport,market_type').limit(2000)
+    if (rows && rows.length) {
+      const top = (field) => {
+        const t = {}
+        for (const r of rows) if (r[field]) t[r[field]] = (t[r[field]] || 0) + 1
+        const best = Object.entries(t).sort((a, b) => b[1] - a[1])[0]
+        return best ? best[0] : null
+      }
+      const sport = top('sport')
+      const market = top('market_type')
+      if (sport) lines.push(`Most-bet sport: ${sport}${market ? ` · most-used market: ${market}` : ''}`)
+    }
+  } catch {
+    // best-effort - a partial or empty context still yields a web-grounded idea
+  }
+  return lines.join('\n')
+}
+
+// Ask Claude for a researched, cited proposal grounded in the site signals
+// (siteContext) plus the web. Returns { text, sources } or null for any reason
+// it can't be produced (bad key, upstream error, a reply with no usable text) -
+// the caller treats null as "nothing to propose today" and no-ops.
+async function research(siteContext) {
+  try {
+    const { url, headers, body } = buildAnthropicRequest(API_KEY, SAGE_MODEL, buildSageBody(siteContext), route)
     const res = await fetch(url, { method: 'POST', headers, body })
     if (!res.ok) {
       const detail = await res.text().catch(() => '')
@@ -106,7 +156,10 @@ export default async (req) => {
       return json({ proposed: 0, reason: 'budget' })
     }
 
-    const proposal = await research()
+    // The "site" half of Sage's brief - real usage/feedback/gap signals - fed
+    // to the model alongside its web search.
+    const siteContext = await gatherSiteContext(supabase)
+    const proposal = await research(siteContext)
     if (!proposal) return json({ proposed: 0, reason: 'nothing to propose' })
 
     // Store the proposal first so the button custom_ids reference a real row.

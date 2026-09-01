@@ -1,9 +1,9 @@
 // Agent HQ "Run now" endpoint (src/pages/AgentHqPage.jsx -> dataStore.agentRun
 // -> /api/agent-run). Lets an admin fire one of the proactive "poster" agents
 // on demand instead of waiting for its daily schedule: Coco (social-propose),
-// Sage (sage-propose), the research desk (matchday-brief) and Bea
-// (community-pulse). The reactive signal agents (Dex/Mira/Priya/Nova/CoachGPT)
-// react to real events - there's nothing to force-run - so they aren't here.
+// Sage (sage-propose) and Bea (community-pulse). The reactive signal agents
+// (Dex/Mira/Priya/Nova/CoachGPT) react to real events - there's nothing to
+// force-run - so they aren't here.
 //
 // It reuses each agent's EXACT scheduled handler by importing it and calling it
 // with a synthetic cron-authorised request, so an on-demand run and a scheduled
@@ -15,7 +15,6 @@
 import { createClient } from '@supabase/supabase-js'
 import socialPropose from './social-propose.js'
 import sagePropose from './sage-propose.js'
-import matchdayBrief from './matchday-brief.js'
 import communityPulse from './community-pulse.js'
 
 const SUPABASE_URL = process.env.VITE_SUPABASE_URL
@@ -23,8 +22,8 @@ const ANON_KEY = process.env.VITE_SUPABASE_ANON_KEY
 const SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY
 
 // Only the proactive posters can be run on demand. Keys match Agent HQ's
-// settingsKey (the research desk shares one function under 'desk').
-const RUNNERS = { coco: socialPropose, sage: sagePropose, desk: matchdayBrief, bea: communityPulse }
+// settingsKey.
+const RUNNERS = { coco: socialPropose, sage: sagePropose, bea: communityPulse }
 
 function json(body, status = 200) {
   return new Response(JSON.stringify(body), { status, headers: { 'content-type': 'application/json' } })

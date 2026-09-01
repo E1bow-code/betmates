@@ -21,6 +21,14 @@ test('buildSageBody wires the web_search tool and adaptive thinking', () => {
   assert.equal(body.model, undefined)
 })
 
+test('buildSageBody embeds the site context when given, web-only without', () => {
+  const withCtx = buildSageBody('Users: 42, Groups: 8, most-bet sport: football')
+  assert.match(withCtx.messages[0].content, /Users: 42/)
+  assert.match(withCtx.messages[0].content, /site signals and the web/)
+  const webOnly = buildSageBody()
+  assert.doesNotMatch(webOnly.messages[0].content, /site signals/)
+})
+
 test('extractProposal concatenates text and prefers citations as sources', () => {
   const data = {
     content: [
