@@ -112,7 +112,10 @@ export default async (req) => {
 }
 
 export const config = {
-  // Once daily (09:00 UTC). Coco proposes one post a day; the operator approves
-  // or rejects it in Discord. Adjust the cadence to taste.
-  schedule: '0 9 * * *'
+  // TEMPORARY (launch smoke-test): every 5 minutes so a proposal appears
+  // promptly for a first end-to-end button test. REVERT to the daily
+  // '0 9 * * *' below immediately after the test - */5 would otherwise post a
+  // proposal every 5 minutes.
+  schedule: '*/5 * * * *'
+  // schedule: '0 9 * * *'  // <- restore this (once daily, 09:00 UTC) after the smoke test
 }
