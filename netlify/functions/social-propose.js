@@ -12,6 +12,7 @@
 import { createClient } from '@supabase/supabase-js'
 import { denyUnlessCron } from './_cronAuth.js'
 import { buildDailyPost } from '../../src/lib/socialDraft.js'
+import { agentEnabled } from '../../src/lib/agentSettings.js'
 
 const SUPABASE_URL = process.env.VITE_SUPABASE_URL
 const SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY
@@ -67,6 +68,11 @@ export default async (req) => {
 
   try {
     const supabase = createClient(SUPABASE_URL, SERVICE_ROLE_KEY)
+
+    // Agent HQ can pause Coco without a deploy (agent_settings). Fail-open.
+    if (!(await agentEnabled(supabase, 'coco'))) {
+      return new Response(JSON.stringify({ proposed: 0, reason: 'disabled' }), { status: 200 })
+    }
 
     // Cheap, real signals for the draft; each defaults to 0/absent on error so
     // the copywriter always has something to say (community fallback).

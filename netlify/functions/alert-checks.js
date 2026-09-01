@@ -21,6 +21,7 @@ import { apiKeysForSport, GENERIC_SPORTS } from '../../src/lib/sportsConfig.js'
 import { periodStart, sumStakesSince } from '../../src/utils/spendLimit.js'
 import { findBoardValue } from '../../src/utils/valueFinder.js'
 import { notifyDiscord } from '../../src/lib/discordNotify.js'
+import { agentEnabled } from '../../src/lib/agentSettings.js'
 
 // No Database generic (see dataStore.js's own comment on this) - typing this
 // as the real ReturnType<typeof createClient> makes .update()'s argument
@@ -306,9 +307,13 @@ async function runOddsAlerts(supabase) {
   // targets - the biggest single move leads. No-ops without DISCORD_WEBHOOK_URL
   // and can never throw, so it changes nothing without the webhook configured.
   const biggest = triggered.slice().sort((a, b) => (b.currentDecimal - Number(b.target_decimal)) - (a.currentDecimal - Number(a.target_decimal)))[0]
-  await notifyDiscord(
-    `🔔 **Mira · Odds** — ${triggered.length} alert${triggered.length === 1 ? '' : 's'} hit. Biggest: ${biggest.selection_label} on ${biggest.event_label} now ${biggest.currentDecimal.toFixed(2)} (target ${Number(biggest.target_decimal).toFixed(2)}).`
-  )
+  // Mira's Discord voice can be muted from Agent HQ - the alert pushes above
+  // still went out regardless. Fail-open.
+  if (await agentEnabled(supabase, 'mira')) {
+    await notifyDiscord(
+      `🔔 **Mira · Odds** — ${triggered.length} alert${triggered.length === 1 ? '' : 's'} hit. Biggest: ${biggest.selection_label} on ${biggest.event_label} now ${biggest.currentDecimal.toFixed(2)} (target ${Number(biggest.target_decimal).toFixed(2)}).`
+    )
+  }
 
   return { checked: active.length, triggered: triggered.length, sent }
 }
@@ -444,9 +449,13 @@ async function runLimitBuddyAlerts(supabase) {
   const names = due.map((p) => p.display_name).filter(Boolean)
   const shown = names.slice(0, 3).join(', ')
   const extra = names.length > 3 ? ` (+${names.length - 3} more)` : ''
-  await notifyDiscord(
-    `⚠️ **Priya · Compliance** — ${due.length} member${due.length === 1 ? '' : 's'} reached their spend limit this period${shown ? `: ${shown}${extra}` : ''}. Buddies notified — worth a human eye.`
-  )
+  // Priya's Discord voice can be muted from Agent HQ - the buddy pushes above
+  // still went out regardless. Fail-open.
+  if (await agentEnabled(supabase, 'priya')) {
+    await notifyDiscord(
+      `⚠️ **Priya · Compliance** — ${due.length} member${due.length === 1 ? '' : 's'} reached their spend limit this period${shown ? `: ${shown}${extra}` : ''}. Buddies notified — worth a human eye.`
+    )
+  }
 
   return { checked: limited.length, due: due.length, sent }
 }

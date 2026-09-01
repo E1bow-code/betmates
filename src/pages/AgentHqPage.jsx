@@ -17,23 +17,23 @@ import { formatRelativeTime } from '../utils/format.js'
 // Gating mirrors the other admin pages: the redirect is UX only; the real
 // enforcement is RLS (social_posts / idea_proposals are admin-read).
 
-// The cast, their colours (from the BetMates Ops sim), and where each one's
-// status comes from. `source: 'live'` agents read a real table; 'watch' agents
-// fire server-side with no client feed on this screen yet.
+// The cast, their colours (from the BetMates Ops sim), where each one's status
+// comes from (`source`), and its on/off `settingsKey` (agent_settings) - the
+// five research-desk agents share one function, so they share the 'desk' key.
 const AGENTS = [
-  { key: 'coco', name: 'Coco', role: 'Social Media Mgr', color: '#ff77b6', sprite: '📣', source: 'coco', signal: 'Daily promo post → approve → X' },
-  { key: 'sage', name: 'Sage', role: 'Ideas / R&D', color: '#ffce4d', sprite: '💡', source: 'sage', signal: 'Fact-checked idea → approve → GitHub' },
-  { key: 'coach', name: 'CoachGPT', role: 'The Coach', color: '#c9a6ff', sprite: '🧠', source: 'coach', signal: 'Daily pick, graded' },
-  { key: 'dex', name: 'Dex', role: 'Data Engineer', color: '#5c97ff', sprite: '🛠️', source: 'watch', signal: 'Settlement + CI alerts' },
-  { key: 'mira', name: 'Mira', role: 'Odds Analyst', color: '#37e0d6', sprite: '🔔', source: 'watch', signal: 'Odds-alert hits' },
-  { key: 'nova', name: 'Nova', role: 'Markets Trader', color: '#37e0a0', sprite: '📈', source: 'watch', signal: 'Sharp-money moves' },
-  { key: 'priya', name: 'Priya', role: 'Compliance', color: '#ff6a5d', sprite: '⚠️', source: 'watch', signal: 'Spend-limit escalations' },
-  { key: 'bea', name: 'Bea', role: 'Community', color: '#ffa24d', sprite: '🎉', source: 'watch', signal: 'Group member milestones' },
-  { key: 'jonas', name: 'Jonas', role: 'Form Scout', color: '#ff9a4d', sprite: '📋', source: 'desk', signal: 'Matchday brief — form' },
-  { key: 'rue', name: 'Rue', role: 'Conditions', color: '#4fd67a', sprite: '🌦️', source: 'desk', signal: 'Matchday brief — weather' },
-  { key: 'vic', name: 'Vic', role: 'Fitness / Med', color: '#b58bff', sprite: '🩺', source: 'desk', signal: 'Matchday brief — injuries' },
-  { key: 'ola', name: 'Ola', role: 'Officials Watch', color: '#d0d6e0', sprite: '🟨', source: 'desk', signal: 'Matchday brief — referees' },
-  { key: 'finn', name: 'Finn', role: 'Fixtures / Travel', color: '#8ad0ff', sprite: '✈️', source: 'desk', signal: 'Matchday brief — travel' }
+  { key: 'coco', name: 'Coco', role: 'Social Media Mgr', color: '#ff77b6', sprite: '📣', source: 'coco', settingsKey: 'coco', signal: 'Daily promo post → approve → X' },
+  { key: 'sage', name: 'Sage', role: 'Ideas / R&D', color: '#ffce4d', sprite: '💡', source: 'sage', settingsKey: 'sage', signal: 'Fact-checked idea → approve → GitHub' },
+  { key: 'coach', name: 'CoachGPT', role: 'The Coach', color: '#c9a6ff', sprite: '🧠', source: 'coach', settingsKey: 'coach', signal: 'Daily pick, graded' },
+  { key: 'dex', name: 'Dex', role: 'Data Engineer', color: '#5c97ff', sprite: '🛠️', source: 'watch', settingsKey: 'dex', signal: 'Settlement + CI alerts' },
+  { key: 'mira', name: 'Mira', role: 'Odds Analyst', color: '#37e0d6', sprite: '🔔', source: 'watch', settingsKey: 'mira', signal: 'Odds-alert hits' },
+  { key: 'nova', name: 'Nova', role: 'Markets Trader', color: '#37e0a0', sprite: '📈', source: 'watch', settingsKey: 'nova', signal: 'Sharp-money moves' },
+  { key: 'priya', name: 'Priya', role: 'Compliance', color: '#ff6a5d', sprite: '⚠️', source: 'watch', settingsKey: 'priya', signal: 'Spend-limit escalations' },
+  { key: 'bea', name: 'Bea', role: 'Community', color: '#ffa24d', sprite: '🎉', source: 'watch', settingsKey: 'bea', signal: 'Group member milestones' },
+  { key: 'jonas', name: 'Jonas', role: 'Form Scout', color: '#ff9a4d', sprite: '📋', source: 'desk', settingsKey: 'desk', signal: 'Matchday brief — form' },
+  { key: 'rue', name: 'Rue', role: 'Conditions', color: '#4fd67a', sprite: '🌦️', source: 'desk', settingsKey: 'desk', signal: 'Matchday brief — weather' },
+  { key: 'vic', name: 'Vic', role: 'Fitness / Med', color: '#b58bff', sprite: '🩺', source: 'desk', settingsKey: 'desk', signal: 'Matchday brief — injuries' },
+  { key: 'ola', name: 'Ola', role: 'Officials Watch', color: '#d0d6e0', sprite: '🟨', source: 'desk', settingsKey: 'desk', signal: 'Matchday brief — referees' },
+  { key: 'finn', name: 'Finn', role: 'Fixtures / Travel', color: '#8ad0ff', sprite: '✈️', source: 'desk', settingsKey: 'desk', signal: 'Matchday brief — travel' }
 ]
 
 function tally(rows, field = 'status') {
@@ -180,6 +180,14 @@ export default function AgentHqPage() {
   const [selectedKey, setSelectedKey] = useState('coco')
   const [busyId, setBusyId] = useState(null)
   const [notice, setNotice] = useState(null)
+  const [settings, setSettings] = useState([])
+  const [savingKey, setSavingKey] = useState(null)
+
+  // Default-enabled; only an explicit false disables (mirrors agentSettings.js).
+  const enabledOf = (key) => {
+    const row = settings.find((s) => s.key === key)
+    return !row || row.enabled !== false
+  }
 
   // Approve/reject a proposal, then reflect the returned status in place.
   async function handleAct(kind, row, action) {
@@ -197,6 +205,24 @@ export default function AgentHqPage() {
     }
   }
 
+  // Pause/resume an agent (agent_settings). Optimistically updates the flag.
+  async function handleToggle(key, next) {
+    setSavingKey(key)
+    setNotice(null)
+    try {
+      await dataStore.setAgentEnabled(key, next)
+      setSettings((list) => {
+        const rest = list.filter((s) => s.key !== key)
+        return [...rest, { key, enabled: next }]
+      })
+      setNotice(next ? 'Agent resumed.' : 'Agent paused.')
+    } catch (err) {
+      setNotice(`Couldn't update: ${err.message}`)
+    } finally {
+      setSavingKey(null)
+    }
+  }
+
   useEffect(() => {
     if (!user.isAdmin) return
     let alive = true
@@ -205,6 +231,12 @@ export default function AgentHqPage() {
         if (alive) setData({ social, ideas, picks })
       })
       .catch((err) => alive && setError(err.message))
+    // Loaded separately and fail-soft: if agent_settings isn't applied yet the
+    // page still works (every agent just shows as enabled).
+    dataStore
+      .listAgentSettings()
+      .then((s) => alive && setSettings(s))
+      .catch(() => {})
     return () => {
       alive = false
     }
@@ -234,22 +266,24 @@ export default function AgentHqPage() {
       {data && (
         <>
           <p className="hq-sub">
-            Your live agent ecosystem. Each room shows real status pulled from the database. Click a room for detail.
-            <span className="hq-dim"> (Read-only for now — controls come next.)</span>
+            Your live agent ecosystem. Each room shows real status from the database — click a room for detail,
+            pause an agent, or approve/reject its proposals.
           </p>
 
           <div className="hq-grid">
             {AGENTS.map((a) => {
               const s = statuses[a.key]
+              const paused = !enabledOf(a.settingsKey)
               return (
                 <button
                   key={a.key}
                   type="button"
-                  className={`hq-room${a.key === selectedKey ? ' selected' : ''}`}
+                  className={`hq-room${a.key === selectedKey ? ' selected' : ''}${paused ? ' paused' : ''}`}
                   style={{ '--agent': a.color }}
                   onClick={() => setSelectedKey(a.key)}
                 >
-                  <span className={`hq-led hq-led-${s.light}`} aria-hidden="true" />
+                  <span className={`hq-led hq-led-${paused ? 'off' : s.light}`} aria-hidden="true" />
+                  {paused && <span className="hq-paused-tag">paused</span>}
                   <span className="hq-sprite" aria-hidden="true">
                     {a.sprite}
                   </span>
@@ -267,12 +301,25 @@ export default function AgentHqPage() {
               <span className="hq-sprite hq-sprite-lg" aria-hidden="true">
                 {selected.sprite}
               </span>
-              <div>
+              <div className="hq-panel-title">
                 <div className="hq-panel-name">
                   {selected.name} <span className="hq-dim">· {selected.role}</span>
                 </div>
                 {selected.signal && <div className="hq-panel-signal">{selected.signal}</div>}
               </div>
+              <button
+                type="button"
+                className={`hq-switch${enabledOf(selected.settingsKey) ? ' on' : ''}`}
+                disabled={savingKey === selected.settingsKey}
+                onClick={() => handleToggle(selected.settingsKey, !enabledOf(selected.settingsKey))}
+                aria-pressed={enabledOf(selected.settingsKey)}
+                title={enabledOf(selected.settingsKey) ? 'Pause this agent' : 'Resume this agent'}
+              >
+                <span className="hq-switch-track" aria-hidden="true">
+                  <span className="hq-switch-knob" />
+                </span>
+                {enabledOf(selected.settingsKey) ? 'On' : 'Paused'}
+              </button>
             </div>
             {notice && <div className="hq-notice">{notice}</div>}
             <AgentDetail agent={selected} data={data} onAct={handleAct} busyId={busyId} />

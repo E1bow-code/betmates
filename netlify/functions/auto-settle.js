@@ -23,6 +23,7 @@ import webpush from 'web-push'
 import { evaluateEntryDetailed, resolveSettlement } from '../../src/lib/betEvaluation.js'
 import { apiKeysForSport, sgoEventIdForLeg } from '../../src/lib/sportsConfig.js'
 import { notifyDiscord } from '../../src/lib/discordNotify.js'
+import { agentEnabled } from '../../src/lib/agentSettings.js'
 
 // Narrower than dataStore.js's BetPost/ManualEntry typedefs - this only
 // selects the columns settlement actually needs, straight off the raw
@@ -196,9 +197,13 @@ export default async (req) => {
     const won = settledEntries.filter((e) => e.status === 'won').length
     const lost = settledEntries.filter((e) => e.status === 'lost').length
     const voided = settledEntries.filter((e) => e.status === 'void').length
-    await notifyDiscord(
-      `🟢 **Dex · Settlement** — settled ${settledEntries.length} bet${settledEntries.length === 1 ? '' : 's'} (${won}W / ${lost}L / ${voided}V).`
-    )
+    // Dex's Discord voice can be muted from Agent HQ - the settlement above
+    // still ran regardless. Fail-open.
+    if (await agentEnabled(supabase, 'dex')) {
+      await notifyDiscord(
+        `🟢 **Dex · Settlement** — settled ${settledEntries.length} bet${settledEntries.length === 1 ? '' : 's'} (${won}W / ${lost}L / ${voided}V).`
+      )
+    }
 
     return new Response(JSON.stringify({ settled: settledEntries.length }), {
       status: 200,

@@ -900,6 +900,41 @@ export async function agentAction({ kind, id, action }) {
   return body
 }
 
+// Agent HQ on/off switches (netlify/functions/agent-settings.js). Admin only,
+// verified server-side. listAgentSettings reads every agent's flag;
+// setAgentEnabled pauses/resumes one.
+/** @returns {Promise<{key: string, enabled: boolean}[]>} */
+export async function listAgentSettings() {
+  if (!isSupabaseConfigured) return local.listAgentSettings()
+  const { data } = await supabase.auth.getSession()
+  const accessToken = data.session?.access_token
+  if (!accessToken) throw new Error('No active session.')
+  const res = await fetch('/api/agent-settings', {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({ accessToken, action: 'list' })
+  })
+  const body = await res.json().catch(() => ({}))
+  if (!res.ok || body?.error) throw new Error(body?.error || 'Failed to load settings.')
+  return body.settings || []
+}
+
+/** @param {string} key @param {boolean} enabled @returns {Promise<{ok: boolean, key: string, enabled: boolean}>} */
+export async function setAgentEnabled(key, enabled) {
+  if (!isSupabaseConfigured) return local.setAgentEnabled(key, enabled)
+  const { data } = await supabase.auth.getSession()
+  const accessToken = data.session?.access_token
+  if (!accessToken) throw new Error('No active session.')
+  const res = await fetch('/api/agent-settings', {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({ accessToken, action: 'set', key, enabled })
+  })
+  const body = await res.json().catch(() => ({}))
+  if (!res.ok || body?.error) throw new Error(body?.error || 'Failed to save.')
+  return body
+}
+
 // grounding: real BetSlip legs a "Log this" affordance can pre-fill from -
 // see netlify/functions/coachgpt.js's groundFixtureOutcomes/groundRunner.
 // Only ever set on an assistant message; always null on a user message.

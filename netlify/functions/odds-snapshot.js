@@ -40,6 +40,7 @@ import { createClient } from '@supabase/supabase-js'
 import { denyUnlessCron } from './_cronAuth.js'
 import { notifyDiscord } from '../../src/lib/discordNotify.js'
 import { biggestSharpMove } from '../../src/lib/marketSteam.js'
+import { agentEnabled } from '../../src/lib/agentSettings.js'
 
 const SUPABASE_URL = process.env.VITE_SUPABASE_URL
 const SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY
@@ -250,8 +251,9 @@ export default async (req) => {
       return new Response(JSON.stringify({ snapshotted: 0, error: `odds_snapshots insert failed: ${snapshotsError.message}` }), { status: 200 })
     }
 
-    // Nova's sharp-money line - after the prices are safely stored.
-    await flagSharpMove(supabase, fixtureRows)
+    // Nova's sharp-money line - after the prices are safely stored. Her Discord
+    // voice can be muted from Agent HQ; the snapshots above are unaffected.
+    if (await agentEnabled(supabase, 'nova')) await flagSharpMove(supabase, fixtureRows)
 
     return new Response(
       JSON.stringify({ snapshotted: snapshots.length, fixtures: fixtureRows.size, sports: [...sportsInPlay] }),
