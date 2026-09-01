@@ -20,6 +20,7 @@ import webpush from 'web-push'
 import { apiKeysForSport, GENERIC_SPORTS } from '../../src/lib/sportsConfig.js'
 import { periodStart, sumStakesSince } from '../../src/utils/spendLimit.js'
 import { findBoardValue } from '../../src/utils/valueFinder.js'
+import { notifyDiscord } from '../../src/lib/discordNotify.js'
 
 // No Database generic (see dataStore.js's own comment on this) - typing this
 // as the real ReturnType<typeof createClient> makes .update()'s argument
@@ -300,6 +301,15 @@ async function runOddsAlerts(supabase) {
     body: `${a.selection_label} (${a.market_label}) on ${a.event_label} is now ${a.currentDecimal.toFixed(2)} - your target was ${Number(a.target_decimal).toFixed(2)}`,
     url: '/#/alerts'
   }))
+
+  // Mira (odds analyst) pings the operator on Discord when prices reach users'
+  // targets - the biggest single move leads. No-ops without DISCORD_WEBHOOK_URL
+  // and can never throw, so it changes nothing without the webhook configured.
+  const biggest = triggered.slice().sort((a, b) => (b.currentDecimal - Number(b.target_decimal)) - (a.currentDecimal - Number(a.target_decimal)))[0]
+  await notifyDiscord(
+    `🔔 **Mira · Odds** — ${triggered.length} alert${triggered.length === 1 ? '' : 's'} hit. Biggest: ${biggest.selection_label} on ${biggest.event_label} now ${biggest.currentDecimal.toFixed(2)} (target ${Number(biggest.target_decimal).toFixed(2)}).`
+  )
+
   return { checked: active.length, triggered: triggered.length, sent }
 }
 

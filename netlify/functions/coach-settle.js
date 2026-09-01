@@ -21,6 +21,7 @@ import { createClient } from '@supabase/supabase-js'
 import { denyUnlessCron } from './_cronAuth.js'
 import { evaluateLeg } from '../../src/lib/betEvaluation.js'
 import { apiKeysForSport } from '../../src/lib/sportsConfig.js'
+import { notifyDiscord } from '../../src/lib/discordNotify.js'
 
 /**
  * @typedef {object} DueRow
@@ -110,6 +111,23 @@ export default async (req) => {
       ...resolvedMsgs.map((row) => supabase.from('coach_messages').update({ result: row.result }).eq('id', row.id)),
       ...resolvedDaily.map((row) => supabase.from('coach_daily_picks').update({ result: row.result, settled_at: settledAt }).eq('id', row.id))
     ])
+
+    // Ping the operator on Discord with CoachGPT's fresh grades and its
+    // cumulative record. No-ops without DISCORD_WEBHOOK_URL and can never
+    // throw; the cumulative counts are best-effort (default 0 on any error) so
+    // a slow/failed count query can't affect the settlement just written.
+    const graded = [...resolvedMsgs, ...resolvedDaily]
+    const rw = graded.filter((r) => r.result === 'won').length
+    const rl = graded.filter((r) => r.result === 'lost').length
+    const rv = graded.filter((r) => r.result === 'void').length
+    const countBy = (table, res) => supabase.from(table).select('id', { count: 'exact', head: true }).eq('result', res)
+    const [mw, ml, dw, dl] = await Promise.all([
+      countBy('coach_messages', 'won'), countBy('coach_messages', 'lost'),
+      countBy('coach_daily_picks', 'won'), countBy('coach_daily_picks', 'lost')
+    ]).then((rs) => rs.map((r) => r.count ?? 0)).catch(() => [0, 0, 0, 0])
+    await notifyDiscord(
+      `🧠 **CoachGPT** — graded ${graded.length} pick${graded.length === 1 ? '' : 's'} (${rw}W / ${rl}L / ${rv}V). Record now **${mw + dw}–${ml + dl}**.`
+    )
 
     return new Response(JSON.stringify({ settled: resolvedMsgs.length + resolvedDaily.length }), { status: 200, headers: { 'content-type': 'application/json' } })
   } catch (err) {
