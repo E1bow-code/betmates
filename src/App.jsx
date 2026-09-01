@@ -54,6 +54,7 @@ const HallOfFamePage = lazy(() => import('./pages/HallOfFamePage.jsx'))
 const AdminReportsPage = lazy(() => import('./pages/AdminReportsPage.jsx'))
 const AdminErrorLogsPage = lazy(() => import('./pages/AdminErrorLogsPage.jsx'))
 const AdminAnalyticsPage = lazy(() => import('./pages/AdminAnalyticsPage.jsx'))
+const AgentHqPage = lazy(() => import('./pages/AgentHqPage.jsx'))
 const DirectMessagePage = lazy(() => import('./pages/DirectMessagePage.jsx'))
 const MessagesInboxPage = lazy(() => import('./pages/MessagesInboxPage.jsx'))
 const CoachGptPage = lazy(() => import('./pages/CoachGptPage.jsx'))
@@ -397,6 +398,7 @@ function Shell() {
                   <Route path="/admin/reports" element={<AdminReportsPage />} />
                   <Route path="/admin/errors" element={<AdminErrorLogsPage />} />
                   <Route path="/admin/analytics" element={<AdminAnalyticsPage />} />
+                  <Route path="/admin/agents" element={<AgentHqPage />} />
                   <Route path="/u/:code" element={<PublicProfilePage />} />
                   <Route path="/user/:id" element={<PublicProfilePage />} />
                   <Route path="/hall-of-fame" element={<HallOfFamePage />} />

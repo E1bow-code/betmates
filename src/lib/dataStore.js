@@ -827,6 +827,56 @@ export async function listCoachDailyPicks() {
   return data.map(mapCoachDailyPick)
 }
 
+/** @param {any} row */
+function mapSocialPost(row) {
+  return {
+    id: row.id,
+    body: row.body,
+    platform: row.platform ?? 'x',
+    status: row.status,
+    externalId: row.external_id ?? null,
+    error: row.error ?? null,
+    createdAt: row.created_at,
+    decidedAt: row.decided_at ?? null,
+    postedAt: row.posted_at ?? null
+  }
+}
+
+// Coco's promo-post proposal queue (netlify/functions/social-propose.js), newest
+// first. Admin-only read (RLS "admins read social posts") - powers the Agent HQ
+// operator dashboard. Small limit: an at-a-glance view, not a full log.
+/** @returns {Promise<{id: string, body: string, platform: string, status: string, externalId: string|null, error: string|null, createdAt: string, decidedAt: string|null, postedAt: string|null}[]>} */
+export async function listSocialPosts() {
+  if (!isSupabaseConfigured) return local.listSocialPosts()
+  const { data, error } = await supabase.from('social_posts').select('*').order('created_at', { ascending: false }).limit(40)
+  if (error) throw error
+  return data.map(mapSocialPost)
+}
+
+/** @param {any} row */
+function mapIdeaProposal(row) {
+  return {
+    id: row.id,
+    body: row.body,
+    sources: Array.isArray(row.sources) ? row.sources : [],
+    status: row.status,
+    decidedBy: row.decided_by ?? null,
+    issueUrl: row.issue_url ?? null,
+    createdAt: row.created_at,
+    decidedAt: row.decided_at ?? null
+  }
+}
+
+// Sage's fact-checked idea proposal queue (netlify/functions/sage-propose.js),
+// newest first. Admin-only read (RLS "admins read idea proposals").
+/** @returns {Promise<{id: string, body: string, sources: {url: string, title: string}[], status: string, decidedBy: string|null, issueUrl: string|null, createdAt: string, decidedAt: string|null}[]>} */
+export async function listIdeaProposals() {
+  if (!isSupabaseConfigured) return local.listIdeaProposals()
+  const { data, error } = await supabase.from('idea_proposals').select('*').order('created_at', { ascending: false }).limit(40)
+  if (error) throw error
+  return data.map(mapIdeaProposal)
+}
+
 // grounding: real BetSlip legs a "Log this" affordance can pre-fill from -
 // see netlify/functions/coachgpt.js's groundFixtureOutcomes/groundRunner.
 // Only ever set on an assistant message; always null on a user message.
