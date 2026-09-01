@@ -659,6 +659,16 @@ export function listIdeaProposals() {
 export function agentAction(_input) {
   return delay({ ok: false, message: 'Agent controls need the live backend.' })
 }
+// Agent HQ on/off switches - no agents run in local mode, so there's nothing to
+// toggle; report all-enabled (empty list) and no-op a set.
+/** @returns {Promise<{key: string, enabled: boolean}[]>} */
+export function listAgentSettings() {
+  return delay([])
+}
+/** @param {string} _key @param {boolean} _enabled @returns {Promise<{ok: boolean, key: string, enabled: boolean}>} */
+export function setAgentEnabled(_key, _enabled) {
+  return delay({ ok: false, key: _key, enabled: _enabled })
+}
 
 // No local equivalent of coach-settle.js (a scheduled function needs a real
 // backend) - recommendations just never settle in local mode, same honest

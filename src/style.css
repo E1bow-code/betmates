@@ -5254,3 +5254,58 @@ a.btn,
   line-height: 1.4;
   word-break: break-word;
 }
+
+/* Agent HQ - Phase 2b: pause state + on/off switch */
+.hq-room.paused { opacity: 0.55; filter: grayscale(0.5); }
+.hq-led-off { background: var(--bad); box-shadow: 0 0 0 2px rgba(0, 0, 0, 0.2); }
+.hq-paused-tag {
+  position: absolute;
+  top: 8px;
+  right: 22px;
+  font-size: 9px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: var(--bad);
+  font-weight: 700;
+}
+.hq-panel-title { flex: 1; min-width: 0; }
+.hq-switch {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  font-weight: 700;
+  color: var(--text-dim);
+  background: none;
+  border: 0;
+  cursor: pointer;
+  padding: 4px;
+  white-space: nowrap;
+}
+.hq-switch.on { color: var(--good); }
+.hq-switch:disabled { opacity: 0.5; cursor: default; }
+.hq-switch-track {
+  width: 34px;
+  height: 18px;
+  border-radius: var(--radius-pill, 999px);
+  background: rgba(var(--bad-rgb), 0.35);
+  border: 1px solid var(--border);
+  position: relative;
+  transition: background 0.15s;
+}
+.hq-switch.on .hq-switch-track { background: rgba(var(--good-rgb), 0.35); }
+.hq-switch-knob {
+  position: absolute;
+  top: 1px;
+  left: 1px;
+  width: 14px;
+  height: 14px;
+  border-radius: var(--radius-circle, 50%);
+  background: var(--bad);
+  transition: transform 0.15s steps(3), background 0.15s;
+}
+.hq-switch.on .hq-switch-knob { transform: translateX(16px); background: var(--good); }
+@media (prefers-reduced-motion: reduce) { .hq-switch-knob { transition: none; } }

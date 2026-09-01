@@ -16,6 +16,7 @@ import { denyUnlessCron } from './_cronAuth.js'
 import { buildAnthropicRequest } from '../../src/lib/anthropicRoute.js'
 import { buildSageBody, extractProposal, formatProposalMessage, SAGE_MODEL } from '../../src/lib/sageResearch.js'
 import { withinLlmBudget } from '../../src/lib/llmBudget.js'
+import { agentEnabled } from '../../src/lib/agentSettings.js'
 
 const SUPABASE_URL = process.env.VITE_SUPABASE_URL
 const SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY
@@ -95,6 +96,9 @@ export default async (req) => {
 
   try {
     const supabase = createClient(SUPABASE_URL, SERVICE_ROLE_KEY)
+
+    // Agent HQ can pause Sage without a deploy (agent_settings). Fail-open.
+    if (!(await agentEnabled(supabase, 'sage'))) return json({ proposed: 0, reason: 'disabled' })
 
     // Global daily spend breaker (fails open but bounded). One research call can
     // fan out into several searches + a final generation, so budget 2 units.

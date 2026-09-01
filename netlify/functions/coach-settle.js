@@ -22,6 +22,7 @@ import { denyUnlessCron } from './_cronAuth.js'
 import { evaluateLeg } from '../../src/lib/betEvaluation.js'
 import { apiKeysForSport } from '../../src/lib/sportsConfig.js'
 import { notifyDiscord } from '../../src/lib/discordNotify.js'
+import { agentEnabled } from '../../src/lib/agentSettings.js'
 
 /**
  * @typedef {object} DueRow
@@ -125,9 +126,13 @@ export default async (req) => {
       countBy('coach_messages', 'won'), countBy('coach_messages', 'lost'),
       countBy('coach_daily_picks', 'won'), countBy('coach_daily_picks', 'lost')
     ]).then((rs) => rs.map((r) => r.count ?? 0)).catch(() => [0, 0, 0, 0])
-    await notifyDiscord(
-      `🧠 **CoachGPT** — graded ${graded.length} pick${graded.length === 1 ? '' : 's'} (${rw}W / ${rl}L / ${rv}V). Record now **${mw + dw}–${ml + dl}**.`
-    )
+    // CoachGPT's Discord voice can be muted from Agent HQ - grading above still
+    // ran regardless. Fail-open.
+    if (await agentEnabled(supabase, 'coach')) {
+      await notifyDiscord(
+        `🧠 **CoachGPT** — graded ${graded.length} pick${graded.length === 1 ? '' : 's'} (${rw}W / ${rl}L / ${rv}V). Record now **${mw + dw}–${ml + dl}**.`
+      )
+    }
 
     return new Response(JSON.stringify({ settled: resolvedMsgs.length + resolvedDaily.length }), { status: 200, headers: { 'content-type': 'application/json' } })
   } catch (err) {

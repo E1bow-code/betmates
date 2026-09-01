@@ -2147,3 +2147,26 @@ create policy "admins read idea proposals" on idea_proposals for select using (
 );
 
 create index idea_proposals_pending_idx on idea_proposals (created_at) where status = 'pending';
+
+-- --- Agent HQ: per-agent on/off switches -----------------------------------
+-- src/pages/AgentHqPage.jsx lets an admin pause an individual agent without a
+-- deploy. Each scheduled function reads its own flag (src/lib/agentSettings.js)
+-- before it posts/proposes and no-ops when disabled. FAIL-OPEN by design: a
+-- missing row (or this table not yet applied) means enabled, so merging changes
+-- nothing until the schema is applied AND an operator flips a switch. Only the
+-- service-role agent-settings endpoint writes here; admins may read the queue.
+-- Keys are the agent handles used in Agent HQ: coco, sage, desk (the research
+-- desk - Jonas/Rue/Vic/Ola/Finn share one function), bea, dex, coach, mira,
+-- priya, nova.
+create table agent_settings (
+  key text primary key,
+  enabled boolean not null default true,
+  updated_at timestamptz not null default now(),
+  updated_by uuid references profiles(id)
+);
+
+alter table agent_settings enable row level security;
+-- Admin-only read (the operator's control room); every write is service-role.
+create policy "admins read agent settings" on agent_settings for select using (
+  exists (select 1 from profiles p where p.id = auth.uid() and p.is_admin)
+);

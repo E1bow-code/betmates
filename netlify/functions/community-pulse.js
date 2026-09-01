@@ -11,6 +11,7 @@ import { createClient } from '@supabase/supabase-js'
 import { denyUnlessCron } from './_cronAuth.js'
 import { notifyDiscord } from '../../src/lib/discordNotify.js'
 import { newlyCrossedMilestone, milestoneMessage, MEMBER_MILESTONES } from '../../src/lib/communityMilestone.js'
+import { agentEnabled } from '../../src/lib/agentSettings.js'
 
 const SUPABASE_URL = process.env.VITE_SUPABASE_URL
 const SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY
@@ -30,6 +31,9 @@ export default async (req) => {
 
   try {
     const supabase = createClient(SUPABASE_URL, SERVICE_ROLE_KEY)
+
+    // Agent HQ can pause Bea without a deploy (agent_settings). Fail-open.
+    if (!(await agentEnabled(supabase, 'bea'))) return json({ announced: 0, reason: 'disabled' })
 
     // Only groups that have reached at least the first milestone are worth
     // scanning; last_member_milestone (default 0) is the dedupe watermark.

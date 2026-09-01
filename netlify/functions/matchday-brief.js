@@ -18,6 +18,7 @@ import { notifyDiscord } from '../../src/lib/discordNotify.js'
 import { buildAnthropicRequest } from '../../src/lib/anthropicRoute.js'
 import { buildBriefBody, extractProposal, formatBriefMessage, BRIEF_MODEL } from '../../src/lib/matchdayBrief.js'
 import { withinLlmBudget } from '../../src/lib/llmBudget.js'
+import { agentEnabled } from '../../src/lib/agentSettings.js'
 
 const SUPABASE_URL = process.env.VITE_SUPABASE_URL
 const SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY
@@ -70,6 +71,10 @@ export default async (req) => {
 
   try {
     const supabase = createClient(SUPABASE_URL, SERVICE_ROLE_KEY)
+
+    // Agent HQ can pause the research desk without a deploy (agent_settings key
+    // 'desk' - Jonas/Rue/Vic/Ola/Finn share this one function). Fail-open.
+    if (!(await agentEnabled(supabase, 'desk'))) return json({ briefed: 0, reason: 'disabled' })
 
     const now = Date.now()
     const horizon = new Date(now + WINDOW_MS).toISOString()
