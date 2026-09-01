@@ -81,8 +81,25 @@ function StatusBadge({ status }) {
   return <span className={`hq-badge hq-badge-${status}`}>{status}</span>
 }
 
+// Approve / Reject row shown on a still-pending proposal. Wired to the admin
+// agent-action endpoint via onAct.
+function ProposalActions({ kind, row, onAct, busyId }) {
+  if (row.status !== 'pending') return null
+  const busy = busyId === row.id
+  return (
+    <div className="hq-actions">
+      <button type="button" className="hq-btn hq-btn-approve" disabled={busy} onClick={() => onAct(kind, row, 'approve')}>
+        {busy ? '…' : 'Approve'}
+      </button>
+      <button type="button" className="hq-btn hq-btn-reject" disabled={busy} onClick={() => onAct(kind, row, 'reject')}>
+        Reject
+      </button>
+    </div>
+  )
+}
+
 // The detail panel for a selected agent.
-function AgentDetail({ agent, data }) {
+function AgentDetail({ agent, data, onAct, busyId }) {
   if (agent.source === 'coco') {
     const rows = data.social.slice(0, 10)
     return (
@@ -96,6 +113,7 @@ function AgentDetail({ agent, data }) {
             </div>
             <div className="hq-detail-body">{r.body}</div>
             {r.error && <div className="hq-detail-err">{r.error}</div>}
+            <ProposalActions kind="social" row={r} onAct={onAct} busyId={busyId} />
           </div>
         ))}
       </div>
@@ -120,6 +138,7 @@ function AgentDetail({ agent, data }) {
                 View issue ↗
               </a>
             )}
+            <ProposalActions kind="idea" row={r} onAct={onAct} busyId={busyId} />
           </div>
         ))}
       </div>
@@ -159,6 +178,24 @@ export default function AgentHqPage() {
   const [data, setData] = useState(null)
   const [error, setError] = useState(null)
   const [selectedKey, setSelectedKey] = useState('coco')
+  const [busyId, setBusyId] = useState(null)
+  const [notice, setNotice] = useState(null)
+
+  // Approve/reject a proposal, then reflect the returned status in place.
+  async function handleAct(kind, row, action) {
+    setBusyId(row.id)
+    setNotice(null)
+    try {
+      const res = await dataStore.agentAction({ kind, id: row.id, action })
+      const listKey = kind === 'social' ? 'social' : 'ideas'
+      setData((d) => (d ? { ...d, [listKey]: d[listKey].map((r) => (r.id === row.id ? { ...r, status: res.status || r.status } : r)) } : d))
+      setNotice(res.message || 'Done.')
+    } catch (err) {
+      setNotice(`Couldn't ${action}: ${err.message}`)
+    } finally {
+      setBusyId(null)
+    }
+  }
 
   useEffect(() => {
     if (!user.isAdmin) return
@@ -237,7 +274,8 @@ export default function AgentHqPage() {
                 {selected.signal && <div className="hq-panel-signal">{selected.signal}</div>}
               </div>
             </div>
-            <AgentDetail agent={selected} data={data} />
+            {notice && <div className="hq-notice">{notice}</div>}
+            <AgentDetail agent={selected} data={data} onAct={handleAct} busyId={busyId} />
           </div>
         </>
       )}
