@@ -36,10 +36,24 @@ const AGENTS = [
   { key: 'finn', name: 'Finn', role: 'Fixtures / Travel', color: '#8ad0ff', sprite: '✈️', source: 'desk', settingsKey: 'desk', signal: 'Matchday brief — travel' }
 ]
 
+// The proactive posters that can be fired on demand (keys match settingsKey).
+const RUNNABLE = new Set(['coco', 'sage', 'desk', 'bea'])
+
 function tally(rows, field = 'status') {
   const out = {}
   for (const r of rows) out[r[field]] = (out[r[field]] || 0) + 1
   return out
+}
+
+// A short human line from a run-now handler's raw result.
+function runSummary(result) {
+  if (!result) return 'done'
+  if (result.reason === 'disabled') return 'agent is paused — resume it first'
+  if (result.reason) return result.reason
+  if (result.error) return `error: ${result.error}`
+  if (result.proposed || result.briefed) return 'posted ✓'
+  if (typeof result.announced === 'number') return result.announced ? `${result.announced} announced` : 'nothing to announce'
+  return 'done (nothing to post)'
 }
 
 // Per-agent live status derived from the loaded data. Returns { light, line,
@@ -182,6 +196,30 @@ export default function AgentHqPage() {
   const [notice, setNotice] = useState(null)
   const [settings, setSettings] = useState([])
   const [savingKey, setSavingKey] = useState(null)
+  const [runningKey, setRunningKey] = useState(null)
+
+  // Reload the live data (used after a "Run now" so a fresh proposal appears).
+  async function reloadData() {
+    const [social, ideas, picks] = await Promise.all([dataStore.listSocialPosts(), dataStore.listIdeaProposals(), dataStore.listCoachDailyPicks()])
+    setData({ social, ideas, picks })
+  }
+
+  // Fire a poster agent on demand, then refresh so any new proposal shows.
+  async function handleRun(key) {
+    setRunningKey(key)
+    setNotice(null)
+    try {
+      const res = await dataStore.agentRun(key)
+      setNotice(`Ran — ${runSummary(res.result)}`)
+      await reloadData().catch(() => {})
+    } catch (err) {
+      // A slow poster (Sage/desk call Claude) can outlast the request; the run
+      // may still have completed, so say so rather than implying failure.
+      setNotice(`Kicked off — ${err.message}. If it was slow, check back in a moment.`)
+    } finally {
+      setRunningKey(null)
+    }
+  }
 
   // Default-enabled; only an explicit false disables (mirrors agentSettings.js).
   const enabledOf = (key) => {
@@ -307,19 +345,32 @@ export default function AgentHqPage() {
                 </div>
                 {selected.signal && <div className="hq-panel-signal">{selected.signal}</div>}
               </div>
-              <button
-                type="button"
-                className={`hq-switch${enabledOf(selected.settingsKey) ? ' on' : ''}`}
-                disabled={savingKey === selected.settingsKey}
-                onClick={() => handleToggle(selected.settingsKey, !enabledOf(selected.settingsKey))}
-                aria-pressed={enabledOf(selected.settingsKey)}
-                title={enabledOf(selected.settingsKey) ? 'Pause this agent' : 'Resume this agent'}
-              >
-                <span className="hq-switch-track" aria-hidden="true">
-                  <span className="hq-switch-knob" />
-                </span>
-                {enabledOf(selected.settingsKey) ? 'On' : 'Paused'}
-              </button>
+              <div className="hq-panel-controls">
+                {RUNNABLE.has(selected.settingsKey) && (
+                  <button
+                    type="button"
+                    className="hq-btn hq-btn-run"
+                    disabled={runningKey === selected.settingsKey || !enabledOf(selected.settingsKey)}
+                    onClick={() => handleRun(selected.settingsKey)}
+                    title={enabledOf(selected.settingsKey) ? 'Run this agent now' : 'Resume the agent first'}
+                  >
+                    {runningKey === selected.settingsKey ? 'Running…' : '▶ Run now'}
+                  </button>
+                )}
+                <button
+                  type="button"
+                  className={`hq-switch${enabledOf(selected.settingsKey) ? ' on' : ''}`}
+                  disabled={savingKey === selected.settingsKey}
+                  onClick={() => handleToggle(selected.settingsKey, !enabledOf(selected.settingsKey))}
+                  aria-pressed={enabledOf(selected.settingsKey)}
+                  title={enabledOf(selected.settingsKey) ? 'Pause this agent' : 'Resume this agent'}
+                >
+                  <span className="hq-switch-track" aria-hidden="true">
+                    <span className="hq-switch-knob" />
+                  </span>
+                  {enabledOf(selected.settingsKey) ? 'On' : 'Paused'}
+                </button>
+              </div>
             </div>
             {notice && <div className="hq-notice">{notice}</div>}
             <AgentDetail agent={selected} data={data} onAct={handleAct} busyId={busyId} />

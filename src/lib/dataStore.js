@@ -935,6 +935,24 @@ export async function setAgentEnabled(key, enabled) {
   return body
 }
 
+// Fire a proactive "poster" agent on demand (netlify/functions/agent-run.js).
+// Admin only, verified server-side; runs the agent's own scheduled handler.
+/** @param {string} key @returns {Promise<{ok: boolean, key: string, result: any}>} */
+export async function agentRun(key) {
+  if (!isSupabaseConfigured) return local.agentRun(key)
+  const { data } = await supabase.auth.getSession()
+  const accessToken = data.session?.access_token
+  if (!accessToken) throw new Error('No active session.')
+  const res = await fetch('/api/agent-run', {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({ accessToken, key })
+  })
+  const body = await res.json().catch(() => ({}))
+  if (!res.ok || body?.error) throw new Error(body?.error || 'Run failed.')
+  return body
+}
+
 // grounding: real BetSlip legs a "Log this" affordance can pre-fill from -
 // see netlify/functions/coachgpt.js's groundFixtureOutcomes/groundRunner.
 // Only ever set on an assistant message; always null on a user message.

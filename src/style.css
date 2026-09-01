@@ -5309,3 +5309,8 @@ a.btn,
 }
 .hq-switch.on .hq-switch-knob { transform: translateX(16px); background: var(--good); }
 @media (prefers-reduced-motion: reduce) { .hq-switch-knob { transition: none; } }
+
+/* Agent HQ - Phase 2c: run-now control */
+.hq-panel-head { flex-wrap: wrap; }
+.hq-panel-controls { display: flex; align-items: center; gap: 10px; flex-shrink: 0; margin-left: auto; }
+.hq-btn-run { border-color: var(--accent); color: var(--accent); }
