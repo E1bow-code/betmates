@@ -669,6 +669,12 @@ export function listAgentSettings() {
 export function setAgentEnabled(_key, _enabled) {
   return delay({ ok: false, key: _key, enabled: _enabled })
 }
+// "Run now" needs the real backend (the agent's scheduled handler) - nothing to
+// run in local mode.
+/** @param {string} _key @returns {Promise<{ok: boolean, key: string, result: any}>} */
+export function agentRun(_key) {
+  return delay({ ok: false, key: _key, result: {} })
+}
 
 // No local equivalent of coach-settle.js (a scheduled function needs a real
 // backend) - recommendations just never settle in local mode, same honest
