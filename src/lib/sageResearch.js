@@ -34,37 +34,45 @@ export const SAGE_SYSTEM = [
   '',
   'Your job: propose ONE concrete, fact-checked idea to grow or improve',
   'BetMates - a product feature, a growth or marketing tactic, a partnership,',
-  'or a monetisation angle. Use web search to ground it in REAL, current facts',
-  '(a market figure, a competitor move, a platform policy, a trend) and cite',
-  'your sources. Do NOT invent statistics or sources - if you cannot verify a',
-  'claim by searching, do not make it.',
+  'or a monetisation angle. Ground it in TWO real sources:',
+  '1. THE SITE - the live BetMates signals you are given below (real usage,',
+  '   user feedback/reports, and where the product is thin). Let a real gap or',
+  '   trend in those numbers drive the idea wherever you can.',
+  '2. THE WEB - use web search for external facts (a market figure, a competitor',
+  '   move, a platform policy, a trend) and cite your sources.',
+  'Do NOT invent statistics or sources - if you cannot verify a claim by',
+  'searching, or it is not in the site signals, do not make it.',
   '',
   'Output plainly, no preamble and no sign-off:',
   '- A one-line title for the idea.',
-  '- 2-3 sentences pitching it and why it fits BetMates.',
-  '- 1-2 sentences on the researched evidence behind it, referencing what you',
-  '  found.',
-  'Keep the whole thing under ~180 words so it reads well in a chat message.',
+  '- 2-3 sentences pitching it and why it fits BetMates - reference the real',
+  '  site signal it responds to where there is one.',
+  '- 1-2 sentences on the web evidence behind it, referencing what you found.',
+  'Keep the whole thing under ~200 words so it reads well in a chat message.',
   'British English.'
 ].join('\n')
-
-const SAGE_USER_PROMPT = 'Research and propose today\'s BetMates idea, grounded in real cited sources.'
 
 /**
  * The Messages API request body for a Sage proposal (model is applied
  * separately by buildAnthropicRequest). Adaptive thinking + the web_search
- * server tool: Claude searches, reasons over what it finds, and writes a cited
- * proposal. max_tokens is generous enough to cover the thinking budget plus the
- * short written output.
+ * server tool: Claude reads the site signals it's given, searches the web to
+ * ground the idea, and writes a cited proposal.
+ * @param {string} [siteContext] a compact summary of live BetMates signals
+ *   (usage, feedback, gaps) gathered by sage-propose.js; empty falls back to a
+ *   web-only prompt.
  * @returns {object}
  */
-export function buildSageBody() {
+export function buildSageBody(siteContext = '') {
+  const ctx = String(siteContext || '').trim()
+  const ask = ctx
+    ? `Here is what's happening on BetMates right now:\n\n${ctx}\n\nResearch and propose ONE idea to grow or improve BetMates, grounded in BOTH these real site signals and the web. Cite your web sources.`
+    : "Research and propose today's BetMates idea, grounded in real cited web sources."
   return {
     max_tokens: 3000,
     thinking: { type: 'adaptive' },
     system: SAGE_SYSTEM,
     tools: [WEB_SEARCH_TOOL],
-    messages: [{ role: 'user', content: SAGE_USER_PROMPT }]
+    messages: [{ role: 'user', content: ask }]
   }
 }
 

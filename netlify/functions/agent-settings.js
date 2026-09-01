@@ -16,7 +16,7 @@ const SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY
 
 // The agents that can be toggled (must match the keys the scheduled functions
 // check). Rejecting anything else keeps junk out of the table.
-const KEYS = new Set(['coco', 'sage', 'desk', 'bea', 'dex', 'coach', 'mira', 'priya', 'nova'])
+const KEYS = new Set(['coco', 'sage', 'bea', 'dex', 'coach', 'mira', 'priya', 'nova'])
 
 function json(body, status = 200) {
   return new Response(JSON.stringify(body), { status, headers: { 'content-type': 'application/json' } })

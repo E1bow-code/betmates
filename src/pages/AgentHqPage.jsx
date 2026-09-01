@@ -17,27 +17,22 @@ import { formatRelativeTime } from '../utils/format.js'
 // Gating mirrors the other admin pages: the redirect is UX only; the real
 // enforcement is RLS (social_posts / idea_proposals are admin-read).
 
-// The cast, their colours (from the BetMates Ops sim), where each one's status
-// comes from (`source`), and its on/off `settingsKey` (agent_settings) - the
-// five research-desk agents share one function, so they share the 'desk' key.
+// The cast, their colours, where each one's status comes from (`source`), and
+// its on/off `settingsKey` (agent_settings). Sage is the single research/ideas
+// agent (it reads the web + the site); there's no separate research desk.
 const AGENTS = [
   { key: 'coco', name: 'Coco', role: 'Social Media Mgr', color: '#ff77b6', sprite: '📣', source: 'coco', settingsKey: 'coco', signal: 'Daily promo post → approve → X' },
-  { key: 'sage', name: 'Sage', role: 'Ideas / R&D', color: '#ffce4d', sprite: '💡', source: 'sage', settingsKey: 'sage', signal: 'Fact-checked idea → approve → GitHub' },
+  { key: 'sage', name: 'Sage', role: 'Research & Ideas', color: '#ffce4d', sprite: '💡', source: 'sage', settingsKey: 'sage', signal: 'Ideas from the web + the site → approve → GitHub' },
   { key: 'coach', name: 'CoachGPT', role: 'The Coach', color: '#c9a6ff', sprite: '🧠', source: 'coach', settingsKey: 'coach', signal: 'Daily pick, graded' },
   { key: 'dex', name: 'Dex', role: 'Data Engineer', color: '#5c97ff', sprite: '🛠️', source: 'watch', settingsKey: 'dex', signal: 'Settlement + CI alerts' },
   { key: 'mira', name: 'Mira', role: 'Odds Analyst', color: '#37e0d6', sprite: '🔔', source: 'watch', settingsKey: 'mira', signal: 'Odds-alert hits' },
   { key: 'nova', name: 'Nova', role: 'Markets Trader', color: '#37e0a0', sprite: '📈', source: 'watch', settingsKey: 'nova', signal: 'Sharp-money moves' },
   { key: 'priya', name: 'Priya', role: 'Compliance', color: '#ff6a5d', sprite: '⚠️', source: 'watch', settingsKey: 'priya', signal: 'Spend-limit escalations' },
-  { key: 'bea', name: 'Bea', role: 'Community', color: '#ffa24d', sprite: '🎉', source: 'watch', settingsKey: 'bea', signal: 'Group member milestones' },
-  { key: 'jonas', name: 'Jonas', role: 'Form Scout', color: '#ff9a4d', sprite: '📋', source: 'desk', settingsKey: 'desk', signal: 'Matchday brief — form' },
-  { key: 'rue', name: 'Rue', role: 'Conditions', color: '#4fd67a', sprite: '🌦️', source: 'desk', settingsKey: 'desk', signal: 'Matchday brief — weather' },
-  { key: 'vic', name: 'Vic', role: 'Fitness / Med', color: '#b58bff', sprite: '🩺', source: 'desk', settingsKey: 'desk', signal: 'Matchday brief — injuries' },
-  { key: 'ola', name: 'Ola', role: 'Officials Watch', color: '#d0d6e0', sprite: '🟨', source: 'desk', settingsKey: 'desk', signal: 'Matchday brief — referees' },
-  { key: 'finn', name: 'Finn', role: 'Fixtures / Travel', color: '#8ad0ff', sprite: '✈️', source: 'desk', settingsKey: 'desk', signal: 'Matchday brief — travel' }
+  { key: 'bea', name: 'Bea', role: 'Community', color: '#ffa24d', sprite: '🎉', source: 'watch', settingsKey: 'bea', signal: 'Group member milestones' }
 ]
 
 // The proactive posters that can be fired on demand (keys match settingsKey).
-const RUNNABLE = new Set(['coco', 'sage', 'desk', 'bea'])
+const RUNNABLE = new Set(['coco', 'sage', 'bea'])
 
 function tally(rows, field = 'status') {
   const out = {}
