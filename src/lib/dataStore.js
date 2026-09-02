@@ -953,6 +953,27 @@ export async function agentRun(key) {
   return body
 }
 
+// Live control-room feed for the five "watch" agents (Dex/Mira/Nova/Priya/Bea)
+// plus a health map for all eight (netlify/functions/agent-hq-feed.js). Admin
+// only, verified server-side; reads each agent's own domain table with the
+// service-role key. Returns { feeds: {key: {doing, watching, lastActivity}},
+// health: {key: [{name, ok}]} }.
+/** @returns {Promise<{feeds: Record<string, {doing: any[], watching: any[], lastActivity: string|null}>, health: Record<string, {name: string, ok: boolean}[]>}>} */
+export async function getAgentHqFeed() {
+  if (!isSupabaseConfigured) return local.getAgentHqFeed()
+  const { data } = await supabase.auth.getSession()
+  const accessToken = data.session?.access_token
+  if (!accessToken) throw new Error('No active session.')
+  const res = await fetch('/api/agent-hq-feed', {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({ accessToken })
+  })
+  const body = await res.json().catch(() => ({}))
+  if (!res.ok || body?.error) throw new Error(body?.error || 'Failed to load the live feed.')
+  return { feeds: body.feeds || {}, health: body.health || {} }
+}
+
 // grounding: real BetSlip legs a "Log this" affordance can pre-fill from -
 // see netlify/functions/coachgpt.js's groundFixtureOutcomes/groundRunner.
 // Only ever set on an assistant message; always null on a user message.
