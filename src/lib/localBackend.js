@@ -675,6 +675,28 @@ export function setAgentEnabled(_key, _enabled) {
 export function agentRun(_key) {
   return delay({ ok: false, key: _key, result: {} })
 }
+// The live control-room feed reads server-only tables with the service-role key,
+// so local mode has nothing real to show: honest empty feeds and every
+// integration reported unconfigured (no server env here). The room still renders
+// - the watch agents just say they have no live feed, same honest gap as above.
+/** @returns {Promise<{feeds: Record<string, {doing: any[], watching: any[], lastActivity: string|null}>, health: Record<string, {name: string, ok: boolean}[]>}>} */
+export function getAgentHqFeed() {
+  const empty = { doing: [], watching: [], lastActivity: null }
+  const off = (...names) => names.map((name) => ({ name, ok: false }))
+  return delay({
+    feeds: { dex: empty, mira: empty, nova: empty, priya: empty, bea: empty },
+    health: {
+      coco: off('Discord bot'),
+      sage: off('Discord bot', 'Anthropic key', 'GitHub issues'),
+      coach: off('Anthropic key', 'Discord webhook'),
+      dex: off('Discord webhook', 'Odds API'),
+      mira: off('Discord webhook', 'Odds API'),
+      nova: off('Discord webhook', 'Odds API'),
+      priya: off('Discord webhook'),
+      bea: off('Discord webhook')
+    }
+  })
+}
 
 // No local equivalent of coach-settle.js (a scheduled function needs a real
 // backend) - recommendations just never settle in local mode, same honest
