@@ -2,39 +2,266 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Link, Navigate } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext.jsx'
 import * as dataStore from '../lib/dataStore.js'
-import { formatRelativeTime } from '../utils/format.js'
+import { formatRelativeTime, formatKickoff, formatCountdown } from '../utils/format.js'
+import { POST_SPORTS, POST_SUBJECTS } from '../lib/socialDraft.js'
+import { fetchFixtures } from '../api/oddsClient.js'
+import { fetchFights } from '../api/ufcClient.js'
+import { fetchRaces, fetchRaceResults } from '../api/racingClient.js'
+import { fetchResults } from '../api/resultsClient.js'
 
-// Agent HQ - a live, admin-only control room for the scheduled "agent"
-// ecosystem. Every agent is a real background function; this room shows each
-// one's live data and lets you control it.
-//
-// Three data sources feed the room:
-//   - Coco/Sage/CoachGPT read their own RLS-readable tables straight from the
-//     client (social_posts / idea_proposals / coach_daily_picks).
-//   - Dex/Mira/Nova/Priya/Bea fire against tables the anon key can't read, so
-//     their live feed comes from the admin-verified /api/agent-hq-feed endpoint.
-//   - agent_settings drives the pause/resume switch (fail-open: no row = on).
-//
-// Each agent tile shows what it's DOING (recent real events), what it's WATCHING
-// (the live inputs it acts on) and its HEALTH (paused state, last activity, and
-// which integration keys are configured). Controls: approve/reject a proposal,
-// pause/resume, run-now, and a manual refresh (the feed also auto-polls).
-//
-// Gating mirrors the other admin pages: the redirect is UX only; the real
-// enforcement is RLS + the endpoint's server-side is_admin check.
+// BetMates Ops — the admin command deck. One screen to run BetMates while you're
+// away: POST a promo with one tap (or compose one), scan RECENT SPORTS, and
+// check in on the BOTS. Everything here is real: posts publish to X, the sports
+// panels read the live odds/results feed, and the robot bays show and control
+// the actual background agents. Route /admin/agents; admin-gated (UX redirect +
+// server-side is_admin on every endpoint).
 
-const AGENTS = [
-  { key: 'coco', name: 'Coco', role: 'Social Media Mgr', color: '#ff77b6', sprite: '📣', source: 'coco', settingsKey: 'coco', signal: 'Daily promo post → approve → X' },
-  { key: 'sage', name: 'Sage', role: 'Research & Ideas', color: '#ffce4d', sprite: '💡', source: 'sage', settingsKey: 'sage', signal: 'Ideas from the web + the site → approve → GitHub' },
-  { key: 'coach', name: 'CoachGPT', role: 'The Coach', color: '#c9a6ff', sprite: '🧠', source: 'coach', settingsKey: 'coach', signal: 'Daily pick, graded' },
-  { key: 'dex', name: 'Dex', role: 'Data Engineer', color: '#5c97ff', sprite: '🛠️', source: 'dex', settingsKey: 'dex', signal: 'Settles bets + CI alerts' },
-  { key: 'mira', name: 'Mira', role: 'Odds Analyst', color: '#37e0d6', sprite: '🔔', source: 'mira', settingsKey: 'mira', signal: 'Odds-alert hits' },
-  { key: 'nova', name: 'Nova', role: 'Markets Trader', color: '#37e0a0', sprite: '📈', source: 'nova', settingsKey: 'nova', signal: 'Sharp-money moves' },
-  { key: 'priya', name: 'Priya', role: 'Compliance', color: '#ff6a5d', sprite: '⚠️', source: 'priya', settingsKey: 'priya', signal: 'Spend-limit escalations' },
-  { key: 'bea', name: 'Bea', role: 'Community', color: '#ffa24d', sprite: '🎉', source: 'bea', settingsKey: 'bea', signal: 'Group member milestones' }
+// ============================================================ POST STUDIO
+function PostStudio() {
+  const [sport, setSport] = useState('football')
+  const [subject, setSubject] = useState('hype')
+  const [draft, setDraft] = useState(null)
+  const [busy, setBusy] = useState(null) // 'now' | 'draft' | 'post'
+  const [result, setResult] = useState(null)
+
+  async function run(mode) {
+    setBusy(mode === 'daily' ? 'now' : mode === 'preview' ? 'draft' : 'post')
+    setResult(null)
+    try {
+      const res = await dataStore.composePost({ mode, sport, subject })
+      if (mode === 'preview') {
+        setDraft(res.body || '')
+      } else {
+        setDraft(res.body || draft)
+        setResult({
+          tone: res.posted ? 'ok' : res.skipped ? 'warn' : 'bad',
+          text: res.message || (res.posted ? 'Posted to X ✓' : 'Done'),
+          link: res.link || null
+        })
+      }
+    } catch (err) {
+      setResult({ tone: 'bad', text: err.message })
+    } finally {
+      setBusy(null)
+    }
+  }
+
+  return (
+    <section className="deck-card deck-post">
+      <div className="deck-card-head">
+        <span className="deck-bot deck-bot-sm" style={{ '--c': '#ff77b6' }} aria-hidden="true">
+          <span className="deck-bot-head">
+            <span className="deck-bot-visor" />
+          </span>
+          <span className="deck-bot-body" />
+        </span>
+        <div>
+          <h2 className="deck-card-title">Post</h2>
+          <p className="deck-card-sub">Coco publishes to X — one tap, or compose your own.</p>
+        </div>
+        <button type="button" className="deck-postnow" disabled={!!busy} onClick={() => run('daily')}>
+          {busy === 'now' ? 'Posting…' : '⚡ Post now'}
+        </button>
+      </div>
+
+      <div className="deck-studio">
+        <div className="deck-field">
+          <label className="deck-label" htmlFor="deck-sport">
+            Sport
+          </label>
+          <select id="deck-sport" className="deck-select" value={sport} onChange={(e) => setSport(e.target.value)}>
+            {POST_SPORTS.map((s) => (
+              <option key={s.key} value={s.key}>
+                {s.emoji} {s.label}
+              </option>
+            ))}
+          </select>
+        </div>
+        <div className="deck-field">
+          <label className="deck-label" htmlFor="deck-subject">
+            Subject
+          </label>
+          <select id="deck-subject" className="deck-select" value={subject} onChange={(e) => setSubject(e.target.value)}>
+            {POST_SUBJECTS.map((s) => (
+              <option key={s.key} value={s.key}>
+                {s.label}
+              </option>
+            ))}
+          </select>
+        </div>
+        <button type="button" className="deck-btn" disabled={!!busy} onClick={() => run('preview')}>
+          {busy === 'draft' ? 'Drafting…' : 'Draft it'}
+        </button>
+      </div>
+
+      {draft != null && (
+        <div className="deck-draft">
+          <div className="deck-draft-body">{draft || 'No draft.'}</div>
+          <div className="deck-draft-foot">
+            <span className="deck-draft-count">{draft.length}/280</span>
+            <button type="button" className="deck-btn deck-btn-go" disabled={!!busy || !draft} onClick={() => run('post')}>
+              {busy === 'post' ? 'Posting…' : 'Post to X'}
+            </button>
+          </div>
+        </div>
+      )}
+
+      {result && (
+        <div className={`deck-result deck-result-${result.tone}`}>
+          {result.text}
+          {result.link && (
+            <a href={result.link} target="_blank" rel="noreferrer">
+              {' '}
+              view ↗
+            </a>
+          )}
+        </div>
+      )}
+    </section>
+  )
+}
+
+// ============================================================ SPORTS PANEL
+const SPORT_TABS = [
+  { key: 'football', label: 'Football', emoji: '⚽' },
+  { key: 'ufc', label: 'UFC', emoji: '🥊' },
+  { key: 'racing', label: 'Racing', emoji: '🏇' }
 ]
 
-// The proactive posters that can be fired on demand (keys match settingsKey).
+function fixtureTitle(item, sport) {
+  if (sport === 'racing') return `${item.course} — ${item.raceName}`
+  if (sport === 'ufc') return `${item.fighterA} v ${item.fighterB}`
+  return `${item.homeTeam} v ${item.awayTeam}`
+}
+function h2hOutcomes(item) {
+  const m = (item.markets || []).find((x) => x.key === 'h2h')
+  if (!m) return []
+  return (m.outcomes || []).map((o) => ({ name: o.name, decimal: o.bestOdds?.decimal ?? o.allOdds?.[0]?.decimal ?? null }))
+}
+function resultTitle(r, sport) {
+  if (sport === 'racing') return `${r.course} — ${r.raceName}`
+  return `${r.homeTeam} v ${r.awayTeam}`
+}
+
+function SportsPanel() {
+  const [tab, setTab] = useState('football')
+  const [view, setView] = useState('fixtures') // 'fixtures' | 'results'
+  const [items, setItems] = useState(null)
+  const [loadedFor, setLoadedFor] = useState(null)
+  const [error, setError] = useState(null)
+
+  useEffect(() => {
+    let alive = true
+    setItems(null)
+    setError(null)
+    const token = `${tab}:${view}`
+    const fetcher = () => {
+      if (view === 'results') return tab === 'racing' ? fetchRaceResults() : fetchResults(tab)
+      if (tab === 'football') return fetchFixtures()
+      if (tab === 'ufc') return fetchFights()
+      return fetchRaces()
+    }
+    fetcher()
+      .then((data) => {
+        if (!alive) return
+        setItems(Array.isArray(data) ? data.slice(0, 6) : [])
+        setLoadedFor(token)
+      })
+      .catch((err) => alive && setError(err.message))
+    return () => {
+      alive = false
+    }
+  }, [tab, view])
+
+  const ready = loadedFor === `${tab}:${view}` ? items : null
+
+  return (
+    <section className="deck-card deck-sports">
+      <div className="deck-card-head">
+        <div>
+          <h2 className="deck-card-title">Recent sports</h2>
+          <p className="deck-card-sub">Live odds and results — {SPORT_TABS.find((s) => s.key === tab)?.label}.</p>
+        </div>
+        <div className="deck-toggle">
+          <button type="button" className={view === 'fixtures' ? 'on' : ''} onClick={() => setView('fixtures')}>
+            Upcoming
+          </button>
+          <button type="button" className={view === 'results' ? 'on' : ''} onClick={() => setView('results')}>
+            Results
+          </button>
+        </div>
+      </div>
+
+      <div className="deck-tabs">
+        {SPORT_TABS.map((s) => (
+          <button key={s.key} type="button" className={`deck-tab${tab === s.key ? ' on' : ''}`} onClick={() => setTab(s.key)}>
+            {s.emoji} {s.label}
+          </button>
+        ))}
+      </div>
+
+      {error && <p className="deck-dim">Couldn’t load: {error}</p>}
+      {!error && !ready && <p className="deck-dim">Loading…</p>}
+      {ready && ready.length === 0 && <p className="deck-dim">Nothing to show right now.</p>}
+
+      {ready && ready.length > 0 && (
+        <ul className="deck-fixtures">
+          {view === 'fixtures'
+            ? ready.map((item) => (
+                <li key={item.id} className="deck-fixture">
+                  <div className="deck-fixture-main">
+                    <span className="deck-fixture-title">{fixtureTitle(item, tab)}</span>
+                    <span className="deck-fixture-when">
+                      {tab === 'racing'
+                        ? formatKickoff(item.offTime)
+                        : `${formatKickoff(item.kickoff)} · ${formatCountdown(item.kickoff)}`}
+                    </span>
+                  </div>
+                  {tab === 'racing' ? (
+                    <span className="deck-odds-chip">{(item.runners || []).length} runners</span>
+                  ) : (
+                    <div className="deck-odds">
+                      {h2hOutcomes(item).map((o, i) => (
+                        <span key={i} className="deck-odds-chip">
+                          {o.name} <b>{o.decimal ? o.decimal.toFixed(2) : '—'}</b>
+                        </span>
+                      ))}
+                    </div>
+                  )}
+                </li>
+              ))
+            : ready.map((r, idx) => (
+                <li key={r.raceId || r.id || idx} className="deck-fixture">
+                  <div className="deck-fixture-main">
+                    <span className="deck-fixture-title">{resultTitle(r, tab)}</span>
+                    {tab === 'racing' && <span className="deck-fixture-when">{formatKickoff(r.offTime)}</span>}
+                  </div>
+                  {tab === 'racing' ? (
+                    <span className="deck-odds-chip">
+                      🥇 {(r.runners || []).find((x) => x.position === 1)?.name || 'result in'}
+                    </span>
+                  ) : (
+                    <span className="deck-score">{(r.scores || []).map((s) => s.score).join(' – ') || 'FT'}</span>
+                  )}
+                </li>
+              ))}
+        </ul>
+      )}
+    </section>
+  )
+}
+
+// ============================================================ BOT DECK
+const AGENTS = [
+  { key: 'coco', name: 'Coco', role: 'Social', color: '#ff77b6', source: 'coco', settingsKey: 'coco', signal: 'Daily promo → X' },
+  { key: 'sage', name: 'Sage', role: 'Research', color: '#ffce4d', source: 'sage', settingsKey: 'sage', signal: 'Ideas from web + site → GitHub' },
+  { key: 'coach', name: 'CoachGPT', role: 'The Coach', color: '#c9a6ff', source: 'coach', settingsKey: 'coach', signal: 'Daily pick, graded' },
+  { key: 'dex', name: 'Dex', role: 'Data', color: '#5c97ff', source: 'dex', settingsKey: 'dex', signal: 'Settles bets + CI' },
+  { key: 'mira', name: 'Mira', role: 'Odds', color: '#37e0d6', source: 'mira', settingsKey: 'mira', signal: 'Odds-alert hits' },
+  { key: 'nova', name: 'Nova', role: 'Markets', color: '#37e0a0', source: 'nova', settingsKey: 'nova', signal: 'Sharp-money moves' },
+  { key: 'priya', name: 'Priya', role: 'Compliance', color: '#ff6a5d', source: 'priya', settingsKey: 'priya', signal: 'Spend-limit alerts' },
+  { key: 'bea', name: 'Bea', role: 'Community', color: '#ffa24d', source: 'bea', settingsKey: 'bea', signal: 'Group milestones' }
+]
 const RUNNABLE = new Set(['coco', 'sage', 'bea'])
 const WATCH = new Set(['dex', 'mira', 'nova', 'priya', 'bea'])
 const REFRESH_MS = 45000
@@ -45,8 +272,6 @@ function tally(rows, field = 'status') {
   for (const r of rows) out[r[field]] = (out[r[field]] || 0) + 1
   return out
 }
-
-// A short human line from a run-now handler's raw result.
 function runSummary(result) {
   if (!result) return 'done'
   if (result.reason === 'disabled') return 'agent is paused — resume it first'
@@ -54,15 +279,11 @@ function runSummary(result) {
   if (result.error) return `error: ${result.error}`
   if (result.proposed || result.briefed) return 'posted ✓'
   if (typeof result.announced === 'number') return result.announced ? `${result.announced} announced` : 'nothing to announce'
-  return 'done (nothing to post)'
+  return 'done'
 }
 
-// Normalise every agent to one shape: { doing:[{when,text,tone}], watching:
-// [{label,value}], lastActivity }. Coco/Sage/Coach are derived from their
-// client-read rows; the five watch agents come straight from the endpoint feed.
 function feedFor(agent, data) {
   if (WATCH.has(agent.key)) return data.feeds[agent.key] || { doing: [], watching: [], lastActivity: null }
-
   if (agent.source === 'coco') {
     const rows = data.social
     const c = tally(rows)
@@ -89,7 +310,6 @@ function feedFor(agent, data) {
       lastActivity: rows[0]?.createdAt || null
     }
   }
-  // coach
   const rows = data.picks
   return {
     doing: rows.slice(0, 8).map((r) => ({
@@ -101,37 +321,30 @@ function feedFor(agent, data) {
     lastActivity: rows[0]?.settledAt || rows[0]?.createdAt || null
   }
 }
-
-// LED / pill state from paused flag + feed recency.
 function lightFor(paused, feed) {
   if (paused) return 'off'
   const recent = feed.lastActivity ? Date.now() - Date.parse(feed.lastActivity) < RECENT_MS : feed.doing.length > 0
   return recent ? 'live' : 'idle'
 }
-function pillLabel(light) {
-  return light === 'off' ? 'paused' : light
-}
 
-function ToneDot({ tone }) {
-  return <span className={`hq-tone hq-tone-${tone || 'info'}`} aria-hidden="true" />
-}
-
-function HealthDots({ health }) {
-  if (!health.length) return null
+function Robot({ color, light }) {
   return (
-    <span className="hq-health-dots" aria-hidden="true">
-      {health.map((h) => (
-        <span key={h.name} className={`hq-hdot${h.ok ? ' ok' : ''}`} title={`${h.name}: ${h.ok ? 'configured' : 'not configured'}`} />
-      ))}
+    <span className={`deck-bot deck-bot-${light}`} style={{ '--c': color }} aria-hidden="true">
+      <span className="deck-bot-head">
+        <span className="deck-bot-visor" />
+      </span>
+      <span className="deck-bot-body" />
+      <span className="deck-bot-arm l" />
+      <span className="deck-bot-arm r" />
     </span>
   )
 }
-
+function ToneDot({ tone }) {
+  return <span className={`hq-tone hq-tone-${tone || 'info'}`} aria-hidden="true" />
+}
 function StatusBadge({ status }) {
   return <span className={`hq-badge hq-badge-${status}`}>{status}</span>
 }
-
-// Approve / Reject row shown on a still-pending proposal.
 function ProposalActions({ kind, row, onAct, busyId }) {
   if (row.status !== 'pending') return null
   const busy = busyId === row.id
@@ -146,8 +359,6 @@ function ProposalActions({ kind, row, onAct, busyId }) {
     </div>
   )
 }
-
-// DOING / WATCHING / HEALTH — the live-feed readout shared by every agent.
 function LiveReadout({ agent, feed, health }) {
   return (
     <>
@@ -165,7 +376,6 @@ function LiveReadout({ agent, feed, health }) {
           </div>
         </div>
       )}
-
       <div className="hq-readout">
         <div className="hq-readout-label">
           Watching <span className="hq-dim">— live inputs {agent.name} acts on</span>
@@ -183,7 +393,6 @@ function LiveReadout({ agent, feed, health }) {
           <p className="hq-dim">No live inputs right now.</p>
         )}
       </div>
-
       <div className="hq-readout">
         <div className="hq-readout-label">
           Doing <span className="hq-dim">— recent real activity</span>
@@ -201,7 +410,7 @@ function LiveReadout({ agent, feed, health }) {
         ) : (
           <p className="hq-dim">
             {WATCH.has(agent.key)
-              ? 'No activity yet — armed and on watch. It fires server-side and posts to Discord when there’s something to report.'
+              ? 'No activity yet — armed and on watch. Fires server-side and posts to Discord when there’s something to report.'
               : 'No activity yet.'}
           </p>
         )}
@@ -209,8 +418,6 @@ function LiveReadout({ agent, feed, health }) {
     </>
   )
 }
-
-// Proposal / pick lists for the three client-read agents (with approve/reject).
 function ProposalList({ agent, data, onAct, busyId }) {
   if (agent.source === 'coco') {
     const rows = data.social.slice(0, 10)
@@ -285,8 +492,7 @@ function ProposalList({ agent, data, onAct, busyId }) {
   return null
 }
 
-export default function AgentHqPage() {
-  const { user } = useAuth()
+function BotDeck() {
   const [data, setData] = useState(null)
   const [error, setError] = useState(null)
   const [selectedKey, setSelectedKey] = useState('coco')
@@ -299,8 +505,6 @@ export default function AgentHqPage() {
   const [updatedAt, setUpdatedAt] = useState(null)
   const timerRef = useRef(null)
 
-  // Load everything the room needs in parallel. The feed is fail-soft (an empty
-  // feed just means the watch agents show no live signal), same for settings.
   const load = useCallback(async () => {
     const [social, ideas, picks, feed] = await Promise.all([
       dataStore.listSocialPosts(),
@@ -323,8 +527,6 @@ export default function AgentHqPage() {
       setRefreshing(false)
     }
   }
-
-  // Fire a poster agent on demand, then refresh so any new proposal shows.
   async function handleRun(key) {
     setRunningKey(key)
     setNotice(null)
@@ -333,21 +535,15 @@ export default function AgentHqPage() {
       setNotice(`Ran — ${runSummary(res.result)}`)
       await load().catch(() => {})
     } catch (err) {
-      // A slow poster (Sage calls Claude) can outlast the request; the run may
-      // still have completed, so say so rather than implying failure.
       setNotice(`Kicked off — ${err.message}. If it was slow, check back in a moment.`)
     } finally {
       setRunningKey(null)
     }
   }
-
-  // Default-enabled; only an explicit false disables (mirrors agentSettings.js).
   const enabledOf = (key) => {
     const row = settings.find((s) => s.key === key)
     return !row || row.enabled !== false
   }
-
-  // Approve/reject a proposal, then reflect the returned status in place.
   async function handleAct(kind, row, action) {
     setBusyId(row.id)
     setNotice(null)
@@ -362,8 +558,6 @@ export default function AgentHqPage() {
       setBusyId(null)
     }
   }
-
-  // Pause/resume an agent (agent_settings). Optimistically updates the flag.
   async function handleToggle(key, next) {
     setSavingKey(key)
     setNotice(null)
@@ -382,183 +576,139 @@ export default function AgentHqPage() {
   }
 
   useEffect(() => {
-    if (!user.isAdmin) return undefined
     let alive = true
     load().catch((err) => alive && setError(err.message))
     dataStore
       .listAgentSettings()
       .then((s) => alive && setSettings(s))
       .catch(() => {})
-    // Light auto-poll so the room stays live without a manual refresh.
-    timerRef.current = setInterval(() => {
-      load().catch(() => {})
-    }, REFRESH_MS)
+    timerRef.current = setInterval(() => load().catch(() => {}), REFRESH_MS)
     return () => {
       alive = false
       if (timerRef.current) clearInterval(timerRef.current)
     }
-  }, [user.isAdmin, load])
+  }, [load])
 
   const feeds = useMemo(() => {
     if (!data) return {}
     return Object.fromEntries(AGENTS.map((a) => [a.key, feedFor(a, data)]))
   }, [data])
 
-  // HUD roll-up across the whole room.
-  const hud = useMemo(() => {
-    if (!data) return null
-    let live = 0
-    let paused = 0
-    let pending = 0
-    for (const a of AGENTS) {
-      const isPaused = !enabledOf(a.settingsKey)
-      if (isPaused) paused += 1
-      else if (lightFor(false, feeds[a.key]) === 'live') live += 1
-    }
-    pending = (data.social || []).filter((r) => r.status === 'pending').length + (data.ideas || []).filter((r) => r.status === 'pending').length
-    const dexWatch = feeds.dex?.watching?.[0]?.value ?? '—'
-    const miraWatch = feeds.mira?.watching?.[0]?.value ?? '—'
-    return { live, paused, pending, openBets: dexWatch, armedAlerts: miraWatch }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [data, feeds, settings])
-
-  if (!user.isAdmin) return <Navigate to="/odds" replace />
+  if (error) return <div className="error">Couldn't load bots: {error}</div>
+  if (!data) return <div className="loading">Booting the bots…</div>
 
   const selected = AGENTS.find((a) => a.key === selectedKey) || AGENTS[0]
-  const selFeed = data ? feeds[selected.key] : { doing: [], watching: [], lastActivity: null }
-  const selHealth = (data && data.health[selected.key]) || []
+  const selFeed = feeds[selected.key]
+  const selHealth = data.health[selected.key] || []
+  const liveCount = AGENTS.filter((a) => enabledOf(a.settingsKey) && lightFor(false, feeds[a.key]) === 'live').length
+  const pausedCount = AGENTS.filter((a) => !enabledOf(a.settingsKey)).length
 
   return (
-    <div className="hq">
+    <section className="deck-card deck-bots">
+      <div className="deck-card-head">
+        <div>
+          <h2 className="deck-card-title">Bots</h2>
+          <p className="deck-card-sub">
+            <b className="deck-live">{liveCount}</b> live · <b>{pausedCount}</b> paused · running while you’re away.
+          </p>
+        </div>
+        <div className="deck-bots-right">
+          {updatedAt && <span className="deck-dim">updated {formatRelativeTime(new Date(updatedAt).toISOString())}</span>}
+          <button type="button" className="deck-btn" onClick={refresh} disabled={refreshing}>
+            {refreshing ? '…' : '↻'}
+          </button>
+        </div>
+      </div>
+
+      <div className="deck-stage">
+        <div className="deck-stage-grid" aria-hidden="true" />
+        <div className="deck-bays">
+          {AGENTS.map((a) => {
+            const paused = !enabledOf(a.settingsKey)
+            const light = lightFor(paused, feeds[a.key])
+            return (
+              <button
+                key={a.key}
+                type="button"
+                className={`deck-bay${a.key === selectedKey ? ' selected' : ''}${paused ? ' paused' : ''}`}
+                style={{ '--agent': a.color }}
+                onClick={() => setSelectedKey(a.key)}
+              >
+                <span className={`deck-bay-tag deck-bay-tag-${light}`}>
+                  <span className={`deck-led deck-led-${light}`} aria-hidden="true" />
+                  {a.name}
+                </span>
+                <Robot color={a.color} light={light} />
+                <span className="deck-bay-role">{a.role}</span>
+              </button>
+            )
+          })}
+        </div>
+      </div>
+
+      <div className="hq-panel" style={{ '--agent': selected.color }}>
+        <div className="hq-panel-head">
+          <Robot color={selected.color} light={lightFor(!enabledOf(selected.settingsKey), selFeed)} />
+          <div className="hq-panel-title">
+            <div className="hq-panel-name">
+              {selected.name} <span className="hq-dim">· {selected.role}</span>
+            </div>
+            {selected.signal && <div className="hq-panel-signal">{selected.signal}</div>}
+            {selFeed.lastActivity && <div className="hq-panel-last">last activity {formatRelativeTime(selFeed.lastActivity)}</div>}
+          </div>
+          <div className="hq-panel-controls">
+            {RUNNABLE.has(selected.settingsKey) && (
+              <button
+                type="button"
+                className="hq-btn hq-btn-run"
+                disabled={runningKey === selected.settingsKey || !enabledOf(selected.settingsKey)}
+                onClick={() => handleRun(selected.settingsKey)}
+                title={enabledOf(selected.settingsKey) ? 'Run this agent now' : 'Resume the agent first'}
+              >
+                {runningKey === selected.settingsKey ? 'Running…' : '▶ Run now'}
+              </button>
+            )}
+            <button
+              type="button"
+              className={`hq-switch${enabledOf(selected.settingsKey) ? ' on' : ''}`}
+              disabled={savingKey === selected.settingsKey}
+              onClick={() => handleToggle(selected.settingsKey, !enabledOf(selected.settingsKey))}
+              aria-pressed={enabledOf(selected.settingsKey)}
+              title={enabledOf(selected.settingsKey) ? 'Pause this agent' : 'Resume this agent'}
+            >
+              <span className="hq-switch-track" aria-hidden="true">
+                <span className="hq-switch-knob" />
+              </span>
+              {enabledOf(selected.settingsKey) ? 'On' : 'Paused'}
+            </button>
+          </div>
+        </div>
+        {notice && <div className="hq-notice">{notice}</div>}
+        <LiveReadout agent={selected} feed={selFeed} health={selHealth} />
+        <ProposalList agent={selected} data={data} onAct={handleAct} busyId={busyId} />
+      </div>
+    </section>
+  )
+}
+
+// ============================================================ PAGE
+export default function AgentHqPage() {
+  const { user } = useAuth()
+  if (!user.isAdmin) return <Navigate to="/odds" replace />
+  return (
+    <div className="deck">
       <div className="topbar">
         <Link to="/account" className="back">
           &larr; Account
         </Link>
-        <h1>Agent HQ</h1>
+        <h1>BetMates Ops</h1>
       </div>
-
-      {error && <div className="error">Couldn't load agent status: {error}</div>}
-      {!error && !data && <div className="loading">Booting the control room…</div>}
-
-      {data && (
-        <>
-          <div className="hq-hud">
-            <div className="hq-hud-stats">
-              <span className="hq-hud-stat">
-                <b className="hq-hud-live">{hud.live}</b> live
-              </span>
-              <span className="hq-hud-stat">
-                <b>{hud.paused}</b> paused
-              </span>
-              <span className="hq-hud-stat">
-                <b className={hud.pending ? 'hq-hud-hot' : ''}>{hud.pending}</b> awaiting approval
-              </span>
-              <span className="hq-hud-stat">
-                <b>{hud.openBets}</b> open bets
-              </span>
-              <span className="hq-hud-stat">
-                <b>{hud.armedAlerts}</b> armed alerts
-              </span>
-            </div>
-            <div className="hq-hud-right">
-              {updatedAt && <span className="hq-hud-ts">updated {formatRelativeTime(new Date(updatedAt).toISOString())}</span>}
-              <button type="button" className="hq-btn hq-btn-refresh" onClick={refresh} disabled={refreshing}>
-                {refreshing ? '…' : '↻ Refresh'}
-              </button>
-            </div>
-          </div>
-
-          <p className="hq-sub">
-            Your live agent ecosystem. Each tile shows what a robot is <b>doing</b>, what it's <b>watching</b>, and its{' '}
-            <b>health</b> — all from real data. Click one to control it.
-          </p>
-
-          <div className="hq-grid">
-            {AGENTS.map((a) => {
-              const feed = feeds[a.key]
-              const paused = !enabledOf(a.settingsKey)
-              const light = lightFor(paused, feed)
-              const health = data.health[a.key] || []
-              const doing = feed.doing[0]
-              const watch = feed.watching[0]
-              return (
-                <button
-                  key={a.key}
-                  type="button"
-                  className={`hq-tile${a.key === selectedKey ? ' selected' : ''}${paused ? ' paused' : ''}`}
-                  style={{ '--agent': a.color }}
-                  onClick={() => setSelectedKey(a.key)}
-                >
-                  <span className="hq-tile-top">
-                    <span className="hq-sprite" aria-hidden="true">
-                      {a.sprite}
-                    </span>
-                    <span className={`hq-pill hq-pill-${light}`}>
-                      <span className={`hq-led hq-led-${light}`} aria-hidden="true" />
-                      {pillLabel(light)}
-                    </span>
-                  </span>
-                  <span className="hq-tile-name">{a.name}</span>
-                  <span className="hq-tile-role">{a.role}</span>
-                  <span className="hq-tile-line">{doing ? doing.text : watch ? `${watch.label}: ${watch.value}` : 'On watch — no live signal'}</span>
-                  <span className="hq-tile-foot">
-                    {watch && (
-                      <span className="hq-tile-stat">
-                        <b>{watch.value}</b> {watch.label.toLowerCase()}
-                      </span>
-                    )}
-                    <HealthDots health={health} />
-                  </span>
-                </button>
-              )
-            })}
-          </div>
-
-          <div className="hq-panel" style={{ '--agent': selected.color }}>
-            <div className="hq-panel-head">
-              <span className="hq-sprite hq-sprite-lg" aria-hidden="true">
-                {selected.sprite}
-              </span>
-              <div className="hq-panel-title">
-                <div className="hq-panel-name">
-                  {selected.name} <span className="hq-dim">· {selected.role}</span>
-                </div>
-                {selected.signal && <div className="hq-panel-signal">{selected.signal}</div>}
-                {selFeed.lastActivity && <div className="hq-panel-last">last activity {formatRelativeTime(selFeed.lastActivity)}</div>}
-              </div>
-              <div className="hq-panel-controls">
-                {RUNNABLE.has(selected.settingsKey) && (
-                  <button
-                    type="button"
-                    className="hq-btn hq-btn-run"
-                    disabled={runningKey === selected.settingsKey || !enabledOf(selected.settingsKey)}
-                    onClick={() => handleRun(selected.settingsKey)}
-                    title={enabledOf(selected.settingsKey) ? 'Run this agent now' : 'Resume the agent first'}
-                  >
-                    {runningKey === selected.settingsKey ? 'Running…' : '▶ Run now'}
-                  </button>
-                )}
-                <button
-                  type="button"
-                  className={`hq-switch${enabledOf(selected.settingsKey) ? ' on' : ''}`}
-                  disabled={savingKey === selected.settingsKey}
-                  onClick={() => handleToggle(selected.settingsKey, !enabledOf(selected.settingsKey))}
-                  aria-pressed={enabledOf(selected.settingsKey)}
-                  title={enabledOf(selected.settingsKey) ? 'Pause this agent' : 'Resume this agent'}
-                >
-                  <span className="hq-switch-track" aria-hidden="true">
-                    <span className="hq-switch-knob" />
-                  </span>
-                  {enabledOf(selected.settingsKey) ? 'On' : 'Paused'}
-                </button>
-              </div>
-            </div>
-            {notice && <div className="hq-notice">{notice}</div>}
-            <LiveReadout agent={selected} feed={selFeed} health={selHealth} />
-            <ProposalList agent={selected} data={data} onAct={handleAct} busyId={busyId} />
-          </div>
-        </>
-      )}
+      <p className="deck-tagline">Your command deck — post, scan the sports, and check in on the bots.</p>
+      <div className="deck-grid">
+        <PostStudio />
+        <SportsPanel />
+        <BotDeck />
+      </div>
     </div>
   )
 }

@@ -59,7 +59,63 @@ export function buildDailyPost(data = {}) {
 
   // Lead with the single strongest angle, then the hashtag - keeps it tight
   // and well under X's 280-char limit.
-  let post = `${lines[0]} ${HANDLE}`
+  return withHandle(lines[0])
+}
+
+// Append the hashtag and clamp to X's 280-char limit (shared by both drafters).
+function withHandle(line) {
+  let post = `${line} ${HANDLE}`
   if (post.length > 280) post = `${post.slice(0, 280 - (HANDLE.length + 2)).trimEnd()}… ${HANDLE}`
   return post
+}
+
+// The sports and subjects the compose studio offers. Exported so the UI and the
+// endpoint agree on the exact keys (the endpoint composes server-side from the
+// chosen keys - the client never sends free tweet text).
+export const POST_SPORTS = [
+  { key: 'football', label: 'Football', emoji: '⚽' },
+  { key: 'ufc', label: 'UFC', emoji: '🥊' },
+  { key: 'racing', label: 'Racing', emoji: '🏇' }
+]
+export const POST_SUBJECTS = [
+  { key: 'hype', label: 'Match hype' },
+  { key: 'value', label: 'Odds & value' },
+  { key: 'coach', label: 'CoachGPT record' },
+  { key: 'community', label: 'Community' }
+]
+
+/**
+ * Compose a promo post for a chosen sport + subject. Deterministic (same rules
+ * as buildDailyPost - no LLM), so the post the operator previews is exactly what
+ * gets published. Same never-a-tip, hype-and-community framing.
+ *
+ * @param {object} [opts]
+ * @param {string} [opts.sport]  one of POST_SPORTS' keys
+ * @param {string} [opts.subject]  one of POST_SUBJECTS' keys
+ * @param {{ w: number, l: number } | null} [opts.coachRecord]  CoachGPT's W-L
+ * @param {number} [opts.groupCount]  active groups, for the community angle
+ * @returns {string} the drafted post (<= 280 chars)
+ */
+export function composeSubjectPost({ sport = 'football', subject = 'hype', coachRecord, groupCount } = {}) {
+  const s = POST_SPORTS.find((x) => x.key === sport) || POST_SPORTS[0]
+  let line
+  switch (subject) {
+    case 'coach':
+      line = coachRecord && (coachRecord.w || coachRecord.l)
+        ? `🧠 CoachGPT is ${coachRecord.w}-${coachRecord.l} on the ${s.label} calls. Think you can beat the bot?`
+        : `🧠 CoachGPT is calling the ${s.label} - track your own picks against the bot on BetMates.`
+      break
+    case 'value':
+      line = `${s.emoji} Hunting value on the ${s.label}? Compare the best odds and log every slip on BetMates.`
+      break
+    case 'community':
+      line = typeof groupCount === 'number' && groupCount > 0
+        ? `📱 ${groupCount} group${groupCount === 1 ? ' is' : 's are'} settling the ${s.label} score on BetMates. Start yours and get among it.`
+        : `📱 Grab your mates, start a group and settle the ${s.label} score on BetMates.`
+      break
+    case 'hype':
+    default:
+      line = `${s.emoji} Big ${s.label} action coming up - log your slips and see who comes out on top on BetMates.`
+  }
+  return withHandle(line)
 }
