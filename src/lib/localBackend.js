@@ -13,6 +13,7 @@ import { freezesGranted, computeStreakTransition } from '../utils/dailyStreak.js
 import { saveVideoBlob, getVideoBlob } from './videoStore.js'
 import { savePhotoBlob, getPhotoBlob } from './photoStore.js'
 import { shouldSkipErrorLog } from './errorLogThrottle.js'
+import { buildDailyPost, composeSubjectPost } from './socialDraft.js'
 
 // Records stored here use the same camelCase field names dataStore.js's
 // map* functions produce (this file *is* the shape the UI expects, not a
@@ -696,6 +697,18 @@ export function getAgentHqFeed() {
       bea: off('Discord webhook')
     }
   })
+}
+// Compose can draft locally (the templates are pure), but publishing to X needs
+// the real backend + X keys - so preview returns a real draft, post/daily are an
+// honest no-op that says so.
+/**
+ * @param {{ mode?: 'preview'|'post'|'daily', sport?: string, subject?: string }} [opts]
+ * @returns {Promise<{ ok: boolean, body?: string, posted?: boolean, skipped?: boolean, link?: string|null, message?: string, error?: string }>}
+ */
+export function composePost({ mode = 'preview', sport = 'football', subject = 'hype' } = {}) {
+  const body = mode === 'daily' ? buildDailyPost({}) : composeSubjectPost({ sport, subject })
+  if (mode === 'preview') return delay({ ok: true, body })
+  return delay({ ok: true, posted: false, skipped: true, body, message: 'Posting to X needs the live backend.' })
 }
 
 // No local equivalent of coach-settle.js (a scheduled function needs a real

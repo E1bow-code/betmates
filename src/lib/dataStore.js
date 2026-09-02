@@ -974,6 +974,29 @@ export async function getAgentHqFeed() {
   return { feeds: body.feeds || {}, health: body.health || {} }
 }
 
+// Compose + post-to-X for the Command Deck (netlify/functions/social-compose.js).
+// Admin only, verified server-side. mode 'preview' returns the drafted body;
+// 'post' composes from sport+subject and publishes; 'daily' publishes Coco's
+// daily promo. The body is always composed server-side from the chosen keys.
+/**
+ * @param {{ mode?: 'preview'|'post'|'daily', sport?: string, subject?: string }} [opts]
+ * @returns {Promise<{ ok: boolean, body?: string, posted?: boolean, skipped?: boolean, link?: string|null, message?: string, error?: string }>}
+ */
+export async function composePost({ mode = 'preview', sport = 'football', subject = 'hype' } = {}) {
+  if (!isSupabaseConfigured) return local.composePost({ mode, sport, subject })
+  const { data } = await supabase.auth.getSession()
+  const accessToken = data.session?.access_token
+  if (!accessToken) throw new Error('No active session.')
+  const res = await fetch('/api/social-compose', {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({ accessToken, mode, sport, subject })
+  })
+  const body = await res.json().catch(() => ({}))
+  if (!res.ok || body?.error) throw new Error(body?.error || 'Compose failed.')
+  return body
+}
+
 // grounding: real BetSlip legs a "Log this" affordance can pre-fill from -
 // see netlify/functions/coachgpt.js's groundFixtureOutcomes/groundRunner.
 // Only ever set on an assistant message; always null on a user message.
